@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Adapters for the Application ports: EF Core / Npgsql, evidence store (MinIO),
+       Git and GitHub clients, secret scanners. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevBuddy.Application\DevBuddy.Application.csproj" />
+  </ItemGroup>
+
+</Project>

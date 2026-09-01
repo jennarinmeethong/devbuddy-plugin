@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs against real PostgreSQL via Testcontainers; no SQLite (Phase 3). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

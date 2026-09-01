@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain invariants: stale-approval publish rejected, provenance required,
+       workspace/project scoping required (Phase 1). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\core\DevBuddy.Domain\DevBuddy.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

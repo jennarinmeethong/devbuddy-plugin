@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use cases, ports (interfaces), policies, and DTOs. Depends on Domain only.
+       No persistence, transport, or AI-provider types may appear here. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevBuddy.Domain\DevBuddy.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

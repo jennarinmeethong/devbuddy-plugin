@@ -1,0 +1,44 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+artifacts/
+publish/
+*.binlog
+
+# Test output
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.trx
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node / web
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Local configuration and secrets — never commit
+appsettings.Development.json
+appsettings.Local.json
+*.env
+.env.*
+!.env.example
+secrets.json
+
+# Local data and evidence volumes
+.data/
+.minio/
+
+# OS
+Thumbs.db
+.DS_Store

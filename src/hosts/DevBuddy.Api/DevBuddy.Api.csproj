@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Full HTTP surface: auth, administration, lifecycle, audit, health.
+       References Infrastructure for dependency-injection composition only. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\DevBuddy.Application\DevBuddy.Application.csproj" />
+    <ProjectReference Include="..\..\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

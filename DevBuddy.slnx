@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/core/">
+    <Project Path="src/core/DevBuddy.Application/DevBuddy.Application.csproj" />
+    <Project Path="src/core/DevBuddy.Domain/DevBuddy.Domain.csproj" />
+    <Project Path="src/core/DevBuddy.Infrastructure/DevBuddy.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/hosts/">
+    <Project Path="src/hosts/DevBuddy.Api/DevBuddy.Api.csproj" />
+    <Project Path="src/hosts/DevBuddy.Cli/DevBuddy.Cli.csproj" />
+    <Project Path="src/hosts/DevBuddy.McpServer/DevBuddy.McpServer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DevBuddy.Api.Tests/DevBuddy.Api.Tests.csproj" />
+    <Project Path="tests/DevBuddy.Application.Tests/DevBuddy.Application.Tests.csproj" />
+    <Project Path="tests/DevBuddy.Domain.Tests/DevBuddy.Domain.Tests.csproj" />
+    <Project Path="tests/DevBuddy.Infrastructure.Tests/DevBuddy.Infrastructure.Tests.csproj" />
+    <Project Path="tests/DevBuddy.McpServer.Tests/DevBuddy.McpServer.Tests.csproj" />
+    <Project Path="tests/DevBuddy.Security.Tests/DevBuddy.Security.Tests.csproj" />
+  </Folder>
+</Solution>

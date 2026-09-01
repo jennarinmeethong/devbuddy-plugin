@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- MCP server: the AI-facing surface. Exposes only the allow-listed tools.
+       Ships both stdio and authenticated HTTP transports (Phase 7). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\core\DevBuddy.Application\DevBuddy.Application.csproj" />
+    <ProjectReference Include="..\..\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The eight verification scenarios from Phase 11. Each test maps to a row in
+       docs/security/verification-matrix.md and is what flips that row to TESTED. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.Api\DevBuddy.Api.csproj" />
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.McpServer\DevBuddy.McpServer.csproj" />
+    <ProjectReference Include="..\..\src\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

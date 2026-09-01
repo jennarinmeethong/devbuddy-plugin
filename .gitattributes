@@ -1,0 +1,16 @@
+# Normalise every text file to LF in the working tree on all platforms.
+# Without this, a Windows checkout produces CRLF while CI on Linux produces LF,
+# and `dotnet format --verify-no-changes` fails on one of them regardless of
+# which line ending .editorconfig declares.
+* text=auto eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.dll binary
+*.exe binary

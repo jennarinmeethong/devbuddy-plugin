@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Pins the exported MCP tool list to the allow-list, over both transports (Phase 7). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.McpServer\DevBuddy.McpServer.csproj" />
+  </ItemGroup>
+
+</Project>

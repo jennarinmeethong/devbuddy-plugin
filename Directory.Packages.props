@@ -1,0 +1,26 @@
+<Project>
+
+  <!-- Central package management: every PackageReference in the repository is versionless
+       and resolves here. Phase 10 (supply chain) depends on this file being the single
+       place a dependency version can change. -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <!-- Added by the phase that first needs them, so the dependency surface stays honest:
+       Phase 3  EF Core / Npgsql / Testcontainers / AWS SDK (MinIO)
+       Phase 4  ASP.NET Core Identity / JWT bearer
+       Phase 6  Octokit / LibGit2Sharp
+       Phase 7  ModelContextProtocol / System.CommandLine
+       Phase 0+ Serilog / OpenTelemetry -->
+
+</Project>

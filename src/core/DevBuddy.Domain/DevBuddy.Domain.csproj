@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Clean Architecture inner ring: entities, value objects, enums, and invariants.
+       This project must never gain a ProjectReference or a PackageReference.
+       An architecture test in DevBuddy.Application.Tests enforces that (Phase 1). -->
+
+</Project>

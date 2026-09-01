@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use-case tests against fake ports, plus the architecture tests that enforce the
+       Clean Architecture dependency rule and the ban on the abbreviation CR (Phase 1-2). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\core\DevBuddy.Application\DevBuddy.Application.csproj" />
+    <ProjectReference Include="..\..\src\core\DevBuddy.Domain\DevBuddy.Domain.csproj" />
+    <ProjectReference Include="..\..\src\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.Api\DevBuddy.Api.csproj" />
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.McpServer\DevBuddy.McpServer.csproj" />
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.Cli\DevBuddy.Cli.csproj" />
+  </ItemGroup>
+
+</Project>

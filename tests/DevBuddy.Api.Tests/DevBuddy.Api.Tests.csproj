@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Integration tests via WebApplicationFactory (Phase 4-5, 7). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.Api\DevBuddy.Api.csproj" />
+  </ItemGroup>
+
+</Project>
