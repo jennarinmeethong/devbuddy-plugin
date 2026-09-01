@@ -12,7 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phase 0 is complete; Phase 1 (Domain model) is next.
+  criteria. Phases 0 and 1 are complete; Phase 2 (Application layer) is next.
 
 ## Project Structure & Module Organization
 
@@ -35,6 +35,10 @@ they translate a transport into a use-case call and reference `Infrastructure` o
 dependency injection.
 
 `web/`, `plugins/`, and `docker/` appear in Phases 8 to 10 and do not exist yet.
+
+Two domain names differ from the obvious one, deliberately: `SourceRepository` (not `Repository`,
+which collides with the persistence pattern) and `DeploymentEnvironment` (not `Environment`, which
+collides with `System.Environment`).
 
 ## Build, Test, and Development Commands
 
@@ -84,7 +88,11 @@ xUnit throughout. Name tests for observable behaviour, for example
 - `DevBuddy.Security.Tests` — the eight Phase 11 scenarios. Each test maps to a row in
   `docs/security/verification-matrix.md`.
 
-`ScaffoldTests.cs` in each project is a Phase 0 placeholder. Delete it when real tests arrive.
+`ScaffoldTests.cs` is a Phase 0 placeholder. Delete it when real tests arrive; it is already gone
+from `Domain.Tests` and `Application.Tests`.
+
+Guard tests are mutation-checked before being trusted: break the rule on purpose, watch the test
+fail, then revert. A guard that has never failed has not been shown to work.
 
 ## Security expectations for any change
 

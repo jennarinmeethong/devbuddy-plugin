@@ -187,6 +187,17 @@ optional; every entity is workspace/project scoped.
 "publish with an approval for an older revision is rejected"; architecture test proves `Domain`
 has no project or third-party references.
 
+**Status: COMPLETE (2026-09-01).** 45 domain tests and 9 architecture/naming tests pass; solution
+builds with 0 warnings and `dotnet format --verify-no-changes` is clean. Both guard tests were
+mutation-checked: introducing a `CRSummary` type and a package reference on `Domain` made them
+fail, and removing the mutations made them pass again. SB-20, SB-23, SB-24, SB-25 and SB-26 moved
+to `IMPLEMENTED` in the verification matrix; none is `TESTED`, because each still needs a
+persistence or end-to-end half from a later phase.
+
+Two naming choices differ from the sketch above, to avoid collisions that would bite later:
+`Repository` is `SourceRepository` (the persistence pattern shares the word) and `Environment` is
+`DeploymentEnvironment` (`System.Environment` shares the word).
+
 ---
 
 ## Phase 2 — Application layer: use cases and ports

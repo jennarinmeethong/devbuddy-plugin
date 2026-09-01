@@ -10,10 +10,10 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phase 0 of 11 complete — scaffolding and governance only.** The solution builds and the
-placeholder tests pass. There is no domain logic, persistence, authentication, MCP tooling, or web
-UI yet, and **no security control has been implemented or verified**. Do not connect real project
-data.
+**Phases 0 and 1 complete of 11.** The domain model exists and is tested: tenancy, access, work
+identity, the knowledge record lifecycle, evidence, and audit. There is no persistence,
+authentication, MCP tooling, or web UI yet. **No security control has been verified end to end**;
+five are partially implemented at the domain level. Do not connect real project data.
 
 ## Documents
 

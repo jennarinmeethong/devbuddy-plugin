@@ -5,6 +5,10 @@
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>
+    <!-- CA1707 forbids underscores in identifiers. Test names read as sentences here
+         (publish_is_rejected_when_approval_is_for_an_older_revision), which is worth more
+         than the convention. Scoped to test projects only. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

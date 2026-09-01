@@ -4,7 +4,7 @@ This file is the **single source of truth for whether a security control actuall
 moves out of `NOT IMPLEMENTED` only when the named test exists, runs in CI, and passes. Nothing
 else — not a design document, not a code review, not an intention — changes a row.
 
-**Current state: 0 of 33 controls implemented. 0 verified.**
+**Current state: 5 of 33 controls partially implemented. 0 verified.**
 
 Controls are defined in [security-baseline.md](security-baseline.md); threats in
 [threat-model.md](threat-model.md).
@@ -14,7 +14,7 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 | Value | Meaning |
 |---|---|
 | `NOT IMPLEMENTED` | No code exists for this control. |
-| `IMPLEMENTED` | Code exists. **Not proven.** Never report a control as done at this status. |
+| `IMPLEMENTED` | Code exists, or part of the verification passes. **Not proven.** Never report a control as done at this status. The Evidence column says exactly which part passes and which is outstanding. |
 | `TESTED` | An automated test or a recorded drill exercises the control and passes in CI. |
 | `GAP` | Implemented but the verification failed or was skipped. Must be stated in release notes. |
 
@@ -51,13 +51,13 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 | SB-17 | Secret detection and redaction, retention and egress | 6 | Secret corpus at both points | NOT IMPLEMENTED | — |
 | SB-18 | Customer/production/personal data denied by default | 6, 7 | Policy test incl. approved bounded scope | NOT IMPLEMENTED | — |
 | SB-19 | Audit stores no sensitive payload | 5 | Audit content test | NOT IMPLEMENTED | — |
-| SB-20 | Provenance and history support correction | 1, 5 | Provenance invariant and correction flow | NOT IMPLEMENTED | — |
+| SB-20 | Provenance and history support correction | 1, 5 | Provenance invariant and correction flow | IMPLEMENTED | Domain half passes: `RecordRevisionTests`, `KnowledgeRecordApprovalTests`. Correction flow end to end pending Phase 5. |
 | SB-21 | Size, rate, and concurrency limits | 10 | Oversized upload, flood, concurrency tests | NOT IMPLEMENTED | — |
 | SB-22 | Analysis execution time limit | 6 | Pathological input test | NOT IMPLEMENTED | — |
-| SB-23 | Approval bound to exact revision | 1, 5 | Domain invariant + stale-approval e2e | NOT IMPLEMENTED | — |
-| SB-24 | Revisions immutable | 1, 3 | Immutability tests, domain and persistence | NOT IMPLEMENTED | — |
-| SB-25 | Provenance mandatory, snapshots retained | 1, 3 | Invariant + snapshot round-trip | NOT IMPLEMENTED | — |
-| SB-26 | Drafts separated from published everywhere | 5, 7, 8 | Draft-visibility test across API, MCP, UI | NOT IMPLEMENTED | — |
+| SB-23 | Approval bound to exact revision | 1, 5 | Domain invariant + stale-approval e2e | IMPLEMENTED | Domain half passes: `KnowledgeRecordApprovalTests`. End-to-end attempt pending Phase 5. |
+| SB-24 | Revisions immutable | 1, 3 | Immutability tests, domain and persistence | IMPLEMENTED | Domain half passes: `RecordRevisionTests`. Persistence half pending Phase 3. |
+| SB-25 | Provenance mandatory, snapshots retained | 1, 3 | Invariant + snapshot round-trip | IMPLEMENTED | Invariant passes: `RecordRevisionTests`. Snapshot round-trip pending Phase 3. |
+| SB-26 | Drafts separated from published everywhere | 1, 5, 7, 8 | Draft-visibility test across API, MCP, UI | IMPLEMENTED | Domain keeps the published revision live while a new draft exists: `KnowledgeRecordApprovalTests`. API, MCP, and UI pending. |
 | SB-27 | Retention applies to all data copies | 11 | Purge tests per copy + deleted-project sweep | NOT IMPLEMENTED | — |
 | SB-28 | Dependencies pinned and scanned | 0, 10 | CI vulnerability gate | NOT IMPLEMENTED | — |
 | SB-29 | SBOM and verifiable artifact origin | 10 | SBOM attached per release | NOT IMPLEMENTED | — |
@@ -93,3 +93,4 @@ considered exercised.
 | Date | Change |
 |---|---|
 | 2026-09-01 | Created in Phase 0. All 33 rows `NOT IMPLEMENTED`; no scenario exercised. |
+| 2026-09-01 | Phase 1. SB-20, SB-23, SB-24, SB-25, SB-26 moved to `IMPLEMENTED`: the domain half of each is tested and passing. **Nothing is `TESTED`.** Scenario 5 (approval revision mismatch) is exercised at the domain level only. |

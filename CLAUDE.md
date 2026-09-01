@@ -13,12 +13,14 @@ repository.
 
 ## Where the project is
 
-Phase 0 is **complete**: solution scaffolding, repository-wide build settings, the security
-document set, ten ADRs, and CI. Twelve projects build with zero warnings; the only tests are
-`ScaffoldTests.cs` placeholders.
+Phases 0 and 1 are **complete**. Phase 0 delivered the scaffolding, build settings, security
+document set, ten ADRs, and CI. Phase 1 delivered `DevBuddy.Domain`: tenancy, access, work
+identity, the knowledge record aggregate with its lifecycle, evidence, and audit, with 45 domain
+tests and 9 architecture tests passing.
 
-**Phase 1 (Domain model) is next.** No domain logic, persistence, authentication, MCP tooling, or
-UI exists yet. Do not describe any of it as working.
+**Phase 2 (Application layer: use cases and ports) is next.** There is no persistence,
+authentication, MCP tooling, or UI. `DevBuddy.Application` is still an empty project. Do not
+describe any of that as working.
 
 ## Commands
 
