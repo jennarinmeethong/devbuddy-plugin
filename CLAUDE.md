@@ -13,14 +13,13 @@ repository.
 
 ## Where the project is
 
-Phases 0 and 1 are **complete**. Phase 0 delivered the scaffolding, build settings, security
-document set, ten ADRs, and CI. Phase 1 delivered `DevBuddy.Domain`: tenancy, access, work
-identity, the knowledge record aggregate with its lifecycle, evidence, and audit, with 45 domain
-tests and 9 architecture tests passing.
+Phases 0, 1, and 2 are **complete**. Phase 0 delivered the scaffolding, build settings, security
+document set, ten ADRs, and CI. Phase 1 delivered `DevBuddy.Domain`. Phase 2 delivered
+`DevBuddy.Application`: 15 ports, the `UseCaseExecutor` pipeline, and 40 use cases. 111 tests pass.
 
-**Phase 2 (Application layer: use cases and ports) is next.** There is no persistence,
-authentication, MCP tooling, or UI. `DevBuddy.Application` is still an empty project. Do not
-describe any of that as working.
+**Phase 3 (persistence, search, and evidence) is next.** Every port is still an interface with no
+implementation: there is no database, no MinIO, no GitHub client, no secret scanner, no
+authentication, no MCP server, and no UI. Do not describe any of that as working.
 
 ## Commands
 

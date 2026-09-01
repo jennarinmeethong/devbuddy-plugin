@@ -235,6 +235,32 @@ to the same permission check as any reviewer, and records `ApproverWasDraftCreat
 asserts that *no* use case can execute without an authorization decision (enforced by pipeline
 test, not by inspection).
 
+**Status: COMPLETE (2026-09-01).** 40 use cases, 62 application tests, all passing. The
+enforcement is structural, not conventional: `HandleAsync` on `UseCase<TRequest, TResponse>` is
+`protected internal`, so the API, MCP, and console hosts physically cannot call a use case without
+going through `UseCaseExecutor`. `AuthorizationEnforcementTests` then drives all 40 through the
+pipeline with a denying authorization service and asserts both a Denied result and **zero port
+interactions**, so a use case that read the database before denying would fail. A registry-coverage
+test makes adding a use case without adding it to that suite a build failure; it was
+mutation-checked by removing one entry and watching it fail.
+
+Five decisions worth knowing, all visible in the code:
+
+- **Four ports the plan sketch did not name** were needed: `IProjectDirectory`, `IAccessDirectory`,
+  `IAuditReader`, and `IAdministrativeOperations`. Listing projects, managing membership, reading
+  audit, and running backups all had to read from somewhere, and folding them into
+  `IKnowledgeRepository` would have blurred four responsibilities into one.
+- **`AuditEvent` was amended** to take a nullable workspace and project rather than a
+  `ProjectScope`. Real auditable actions happen above a project: listing projects, granting
+  membership, taking a backup.
+- **`Permission` is `PermissionKind`**, because `Permission` is a reserved type-name suffix. The
+  descriptor property is still called `Permission`.
+- **Use cases are grouped by family**, one file per family rather than one per class. Forty files
+  of forty lines each would have been worse to navigate than eight coherent modules.
+- **Eighteen operations are AI-exposed**, pinned by name in a test: exactly search, get, the eight
+  analyse tools, find/compare, create a draft, and generate a handover. The other twenty-two are
+  Denied and refused before authorization even runs.
+
 ---
 
 ## Phase 3 — Persistence, search, and evidence

@@ -15,7 +15,7 @@ public enum AuditAction
     RecordPublished = 7,
     RecordArchived = 8,
     EvidenceDownloaded = 9,
-    SourcesSynchronised = 10,
+    SourcesSynchronized = 10,
     AiAccessEnabled = 11,
     AiAccessDisabled = 12,
     MembershipGranted = 13,
@@ -24,4 +24,16 @@ public enum AuditAction
     BackupCreated = 16,
     BackupRestored = 17,
     AccessDenied = 18,
+
+    // Added in Phase 2, when the use cases that perform these actions were written. Audit
+    // actions are added with their use case rather than guessed in advance, so the enum stays
+    // a description of what the system actually does.
+    AnalysisRun = 19,
+    HandoverGenerated = 20,
+    ApprovalRequested = 21,
+    QualitySweepRun = 22,
+    IndexRebuilt = 23,
+    ContentScanned = 24,
+    HealthChecked = 25,
+    AuditRead = 26,
 }

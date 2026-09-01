@@ -10,10 +10,12 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 and 1 complete of 11.** The domain model exists and is tested: tenancy, access, work
-identity, the knowledge record lifecycle, evidence, and audit. There is no persistence,
-authentication, MCP tooling, or web UI yet. **No security control has been verified end to end**;
-five are partially implemented at the domain level. Do not connect real project data.
+**Phases 0 to 2 complete of 11.** The domain model and the application layer exist and are
+tested: tenancy, access, work identity, the knowledge record lifecycle, and 40 use cases behind a
+single pipeline that enforces validation, identity, authorization, redaction, and audit. Every
+port is still an interface: there is no database, object store, authentication, MCP server, or web
+UI. **No security control has been verified end to end**; ten are partially implemented. Do not
+connect real project data.
 
 ## Documents
 

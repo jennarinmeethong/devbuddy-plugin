@@ -4,7 +4,7 @@ This file is the **single source of truth for whether a security control actuall
 moves out of `NOT IMPLEMENTED` only when the named test exists, runs in CI, and passes. Nothing
 else — not a design document, not a code review, not an intention — changes a row.
 
-**Current state: 5 of 33 controls partially implemented. 0 verified.**
+**Current state: 10 of 33 controls partially implemented. 0 verified.**
 
 Controls are defined in [security-baseline.md](security-baseline.md); threats in
 [threat-model.md](threat-model.md).
@@ -38,19 +38,19 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 | SB-04 | No repository execution | 6 | Hostile-hooks repository, process-spawn assertion | NOT IMPLEMENTED | — |
 | SB-05 | Path traversal and symlink escape rejected | 6 | Path-traversal corpus | NOT IMPLEMENTED | — |
 | SB-06 | SSRF prevention incl. redirects and DNS | 6 | SSRF corpus | NOT IMPLEMENTED | — |
-| SB-07 | MCP tool allow-list, both transports | 7 | Tool-surface equality test per transport | NOT IMPLEMENTED | — |
+| SB-07 | MCP tool allow-list, both transports | 2, 7 | Tool-surface equality test per transport | IMPLEMENTED | The allow-list exists as `UseCaseCatalog.AiExposed` and is pinned by `UseCaseCatalogTests`. The MCP server and its two transports do not exist yet. |
 | SB-08 | AI access denied by default per project | 7 | AI-disabled project returns nothing via MCP | NOT IMPLEMENTED | — |
 | SB-09 | Results narrowed to requesting user | 7 | Two-user differential MCP query | NOT IMPLEMENTED | — |
-| SB-10 | Human-gated operations absent from AI surface | 7 | Absence test | NOT IMPLEMENTED | — |
-| SB-11 | Server-side authorization every request | 4 | Cross-user/team/project access tests | NOT IMPLEMENTED | — |
+| SB-10 | Human-gated operations absent from AI surface | 2, 7 | Absence test | IMPLEMENTED | `UseCaseCatalogTests` asserts each human-gated operation is Denied, and `AuthorizationEnforcementTests` proves the AI channel is refused before authorization. Absence from an actual tool list is Phase 7. |
+| SB-11 | Server-side authorization every request | 2, 4 | Cross-user/team/project access tests | IMPLEMENTED | The enforcement point is tested: `AuthorizationEnforcementTests` drives all 40 use cases and proves none executes without an allow decision. The membership check itself, and the cross-tenant tests, are Phase 4. |
 | SB-12 | Isolation covers search, exports, attachments, caches | 4 | Isolation suite over each path | NOT IMPLEMENTED | — |
 | SB-13 | Password storage, lockout, rate limiting | 4 | Lockout and rate-limit tests | NOT IMPLEMENTED | — |
 | SB-14 | Token lifetime, rotation, revocation | 4 | Revoked-token and rotation-replay tests | NOT IMPLEMENTED | — |
 | SB-15 | Safe account recovery | 4 | Reuse, expiry, and enumeration tests | NOT IMPLEMENTED | — |
 | SB-16 | Role enforcement server-side | 4, 8 | Role matrix test per endpoint | NOT IMPLEMENTED | — |
-| SB-17 | Secret detection and redaction, retention and egress | 6 | Secret corpus at both points | NOT IMPLEMENTED | — |
+| SB-17 | Secret detection and redaction, retention and egress | 2, 6 | Secret corpus at both points | IMPLEMENTED | The egress stage exists and is tested (`PipelineTests`), including that identifiers survive it. The scanner rules and the retention-point scan are Phase 6. |
 | SB-18 | Customer/production/personal data denied by default | 6, 7 | Policy test incl. approved bounded scope | NOT IMPLEMENTED | — |
-| SB-19 | Audit stores no sensitive payload | 5 | Audit content test | NOT IMPLEMENTED | — |
+| SB-19 | Audit stores no sensitive payload | 2, 5 | Audit content test | IMPLEMENTED | `PipelineTests` asserts the audit entry names the operation and resource and carries no content. Against fakes; the real audit store is Phase 3. |
 | SB-20 | Provenance and history support correction | 1, 5 | Provenance invariant and correction flow | IMPLEMENTED | Domain half passes: `RecordRevisionTests`, `KnowledgeRecordApprovalTests`. Correction flow end to end pending Phase 5. |
 | SB-21 | Size, rate, and concurrency limits | 10 | Oversized upload, flood, concurrency tests | NOT IMPLEMENTED | — |
 | SB-22 | Analysis execution time limit | 6 | Pathological input test | NOT IMPLEMENTED | — |
@@ -94,3 +94,4 @@ considered exercised.
 |---|---|
 | 2026-09-01 | Created in Phase 0. All 33 rows `NOT IMPLEMENTED`; no scenario exercised. |
 | 2026-09-01 | Phase 1. SB-20, SB-23, SB-24, SB-25, SB-26 moved to `IMPLEMENTED`: the domain half of each is tested and passing. **Nothing is `TESTED`.** Scenario 5 (approval revision mismatch) is exercised at the domain level only. |
+| 2026-09-01 | Phase 2. SB-07, SB-10, SB-11, SB-17, SB-19 moved to `IMPLEMENTED`: the application-layer half of each is tested against fake ports. **Nothing is `TESTED`.** No control has been exercised against a real database, a real MCP transport, or a real secret scanner. |

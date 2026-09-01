@@ -12,7 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 and 1 are complete; Phase 2 (Application layer) is next.
+  criteria. Phases 0, 1, and 2 are complete; Phase 3 (persistence, search, evidence) is next.
 
 ## Project Structure & Module Organization
 
@@ -33,6 +33,20 @@ docs/security/                    threat model, control baseline, verification m
 `DevBuddy.Domain` must never gain a `ProjectReference` or a `PackageReference`. Hosts are thin:
 they translate a transport into a use-case call and reference `Infrastructure` only to compose
 dependency injection.
+
+### How a use case works
+
+Every operation derives from `UseCase<TRequest, TResponse>` and declares a `UseCaseDescriptor`
+from `UseCaseCatalog`: its name, the permission it needs, whether AI may reach it, what it audits,
+and whether its output is redacted. `HandleAsync` is `protected internal`, so a host cannot call a
+use case directly. The only path is `UseCaseExecutor`, which runs validate, resolve identity,
+check the AI channel, authorise, execute, redact, audit — in that order, for everything.
+
+To add a use case: write it, add its descriptor to `UseCaseCatalog.All`, and register it in
+`UseCaseRegistry` in the tests. Skipping either step fails a test rather than passing quietly.
+
+Use cases are grouped one file per family (`UseCases/Lifecycle/LifecycleUseCases.cs` and so on)
+rather than one file per class, and their request and response records live beside them.
 
 `web/`, `plugins/`, and `docker/` appear in Phases 8 to 10 and do not exist yet.
 
