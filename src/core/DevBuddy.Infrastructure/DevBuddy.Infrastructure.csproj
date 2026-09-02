@@ -7,4 +7,27 @@
     <ProjectReference Include="..\DevBuddy.Application\DevBuddy.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The rows, repositories, and blob stores are internal: the ports are the public surface.
+         The integration tests need to reach them to prove the schema round-trips. -->
+    <InternalsVisibleTo Include="DevBuddy.Infrastructure.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Design-time only: `dotnet ef migrations` needs it, the shipped application does not. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
 </Project>

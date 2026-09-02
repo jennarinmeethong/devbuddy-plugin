@@ -4,7 +4,7 @@ This file is the **single source of truth for whether a security control actuall
 moves out of `NOT IMPLEMENTED` only when the named test exists, runs in CI, and passes. Nothing
 else — not a design document, not a code review, not an intention — changes a row.
 
-**Current state: 10 of 33 controls partially implemented. 0 verified.**
+**Current state: 33 controls. 2 `TESTED`, 11 `IMPLEMENTED` but unproven, 20 `NOT IMPLEMENTED`.**
 
 Controls are defined in [security-baseline.md](security-baseline.md); threats in
 [threat-model.md](threat-model.md).
@@ -36,14 +36,14 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 | SB-02 | Permissions enforced in code, not prompts | 6, 7 | Tool-surface test without instruction files | NOT IMPLEMENTED | — |
 | SB-03 | Network destination allow-list | 6 | Egress test | NOT IMPLEMENTED | — |
 | SB-04 | No repository execution | 6 | Hostile-hooks repository, process-spawn assertion | NOT IMPLEMENTED | — |
-| SB-05 | Path traversal and symlink escape rejected | 6 | Path-traversal corpus | NOT IMPLEMENTED | — |
+| SB-05 | Path traversal and symlink escape rejected | 3, 6 | Path-traversal corpus | IMPLEMENTED | The evidence filesystem store refuses an escaping key (`the_filesystem_fallback_round_trips_and_refuses_a_path_that_escapes`). The analyser corpus is Phase 6. |
 | SB-06 | SSRF prevention incl. redirects and DNS | 6 | SSRF corpus | NOT IMPLEMENTED | — |
 | SB-07 | MCP tool allow-list, both transports | 2, 7 | Tool-surface equality test per transport | IMPLEMENTED | The allow-list exists as `UseCaseCatalog.AiExposed` and is pinned by `UseCaseCatalogTests`. The MCP server and its two transports do not exist yet. |
 | SB-08 | AI access denied by default per project | 7 | AI-disabled project returns nothing via MCP | NOT IMPLEMENTED | — |
 | SB-09 | Results narrowed to requesting user | 7 | Two-user differential MCP query | NOT IMPLEMENTED | — |
 | SB-10 | Human-gated operations absent from AI surface | 2, 7 | Absence test | IMPLEMENTED | `UseCaseCatalogTests` asserts each human-gated operation is Denied, and `AuthorizationEnforcementTests` proves the AI channel is refused before authorization. Absence from an actual tool list is Phase 7. |
 | SB-11 | Server-side authorization every request | 2, 4 | Cross-user/team/project access tests | IMPLEMENTED | The enforcement point is tested: `AuthorizationEnforcementTests` drives all 40 use cases and proves none executes without an allow decision. The membership check itself, and the cross-tenant tests, are Phase 4. |
-| SB-12 | Isolation covers search, exports, attachments, caches | 4 | Isolation suite over each path | NOT IMPLEMENTED | — |
+| SB-12 | Isolation covers search, exports, attachments, caches | 3, 4 | Isolation suite over each path | IMPLEMENTED | Records, search, and evidence are covered against real PostgreSQL (`PersistenceTests`, `SearchTests`, `EvidenceStoreTests`), including identical text in two projects. Exports and caches do not exist yet. |
 | SB-13 | Password storage, lockout, rate limiting | 4 | Lockout and rate-limit tests | NOT IMPLEMENTED | — |
 | SB-14 | Token lifetime, rotation, revocation | 4 | Revoked-token and rotation-replay tests | NOT IMPLEMENTED | — |
 | SB-15 | Safe account recovery | 4 | Reuse, expiry, and enumeration tests | NOT IMPLEMENTED | — |
@@ -52,11 +52,11 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 | SB-18 | Customer/production/personal data denied by default | 6, 7 | Policy test incl. approved bounded scope | NOT IMPLEMENTED | — |
 | SB-19 | Audit stores no sensitive payload | 2, 5 | Audit content test | IMPLEMENTED | `PipelineTests` asserts the audit entry names the operation and resource and carries no content. Against fakes; the real audit store is Phase 3. |
 | SB-20 | Provenance and history support correction | 1, 5 | Provenance invariant and correction flow | IMPLEMENTED | Domain half passes: `RecordRevisionTests`, `KnowledgeRecordApprovalTests`. Correction flow end to end pending Phase 5. |
-| SB-21 | Size, rate, and concurrency limits | 10 | Oversized upload, flood, concurrency tests | NOT IMPLEMENTED | — |
+| SB-21 | Size, rate, and concurrency limits | 3, 10 | Oversized upload, flood, concurrency tests | IMPLEMENTED | The evidence size limit is enforced and tested (`an_oversized_object_is_refused_and_nothing_is_written`). Request rate and concurrency limits are Phase 10. |
 | SB-22 | Analysis execution time limit | 6 | Pathological input test | NOT IMPLEMENTED | — |
 | SB-23 | Approval bound to exact revision | 1, 5 | Domain invariant + stale-approval e2e | IMPLEMENTED | Domain half passes: `KnowledgeRecordApprovalTests`. End-to-end attempt pending Phase 5. |
-| SB-24 | Revisions immutable | 1, 3 | Immutability tests, domain and persistence | IMPLEMENTED | Domain half passes: `RecordRevisionTests`. Persistence half pending Phase 3. |
-| SB-25 | Provenance mandatory, snapshots retained | 1, 3 | Invariant + snapshot round-trip | IMPLEMENTED | Invariant passes: `RecordRevisionTests`. Snapshot round-trip pending Phase 3. |
+| SB-24 | Revisions immutable | 1, 3 | Immutability tests, domain and persistence | **TESTED** | Both halves pass against real PostgreSQL: `RecordRevisionTests` and `PersistenceTests.rewriting_a_stored_revision_is_refused`. |
+| SB-25 | Provenance mandatory, snapshots retained | 1, 3 | Invariant + snapshot round-trip | **TESTED** | Invariant and jsonb round-trip both pass: `RecordRevisionTests`, `PersistenceTests.a_published_record_round_trips_with_its_whole_history`. |
 | SB-26 | Drafts separated from published everywhere | 1, 5, 7, 8 | Draft-visibility test across API, MCP, UI | IMPLEMENTED | Domain keeps the published revision live while a new draft exists: `KnowledgeRecordApprovalTests`. API, MCP, and UI pending. |
 | SB-27 | Retention applies to all data copies | 11 | Purge tests per copy + deleted-project sweep | NOT IMPLEMENTED | — |
 | SB-28 | Dependencies pinned and scanned | 0, 10 | CI vulnerability gate | NOT IMPLEMENTED | — |
@@ -84,7 +84,7 @@ considered exercised.
 | 7 | Recovery | SB-33 |
 | 8 | Retention and deletion across copies | SB-27, SB-32 |
 
-**None of the eight has been exercised.**
+**None of the eight has been exercised end to end.** Scenario 1 is partly covered at the storage layer: cross-project reads, searches, and evidence listings are tested against real PostgreSQL. It is not complete until authentication exists and the same checks run cross-user and cross-team through the API and MCP.
 
 ---
 
@@ -95,3 +95,4 @@ considered exercised.
 | 2026-09-01 | Created in Phase 0. All 33 rows `NOT IMPLEMENTED`; no scenario exercised. |
 | 2026-09-01 | Phase 1. SB-20, SB-23, SB-24, SB-25, SB-26 moved to `IMPLEMENTED`: the domain half of each is tested and passing. **Nothing is `TESTED`.** Scenario 5 (approval revision mismatch) is exercised at the domain level only. |
 | 2026-09-01 | Phase 2. SB-07, SB-10, SB-11, SB-17, SB-19 moved to `IMPLEMENTED`: the application-layer half of each is tested against fake ports. **Nothing is `TESTED`.** No control has been exercised against a real database, a real MCP transport, or a real secret scanner. |
+| 2026-09-01 | Phase 3. **First two rows reach `TESTED`:** SB-24 and SB-25 pass end to end against real PostgreSQL, including the storage-layer refusal to rewrite a stored revision. SB-05, SB-12 and SB-21 move to `IMPLEMENTED` for the parts persistence covers. Still untested: everything needing authentication, an MCP transport, or a secret scanner. |

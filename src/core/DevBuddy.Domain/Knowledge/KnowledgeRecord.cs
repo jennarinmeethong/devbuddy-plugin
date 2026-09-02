@@ -114,6 +114,90 @@ public sealed class KnowledgeRecord
     }
 
     /// <summary>
+    /// Rebuilds a record from storage. This is the persistence seam, and the only way to produce
+    /// a record that is already approved, published, or archived without replaying its history.
+    /// <para>
+    /// It is not a back door. Every structural invariant is re-checked on the way in: revisions
+    /// must be contiguous from 1, a published revision must exist, an archived record must have
+    /// an archive time, and every approval must point at a revision that is actually here. A
+    /// database that has drifted fails loudly at load rather than quietly at publish.
+    /// </para>
+    /// <para>
+    /// There is no createdAt parameter: a record was created when its first revision was written,
+    /// so taking both would create two values that could disagree.
+    /// </para>
+    /// </summary>
+    public static KnowledgeRecord Rehydrate(
+        KnowledgeRecordId id,
+        ProjectScope scope,
+        WorkItemId workItemId,
+        RecordKind kind,
+        RecordStatus status,
+        UserId createdBy,
+        DateTimeOffset lastUpdatedAt,
+        DateTimeOffset? archivedAt,
+        int? publishedRevisionNumber,
+        IEnumerable<RecordRevision> revisions,
+        IEnumerable<Approval> approvals,
+        IEnumerable<CorrectionRequest> corrections)
+    {
+        List<RecordRevision> ordered = [.. Guard.NotNull(revisions, nameof(revisions)).OrderBy(r => r.Number)];
+
+        if (ordered.Count == 0)
+        {
+            throw new DomainValidationException("A stored record must have at least one revision.");
+        }
+
+        for (int index = 0; index < ordered.Count; index++)
+        {
+            if (ordered[index].Number != index + 1)
+            {
+                throw new DomainValidationException(
+                    $"Stored revisions must be numbered contiguously from 1; found {ordered[index].Number} at position {index + 1}.");
+            }
+        }
+
+        if (publishedRevisionNumber is { } published
+            && !ordered.Any(revision => revision.Number == published))
+        {
+            throw new DomainValidationException(
+                $"The stored record claims revision {published} is published, but no such revision exists.");
+        }
+
+        if ((status == RecordStatus.Archived) != (archivedAt is not null))
+        {
+            throw new DomainValidationException(
+                "An archived record must have an archive time, and only an archived record may have one.");
+        }
+
+        var record = new KnowledgeRecord(id, scope, workItemId, kind, ordered[0], createdBy);
+
+        for (int index = 1; index < ordered.Count; index++)
+        {
+            record._revisions.Add(ordered[index]);
+        }
+
+        foreach (Approval approval in Guard.NotNull(approvals, nameof(approvals)))
+        {
+            if (!ordered.Any(revision => revision.Number == approval.ApprovedRevisionNumber))
+            {
+                throw new DomainValidationException(
+                    $"A stored approval references revision {approval.ApprovedRevisionNumber}, which does not exist.");
+            }
+
+            record._approvals.Add(approval);
+        }
+
+        record._correctionRequests.AddRange(Guard.NotNull(corrections, nameof(corrections)));
+
+        record.Status = Guard.Defined(status, nameof(status));
+        record.LastUpdatedAt = Guard.Utc(lastUpdatedAt, nameof(lastUpdatedAt));
+        record.ArchivedAt = archivedAt;
+        record.PublishedRevisionNumber = publishedRevisionNumber;
+        return record;
+    }
+
+    /// <summary>
     /// Appends a revision and returns the record to Draft. An earlier approval stays in the
     /// history but no longer covers the current content, so publication is blocked until a human
     /// reviews the new text.

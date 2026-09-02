@@ -13,13 +13,15 @@ repository.
 
 ## Where the project is
 
-Phases 0, 1, and 2 are **complete**. Phase 0 delivered the scaffolding, build settings, security
-document set, ten ADRs, and CI. Phase 1 delivered `DevBuddy.Domain`. Phase 2 delivered
-`DevBuddy.Application`: 15 ports, the `UseCaseExecutor` pipeline, and 40 use cases. 111 tests pass.
+Phases 0 to 3 are **complete**. Phase 0 delivered the scaffolding, build settings, security
+document set, and CI. Phase 1 delivered `DevBuddy.Domain`. Phase 2 delivered `DevBuddy.Application`:
+15 ports, the `UseCaseExecutor` pipeline, and 40 use cases. Phase 3 delivered
+`DevBuddy.Infrastructure`: PostgreSQL persistence, full-text search, and MinIO evidence storage,
+with 25 integration tests against real containers. 140 tests pass.
 
-**Phase 3 (persistence, search, and evidence) is next.** Every port is still an interface with no
-implementation: there is no database, no MinIO, no GitHub client, no secret scanner, no
-authentication, no MCP server, and no UI. Do not describe any of that as working.
+**Phase 4 (identity, access, and tenant isolation) is next.** There is still no authentication,
+no GitHub client, no secret scanner, no MCP server, and no UI, and `IAuthorizationService` has no
+implementation. Do not describe any of that as working.
 
 ## Commands
 

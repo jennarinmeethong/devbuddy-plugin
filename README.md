@@ -10,11 +10,11 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 2 complete of 11.** The domain model and the application layer exist and are
-tested: tenancy, access, work identity, the knowledge record lifecycle, and 40 use cases behind a
-single pipeline that enforces validation, identity, authorization, redaction, and audit. Every
-port is still an interface: there is no database, object store, authentication, MCP server, or web
-UI. **No security control has been verified end to end**; ten are partially implemented. Do not
+**Phases 0 to 3 complete of 11.** The domain model, the application layer, and persistence exist
+and are tested: tenancy, access, work identity, the knowledge record lifecycle, 40 use cases behind
+one pipeline, and PostgreSQL with full-text search and MinIO evidence storage. There is no
+authentication, MCP server, or web UI yet, and `IAuthorizationService` has no implementation.
+**Two of 33 security controls are verified; eleven more are implemented but unproven.** Do not
 connect real project data.
 
 ## Documents

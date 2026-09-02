@@ -1,0 +1,8 @@
+# EF Core writes these files. They are generated code, and saying so is more accurate than
+# suppressing each rule they happen to trip: hand-editing a migration to satisfy a style
+# analyzer would put the file out of step with the model snapshot it belongs to.
+[*.cs]
+generated_code = true
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.IDE0161.severity = none
+dotnet_analyzer_diagnostic.severity = none

@@ -12,7 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0, 1, and 2 are complete; Phase 3 (persistence, search, evidence) is next.
+  criteria. Phases 0 to 3 are complete; Phase 4 (identity, access, tenant isolation) is next.
 
 ## Project Structure & Module Organization
 
@@ -64,10 +64,21 @@ dotnet test DevBuddy.slnx -c Release
 dotnet format DevBuddy.slnx --verify-no-changes --severity warn
 ```
 
-CI runs all three on `ubuntu-latest` and `windows-latest` (`.github/workflows/ci.yml`).
+**`DevBuddy.Infrastructure.Tests` needs Docker.** It starts real PostgreSQL and MinIO containers
+through Testcontainers. Without a running Docker engine those 25 tests fail rather than skip,
+which is deliberate: a silently skipped integration test is worse than no test.
 
-There is no database, container, or web toolchain yet. Do not add commands here until their
-configuration is committed and they actually run.
+Schema changes go through EF Core migrations:
+
+```powershell
+dotnet dotnet-ef migrations add <Name> --project src/core/DevBuddy.Infrastructure --startup-project src/core/DevBuddy.Infrastructure --output-dir Persistence/Migrations
+```
+
+Migrations are generated code. Do not hand-edit them to satisfy a style analyzer; the folder
+declares `generated_code = true` for exactly that reason.
+
+There is no web toolchain yet. Do not add `npm` commands until Phase 8 commits their
+configuration.
 
 ## Coding Style & Naming Conventions
 
@@ -95,8 +106,9 @@ xUnit throughout. Name tests for observable behaviour, for example
 
 - `DevBuddy.Domain.Tests` — invariants, no infrastructure.
 - `DevBuddy.Application.Tests` — use cases against fake ports, plus the architecture tests.
-- `DevBuddy.Infrastructure.Tests` — **real PostgreSQL via Testcontainers.** No SQLite substitute:
-  `info.md` excludes it, and it would not exercise the isolation and search behaviour that matters.
+- `DevBuddy.Infrastructure.Tests` — **real PostgreSQL and MinIO via Testcontainers.** No SQLite
+  substitute: `info.md` excludes it, and the generated tsvector column, the GIN index, and the
+  global query filters do not exist on any substitute provider.
 - `DevBuddy.Api.Tests` — integration via `WebApplicationFactory`.
 - `DevBuddy.McpServer.Tests` — pins the exported tool list to the allow-list, per transport.
 - `DevBuddy.Security.Tests` — the eight Phase 11 scenarios. Each test maps to a row in

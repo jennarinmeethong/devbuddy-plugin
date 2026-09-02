@@ -288,6 +288,27 @@ Five decisions worth knowing, all visible in the code:
 migration applies to an empty database and round-trips every aggregate; a search test proves
 that a record in project B never appears in a project-A query.
 
+**Status: COMPLETE (2026-09-01).** 25 integration tests pass against a real PostgreSQL 17 and a
+real MinIO, both started by Testcontainers. All three exit criteria are met: the migration applies
+to an empty database and creates all 16 tables; every aggregate round-trips including jsonb front
+matter, provenance, approvals, and correction reasons; and
+`a_record_in_another_project_never_appears_in_a_search` puts identical text in two projects and
+proves each query sees only its own.
+
+Four things worth knowing:
+
+- **Persistence maps explicit row types rather than the aggregates** (ADR-0011). The alternative
+  needed a private parameterless constructor on thirteen domain types, each weakening the
+  invariant that type exists to hold. The one seam is `KnowledgeRecord.Rehydrate`, which re-checks
+  every structural invariant on load; a test corrupts a row to claim a published revision that
+  does not exist, and the load throws.
+- **The global query filters fail closed.** With no workspace in context they match nothing rather
+  than everything, so a query somebody adds later and forgets to scope returns empty. Tested.
+- **Immutability is enforced at the storage layer too.** `UpdateRecordAsync` refuses a revision
+  number that already exists with different content, so a bug in a use case cannot rewrite
+  history. That is the persistence half of SB-24.
+- **MinIO is what gets tested**, not only the filesystem fallback, because MinIO is what ships.
+
 ---
 
 ## Phase 4 — Identity, access, and tenant isolation

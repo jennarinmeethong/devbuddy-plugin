@@ -16,11 +16,37 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 
+  <ItemGroup Label="Persistence (Phase 3)">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Label="Evidence storage (Phase 3)">
+    <!-- S3-compatible client. MinIO is the default evidence store (ADR-0004); the same
+         client works against any S3-compatible service without a code change. -->
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.4" />
+  </ItemGroup>
+
+  <ItemGroup Label="Hosting glue">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup Label="Integration testing (Phase 3)">
+    <!-- Real PostgreSQL, per info.md. No SQLite substitute: it would not exercise the
+         isolation and full-text behaviour that matters most. -->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <!-- MinIO is the default evidence store, so the default path is what gets tested. Covering
+         only the filesystem fallback would prove the adapter we do not ship. -->
+    <PackageVersion Include="Testcontainers.Minio" Version="4.14.0" />
+  </ItemGroup>
+
   <!-- Added by the phase that first needs them, so the dependency surface stays honest:
-       Phase 3  EF Core / Npgsql / Testcontainers / AWS SDK (MinIO)
        Phase 4  ASP.NET Core Identity / JWT bearer
        Phase 6  Octokit / LibGit2Sharp
        Phase 7  ModelContextProtocol / System.CommandLine
-       Phase 0+ Serilog / OpenTelemetry -->
+       Later    Serilog / OpenTelemetry -->
 
 </Project>

@@ -43,3 +43,4 @@ Each with the reason it was not chosen.
 | [0008](0008-packaging-and-release-matrix.md) | Self-contained publish tiers and Docker packaging | Accepted |
 | [0009](0009-retention-defaults.md) | Retention defaults across every data copy | Accepted |
 | [0010](0010-work-item-source-of-truth.md) | DevBuddy owns the work item, GitHub is read-only | Accepted |
+| [0011](0011-explicit-persistence-rows.md) | Persistence maps explicit row types, not the aggregates | Accepted |
