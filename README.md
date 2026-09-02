@@ -10,12 +10,14 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 3 complete of 11.** The domain model, the application layer, and persistence exist
-and are tested: tenancy, access, work identity, the knowledge record lifecycle, 40 use cases behind
-one pipeline, and PostgreSQL with full-text search and MinIO evidence storage. There is no
-authentication, MCP server, or web UI yet, and `IAuthorizationService` has no implementation.
-**Two of 33 security controls are verified; eleven more are implemented but unproven.** Do not
-connect real project data.
+**Phases 0 to 4 complete of 11.** The domain model, the application layer, persistence, and
+identity exist and are tested: 41 use cases behind one pipeline, PostgreSQL with full-text search,
+MinIO evidence storage, the product own sign-in with lockout and rotating tokens, and tenant
+isolation enforced server-side on every request. There is no MCP server, no secret scanner, and no
+web UI yet.
+
+**Six of 33 security controls are verified; thirteen more are implemented but unproven, and the
+redactor that ships today redacts nothing.** Do not connect real project data.
 
 ## Documents
 

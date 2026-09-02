@@ -45,6 +45,15 @@ public static class UseCaseCatalog
         "compare_snapshots", PermissionKind.ReadKnowledge, AiExposure.Allowed,
         AuditAction.RecordViewed, redactsOutput: true);
 
+    /// <summary>
+    /// Denied to AI. info.md permits search, get, analyse, create a draft, and generate a
+    /// handover; a raw log or screenshot is none of those, and it is the material most likely to
+    /// carry something the scanner missed.
+    /// </summary>
+    public static UseCaseDescriptor DownloadEvidence { get; } = new(
+        "download_evidence", PermissionKind.ReadKnowledge, AiExposure.Denied,
+        AuditAction.EvidenceDownloaded, redactsOutput: false);
+
     // Analysis. Read-only, and never executes anything in the repository under study (SB-04).
     public static UseCaseDescriptor AnalyzeProject { get; } = Analysis("analyze_project");
 
@@ -173,6 +182,7 @@ public static class UseCaseCatalog
     public static IReadOnlyList<UseCaseDescriptor> All { get; } =
     [
         SearchKnowledge, GetRecord, GetWorkItem, ListProjects, ViewRecordHistory, CompareSnapshots,
+        DownloadEvidence,
         AnalyzeProject, AnalyzeCode, AnalyzeDocuments, AnalyzeArchitecture, AnalyzeGitHistory,
         AnalyzeWorkItems, AnalyzeTestEvidence, AnalyzeChangeImpact,
         GenerateHandover, FindOpenQuestions, FindMissingEvidence,

@@ -53,6 +53,7 @@ public sealed class UseCaseCatalogTests
     {
         string[] humanOnly =
         [
+            "download_evidence",
             "approve_record", "publish_record", "request_correction", "archive_record",
             "sync_sources", "reindex", "detect_secrets", "redact_sensitive_data",
             "backup_system", "restore_system", "read_audit_history",

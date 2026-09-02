@@ -12,6 +12,7 @@ using DevBuddy.Application.UseCases.Safety;
 using DevBuddy.Application.UseCases.Sources;
 using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Common;
+using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Knowledge;
 
 namespace DevBuddy.Application.Tests;
@@ -40,7 +41,7 @@ internal sealed class UseCaseRegistry
         Add(new GetWorkItemUseCase(ports),
             new GetWorkItemRequest(TestData.Scope, TestData.WorkItem));
 
-        Add(new ListProjectsUseCase(ports),
+        Add(new ListProjectsUseCase(ports, ports),
             new ListProjectsRequest(TestData.Workspace));
 
         Add(new ViewRecordHistoryUseCase(ports),
@@ -48,6 +49,9 @@ internal sealed class UseCaseRegistry
 
         Add(new CompareSnapshotsUseCase(ports),
             new CompareSnapshotsRequest(TestData.Scope, TestData.Repository, "v1", "v2"));
+
+        Add(new DownloadEvidenceUseCase(ports),
+            new DownloadEvidenceRequest(TestData.Scope, EvidenceObjectId.New()));
 
         var analysisRequest = new AnalysisRequest(TestData.Scope, TestData.Repository);
         Add(new AnalyzeProjectUseCase(ports), analysisRequest);

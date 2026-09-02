@@ -116,7 +116,7 @@ public sealed class PipelineTests
     public async Task a_workspace_level_operation_audits_without_a_project()
     {
         var harness = new Harness();
-        var useCase = new ListProjectsUseCase(harness.Ports);
+        var useCase = new ListProjectsUseCase(harness.Ports, harness.Ports);
 
         await harness.SucceedAsync(useCase, new ListProjectsRequest(TestData.Workspace));
 

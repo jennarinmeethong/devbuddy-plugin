@@ -87,6 +87,12 @@ internal sealed class UserRow
 
     public string Email { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Upper-cased for lookup. Stored rather than computed in the query so sign-in can use an
+    /// index and an ordinal comparison, instead of asking the database to fold case on every row.
+    /// </summary>
+    public string NormalizedEmail { get; set; } = string.Empty;
+
     public string DisplayName { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; set; }
@@ -367,4 +373,64 @@ internal sealed class RelatedModuleJson
     public Guid RepositoryId { get; set; }
 
     public string? ModulePath { get; set; }
+}
+
+// Identity (Phase 4). Credentials are kept apart from the user record on purpose: reading a user
+// is an everyday operation, and a password hash should not travel with it.
+
+internal sealed class UserCredentialRow
+{
+    public Guid UserId { get; set; }
+
+    /// <summary>Produced by the platform password hasher. Never a reversible encoding.</summary>
+    public string PasswordHash { get; set; } = string.Empty;
+
+    public int FailedAttempts { get; set; }
+
+    /// <summary>Set while the account is locked, cleared on a successful sign-in.</summary>
+    public DateTimeOffset? LockoutEndsAt { get; set; }
+
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+internal sealed class RefreshTokenRow
+{
+    public Guid Id { get; set; }
+
+    public Guid UserId { get; set; }
+
+    /// <summary>
+    /// SHA-256 of the token, never the token. A database dump must not hand an attacker working
+    /// credentials.
+    /// </summary>
+    public string TokenHash { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Rotation chain. Presenting a token that was already exchanged revokes the whole family,
+    /// because the only ways that happens are theft and a broken client.
+    /// </summary>
+    public Guid FamilyId { get; set; }
+
+    public DateTimeOffset IssuedAt { get; set; }
+
+    public DateTimeOffset ExpiresAt { get; set; }
+
+    public DateTimeOffset? UsedAt { get; set; }
+
+    public DateTimeOffset? RevokedAt { get; set; }
+}
+
+internal sealed class RecoveryTokenRow
+{
+    public Guid Id { get; set; }
+
+    public Guid UserId { get; set; }
+
+    public string TokenHash { get; set; } = string.Empty;
+
+    public DateTimeOffset IssuedAt { get; set; }
+
+    public DateTimeOffset ExpiresAt { get; set; }
+
+    public DateTimeOffset? UsedAt { get; set; }
 }

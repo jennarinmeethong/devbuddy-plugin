@@ -330,6 +330,30 @@ every request.
 revoked-permission cases across read, search, export, and attachment paths; the corresponding
 rows in `verification-matrix.md` flip to `IMPLEMENTED + TESTED`.
 
+**Status: COMPLETE (2026-09-01).** 41 security tests run the real pipeline over the real
+infrastructure against real PostgreSQL, plus 29 infrastructure and 69 application tests. All four
+paths are covered — record read, search, export, attachment download — with cross-user,
+cross-team, cross-project, revoked-grant, and disabled-account cases. SB-11, SB-12, SB-14 and
+SB-15 reach `TESTED`, and **Phase 11 scenarios 1 and 2 are exercised**.
+
+Five things worth knowing:
+
+- **The tests found a real bug.** Revoked and expired refresh tokens still worked, because
+  `ExecuteUpdate` bypasses the change tracker and a later read in the same scope returned the
+  stale tracked entity. The fix reads outside the tracker and stakes the single-use claim with a
+  conditional update, which also makes rotation safe against two concurrent refreshes.
+- **`download_evidence` was added** as a 41st use case. The exit criteria name an attachment path,
+  and there was none: evidence could be listed but not fetched. It is denied to AI, because a raw
+  log is not search, get, analyse, draft, or handover.
+- **`list_projects` narrows itself on the AI channel.** It is the one AI-exposed operation that
+  spans projects, so the per-project policy cannot be applied by a single authorization check.
+  Naming a project is itself a disclosure.
+- **The shipped redactor redacts nothing.** `UnimplementedRedactor` exists so the pipeline runs
+  end to end, and is named so nobody mistakes it for a control. The verification matrix says so
+  in SB-17. Phase 6 replaces it, and real project data waits for that.
+- **Rate limiting is not here.** Lockout is, and it is the part that does not depend on a
+  transport. HTTP rate limiting arrives with the API in Phase 7, and SB-13 says so.
+
 ---
 
 ## Phase 5 — Knowledge lifecycle and audit

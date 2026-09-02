@@ -13,15 +13,17 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 3 are **complete**. Phase 0 delivered the scaffolding, build settings, security
-document set, and CI. Phase 1 delivered `DevBuddy.Domain`. Phase 2 delivered `DevBuddy.Application`:
-15 ports, the `UseCaseExecutor` pipeline, and 40 use cases. Phase 3 delivered
-`DevBuddy.Infrastructure`: PostgreSQL persistence, full-text search, and MinIO evidence storage,
-with 25 integration tests against real containers. 140 tests pass.
+Phases 0 to 4 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
+`UseCaseExecutor` pipeline and 41 use cases; Phase 3 PostgreSQL, full-text search, and MinIO;
+Phase 4 identity, the authorization service, and tenant isolation. 191 tests pass, 41 of them
+security scenarios against real PostgreSQL.
 
-**Phase 4 (identity, access, and tenant isolation) is next.** There is still no authentication,
-no GitHub client, no secret scanner, no MCP server, and no UI, and `IAuthorizationService` has no
-implementation. Do not describe any of that as working.
+**Phase 5 (knowledge lifecycle and audit) is next.** There is still no GitHub client, no secret
+scanner, no MCP server, and no UI.
+
+**The redactor that ships today redacts nothing.** `UnimplementedRedactor` keeps the pipeline
+runnable until Phase 6. Never describe secret redaction as working, and do not connect real
+project data.
 
 ## Commands
 

@@ -78,6 +78,7 @@ internal static class RowMappers
     {
         Id = user.Id.Value,
         Email = user.Email,
+        NormalizedEmail = user.Email.ToUpperInvariant(),
         DisplayName = user.DisplayName,
         CreatedAt = user.CreatedAt,
         IsDisabled = user.IsDisabled,

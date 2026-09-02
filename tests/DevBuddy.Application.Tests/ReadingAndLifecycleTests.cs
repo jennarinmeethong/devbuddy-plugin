@@ -83,7 +83,7 @@ public sealed class ReadingAndLifecycleTests
         var harness = new Harness();
 
         ListProjectsResponse response = await harness.SucceedAsync(
-            new ListProjectsUseCase(harness.Ports), new ListProjectsRequest(TestData.Workspace));
+            new ListProjectsUseCase(harness.Ports, harness.Ports), new ListProjectsRequest(TestData.Workspace));
 
         // Narrowed to the requesting user, not to whatever credential the AI host holds (SB-09).
         Assert.Single(response.Projects);

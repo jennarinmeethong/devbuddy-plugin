@@ -1,7 +1,9 @@
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
+using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Common;
+using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
@@ -150,11 +152,19 @@ public sealed record ListProjectsResponse(IReadOnlyList<ProjectSummary> Projects
 /// Lists the projects the caller is a member of. The user identifier passed to the directory is
 /// the caller, never the AI credential, which is what narrows AI results to the requesting user
 /// (SB-09).
+/// <para>
+/// This is the one AI-exposed operation that spans projects, so it is also the one place where
+/// the per-project AI policy has to be applied by the use case rather than by the authorization
+/// check: the pipeline authorises the workspace-level call once, and a project the owner never
+/// opened to AI must still not appear in the list (SB-08). Naming a project is itself a
+/// disclosure.
+/// </para>
 /// </summary>
-public sealed class ListProjectsUseCase(IProjectDirectory directory)
+public sealed class ListProjectsUseCase(IProjectDirectory directory, IAccessDirectory access)
     : UseCase<ListProjectsRequest, ListProjectsResponse>
 {
     private readonly IProjectDirectory _directory = Guard.NotNull(directory, nameof(directory));
+    private readonly IAccessDirectory _access = Guard.NotNull(access, nameof(access));
 
     public override UseCaseDescriptor Descriptor => UseCaseCatalog.ListProjects;
 
@@ -164,8 +174,32 @@ public sealed class ListProjectsUseCase(IProjectDirectory directory)
         IReadOnlyList<Project> projects = await _directory.ListProjectsForUserAsync(
             request.WorkspaceId, caller.UserId, cancellationToken);
 
+        if (caller.Channel == AccessChannel.Ai)
+        {
+            projects = await FilterToAiEnabledAsync(projects, cancellationToken);
+        }
+
         return new ListProjectsResponse(
             [.. projects.Select(project => new ProjectSummary(project.Id, project.Name, project.CreatedAt))]);
+    }
+
+    private async Task<IReadOnlyList<Project>> FilterToAiEnabledAsync(
+        IReadOnlyList<Project> projects, CancellationToken cancellationToken)
+    {
+        List<Project> visible = [];
+
+        foreach (Project project in projects)
+        {
+            ProjectAiAccessPolicy policy =
+                await _access.GetAiAccessPolicyAsync(project.Scope, cancellationToken);
+
+            if (policy.IsEnabled)
+            {
+                visible.Add(project);
+            }
+        }
+
+        return visible;
     }
 }
 
@@ -286,5 +320,56 @@ public sealed class CompareSnapshotsUseCase(ISourceSystemClient sourceSystem)
             await _sourceSystem.CompareAsync(earlier, later, cancellationToken);
 
         return new SnapshotComparisonResponse(differences);
+    }
+}
+
+public sealed record DownloadEvidenceRequest(ProjectScope Scope, EvidenceObjectId EvidenceId)
+    : ProjectRequest(Scope)
+{
+    public override string ResourceReference => EvidenceId.ToString();
+}
+
+/// <summary>
+/// The bytes of one stored artefact, and enough metadata to render them. The caller disposes the
+/// stream.
+/// </summary>
+public sealed record EvidenceDownloadResponse(
+    EvidenceObjectId EvidenceId, string MediaType, long SizeBytes, Stream Content);
+
+/// <summary>
+/// Streams evidence back after an authorization check.
+/// <para>
+/// This is why <see cref="IEvidenceStore"/> has no presigned-URL method: an attachment reached
+/// through a link would bypass this use case, and with it the scope check, the redaction state
+/// check, and the audit entry. Attachments are covered by the same isolation tests as records
+/// (SB-12) precisely because they take the same path.
+/// </para>
+/// <para>
+/// Evidence that has not been scanned is refused. Unscanned material is not releasable, and
+/// treating "we have not looked yet" as safe is the failure this control exists to prevent.
+/// </para>
+/// </summary>
+public sealed class DownloadEvidenceUseCase(IEvidenceStore evidenceStore)
+    : UseCase<DownloadEvidenceRequest, EvidenceDownloadResponse>
+{
+    private readonly IEvidenceStore _evidenceStore = Guard.NotNull(evidenceStore, nameof(evidenceStore));
+
+    public override UseCaseDescriptor Descriptor => UseCaseCatalog.DownloadEvidence;
+
+    protected internal override async Task<EvidenceDownloadResponse> HandleAsync(
+        DownloadEvidenceRequest request, CallerContext caller, CancellationToken cancellationToken)
+    {
+        EvidenceObject evidence =
+            await _evidenceStore.FindAsync(request.EvidenceId, request.Scope, cancellationToken)
+            ?? throw new ResourceNotFoundException($"No evidence {request.EvidenceId} in this project.");
+
+        if (!evidence.IsReleasable)
+        {
+            throw new DomainValidationException(
+                $"Evidence {evidence.Id} is {evidence.RedactionState} and cannot be released.");
+        }
+
+        Stream content = await _evidenceStore.OpenReadAsync(evidence, cancellationToken);
+        return new EvidenceDownloadResponse(evidence.Id, evidence.MediaType, evidence.SizeBytes, content);
     }
 }

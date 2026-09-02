@@ -65,6 +65,12 @@ public class DevBuddyDbContext : DbContext
 
     internal DbSet<SourceSnapshotRow> SourceSnapshots => Set<SourceSnapshotRow>();
 
+    internal DbSet<UserCredentialRow> UserCredentials => Set<UserCredentialRow>();
+
+    internal DbSet<RefreshTokenRow> RefreshTokens => Set<RefreshTokenRow>();
+
+    internal DbSet<RecoveryTokenRow> RecoveryTokens => Set<RecoveryTokenRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
@@ -142,8 +148,11 @@ public class DevBuddyDbContext : DbContext
             row.ToTable("users");
             row.HasKey(entity => entity.Id);
             row.Property(entity => entity.Email).HasMaxLength(320).IsRequired();
+            row.Property(entity => entity.NormalizedEmail).HasMaxLength(320).IsRequired();
             row.Property(entity => entity.DisplayName).HasMaxLength(200).IsRequired();
-            row.HasIndex(entity => entity.Email).IsUnique();
+
+            // Uniqueness is on the normalised form, so two accounts cannot differ only by case.
+            row.HasIndex(entity => entity.NormalizedEmail).IsUnique();
         });
 
         modelBuilder.Entity<MembershipRow>(row =>
@@ -163,6 +172,44 @@ public class DevBuddyDbContext : DbContext
             row.HasKey(entity => new { entity.WorkspaceId, entity.ProjectId });
             row.Property(entity => entity.BoundedDataScope).HasMaxLength(2000);
             row.HasQueryFilter(entity => entity.WorkspaceId == CurrentWorkspace);
+        });
+
+        ConfigureIdentity(modelBuilder);
+    }
+
+    /// <summary>
+    /// Credentials and tokens. None of these tables is workspace-scoped and none carries a query
+    /// filter: an account exists before it belongs to any workspace, and sign-in happens before
+    /// there is a tenant context to filter by.
+    /// </summary>
+    private static void ConfigureIdentity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserCredentialRow>(row =>
+        {
+            row.ToTable("user_credentials");
+            row.HasKey(entity => entity.UserId);
+            row.Property(entity => entity.PasswordHash).HasMaxLength(500).IsRequired();
+        });
+
+        modelBuilder.Entity<RefreshTokenRow>(row =>
+        {
+            row.ToTable("refresh_tokens");
+            row.HasKey(entity => entity.Id);
+            row.Property(entity => entity.TokenHash).HasMaxLength(64).IsRequired().IsFixedLength();
+
+            // Lookup is by hash, so the index is on the hash. The token itself is never stored.
+            row.HasIndex(entity => entity.TokenHash).IsUnique();
+            row.HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
+            row.HasIndex(entity => entity.FamilyId);
+        });
+
+        modelBuilder.Entity<RecoveryTokenRow>(row =>
+        {
+            row.ToTable("recovery_tokens");
+            row.HasKey(entity => entity.Id);
+            row.Property(entity => entity.TokenHash).HasMaxLength(64).IsRequired().IsFixedLength();
+            row.HasIndex(entity => entity.TokenHash).IsUnique();
+            row.HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
         });
     }
 

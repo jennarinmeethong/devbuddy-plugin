@@ -23,6 +23,13 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
+  <ItemGroup Label="Identity (Phase 4)">
+    <!-- The password hasher only. info.md keeps the product on its own account system, and the
+         full ASP.NET Core Identity schema would replace tables we designed on purpose. -->
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Evidence storage (Phase 3)">
     <!-- S3-compatible client. MinIO is the default evidence store (ADR-0004); the same
          client works against any S3-compatible service without a code change. -->
@@ -30,6 +37,7 @@
   </ItemGroup>
 
   <ItemGroup Label="Hosting glue">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
   </ItemGroup>
@@ -44,7 +52,6 @@
   </ItemGroup>
 
   <!-- Added by the phase that first needs them, so the dependency surface stays honest:
-       Phase 4  ASP.NET Core Identity / JWT bearer
        Phase 6  Octokit / LibGit2Sharp
        Phase 7  ModelContextProtocol / System.CommandLine
        Later    Serilog / OpenTelemetry -->

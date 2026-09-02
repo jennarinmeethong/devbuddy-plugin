@@ -1,12 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The eight verification scenarios from Phase 11. Each test maps to a row in
-       docs/security/verification-matrix.md and is what flips that row to TESTED. -->
+       docs/security/verification-matrix.md and is what flips that row to TESTED.
+
+       These run the real Application pipeline over the real Infrastructure against a real
+       PostgreSQL. A fake authorization service would prove only that the test agrees with
+       itself. -->
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\hosts\DevBuddy.Api\DevBuddy.Api.csproj" />
     <ProjectReference Include="..\..\src\hosts\DevBuddy.McpServer\DevBuddy.McpServer.csproj" />
     <ProjectReference Include="..\..\src\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
 </Project>
