@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\core\DevBuddy.Application\DevBuddy.Application.csproj" />
     <ProjectReference Include="..\..\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
   </ItemGroup>

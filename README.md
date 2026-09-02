@@ -10,17 +10,19 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 6 complete of 11.** 41 use cases
-behind one pipeline, PostgreSQL with full-text search, MinIO evidence storage, the product own
-sign-in with lockout and rotating tokens, tenant isolation enforced server-side on every request, a
-draft-to-published path whose audit history records who approved exactly which revision, read-only
-analysis that provably executes nothing, and a secret scanner that refuses credentials on the way in
-and redacts them on the way out. There is no MCP server and no web UI yet.
+**Phases 0 to 7 complete of 11.** 41 use cases behind one pipeline, PostgreSQL with full-text
+search, MinIO evidence storage, the product own sign-in with lockout and rotating tokens, tenant
+isolation enforced server-side on every request, a draft-to-published path whose audit history
+records who approved exactly which revision, read-only analysis that provably executes nothing, a
+secret scanner that refuses credentials on the way in and redacts them on the way out, and three
+hosts over that one core: an HTTP API, an MCP server on stdio and authenticated HTTP, and a
+console. There is no web UI and no plugin package yet.
 
-**Seventeen of 33 security controls are verified; eight more are implemented but unproven.**
+**Twenty-three of 33 security controls are verified; two more are implemented but unproven.**
 Source synchronisation reads a mounted working copy rather than the GitHub API, so pull requests
-and issues are not available. Do not connect real project data until the remaining controls are
-verified.
+and issues are not available. Nothing creates a user, workspace, project, or work item except the
+one-time bootstrap, so a second person cannot yet be onboarded. Do not connect real project data
+until the remaining controls are verified.
 
 ## Documents
 
@@ -30,7 +32,7 @@ verified.
 | [docs/plan.md](docs/plan.md) | The phased implementation plan, Phase 0 to Phase 11, with exit criteria. |
 | [docs/security/threat-model.md](docs/security/threat-model.md) | Assets, trust boundaries, adversaries, threats. |
 | [docs/security/security-baseline.md](docs/security/security-baseline.md) | The 33 controls and how each will be proved. |
-| [docs/security/verification-matrix.md](docs/security/verification-matrix.md) | What has actually been tested. Currently: nothing. |
+| [docs/security/verification-matrix.md](docs/security/verification-matrix.md) | What has actually been tested. The only place a control counts as proven. |
 | [docs/adr/](docs/adr/) | Architecture decision records. |
 | [AGENTS.md](AGENTS.md) | Contributor guide: structure, commands, style, testing, security expectations. |
 

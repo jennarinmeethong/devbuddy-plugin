@@ -499,6 +499,55 @@ backup/restore, sync, reindex, and manual record inspection. Publishable self-co
 access disabled returns no content through MCP while the same query through the API (as an
 authorized human) succeeds.
 
+**Status: COMPLETE (2026-09-02).** Both exit criteria are met. Six controls reach `TESTED` —
+SB-07, SB-08, SB-09, SB-10, SB-13 and SB-16 — taking the total to 23 of 33, and Phase 11
+scenario 3 is now fully exercised. 332 tests pass, 0 warnings, formatting clean.
+
+What landed:
+
+- **One dispatcher, three hosts.** `OperationDispatcher` maps an operation name and a JSON body
+  onto a use case and runs it through the same pipeline. The API has one route for every
+  operation rather than forty hand-written ones, and that is a security property before it is a
+  convenience: forty endpoints are forty chances for one of them to disagree with the pipeline
+  about identity, permission, redaction, or audit.
+- **The MCP tool surface, derived and pinned.** The list is built from `UseCaseCatalog.AiExposed`
+  at run time, so an operation that is not marked exposed is *absent* rather than present and
+  refused. `ToolSurfaceTests` asserts equality against a list written out independently, and a
+  source scan fails the build if anything outside `ToolSurface.cs` constructs a tool — which is
+  what stops a transport growing a list of its own.
+- **Two transports, one surface.** `--stdio` for a locally launched plugin, authenticated HTTP
+  otherwise, sharing the API bearer tokens. The channel is decided by which host is running,
+  never by anything in a request.
+- **The cross-surface proof.** One record, read over real HTTP by an authorised person and
+  refused on the AI channel, then enabled and read. The third step is what makes the second
+  evidence rather than a broken path, and a two-caller variant shows AI access is a project
+  opt-in and never a bypass of the permissions of the person asking.
+- **The console.** `migrate`, `bootstrap`, `operations`, `run`, and shortcuts for health, record
+  inspection, export, backup, restore, sync and reindex. The shortcuts build the JSON body and
+  take the same dispatch path; nothing in the console reaches past the pipeline.
+- **A bootstrap that runs once.** The first workspace and the first administrator cannot come
+  through the pipeline, because the pipeline authorises against a membership and there is none
+  yet. `IInstallationBootstrapper` is that path, named rather than hidden, and it refuses once a
+  workspace exists.
+- **A wire-contract guard.** `create_draft` returned 500 because `Provenance` took its evidence as
+  `IEnumerable` and exposed it as `IReadOnlyList`: correct for every caller, impossible for a
+  serialiser to construct. `WireContractTests` now asks the serialiser about every operation
+  argument and result type, so the next one is caught before anything runs.
+
+Known gaps, carried forward rather than papered over:
+
+- **No operation creates a user account.** `grant_membership` can add somebody who exists to a
+  workspace, and nothing can bring an account into being except the one-time bootstrap. The
+  integration tests seed accounts through the database because an operator would have to. This
+  belongs with membership administration in Phase 8.
+- **No operation creates a workspace, project, or work item** either, for the same reason. Phase 8.
+- **Rate limiting covers the credential endpoints only**, and there is no concurrent-job cap.
+  Both are Phase 10 (SB-21).
+- **Draft invisibility is proved at the pipeline, not per surface.** SB-26 stays `IMPLEMENTED`
+  until there is a test for it through the API and MCP specifically, and a UI to test at all.
+- **Account recovery tokens are written to the log**, because no delivery channel exists. Called
+  out in the code and in the response, and removed when an email transport lands.
+
 ---
 
 ## Phase 8 — Web administration UI

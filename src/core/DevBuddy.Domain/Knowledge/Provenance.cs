@@ -18,7 +18,10 @@ public sealed record Provenance
         string sourceLocator,
         string author,
         DateTimeOffset recordedAt,
-        IEnumerable<EvidenceReference>? evidence = null)
+        // Typed as the property it fills rather than as the loosest thing that would work. A
+        // constructor parameter whose type differs from the property it names cannot be bound by
+        // name, which breaks every by-name construction: serialisers, mappers, and records.
+        IReadOnlyList<EvidenceReference>? evidence = null)
     {
         SourceKind = Guard.Defined(sourceKind, nameof(sourceKind));
         SourceLocator = Guard.NotLongerThan(

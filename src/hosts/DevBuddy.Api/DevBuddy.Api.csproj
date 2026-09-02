@@ -4,8 +4,19 @@
        References Infrastructure for dependency-injection composition only. -->
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\core\DevBuddy.Application\DevBuddy.Application.csproj" />
     <ProjectReference Include="..\..\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The integration tests drive the real application through WebApplicationFactory. -->
+    <InternalsVisibleTo Include="DevBuddy.Api.Tests" />
+    <InternalsVisibleTo Include="DevBuddy.Security.Tests" />
   </ItemGroup>
 
 </Project>

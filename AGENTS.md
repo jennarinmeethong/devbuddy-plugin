@@ -12,7 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 6 are complete; Phase 7 (API, MCP server, console) is next.
+  criteria. Phases 0 to 7 are complete; Phase 8 (web administration UI) is next.
 
 ## Project Structure & Module Organization
 
@@ -49,6 +49,19 @@ Use cases are grouped one file per family (`UseCases/Lifecycle/LifecycleUseCases
 rather than one file per class, and their request and response records live beside them.
 
 `web/`, `plugins/`, and `docker/` appear in Phases 8 to 10 and do not exist yet.
+
+### How a host reaches a use case
+
+A host never constructs a use case. It hands an operation name and a JSON body to
+`OperationDispatcher`, which finds the binding, deserialises the request, and runs it through
+`UseCaseExecutor`. The API exposes one route for every operation rather than forty hand-written
+ones; the MCP server exposes the allow-listed subset as tools; the console exposes both a generic
+`run` and shortcuts that build the body for you. Adding a route, a tool, or a command that reaches
+past the dispatcher is the thing this shape exists to prevent.
+
+Wire conventions live in `Application/Dispatch/JsonConventions.cs` and are shared by all three
+hosts. A request or response type whose constructor parameters cannot be bound by name fails
+`WireContractTests` rather than returning a 500 from one host at run time.
 
 Two domain names differ from the obvious one, deliberately: `SourceRepository` (not `Repository`,
 which collides with the persistence pattern) and `DeploymentEnvironment` (not `Environment`, which

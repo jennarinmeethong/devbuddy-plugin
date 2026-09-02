@@ -1,9 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Integration tests via WebApplicationFactory (Phase 4-5, 7). -->
+  <!-- Drives the real API through WebApplicationFactory against real PostgreSQL, and the MCP
+       handlers through the same container, so the two surfaces can be compared (Phase 7). -->
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\hosts\DevBuddy.Api\DevBuddy.Api.csproj" />
+    <ProjectReference Include="..\..\src\hosts\DevBuddy.McpServer\DevBuddy.McpServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
 
 </Project>

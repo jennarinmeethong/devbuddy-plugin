@@ -377,8 +377,10 @@ internal static class RowMappers
             json.SourceLocator,
             json.Author,
             json.RecordedAt,
-            json.Evidence.Select(evidence =>
-                new EvidenceReference(new EvidenceObjectId(evidence.EvidenceObjectId), evidence.Description)));
+            [
+                .. json.Evidence.Select(evidence =>
+                    new EvidenceReference(new EvidenceObjectId(evidence.EvidenceObjectId), evidence.Description))
+            ]);
 
     private static ProvenanceJson ToRow(Provenance provenance) => new()
     {

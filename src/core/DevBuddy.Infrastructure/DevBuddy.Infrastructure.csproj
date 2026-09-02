@@ -12,6 +12,7 @@
          The integration tests need to reach them to prove the schema round-trips. -->
     <InternalsVisibleTo Include="DevBuddy.Infrastructure.Tests" />
     <InternalsVisibleTo Include="DevBuddy.Security.Tests" />
+    <InternalsVisibleTo Include="DevBuddy.Api.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +24,7 @@
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
   </ItemGroup>
 
   <ItemGroup>
