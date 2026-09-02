@@ -44,7 +44,7 @@ public sealed class AuthorizationEnforcementTests
         var ports = new FakePorts();
         var authorization = new FakeAuthorizationService { Allow = false };
         var audit = new FakeAuditSink();
-        var executor = new UseCaseExecutor(authorization, audit, ports, ports);
+        var executor = new UseCaseExecutor(authorization, audit, ports, ports, ports);
         var registry = new UseCaseRegistry(ports);
 
         foreach (RegisteredUseCase entry in registry.Entries)
@@ -66,7 +66,7 @@ public sealed class AuthorizationEnforcementTests
     {
         var ports = new FakePorts();
         var authorization = new FakeAuthorizationService { Allow = false };
-        var executor = new UseCaseExecutor(authorization, new FakeAuditSink(), ports, ports);
+        var executor = new UseCaseExecutor(authorization, new FakeAuditSink(), ports, ports, ports);
         var registry = new UseCaseRegistry(ports);
 
         foreach (RegisteredUseCase entry in registry.Entries)
@@ -85,7 +85,7 @@ public sealed class AuthorizationEnforcementTests
     {
         var ports = new FakePorts();
         var authorization = new FakeAuthorizationService { Allow = true };
-        var executor = new UseCaseExecutor(authorization, new FakeAuditSink(), ports, ports);
+        var executor = new UseCaseExecutor(authorization, new FakeAuditSink(), ports, ports, ports);
         var registry = new UseCaseRegistry(ports);
 
         foreach (RegisteredUseCase entry in registry.Entries)
@@ -106,7 +106,7 @@ public sealed class AuthorizationEnforcementTests
     {
         var ports = new FakePorts();
         var authorization = new FakeAuthorizationService { Allow = true };
-        var executor = new UseCaseExecutor(authorization, new FakeAuditSink(), ports, ports);
+        var executor = new UseCaseExecutor(authorization, new FakeAuditSink(), ports, ports, ports);
         var registry = new UseCaseRegistry(ports);
 
         RegisteredUseCase[] denied =

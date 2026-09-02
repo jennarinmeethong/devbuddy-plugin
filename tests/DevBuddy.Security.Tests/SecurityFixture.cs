@@ -220,6 +220,7 @@ public sealed class Session(IServiceScope scope) : IDisposable
                 Resolve<IAuthorizationService>(),
                 Resolve<IAuditSink>(),
                 Resolve<IRedactor>(),
+                Resolve<ISecretScanner>(),
                 Resolve<IClock>())
             .ExecuteAsync(useCase, request, caller, TestToken.None);
 

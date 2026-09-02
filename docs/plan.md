@@ -428,6 +428,38 @@ the quality and safety gates.
 before egress; a prompt-injection corpus (malicious content in source files, docs, and PR bodies)
 produces no tool call outside the allowed set; path-traversal and SSRF attempts are rejected.
 
+**Status: COMPLETE for the safety gates and analysis. Source synchronisation was NOT delivered.**
+All four exit criteria are met and seven controls reach `TESTED` — SB-01, SB-02, SB-03, SB-04,
+SB-05, SB-06 and SB-17 — taking the total to sixteen of 33. 289 tests pass.
+
+What landed:
+
+- **A real scanner and redactor sharing one rule set.** One list, used by both, so nothing can be
+  reported as sensitive and released anyway. Eight secret shapes plus negatives that must survive
+  untouched, because a control that mangles ordinary prose gets routed around within a week.
+- **The pipeline now refuses inbound content carrying a credential** rather than storing it.
+  Outbound text is redacted; inbound is refused. Silently storing something other than what the
+  author wrote, without telling them, is worse than saying no.
+- **Analysis that reads and never runs.** Proved twice: a fixture whose build script, Makefile,
+  npm hook and MSBuild target would each leave a marker file, and a source scan that fails the
+  build if any process API appears in product code.
+- **Path and URL guards**, with corpora covering symlink escape, a sibling directory sharing the
+  root prefix, the cloud metadata address, IPv4-mapped loopback, and a host resolving to both a
+  public and a private address.
+- **The three knowledge-quality sweeps**, reporting and never repairing.
+
+What did not land, and why:
+
+**`sync_sources`, `compare_snapshots` and `analyze_change_impact` do not work.**
+`ISourceSystemClient` has no adapter; `UnavailableSourceSystemClient` throws with an explanation.
+A GitHub client written against a live API could not have been tested here, and untested
+security-relevant surface is the one thing this project keeps refusing to ship. The port is
+unchanged, so adding the adapter is a registration change. Two of those three are on the AI
+allow-list and will fail if called, which is stated rather than discovered.
+
+**SB-22 is implemented but untested.** Every analysis runs under a deadline and a file-count
+ceiling; the pathological-input test that would prove it has not been written.
+
 ---
 
 ## Phase 7 — Entry points: API, MCP server, console

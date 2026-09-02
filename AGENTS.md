@@ -12,7 +12,8 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 5 are complete; Phase 6 (analysis, sources, safety scanners) is next.
+  criteria. Phases 0 to 5 are complete, and Phase 6 apart from source synchronisation; Phase 7
+  (API, MCP server, console) is next.
 
 ## Project Structure & Module Organization
 
@@ -132,10 +133,14 @@ These are requirements, not aspirations. `docs/security/security-baseline.md` ha
 - Authorization is re-checked server-side on every request. A caller-supplied project identifier is
   never trusted.
 - Nothing new reaches the MCP tool surface without being added to the allow-list deliberately.
-- Secrets are never stored and never returned. Detection runs before retention and before egress.
-  **Today the shipped redactor and scanner do nothing** (`UnimplementedRedactor`,
-  `UnimplementedSecretScanner`); Phase 6 replaces them. Do not describe redaction as working, and
-  do not connect real project data before then.
+- Secrets are never stored and never returned. Detection runs before retention and before egress:
+  inbound content carrying a credential is **refused**, outbound text is **redacted**. Both use one
+  rule set in `Infrastructure/Scanning`, so nothing can be reported as sensitive and released
+  anyway. Accepted limitation AL-2 still applies: it catches known shapes and high entropy.
+- Nothing in product code may start a process. `NoExecutionTests` scans the source and fails the
+  build if a process or dynamic-loading API appears (SB-04).
+- File paths go through `PathGuard` and outbound URLs through `UrlGuard`. Both resolve before they
+  compare, which is what catches a symlink and a rebinding DNS answer.
 - Approval binds to an exact revision hash. Revisions are immutable.
 - Audit entries carry metadata, never payload. A response contributes its own detail through
   `IAuditableResult`; the domain caps every value at 200 characters and refuses anything longer.

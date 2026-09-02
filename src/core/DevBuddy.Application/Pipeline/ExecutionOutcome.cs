@@ -21,4 +21,11 @@ public enum ExecutionOutcome
 
     /// <summary>Authorised and found, but a domain rule refused the operation.</summary>
     Rejected = 5,
+
+    /// <summary>
+    /// Authorised, but the content carried something that must not be retained. Distinct from
+    /// Rejected on purpose: a host renders it differently, and an audit reader needs to be able to
+    /// tell a security refusal from a workflow one.
+    /// </summary>
+    Blocked = 6,
 }

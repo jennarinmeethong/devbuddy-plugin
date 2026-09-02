@@ -11,7 +11,7 @@ internal sealed class Harness
 {
     public Harness()
     {
-        Executor = new UseCaseExecutor(Authorization, Audit, Ports, Ports);
+        Executor = new UseCaseExecutor(Authorization, Audit, Ports, Ports, Ports);
     }
 
     public FakePorts Ports { get; } = new();

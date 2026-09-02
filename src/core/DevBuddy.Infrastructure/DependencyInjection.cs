@@ -2,11 +2,13 @@ using Amazon.Runtime;
 using Amazon.S3;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Infrastructure.Administration;
+using DevBuddy.Infrastructure.Analysis;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.Infrastructure.Persistence.Repositories;
 using DevBuddy.Infrastructure.Persistence.Search;
+using DevBuddy.Infrastructure.Scanning;
 using DevBuddy.Infrastructure.Security;
 using DevBuddy.Infrastructure.Time;
 using Microsoft.AspNetCore.Identity;
@@ -32,9 +34,22 @@ public static class DependencyInjection
     public static IServiceCollection AddDevBuddyInfrastructure(
         this IServiceCollection services,
         string connectionString,
-        Action<EvidenceStoreOptions>? configureEvidence = null)
+        Action<EvidenceStoreOptions>? configureEvidence = null,
+        Action<AnalysisOptions>? configureAnalysis = null,
+        Action<OutboundAccessOptions>? configureOutbound = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        if (configureAnalysis is not null)
+        {
+            services.Configure(configureAnalysis);
+        }
+
+        // Nothing is reachable by default. An empty allow-list is the right starting point for a
+        // system whose analysers read attacker-controlled content (SB-03, SB-06).
+        var outbound = new OutboundAccessOptions();
+        configureOutbound?.Invoke(outbound);
+        services.AddSingleton(outbound);
 
         services.AddDbContext<DevBuddyDbContext>(options => options.UseNpgsql(connectionString));
 
@@ -54,10 +69,19 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IAdministrativeOperations, AdministrativeOperations>();
 
-        // Placeholders until Phase 6. They are registered so the pipeline runs end to end, and
-        // they are named so nobody mistakes them for the control. See UnimplementedScanning.cs.
-        services.AddSingleton<IRedactor, UnimplementedRedactor>();
-        services.AddSingleton<ISecretScanner, UnimplementedSecretScanner>();
+        // The real scanner and redactor share one rule set, so nothing can be reported as
+        // sensitive and released anyway (SB-17).
+        services.AddSingleton<IRedactor, SecretRedactor>();
+        services.AddSingleton<ISecretScanner, SecretScanner>();
+
+        services.AddScoped<ICodeAnalyzer, FileSystemCodeAnalyzer>();
+        services.AddScoped<IKnowledgeQualityChecks, KnowledgeQualityChecks>();
+
+        // Not implemented. Registered so the container resolves and every call says so.
+        services.AddScoped<ISourceSystemClient, UnavailableSourceSystemClient>();
+
+        services.AddSingleton<IHostResolver, DnsHostResolver>();
+        services.AddSingleton<UrlGuard>();
 
         services.AddEvidenceStorage(configureEvidence);
         return services;

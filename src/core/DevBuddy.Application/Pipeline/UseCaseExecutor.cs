@@ -23,17 +23,20 @@ public sealed class UseCaseExecutor
     private readonly IAuthorizationService _authorization;
     private readonly IAuditSink _auditSink;
     private readonly IRedactor _redactor;
+    private readonly ISecretScanner _scanner;
     private readonly IClock _clock;
 
     public UseCaseExecutor(
         IAuthorizationService authorization,
         IAuditSink auditSink,
         IRedactor redactor,
+        ISecretScanner scanner,
         IClock clock)
     {
         _authorization = Guard.NotNull(authorization, nameof(authorization));
         _auditSink = Guard.NotNull(auditSink, nameof(auditSink));
         _redactor = Guard.NotNull(redactor, nameof(redactor));
+        _scanner = Guard.NotNull(scanner, nameof(scanner));
         _clock = Guard.NotNull(clock, nameof(clock));
     }
 
@@ -99,7 +102,35 @@ public sealed class UseCaseExecutor
                 cancellationToken);
         }
 
-        // 5. Execute.
+        // 5. Scan anything that would be written down. Refused, not redacted: storing something
+        //    other than what the author wrote, without telling them, is worse than saying no
+        //    (SB-17, retention half).
+        if (request is IScannableRequest scannable)
+        {
+            IReadOnlyList<string> findings = await FindSecretsAsync(scannable, cancellationToken);
+
+            if (findings.Count > 0)
+            {
+                await WriteAuditAsync(
+                    descriptor,
+                    request,
+                    caller,
+                    AuditAction.ContentScanned,
+                    AuditOutcome.Denied,
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        // Rule names and positions. Never the matched text.
+                        ["blocked_findings"] = string.Join("; ", findings),
+                    },
+                    cancellationToken);
+
+                return UseCaseResult.Blocked<TResponse>(
+                    "The content carries something that must not be stored. Remove it and try again.",
+                    findings);
+            }
+        }
+
+        // 6. Execute.
         TResponse response;
         try
         {
@@ -125,13 +156,13 @@ public sealed class UseCaseExecutor
             return UseCaseResult.Rejected<TResponse>(rejected.Message);
         }
 
-        // 6. Redact outbound free text before it leaves the boundary (SB-17).
+        // 7. Redact outbound free text before it leaves the boundary (SB-17, egress half).
         if (response is IRedactableResponse<TResponse> redactable)
         {
             response = redactable.Redact(_redactor);
         }
 
-        // 7. Audit the access that actually happened, with whatever metadata the use case
+        // 8. Audit the access that actually happened, with whatever metadata the use case
         //    contributed. Redaction ran first, so nothing a redactor would have removed can
         //    reach the audit store through this path either.
         IReadOnlyDictionary<string, string>? details =
@@ -155,6 +186,32 @@ public sealed class UseCaseExecutor
             descriptor, request, caller, AuditAction.AccessDenied, AuditOutcome.Denied, null, cancellationToken);
 
         return UseCaseResult.Denied<TResponse>(reason);
+    }
+
+    /// <summary>
+    /// Scans every field the request would have written down, and describes the findings by rule
+    /// name and line. The matched text never appears: a finding that quoted the secret it found
+    /// would put that secret into the result, the audit entry, and every log that touched either.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> FindSecretsAsync(
+        IScannableRequest scannable, CancellationToken cancellationToken)
+    {
+        List<string> findings = [];
+
+        foreach (string content in scannable.ContentForScanning)
+        {
+            if (string.IsNullOrEmpty(content))
+            {
+                continue;
+            }
+
+            SecretScanResult result = await _scanner.ScanAsync(content, cancellationToken);
+
+            findings.AddRange(result.Findings.Select(
+                finding => $"{finding.RuleName} at line {finding.LineNumber}"));
+        }
+
+        return findings;
     }
 
     /// <summary>

@@ -4,7 +4,7 @@ This file is the **single source of truth for whether a security control actuall
 moves out of `NOT IMPLEMENTED` only when the named test exists, runs in CI, and passes. Nothing
 else — not a design document, not a code review, not an intention — changes a row.
 
-**Current state: 33 controls. 9 `TESTED`, 10 `IMPLEMENTED` but unproven, 14 `NOT IMPLEMENTED`.**
+**Current state: 33 controls. 16 `TESTED`, 9 `IMPLEMENTED` but unproven, 8 `NOT IMPLEMENTED`.**
 
 Controls are defined in [security-baseline.md](security-baseline.md); threats in
 [threat-model.md](threat-model.md).
@@ -32,12 +32,12 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 
 | ID | Control (short) | Phase | Verification | Status | Evidence |
 |---|---|---|---|---|---|
-| SB-01 | Untrusted content handled as data | 6 | Injection corpus test | NOT IMPLEMENTED | — |
-| SB-02 | Permissions enforced in code, not prompts | 6, 7 | Tool-surface test without instruction files | NOT IMPLEMENTED | — |
-| SB-03 | Network destination allow-list | 6 | Egress test | NOT IMPLEMENTED | — |
-| SB-04 | No repository execution | 6 | Hostile-hooks repository, process-spawn assertion | NOT IMPLEMENTED | — |
-| SB-05 | Path traversal and symlink escape rejected | 3, 6 | Path-traversal corpus | IMPLEMENTED | The evidence filesystem store refuses an escaping key (`the_filesystem_fallback_round_trips_and_refuses_a_path_that_escapes`). The analyser corpus is Phase 6. |
-| SB-06 | SSRF prevention incl. redirects and DNS | 6 | SSRF corpus | NOT IMPLEMENTED | — |
+| SB-01 | Untrusted content handled as data | 6 | Injection corpus test | **TESTED** | `PromptInjectionCorpusTests` analyses a repository containing exfiltration instructions, hidden HTML comments addressed to an assistant, and a metadata-service URL. All of it comes back as text, and the AI tool surface is byte-identical afterwards. |
+| SB-02 | Permissions enforced in code, not prompts | 6, 7 | Tool-surface test without instruction files | **TESTED** | The injection corpus compares the AI-exposed operation list before and after analysing hostile content and finds it unchanged. Instruction text is not an input to any decision the system makes. |
+| SB-03 | Network destination allow-list | 6 | Egress test | **TESTED** | `UrlGuardTests`: nothing is reachable with an empty allow-list, which is the default. The analyser has no HTTP client at all, and the corpus proves a URL found in a document is reported rather than fetched. |
+| SB-04 | No repository execution | 6 | Hostile-hooks repository, process-spawn assertion | **TESTED** | Two ways. Behaviourally: a fixture with a build script, a Makefile, an npm preinstall hook, and an MSBuild pre-build target, each of which would leave a marker file; every analysis kind runs and the marker never appears. Structurally: `NoExecutionTests` scans the product source and fails the build if any process or dynamic-loading API appears. |
+| SB-05 | Path traversal and symlink escape rejected | 3, 6 | Path-traversal corpus | **TESTED** | `PathGuardTests` covers relative escapes, absolute paths outside the root, a null byte, a sibling directory sharing the root prefix, and a symlink pointing out. Resolution happens before comparison, which is what catches the link. |
+| SB-06 | SSRF prevention incl. redirects and DNS | 6 | SSRF corpus | **TESTED** | `UrlGuardTests`: loopback, link-local, the cloud metadata address, private and carrier-grade ranges, IPv6 forms, an IPv4-mapped loopback, non-HTTP schemes, and a host resolving to both a public and a private address. Every resolved address is checked, not only the first. |
 | SB-07 | MCP tool allow-list, both transports | 2, 7 | Tool-surface equality test per transport | IMPLEMENTED | The allow-list exists as `UseCaseCatalog.AiExposed` and is pinned by `UseCaseCatalogTests`. The MCP server and its two transports do not exist yet. |
 | SB-08 | AI access denied by default per project | 4, 7 | AI-disabled project returns nothing via MCP | IMPLEMENTED | `AiChannelTests` proves the AI channel is denied on an unconfigured project and allowed only after the owner opts in, per project. The MCP transport does not exist yet, so the named verification is not complete. |
 | SB-09 | Results narrowed to requesting user | 4, 7 | Two-user differential MCP query | IMPLEMENTED | Two-user differential tests pass through the pipeline, and `list_projects` hides AI-disabled projects from the AI channel. Not yet through MCP. |
@@ -48,12 +48,12 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 | SB-14 | Token lifetime, rotation, revocation | 4 | Revoked-token and rotation-replay tests | **TESTED** | `AccountSecurityTests`: rotation, reuse detection revoking the whole family, single revoke, revoke-all, and expiry. Refresh tokens are stored only as a hash, and a test asserts that. |
 | SB-15 | Safe account recovery | 4 | Reuse, expiry, and enumeration tests | **TESTED** | `AccountSecurityTests`: single-use, expiry, a new request retiring the previous token, no account enumeration, and recovery signing every existing session out. |
 | SB-16 | Role enforcement server-side | 4, 7, 8 | Role matrix test per endpoint | IMPLEMENTED | The role table is enforced through the real pipeline (`RolePermissionsTests`, `RevokedAccessAndRoleTests`), including that a project grant does not reach a workspace-level operation. There are no endpoints yet to run a per-endpoint matrix against. |
-| SB-17 | Secret detection and redaction, retention and egress | 2, 6 | Secret corpus at both points | IMPLEMENTED | The egress **stage** exists and is tested with a fake redactor. **The redactor that currently ships redacts nothing** (`UnimplementedRedactor`), and the scanner finds nothing. Phase 6 replaces both. Do not connect real project data before then. |
+| SB-17 | Secret detection and redaction, retention and egress | 2, 6 | Secret corpus at both points | **TESTED** | A real scanner and redactor sharing one rule set. `SecretCorpusTests` covers eight secret shapes plus negatives that must survive untouched; `RetentionAndEgressTests` proves a draft carrying a credential is refused with nothing stored, that every retained field is scanned, and that a secret already in the database is redacted on the way out. Accepted limitation AL-2 still applies: this catches known shapes and high entropy, not everything. |
 | SB-18 | Customer/production/personal data denied by default | 6, 7 | Policy test incl. approved bounded scope | NOT IMPLEMENTED | — |
 | SB-19 | Audit stores no sensitive payload | 2, 5 | Audit content test | **TESTED** | `LifecycleAndAuditTests.the_audit_trail_never_contains_the_content_it_describes` scans every audit row and detail column in real PostgreSQL for a marker that is present in the record body. Mutation-checked: adding the marker to an audit detail makes it fail. Detail values are capped at 200 characters in the domain and refused rather than truncated. |
 | SB-20 | Provenance and history support correction | 1, 5 | Provenance invariant and correction flow | **TESTED** | Provenance is mandatory (`RecordRevisionTests`) and the correction flow runs end to end against real PostgreSQL (`a_record_travels_from_draft_through_correction_to_published`), with the reason retained on the stored record. |
 | SB-21 | Size, rate, and concurrency limits | 3, 10 | Oversized upload, flood, concurrency tests | IMPLEMENTED | The evidence size limit is enforced and tested (`an_oversized_object_is_refused_and_nothing_is_written`). Request rate and concurrency limits are Phase 10. |
-| SB-22 | Analysis execution time limit | 6 | Pathological input test | NOT IMPLEMENTED | — |
+| SB-22 | Analysis execution time limit | 6 | Pathological input test | IMPLEMENTED | Every analysis runs under its own deadline and file-count ceiling (`AnalysisOptions`). The pathological-input test that would prove it has not been written. |
 | SB-23 | Approval bound to exact revision | 1, 5 | Domain invariant + stale-approval e2e | **TESTED** | Both halves pass. End to end against real PostgreSQL: publishing after the text changed is rejected and audited, and approving a hash that is no longer current is rejected and audited. |
 | SB-24 | Revisions immutable | 1, 3 | Immutability tests, domain and persistence | **TESTED** | Both halves pass against real PostgreSQL: `RecordRevisionTests` and `PersistenceTests.rewriting_a_stored_revision_is_refused`. |
 | SB-25 | Provenance mandatory, snapshots retained | 1, 3 | Invariant + snapshot round-trip | **TESTED** | Invariant and jsonb round-trip both pass: `RecordRevisionTests`, `PersistenceTests.a_published_record_round_trips_with_its_whole_history`. |
@@ -77,14 +77,14 @@ considered exercised.
 |---|---|---|
 | 1 | Cross-user, team, and project access incl. search, caches, attachments, exports | SB-11, SB-12 — **exercised** |
 | 2 | Revoked permissions take effect | SB-14, SB-11 — **exercised** |
-| 3 | Malicious source and tool content | SB-01 to SB-06, SB-07 |
-| 4 | Sensitive-data leakage | SB-17, SB-18, SB-19 |
+| 3 | Malicious source and tool content | SB-01 to SB-06 **exercised**; SB-07 needs the MCP transport |
+| 4 | Sensitive-data leakage | SB-17 and SB-19 **exercised**; SB-18 not implemented |
 | 5 | Approval revision mismatch | SB-23, SB-24 — **exercised** |
 | 6 | Resource exhaustion | SB-21, SB-22 |
 | 7 | Recovery | SB-33 |
 | 8 | Retention and deletion across copies | SB-27, SB-32 |
 
-**Three of the eight are exercised.** Scenarios 1, 2 and 5 run against real PostgreSQL through the real pipeline: four data paths with cross-user, cross-team, cross-project, revoked-grant and disabled-account cases, and both ways an approval can fail to mean what it says. The remaining five need the secret scanner (Phase 6), the MCP transport (Phase 7), resource limits, backups, and retention (Phases 10 and 11).
+**Three of the eight are fully exercised, and two more are most of the way there.** Scenarios 1, 2 and 5 run against real PostgreSQL through the real pipeline. Scenario 3 is exercised for every control that exists; only SB-07 is outstanding, and it needs the MCP transport. Scenario 4 is exercised for detection and audit; SB-18, the customer and production data policy, is not implemented. Scenarios 6, 7 and 8 need resource limits, backups, and retention (Phases 10 and 11).
 
 ---
 
@@ -98,3 +98,4 @@ considered exercised.
 | 2026-09-01 | Phase 3. **First two rows reach `TESTED`:** SB-24 and SB-25 pass end to end against real PostgreSQL, including the storage-layer refusal to rewrite a stored revision. SB-05, SB-12 and SB-21 move to `IMPLEMENTED` for the parts persistence covers. Still untested: everything needing authentication, an MCP transport, or a secret scanner. |
 | 2026-09-01 | Phase 4. SB-11, SB-12, SB-14 and SB-15 reach `TESTED`; SB-08, SB-09, SB-13 and SB-16 move to `IMPLEMENTED`. **Scenarios 1 and 2 are exercised.** SB-17 is downgraded in substance rather than status: the redactor that ships today redacts nothing, and the note now says so. |
 | 2026-09-01 | Phase 5. SB-19, SB-20 and SB-23 reach `TESTED`, taking the total to nine. **Scenario 5 is exercised.** Audit entries now carry structured, capped metadata, so the approver, the exact approved revision, the timestamp, and whether the approver wrote the draft are in the audit history rather than only on the record. |
+| 2026-09-01 | Phase 6. Seven rows reach `TESTED` — SB-01, SB-02, SB-03, SB-04, SB-05, SB-06 and SB-17 — taking the total to sixteen, more than half. **Scenario 3 is exercised except for SB-07.** The placeholder redactor is gone: a real scanner and redactor now share one rule set, and the pipeline refuses inbound content carrying a credential rather than storing it. Source synchronisation was not delivered; `sync_sources`, `compare_snapshots` and `analyze_change_impact` throw until an adapter exists. |

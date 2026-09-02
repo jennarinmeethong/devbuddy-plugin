@@ -25,9 +25,33 @@ public sealed record CreateDraftRequest(
     string Title,
     string Body,
     Provenance Provenance,
-    IReadOnlyDictionary<string, string>? FrontMatter = null) : ProjectRequest(Scope)
+    IReadOnlyDictionary<string, string>? FrontMatter = null) : ProjectRequest(Scope), IScannableRequest
 {
     public override string ResourceReference => WorkItemId.ToString();
+
+    /// <summary>
+    /// Everything that would be written down: the title, the body, every front-matter value, and
+    /// the provenance locator. A credential pasted into any of them is a credential the system
+    /// would have stored.
+    /// </summary>
+    public IEnumerable<string> ContentForScanning
+    {
+        get
+        {
+            yield return Title;
+            yield return Body;
+
+            if (Provenance is not null)
+            {
+                yield return Provenance.SourceLocator;
+            }
+
+            foreach (string value in FrontMatter?.Values ?? [])
+            {
+                yield return value;
+            }
+        }
+    }
 
     public override IReadOnlyList<string> Validate()
     {
@@ -99,9 +123,28 @@ public sealed record ReviseDraftRequest(
     string Title,
     string Body,
     Provenance Provenance,
-    IReadOnlyDictionary<string, string>? FrontMatter = null) : ProjectRequest(Scope)
+    IReadOnlyDictionary<string, string>? FrontMatter = null) : ProjectRequest(Scope), IScannableRequest
 {
     public override string ResourceReference => RecordId.ToString();
+
+    public IEnumerable<string> ContentForScanning
+    {
+        get
+        {
+            yield return Title;
+            yield return Body;
+
+            if (Provenance is not null)
+            {
+                yield return Provenance.SourceLocator;
+            }
+
+            foreach (string value in FrontMatter?.Values ?? [])
+            {
+                yield return value;
+            }
+        }
+    }
 
     public override IReadOnlyList<string> Validate() =>
         string.IsNullOrWhiteSpace(Title) ? ["A revision needs a title."] : [];
@@ -222,9 +265,12 @@ public sealed class ApproveRecordUseCase(IKnowledgeRepository repository, IClock
 public sealed record RequestCorrectionRequest(
     ProjectScope Scope,
     KnowledgeRecordId RecordId,
-    string Reason) : ProjectRequest(Scope)
+    string Reason) : ProjectRequest(Scope), IScannableRequest
 {
     public override string ResourceReference => RecordId.ToString();
+
+    /// <summary>The reason is retained on the record, so it is scanned like any other content.</summary>
+    public IEnumerable<string> ContentForScanning => [Reason];
 
     public override IReadOnlyList<string> Validate() =>
         string.IsNullOrWhiteSpace(Reason)

@@ -51,4 +51,7 @@ public static class UseCaseResult
 
     public static UseCaseResult<TResponse> Rejected<TResponse>(string reason) =>
         new(ExecutionOutcome.Rejected, default, reason, []);
+
+    public static UseCaseResult<TResponse> Blocked<TResponse>(string reason, IReadOnlyList<string> findings) =>
+        new(ExecutionOutcome.Blocked, default, reason, findings);
 }
