@@ -296,7 +296,8 @@ internal static class RowMappers
             (AuditAction)row.Action,
             (AuditOutcome)row.Outcome,
             row.ResourceReference,
-            row.OccurredAt);
+            row.OccurredAt,
+            row.Details);
 
     public static AuditEventRow ToRow(AuditEvent auditEvent) => new()
     {
@@ -308,6 +309,7 @@ internal static class RowMappers
         Outcome = (int)auditEvent.Outcome,
         ResourceReference = auditEvent.ResourceReference,
         OccurredAt = auditEvent.OccurredAt,
+        Details = new Dictionary<string, string>(auditEvent.Details, StringComparer.Ordinal),
     };
 
     private static RecordRevision ToDomain(RecordRevisionRow row) =>

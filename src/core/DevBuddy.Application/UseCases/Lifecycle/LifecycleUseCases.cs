@@ -188,22 +188,34 @@ public sealed record ApproveRecordRequest(
 /// </para>
 /// </summary>
 public sealed class ApproveRecordUseCase(IKnowledgeRepository repository, IClock clock)
-    : UseCase<ApproveRecordRequest, LifecycleResult>
+    : UseCase<ApproveRecordRequest, ApprovalResult>
 {
     private readonly IKnowledgeRepository _repository = Guard.NotNull(repository, nameof(repository));
     private readonly IClock _clock = Guard.NotNull(clock, nameof(clock));
 
     public override UseCaseDescriptor Descriptor => UseCaseCatalog.ApproveRecord;
 
-    protected internal override async Task<LifecycleResult> HandleAsync(
+    protected internal override async Task<ApprovalResult> HandleAsync(
         ApproveRecordRequest request, CallerContext caller, CancellationToken cancellationToken)
     {
         KnowledgeRecord record = await LifecycleSupport.LoadAsync(
             _repository, request.RecordId, request.Scope, cancellationToken);
 
-        record.Approve(caller.UserId, ContentHash.Parse(request.ApprovedContentHash), _clock.UtcNow);
+        Approval approval = record.Approve(
+            caller.UserId, ContentHash.Parse(request.ApprovedContentHash), _clock.UtcNow);
+
         await _repository.UpdateRecordAsync(record, cancellationToken);
-        return CreateDraftUseCase.Describe(record);
+
+        return new ApprovalResult(
+            record.Id,
+            record.Status,
+            record.CurrentRevision.Number,
+            record.PublishedRevisionNumber,
+            approval.ApproverId,
+            approval.ApprovedContentHash.Value,
+            approval.ApprovedRevisionNumber,
+            approval.ApprovedAt,
+            approval.ApproverWasDraftCreator);
     }
 }
 

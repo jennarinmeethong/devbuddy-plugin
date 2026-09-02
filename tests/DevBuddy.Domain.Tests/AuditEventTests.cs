@@ -65,6 +65,71 @@ public sealed class AuditEventTests
     }
 
     [Fact]
+    public void detail_values_are_capped_so_the_audit_cannot_become_a_copy_of_the_content()
+    {
+        var oversized = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["body"] = new('x', 201),
+        };
+
+        // Refused, not truncated. A truncated secret is still a leak, and a refusal is visible
+        // (SB-19).
+        DomainValidationException failure = Assert.Throws<DomainValidationException>(() =>
+            AuditEvent.ForProject(
+                AuditEventId.New(), Fixtures.AlphaScope, Fixtures.Author, AuditAction.RecordApproved,
+                AuditOutcome.Succeeded, "record:123", Fixtures.Now, oversized));
+
+        Assert.Contains("body", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void an_entry_carries_at_most_twenty_details()
+    {
+        var tooMany = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        for (int index = 0; index < 21; index++)
+        {
+            tooMany[$"key{index}"] = "value";
+        }
+
+        Assert.Throws<DomainValidationException>(() =>
+            AuditEvent.ForProject(
+                AuditEventId.New(), Fixtures.AlphaScope, Fixtures.Author, AuditAction.RecordApproved,
+                AuditOutcome.Succeeded, "record:123", Fixtures.Now, tooMany));
+    }
+
+    [Fact]
+    public void an_approval_entry_carries_the_four_things_info_md_asks_for()
+    {
+        var details = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["approver"] = Fixtures.Reviewer.ToString(),
+            ["approved_revision"] = "2",
+            ["approved_content_hash"] = ContentHash.FromContent("body").Value,
+            ["approved_at"] = Fixtures.Now.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            ["approver_was_draft_creator"] = "false",
+        };
+
+        AuditEvent entry = AuditEvent.ForProject(
+            AuditEventId.New(), Fixtures.AlphaScope, Fixtures.Reviewer, AuditAction.RecordApproved,
+            AuditOutcome.Succeeded, "approve_record:123", Fixtures.Now, details);
+
+        Assert.Equal("2", entry.Details["approved_revision"]);
+        Assert.Equal(64, entry.Details["approved_content_hash"].Length);
+        Assert.Equal("false", entry.Details["approver_was_draft_creator"]);
+    }
+
+    [Fact]
+    public void an_entry_with_no_details_has_an_empty_bag_rather_than_null()
+    {
+        AuditEvent entry = AuditEvent.ForSystem(
+            AuditEventId.New(), Fixtures.Author, AuditAction.HealthChecked,
+            AuditOutcome.Succeeded, "system", Fixtures.Now);
+
+        Assert.Empty(entry.Details);
+    }
+
+    [Fact]
     public void an_entry_requires_a_resource_reference_and_a_utc_timestamp()
     {
         Assert.Throws<DomainValidationException>(() => AuditEvent.ForSystem(

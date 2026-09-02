@@ -4,7 +4,7 @@ This file is the **single source of truth for whether a security control actuall
 moves out of `NOT IMPLEMENTED` only when the named test exists, runs in CI, and passes. Nothing
 else — not a design document, not a code review, not an intention — changes a row.
 
-**Current state: 33 controls. 6 `TESTED`, 13 `IMPLEMENTED` but unproven, 14 `NOT IMPLEMENTED`.**
+**Current state: 33 controls. 9 `TESTED`, 10 `IMPLEMENTED` but unproven, 14 `NOT IMPLEMENTED`.**
 
 Controls are defined in [security-baseline.md](security-baseline.md); threats in
 [threat-model.md](threat-model.md).
@@ -50,14 +50,14 @@ Controls are defined in [security-baseline.md](security-baseline.md); threats in
 | SB-16 | Role enforcement server-side | 4, 7, 8 | Role matrix test per endpoint | IMPLEMENTED | The role table is enforced through the real pipeline (`RolePermissionsTests`, `RevokedAccessAndRoleTests`), including that a project grant does not reach a workspace-level operation. There are no endpoints yet to run a per-endpoint matrix against. |
 | SB-17 | Secret detection and redaction, retention and egress | 2, 6 | Secret corpus at both points | IMPLEMENTED | The egress **stage** exists and is tested with a fake redactor. **The redactor that currently ships redacts nothing** (`UnimplementedRedactor`), and the scanner finds nothing. Phase 6 replaces both. Do not connect real project data before then. |
 | SB-18 | Customer/production/personal data denied by default | 6, 7 | Policy test incl. approved bounded scope | NOT IMPLEMENTED | — |
-| SB-19 | Audit stores no sensitive payload | 2, 5 | Audit content test | IMPLEMENTED | `PipelineTests` asserts the audit entry names the operation and resource and carries no content. Against fakes; the real audit store is Phase 3. |
-| SB-20 | Provenance and history support correction | 1, 5 | Provenance invariant and correction flow | IMPLEMENTED | Domain half passes: `RecordRevisionTests`, `KnowledgeRecordApprovalTests`. Correction flow end to end pending Phase 5. |
+| SB-19 | Audit stores no sensitive payload | 2, 5 | Audit content test | **TESTED** | `LifecycleAndAuditTests.the_audit_trail_never_contains_the_content_it_describes` scans every audit row and detail column in real PostgreSQL for a marker that is present in the record body. Mutation-checked: adding the marker to an audit detail makes it fail. Detail values are capped at 200 characters in the domain and refused rather than truncated. |
+| SB-20 | Provenance and history support correction | 1, 5 | Provenance invariant and correction flow | **TESTED** | Provenance is mandatory (`RecordRevisionTests`) and the correction flow runs end to end against real PostgreSQL (`a_record_travels_from_draft_through_correction_to_published`), with the reason retained on the stored record. |
 | SB-21 | Size, rate, and concurrency limits | 3, 10 | Oversized upload, flood, concurrency tests | IMPLEMENTED | The evidence size limit is enforced and tested (`an_oversized_object_is_refused_and_nothing_is_written`). Request rate and concurrency limits are Phase 10. |
 | SB-22 | Analysis execution time limit | 6 | Pathological input test | NOT IMPLEMENTED | — |
-| SB-23 | Approval bound to exact revision | 1, 5 | Domain invariant + stale-approval e2e | IMPLEMENTED | Domain half passes: `KnowledgeRecordApprovalTests`. End-to-end attempt pending Phase 5. |
+| SB-23 | Approval bound to exact revision | 1, 5 | Domain invariant + stale-approval e2e | **TESTED** | Both halves pass. End to end against real PostgreSQL: publishing after the text changed is rejected and audited, and approving a hash that is no longer current is rejected and audited. |
 | SB-24 | Revisions immutable | 1, 3 | Immutability tests, domain and persistence | **TESTED** | Both halves pass against real PostgreSQL: `RecordRevisionTests` and `PersistenceTests.rewriting_a_stored_revision_is_refused`. |
 | SB-25 | Provenance mandatory, snapshots retained | 1, 3 | Invariant + snapshot round-trip | **TESTED** | Invariant and jsonb round-trip both pass: `RecordRevisionTests`, `PersistenceTests.a_published_record_round_trips_with_its_whole_history`. |
-| SB-26 | Drafts separated from published everywhere | 1, 5, 7, 8 | Draft-visibility test across API, MCP, UI | IMPLEMENTED | Domain keeps the published revision live while a new draft exists: `KnowledgeRecordApprovalTests`. API, MCP, and UI pending. |
+| SB-26 | Drafts separated from published everywhere | 1, 5, 7, 8 | Draft-visibility test across API, MCP, UI | IMPLEMENTED | Covered end to end at the pipeline: a reader gets the published revision, a status-filtered search excludes the later draft, and the history marks which revision is live (`a_reader_of_published_knowledge_never_sees_the_draft_that_follows_it`). The API, MCP, and UI surfaces named in the verification do not exist yet. |
 | SB-27 | Retention applies to all data copies | 11 | Purge tests per copy + deleted-project sweep | NOT IMPLEMENTED | — |
 | SB-28 | Dependencies pinned and scanned | 0, 10 | CI vulnerability gate | NOT IMPLEMENTED | — |
 | SB-29 | SBOM and verifiable artifact origin | 10 | SBOM attached per release | NOT IMPLEMENTED | — |
@@ -79,12 +79,12 @@ considered exercised.
 | 2 | Revoked permissions take effect | SB-14, SB-11 — **exercised** |
 | 3 | Malicious source and tool content | SB-01 to SB-06, SB-07 |
 | 4 | Sensitive-data leakage | SB-17, SB-18, SB-19 |
-| 5 | Approval revision mismatch | SB-23, SB-24 |
+| 5 | Approval revision mismatch | SB-23, SB-24 — **exercised** |
 | 6 | Resource exhaustion | SB-21, SB-22 |
 | 7 | Recovery | SB-33 |
 | 8 | Retention and deletion across copies | SB-27, SB-32 |
 
-**Two of the eight are exercised.** Scenarios 1 and 2 run against real PostgreSQL through the real pipeline, over four data paths and with cross-user, cross-team, cross-project, revoked-grant, and disabled-account cases. The remaining six need the secret scanner (Phase 6), the MCP transport (Phase 7), resource limits, backups, and retention (Phases 10 and 11).
+**Three of the eight are exercised.** Scenarios 1, 2 and 5 run against real PostgreSQL through the real pipeline: four data paths with cross-user, cross-team, cross-project, revoked-grant and disabled-account cases, and both ways an approval can fail to mean what it says. The remaining five need the secret scanner (Phase 6), the MCP transport (Phase 7), resource limits, backups, and retention (Phases 10 and 11).
 
 ---
 
@@ -97,3 +97,4 @@ considered exercised.
 | 2026-09-01 | Phase 2. SB-07, SB-10, SB-11, SB-17, SB-19 moved to `IMPLEMENTED`: the application-layer half of each is tested against fake ports. **Nothing is `TESTED`.** No control has been exercised against a real database, a real MCP transport, or a real secret scanner. |
 | 2026-09-01 | Phase 3. **First two rows reach `TESTED`:** SB-24 and SB-25 pass end to end against real PostgreSQL, including the storage-layer refusal to rewrite a stored revision. SB-05, SB-12 and SB-21 move to `IMPLEMENTED` for the parts persistence covers. Still untested: everything needing authentication, an MCP transport, or a secret scanner. |
 | 2026-09-01 | Phase 4. SB-11, SB-12, SB-14 and SB-15 reach `TESTED`; SB-08, SB-09, SB-13 and SB-16 move to `IMPLEMENTED`. **Scenarios 1 and 2 are exercised.** SB-17 is downgraded in substance rather than status: the redactor that ships today redacts nothing, and the note now says so. |
+| 2026-09-01 | Phase 5. SB-19, SB-20 and SB-23 reach `TESTED`, taking the total to nine. **Scenario 5 is exercised.** Audit entries now carry structured, capped metadata, so the approver, the exact approved revision, the timestamp, and whether the approver wrote the draft are in the audit history rather than only on the record. |

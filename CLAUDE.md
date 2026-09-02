@@ -13,13 +13,14 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 4 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
+Phases 0 to 5 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
 `UseCaseExecutor` pipeline and 41 use cases; Phase 3 PostgreSQL, full-text search, and MinIO;
-Phase 4 identity, the authorization service, and tenant isolation. 191 tests pass, 41 of them
-security scenarios against real PostgreSQL.
+Phase 4 identity, authorization, and tenant isolation; Phase 5 the lifecycle end to end with an
+audit history that records approver, revision, timestamp, and self-approval. 205 tests pass, 51 of
+them security scenarios against real PostgreSQL. Nine of 33 controls are `TESTED`.
 
-**Phase 5 (knowledge lifecycle and audit) is next.** There is still no GitHub client, no secret
-scanner, no MCP server, and no UI.
+**Phase 6 (analysis, sources, and safety scanners) is next.** There is still no GitHub client, no
+secret scanner, no MCP server, and no UI.
 
 **The redactor that ships today redacts nothing.** `UnimplementedRedactor` keeps the pipeline
 runnable until Phase 6. Never describe secret redaction as working, and do not connect real

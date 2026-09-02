@@ -107,12 +107,21 @@ public sealed class UseCaseExecutor
         }
         catch (ResourceNotFoundException notFound)
         {
-            await AuditAsync(descriptor, request, caller, AuditOutcome.Failed, cancellationToken);
+            await AuditAsync(descriptor, request, caller, AuditOutcome.Failed, null, cancellationToken);
             return UseCaseResult.NotFound<TResponse>(notFound.Message);
         }
         catch (DomainException rejected)
         {
-            await AuditAsync(descriptor, request, caller, AuditOutcome.Failed, cancellationToken);
+            // A refused domain rule is recorded with the reason. A rejected publication is
+            // exactly the event an investigation into a stale approval would look for.
+            await AuditAsync(
+                descriptor,
+                request,
+                caller,
+                AuditOutcome.Failed,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["rejection"] = Summarise(rejected) },
+                cancellationToken);
+
             return UseCaseResult.Rejected<TResponse>(rejected.Message);
         }
 
@@ -122,8 +131,13 @@ public sealed class UseCaseExecutor
             response = redactable.Redact(_redactor);
         }
 
-        // 7. Audit the access that actually happened.
-        await AuditAsync(descriptor, request, caller, AuditOutcome.Succeeded, cancellationToken);
+        // 7. Audit the access that actually happened, with whatever metadata the use case
+        //    contributed. Redaction ran first, so nothing a redactor would have removed can
+        //    reach the audit store through this path either.
+        IReadOnlyDictionary<string, string>? details =
+            response is IAuditableResult auditable ? auditable.AuditDetails : null;
+
+        await AuditAsync(descriptor, request, caller, AuditOutcome.Succeeded, details, cancellationToken);
 
         return UseCaseResult.Success(response);
     }
@@ -138,18 +152,27 @@ public sealed class UseCaseExecutor
         // A refused cross-project read is exactly the event an investigation needs to find, so
         // denials are audited as deliberately as successes.
         await WriteAuditAsync(
-            descriptor, request, caller, AuditAction.AccessDenied, AuditOutcome.Denied, cancellationToken);
+            descriptor, request, caller, AuditAction.AccessDenied, AuditOutcome.Denied, null, cancellationToken);
 
         return UseCaseResult.Denied<TResponse>(reason);
     }
+
+    /// <summary>
+    /// The rule that was broken, not the content that broke it. Domain messages name states,
+    /// revision numbers, and short hashes, and the 200-character cap in the domain refuses
+    /// anything that grew beyond that.
+    /// </summary>
+    private static string Summarise(DomainException rejected) =>
+        rejected.Message.Length <= 200 ? rejected.Message : rejected.GetType().Name;
 
     private Task AuditAsync(
         UseCaseDescriptor descriptor,
         IUseCaseRequest request,
         CallerContext caller,
         AuditOutcome outcome,
+        IReadOnlyDictionary<string, string>? details,
         CancellationToken cancellationToken) =>
-        WriteAuditAsync(descriptor, request, caller, descriptor.AuditAction, outcome, cancellationToken);
+        WriteAuditAsync(descriptor, request, caller, descriptor.AuditAction, outcome, details, cancellationToken);
 
     private Task WriteAuditAsync(
         UseCaseDescriptor descriptor,
@@ -157,6 +180,7 @@ public sealed class UseCaseExecutor
         CallerContext caller,
         AuditAction action,
         AuditOutcome outcome,
+        IReadOnlyDictionary<string, string>? details,
         CancellationToken cancellationToken)
     {
         // The reference identifies what was acted on. The content itself never appears here.
@@ -170,7 +194,8 @@ public sealed class UseCaseExecutor
                 action,
                 outcome,
                 reference,
-                _clock.UtcNow)
+                _clock.UtcNow,
+                details)
             : AuditEvent.ForWorkspace(
                 AuditEventId.New(),
                 request.WorkspaceId,
@@ -178,7 +203,8 @@ public sealed class UseCaseExecutor
                 action,
                 outcome,
                 reference,
-                _clock.UtcNow);
+                _clock.UtcNow,
+                details);
 
         return _auditSink.WriteAsync(entry, cancellationToken);
     }

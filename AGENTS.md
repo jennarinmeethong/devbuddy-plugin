@@ -12,7 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 4 are complete; Phase 5 (knowledge lifecycle and audit) is next.
+  criteria. Phases 0 to 5 are complete; Phase 6 (analysis, sources, safety scanners) is next.
 
 ## Project Structure & Module Organization
 
@@ -137,6 +137,8 @@ These are requirements, not aspirations. `docs/security/security-baseline.md` ha
   `UnimplementedSecretScanner`); Phase 6 replaces them. Do not describe redaction as working, and
   do not connect real project data before then.
 - Approval binds to an exact revision hash. Revisions are immutable.
+- Audit entries carry metadata, never payload. A response contributes its own detail through
+  `IAuditableResult`; the domain caps every value at 200 characters and refuses anything longer.
 
 If a change implements a control, update its row in `docs/security/verification-matrix.md` — but
 only to `TESTED` once a passing test exists. `IMPLEMENTED` is not done.

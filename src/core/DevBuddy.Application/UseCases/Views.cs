@@ -1,3 +1,4 @@
+using System.Globalization;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
@@ -137,9 +138,65 @@ public sealed record ApprovalSummary(
     DateTimeOffset ApprovedAt,
     bool ApproverWasDraftCreator);
 
-/// <summary>An acknowledgement that a lifecycle step happened, and what state it left behind.</summary>
-public sealed record LifecycleResult(
+/// <summary>
+/// An acknowledgement that a lifecycle step happened, and what state it left behind.
+/// <para>
+/// It contributes that state to its own audit entry. Knowing that publish_record ran is much less
+/// useful than knowing which revision went live.
+/// </para>
+/// </summary>
+public record LifecycleResult(
     KnowledgeRecordId RecordId,
     RecordStatus Status,
     int CurrentRevisionNumber,
-    int? PublishedRevisionNumber);
+    int? PublishedRevisionNumber) : IAuditableResult
+{
+    public virtual IReadOnlyDictionary<string, string> AuditDetails =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["status"] = Status.ToString(),
+            ["current_revision"] = CurrentRevisionNumber.ToString(CultureInfo.InvariantCulture),
+            ["published_revision"] =
+                PublishedRevisionNumber?.ToString(CultureInfo.InvariantCulture) ?? "none",
+        };
+}
+
+/// <summary>
+/// What an approval recorded.
+/// <para>
+/// info.md requires the audit history to record the approver, the exact approved revision, the
+/// timestamp, and whether the approver was also the draft creator. All four are here, and all
+/// four reach the audit store, because a record of "someone approved something" answers none of
+/// the questions an investigation actually asks.
+/// </para>
+/// </summary>
+public sealed record ApprovalResult(
+    KnowledgeRecordId RecordId,
+    RecordStatus Status,
+    int CurrentRevisionNumber,
+    int? PublishedRevisionNumber,
+    UserId ApproverId,
+    string ApprovedContentHash,
+    int ApprovedRevisionNumber,
+    DateTimeOffset ApprovedAt,
+    bool ApproverWasDraftCreator)
+    : LifecycleResult(RecordId, Status, CurrentRevisionNumber, PublishedRevisionNumber)
+{
+    public override IReadOnlyDictionary<string, string> AuditDetails =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["status"] = Status.ToString(),
+            ["current_revision"] = CurrentRevisionNumber.ToString(CultureInfo.InvariantCulture),
+            ["published_revision"] =
+                PublishedRevisionNumber?.ToString(CultureInfo.InvariantCulture) ?? "none",
+            ["approver"] = ApproverId.ToString(),
+            ["approved_revision"] = ApprovedRevisionNumber.ToString(CultureInfo.InvariantCulture),
+
+            // The hash, not the content. It is what the approval binds to, and it is what a later
+            // reader needs in order to check that the published text is the text that was read.
+            ["approved_content_hash"] = ApprovedContentHash,
+            ["approved_at"] = ApprovedAt.ToString("O", CultureInfo.InvariantCulture),
+            ["approver_was_draft_creator"] =
+                ApproverWasDraftCreator ? "true" : "false",
+        };
+}

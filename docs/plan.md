@@ -372,6 +372,30 @@ Five things worth knowing:
 **Exit criteria:** an end-to-end integration test drives a record from draft to publish, then
 attempts a stale-approval publish and a cross-project approval, and both are rejected and audited.
 
+**Status: COMPLETE (2026-09-01).** `LifecycleAndAuditTests` runs the whole path against real
+PostgreSQL — draft, submit, correction with its reason, revision, approval, publish — and then
+both failure modes: publishing after the text changed, and approving a record in another project.
+Both are rejected and both are audited. SB-19, SB-20 and SB-23 reach `TESTED`, taking the total to
+nine, and **Phase 11 scenario 5 is exercised**.
+
+Three things worth knowing:
+
+- **Audit entries gained structured metadata.** info.md requires the audit *history* to record the
+  approver, the exact approved revision, the timestamp, and whether the approver was also the
+  draft creator. Those lived only on the record. A response can now contribute metadata to its own
+  audit entry through `IAuditableResult`, because only the use case knows which revision an
+  approval covered.
+- **The metadata is capped rather than trusted.** Values are limited to 200 characters and refused
+  rather than truncated: a truncated secret is still a leak, and a refusal is visible. The test
+  that proves it scans every audit row and detail column for a marker present in the record body,
+  and it was mutation-checked by putting the marker into an audit detail and watching it fail.
+- **A rejection is audited with its reason.** A refused publication is exactly the event an
+  investigation into a stale approval would look for, so it is recorded rather than only returned.
+
+`compare_snapshots` is in this phase in the plan but cannot be exercised yet: `ISourceSystemClient`
+has no implementation until Phase 6. The use case and its authorization are covered; the source
+system it talks to is not.
+
 ---
 
 ## Phase 6 — Analysis, sources, and safety scanners

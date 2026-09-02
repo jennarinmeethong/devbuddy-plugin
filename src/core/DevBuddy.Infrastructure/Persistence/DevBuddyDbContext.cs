@@ -317,7 +317,9 @@ public class DevBuddyDbContext : DbContext
             row.ToTable("audit_events");
             row.HasKey(entity => entity.Id);
             row.Property(entity => entity.ResourceReference).HasMaxLength(500).IsRequired();
+            JsonColumn(row.Property(entity => entity.Details));
             row.HasIndex(entity => new { entity.WorkspaceId, entity.ProjectId, entity.OccurredAt });
+            row.HasIndex(entity => new { entity.WorkspaceId, entity.ProjectId, entity.Action, entity.OccurredAt });
             row.HasIndex(entity => new { entity.ActorId, entity.OccurredAt });
 
             // Not filtered: system-wide entries have no workspace at all, and a fail-closed

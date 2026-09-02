@@ -314,6 +314,13 @@ internal sealed class AuditEventRow
     public string ResourceReference { get; set; } = string.Empty;
 
     public DateTimeOffset OccurredAt { get; set; }
+
+    /// <summary>
+    /// Metadata about the action: which revision an approval covered, whether the approver was
+    /// also the author, what state a record ended in. The domain caps every value at 200
+    /// characters, so this column cannot become a copy of the content (SB-19).
+    /// </summary>
+    public Dictionary<string, string> Details { get; set; } = [];
 }
 
 internal sealed class SourceSnapshotRow : ITenantScopedRow

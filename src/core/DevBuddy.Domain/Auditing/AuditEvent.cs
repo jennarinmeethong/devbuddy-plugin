@@ -26,7 +26,8 @@ public sealed class AuditEvent
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
-        DateTimeOffset occurredAt)
+        DateTimeOffset occurredAt,
+        IReadOnlyDictionary<string, string>? details = null)
     {
         if (projectId is not null && workspaceId is null)
         {
@@ -42,6 +43,7 @@ public sealed class AuditEvent
         ResourceReference = Guard.NotLongerThan(
             Guard.NotBlank(resourceReference, nameof(resourceReference)), 500, nameof(resourceReference));
         OccurredAt = Guard.Utc(occurredAt, nameof(occurredAt));
+        Details = Validate(details);
     }
 
     public AuditEventId Id { get; }
@@ -61,6 +63,18 @@ public sealed class AuditEvent
 
     public DateTimeOffset OccurredAt { get; }
 
+    /// <summary>
+    /// Metadata about what happened: which revision was approved, whether the approver was also
+    /// the author, what state the record ended in.
+    /// <para>
+    /// Metadata, not payload. Values are capped at 200 characters and the cap is the point:
+    /// control SB-19 forbids copying the sensitive content an action touched into the audit
+    /// store, and a field with no limit is where that would happen first. Record titles, bodies,
+    /// and search text never go here; hashes, numbers, and states do.
+    /// </para>
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Details { get; }
+
     public static AuditEvent ForProject(
         AuditEventId id,
         ProjectScope scope,
@@ -68,8 +82,9 @@ public sealed class AuditEvent
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
-        DateTimeOffset occurredAt) =>
-        new(id, scope.WorkspaceId, scope.ProjectId, actorId, action, outcome, resourceReference, occurredAt);
+        DateTimeOffset occurredAt,
+        IReadOnlyDictionary<string, string>? details = null) =>
+        new(id, scope.WorkspaceId, scope.ProjectId, actorId, action, outcome, resourceReference, occurredAt, details);
 
     public static AuditEvent ForWorkspace(
         AuditEventId id,
@@ -78,8 +93,9 @@ public sealed class AuditEvent
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
-        DateTimeOffset occurredAt) =>
-        new(id, workspaceId, projectId: null, actorId, action, outcome, resourceReference, occurredAt);
+        DateTimeOffset occurredAt,
+        IReadOnlyDictionary<string, string>? details = null) =>
+        new(id, workspaceId, projectId: null, actorId, action, outcome, resourceReference, occurredAt, details);
 
     /// <summary>For operations above any workspace, such as a backup or a restore.</summary>
     public static AuditEvent ForSystem(
@@ -88,6 +104,37 @@ public sealed class AuditEvent
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
-        DateTimeOffset occurredAt) =>
-        new(id, workspaceId: null, projectId: null, actorId, action, outcome, resourceReference, occurredAt);
+        DateTimeOffset occurredAt,
+        IReadOnlyDictionary<string, string>? details = null) =>
+        new(id, workspaceId: null, projectId: null, actorId, action, outcome, resourceReference, occurredAt, details);
+
+    /// <summary>
+    /// Caps the shape of the detail bag. Refusing an oversized value is better than truncating
+    /// one: a truncated secret is still a leak, and a refusal is visible.
+    /// </summary>
+    private static Dictionary<string, string> Validate(
+        IReadOnlyDictionary<string, string>? details)
+    {
+        if (details is null || details.Count == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        if (details.Count > 20)
+        {
+            throw new DomainValidationException(
+                "An audit entry carries at most 20 detail values. It records what happened, not the thing it happened to.");
+        }
+
+        var copy = new Dictionary<string, string>(details.Count, StringComparer.Ordinal);
+
+        foreach (KeyValuePair<string, string> entry in details)
+        {
+            Guard.NotLongerThan(Guard.NotBlank(entry.Key, "detail key"), 64, "detail key");
+            Guard.NotLongerThan(entry.Value ?? string.Empty, 200, $"detail value for {entry.Key}");
+            copy[entry.Key] = entry.Value ?? string.Empty;
+        }
+
+        return copy;
+    }
 }

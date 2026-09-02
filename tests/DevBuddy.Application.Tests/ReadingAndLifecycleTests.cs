@@ -149,7 +149,7 @@ public sealed class ReadingAndLifecycleTests
         record.SubmitForApproval(TestData.Now);
         harness.Ports.Record = record;
 
-        UseCaseResult<LifecycleResult> result = await harness.RunAsync(
+        UseCaseResult<ApprovalResult> result = await harness.RunAsync(
             new ApproveRecordUseCase(harness.Ports, harness.Ports),
             new ApproveRecordRequest(TestData.Scope, record.Id, staleHash.Value));
 
