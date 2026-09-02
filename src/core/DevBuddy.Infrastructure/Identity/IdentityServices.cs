@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Common;
 using DevBuddy.Infrastructure.Persistence;
+using DevBuddy.Infrastructure.Persistence.Mapping;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -152,6 +154,52 @@ internal sealed class CredentialManager : ICredentialManager
         _hasher = Guard.NotNull(hasher, nameof(hasher));
         _clock = Guard.NotNull(clock, nameof(clock));
         _settings = Guard.NotNull(settings, nameof(settings)).Value;
+    }
+
+    /// <summary>
+    /// Creates an account with no credential, and a single-use setup token its owner uses to
+    /// choose a password.
+    /// <para>
+    /// The account is unusable until that token is redeemed: there is no credential row, so
+    /// sign-in cannot succeed against it by any password. That is deliberate — an account that
+    /// existed with a password somebody else picked would be an account its owner does not
+    /// control.
+    /// </para>
+    /// </summary>
+    public async Task<AccountCreation?> CreateAccountAsync(
+        string email, string displayName, CancellationToken cancellationToken)
+    {
+        string address = (email ?? string.Empty).Trim();
+        string normalised = address.ToUpperInvariant();
+
+        if (await _db.Users.AsNoTracking()
+            .AnyAsync(candidate => candidate.NormalizedEmail == normalised, cancellationToken))
+        {
+            return null;
+        }
+
+        DateTimeOffset now = _clock.UtcNow;
+        var userId = UserId.New();
+
+        _db.Users.Add(RowMappers.ToRow(new User(userId, address, displayName, now)));
+
+        string setupToken = OpaqueToken.Create();
+
+        // The same table recovery uses, so the token is single-use, time-boxed, stored only as a
+        // hash, and redeemed through the same endpoint. A second mechanism that did nearly this
+        // would be a second mechanism to get wrong.
+        _db.RecoveryTokens.Add(new RecoveryTokenRow
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId.Value,
+            TokenHash = OpaqueToken.Hash(setupToken),
+            IssuedAt = now,
+            ExpiresAt = now + _settings.RecoveryTokenLifetime,
+        });
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return new AccountCreation(userId, setupToken, now + _settings.RecoveryTokenLifetime);
     }
 
     public async Task SetPasswordAsync(UserId userId, string password, CancellationToken cancellationToken)

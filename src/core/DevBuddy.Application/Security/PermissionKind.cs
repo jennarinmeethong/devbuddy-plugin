@@ -42,4 +42,20 @@ public enum PermissionKind
 
     /// <summary>Export, back up, restore, and inspect system health.</summary>
     AdministerSystem = 12,
+
+    // Added in Phase 8, when the administration UI needed a way to set a workspace up. Until
+    // then the only thing that could create anything was the one-time bootstrap, which meant a
+    // second person could not be onboarded at all.
+
+    /// <summary>Create and rename projects inside a workspace.</summary>
+    ManageProjects = 13,
+
+    /// <summary>
+    /// Create and describe work items. Separate from ManageProjects and set lower, because
+    /// registering the work a draft is about is part of contributing, not of administering.
+    /// </summary>
+    ManageWorkItems = 14,
+
+    /// <summary>Create an account for somebody who does not have one yet.</summary>
+    ManageAccounts = 15,
 }

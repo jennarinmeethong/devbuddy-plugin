@@ -24,6 +24,19 @@ public interface IKnowledgeRepository
     Task<WorkItem?> FindWorkItemAsync(
         WorkItemId id, ProjectScope scope, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(
+        ProjectScope scope, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records in the project, optionally narrowed to particular statuses. The review queue needs
+    /// this: full-text search cannot answer "everything awaiting approval" without a query text,
+    /// and inventing one would make the queue depend on what somebody happened to type.
+    /// </summary>
+    Task<IReadOnlyList<KnowledgeRecord>> ListRecordsAsync(
+        ProjectScope scope, IReadOnlyList<RecordStatus>? statuses, CancellationToken cancellationToken);
+
+    Task AddWorkItemAsync(WorkItem workItem, CancellationToken cancellationToken);
+
     Task AddRecordAsync(KnowledgeRecord record, CancellationToken cancellationToken);
 
     Task UpdateRecordAsync(KnowledgeRecord record, CancellationToken cancellationToken);

@@ -29,6 +29,7 @@ public static class RolePermissions
         .. ViewerPermissions,
         PermissionKind.AnalyzeProject,
         PermissionKind.CreateDraft,
+        PermissionKind.ManageWorkItems,
     ];
 
     private static readonly PermissionKind[] ReviewerPermissions =
@@ -42,6 +43,8 @@ public static class RolePermissions
     private static readonly PermissionKind[] AdministratorPermissions =
     [
         .. ReviewerPermissions,
+        PermissionKind.ManageProjects,
+        PermissionKind.ManageAccounts,
         PermissionKind.ManageSources,
         PermissionKind.ManageIndex,
         PermissionKind.ScanContent,

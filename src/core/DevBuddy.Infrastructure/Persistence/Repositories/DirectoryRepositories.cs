@@ -59,6 +59,12 @@ internal sealed class ProjectDirectory(DevBuddyDbContext db) : IProjectDirectory
 
         return row is null ? null : RowMappers.ToDomain(row);
     }
+
+    public async Task AddProjectAsync(Project project, CancellationToken cancellationToken)
+    {
+        _db.Projects.Add(RowMappers.ToRow(Guard.NotNull(project, nameof(project))));
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 }
 
 /// <summary>Membership and per-project AI access.</summary>
@@ -72,6 +78,21 @@ internal sealed class AccessDirectory(DevBuddyDbContext db) : IAccessDirectory
         List<MembershipRow> rows = await _db.Memberships
             .Where(membership => membership.WorkspaceId == workspaceId.Value
                 && membership.UserId == userId.Value)
+            .OrderBy(membership => membership.GrantedAt)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(RowMappers.ToDomain)];
+    }
+
+    public async Task<IReadOnlyList<Membership>> ListMembershipsForWorkspaceAsync(
+        WorkspaceId workspaceId, CancellationToken cancellationToken)
+    {
+        // Revoked grants are included rather than filtered out. An administration screen that
+        // showed only live ones would make a revocation look like the grant never happened, and
+        // "who used to have this" is exactly what somebody looking at the screen wants to know.
+        List<MembershipRow> rows = await _db.Memberships
+            .Where(membership => membership.WorkspaceId == workspaceId.Value)
             .OrderBy(membership => membership.GrantedAt)
             .AsNoTracking()
             .ToListAsync(cancellationToken);

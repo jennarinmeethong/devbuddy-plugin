@@ -18,4 +18,6 @@ public interface IProjectDirectory
         WorkspaceId workspaceId, UserId userId, CancellationToken cancellationToken);
 
     Task<Project?> FindProjectAsync(ProjectScope scope, CancellationToken cancellationToken);
+
+    Task AddProjectAsync(Project project, CancellationToken cancellationToken);
 }

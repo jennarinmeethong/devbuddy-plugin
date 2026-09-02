@@ -83,6 +83,13 @@ public static class DevBuddyOperations
         services.AddScoped<EnableProjectAiAccessUseCase>();
         services.AddScoped<DisableProjectAiAccessUseCase>();
         services.AddScoped<ReadAuditHistoryUseCase>();
+        services.AddScoped<ListMembershipsUseCase>();
+
+        services.AddScoped<CreateProjectUseCase>();
+        services.AddScoped<CreateWorkItemUseCase>();
+        services.AddScoped<CreateUserAccountUseCase>();
+        services.AddScoped<ListWorkItemsUseCase>();
+        services.AddScoped<ListRecordsUseCase>();
 
         services.AddScoped(BuildDispatcher);
         return services;
@@ -135,6 +142,13 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<BackupSystemUseCase>(), executor),
             Bind(services.GetRequiredService<RestoreSystemUseCase>(), executor),
             Bind(services.GetRequiredService<CheckSystemHealthUseCase>(), executor),
+
+            Bind(services.GetRequiredService<ListMembershipsUseCase>(), executor),
+            Bind(services.GetRequiredService<CreateProjectUseCase>(), executor),
+            Bind(services.GetRequiredService<CreateWorkItemUseCase>(), executor),
+            Bind(services.GetRequiredService<CreateUserAccountUseCase>(), executor),
+            Bind(services.GetRequiredService<ListWorkItemsUseCase>(), executor),
+            Bind(services.GetRequiredService<ListRecordsUseCase>(), executor),
 
             Bind(services.GetRequiredService<GrantMembershipUseCase>(), executor),
             Bind(services.GetRequiredService<RevokeMembershipUseCase>(), executor),

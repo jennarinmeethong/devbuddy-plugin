@@ -36,6 +36,7 @@ internal sealed class NullPorts :
     IAdministrativeOperations,
     IKnowledgeQualityChecks,
     IAuthorizationService,
+    ICredentialManager,
     IClock
 {
     public DateTimeOffset UtcNow => throw new NotSupportedException();
@@ -52,6 +53,17 @@ internal sealed class NullPorts :
 
     public Task<WorkItem?> FindWorkItemAsync(
         WorkItemId id, ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(
+        ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<KnowledgeRecord>> ListRecordsAsync(
+        ProjectScope scope, IReadOnlyList<RecordStatus>? statuses, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task AddWorkItemAsync(WorkItem workItem, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task AddRecordAsync(KnowledgeRecord record, CancellationToken cancellationToken) =>
@@ -109,6 +121,13 @@ internal sealed class NullPorts :
         throw new NotSupportedException();
 
     public Task<Project?> FindProjectAsync(ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task AddProjectAsync(Project project, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<Membership>> ListMembershipsForWorkspaceAsync(
+        WorkspaceId workspaceId, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task<IReadOnlyList<Membership>> ListMembershipsAsync(
@@ -169,6 +188,16 @@ internal sealed class NullPorts :
         AuthorizationRequest request, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<AccountCreation?> CreateAccountAsync(
+        string email, string displayName, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task SetPasswordAsync(UserId userId, string password, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<bool> HasCredentialAsync(UserId userId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     /// <summary>A container holding a dispatcher and nothing that can reach a database.</summary>
     public static ServiceProvider BuildHost()
     {
@@ -189,6 +218,7 @@ internal sealed class NullPorts :
         services.AddSingleton<IAdministrativeOperations>(ports);
         services.AddSingleton<IKnowledgeQualityChecks>(ports);
         services.AddSingleton<IAuthorizationService>(ports);
+        services.AddSingleton<ICredentialManager>(ports);
         services.AddSingleton<IClock>(ports);
 
         services.AddDevBuddyOperations();

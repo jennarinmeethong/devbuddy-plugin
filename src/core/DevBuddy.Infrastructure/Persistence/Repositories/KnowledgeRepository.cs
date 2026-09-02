@@ -61,6 +61,55 @@ internal sealed class KnowledgeRepository(DevBuddyDbContext db) : IKnowledgeRepo
         return row is null ? null : RowMappers.ToDomain(row);
     }
 
+    public async Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(
+        ProjectScope scope, CancellationToken cancellationToken)
+    {
+        List<WorkItemRow> rows = await _db.WorkItems
+            .Where(item => item.WorkspaceId == scope.WorkspaceId.Value
+                && item.ProjectId == scope.ProjectId.Value)
+            .OrderBy(item => item.Key)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(RowMappers.ToDomain)];
+    }
+
+    /// <summary>
+    /// Records in the project, newest first, optionally narrowed to particular statuses.
+    /// <para>
+    /// The status filter is translated into SQL rather than applied after loading. A review queue
+    /// that fetched every record in the project and then kept four of them would get slower every
+    /// week the project ran.
+    /// </para>
+    /// </summary>
+    public async Task<IReadOnlyList<KnowledgeRecord>> ListRecordsAsync(
+        ProjectScope scope, IReadOnlyList<RecordStatus>? statuses, CancellationToken cancellationToken)
+    {
+        IQueryable<KnowledgeRecordRow> query = RecordsIn(scope);
+
+        if (statuses is { Count: > 0 })
+        {
+            int[] wanted = [.. statuses.Select(status => (int)status)];
+            query = query.Where(record => wanted.Contains(record.Status));
+        }
+
+        List<KnowledgeRecordRow> rows = await query
+            .Include(record => record.Revisions)
+            .Include(record => record.Approvals)
+            .Include(record => record.Corrections)
+            .OrderByDescending(record => record.LastUpdatedAt)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(RowMappers.ToDomain)];
+    }
+
+    public async Task AddWorkItemAsync(WorkItem workItem, CancellationToken cancellationToken)
+    {
+        _db.WorkItems.Add(RowMappers.ToRow(Guard.NotNull(workItem, nameof(workItem))));
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task AddRecordAsync(KnowledgeRecord record, CancellationToken cancellationToken)
     {
         Guard.NotNull(record, nameof(record));

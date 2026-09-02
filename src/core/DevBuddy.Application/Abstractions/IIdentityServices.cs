@@ -1,3 +1,4 @@
+using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Common;
 
 namespace DevBuddy.Application.Abstractions;
@@ -142,6 +143,9 @@ public interface IAccountRecoveryService
         string token, string newPassword, CancellationToken cancellationToken);
 }
 
+/// <summary>A newly created account and the one-time token its owner uses to set a password.</summary>
+public sealed record AccountCreation(UserId UserId, string SetupToken, DateTimeOffset ExpiresAt);
+
 public enum RecoveryOutcome
 {
     Succeeded = 1,
@@ -159,7 +163,59 @@ public enum RecoveryOutcome
 /// </summary>
 public interface ICredentialManager
 {
+    /// <summary>
+    /// Creates an account with no credential and returns a single-use setup token, or null when
+    /// the address is already registered.
+    /// <para>
+    /// No password is chosen here, by anybody. An administrator who picked one would know it, and
+    /// the whole point of the account is that only its owner does. The token is the same
+    /// short-lived single-use one recovery issues, and it is delivered out of band because there
+    /// is no mail transport yet.
+    /// </para>
+    /// </summary>
+    Task<AccountCreation?> CreateAccountAsync(
+        string email, string displayName, CancellationToken cancellationToken);
+
     Task SetPasswordAsync(UserId userId, string password, CancellationToken cancellationToken);
 
     Task<bool> HasCredentialAsync(UserId userId, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Who the caller is and which workspaces they belong to.
+/// <para>
+/// Outside the operation pipeline, and for the same structural reason as sign-in: every operation
+/// names a workspace and is authorised against membership of it, so "which workspaces am I in"
+/// has no workspace to name. It is a question about the caller rather than about tenant data, and
+/// it answers only for the caller — there is no user identifier parameter a caller could point at
+/// somebody else.
+/// </para>
+/// </summary>
+public interface ISignedInUserDirectory
+{
+    Task<SignedInUser?> DescribeAsync(UserId userId, CancellationToken cancellationToken);
+}
+
+public sealed record SignedInUser(
+    UserId UserId,
+    string Email,
+    string DisplayName,
+    IReadOnlyList<WorkspaceAccess> Workspaces);
+
+/// <summary>One live grant: the workspace, its name, and what the caller may do there.</summary>
+public sealed record WorkspaceAccess(
+    WorkspaceId WorkspaceId,
+    string Name,
+    Role Role,
+    ProjectId? ScopedToProject,
+
+    /// <summary>
+    /// The permissions this grant carries, by name.
+    /// <para>
+    /// Sent so the UI can hide what the server would refuse. It is a convenience for the person
+    /// using it and never a decision: the server re-checks every operation regardless of what the
+    /// page chose to show (SB-16). Plain strings rather than a wrapper type, because this is read
+    /// by a browser and a wrapper would arrive as an object with one field in it.
+    /// </para>
+    /// </summary>
+    IReadOnlyList<string> Permissions);

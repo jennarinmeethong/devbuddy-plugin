@@ -14,6 +14,7 @@ using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Knowledge;
+using DevBuddy.Domain.Work;
 
 namespace DevBuddy.Application.Tests;
 
@@ -130,6 +131,27 @@ internal sealed class UseCaseRegistry
         Add(new ReadAuditHistoryUseCase(ports),
             new ReadAuditHistoryRequest(
                 TestData.Scope, TestData.Now.AddDays(-1), TestData.Now));
+
+        Add(new ListMembershipsUseCase(ports),
+            new ListMembershipsRequest(TestData.Workspace));
+
+        Add(new CreateProjectUseCase(ports, ports),
+            new CreateProjectRequest(TestData.Workspace, "Beta"));
+
+        Add(new CreateWorkItemUseCase(ports, ports),
+            new CreateWorkItemRequest(
+                TestData.Scope, "CRQ-1", WorkItemType.ChangeRequest,
+                "Import normalisation", "Identifiers are normalised on the way in."));
+
+        Add(new CreateUserAccountUseCase(ports, ports, ports),
+            new CreateUserAccountRequest(
+                TestData.Workspace, "newcomer@example.test", "Newcomer", Role.Contributor));
+
+        Add(new ListWorkItemsUseCase(ports),
+            new ListWorkItemsRequest(TestData.Scope));
+
+        Add(new ListRecordsUseCase(ports),
+            new ListRecordsRequest(TestData.Scope, [RecordStatus.PendingApproval]));
     }
 
     public IReadOnlyList<RegisteredUseCase> Entries => _entries;

@@ -33,16 +33,12 @@ internal static class OperationEndpoints
 {
     public static void MapOperations(this IEndpointRouteBuilder routes)
     {
-        routes.MapGet("/operations", (OperationDispatcher dispatcher) =>
-            Results.Ok(dispatcher.Operations.Select(descriptor => new
-            {
-                name = descriptor.Name,
-                permission = descriptor.Permission.ToString(),
-                availableToAi = descriptor.AiExposure == AiExposure.Allowed,
-            })))
+        routes.MapGet("/operations", (OperationDispatcher dispatcher) => Results.Ok(Manifest(dispatcher)))
             .RequireAuthorization()
             .WithName("ListOperations")
-            .WithSummary("Every operation this deployment can perform, and what each one needs.");
+            .WithSummary(
+                "Every operation this deployment can perform, what each one needs, and the JSON "
+                + "shape of its arguments and its result. The web client is generated from this.");
 
         routes.MapPost("/operations/{name}", InvokeAsync)
             .RequireAuthorization()
@@ -55,6 +51,35 @@ internal static class OperationEndpoints
             .RequireAuthorization()
             .WithName("DownloadEvidence")
             .WithSummary("Streams one stored artefact after an authorization check.");
+    }
+
+    /// <summary>
+    /// The operation manifest: what exists, what it needs, and what it looks like on the wire.
+    /// <para>
+    /// The schemas are generated from the request and response records, which is what makes this
+    /// usable as a contract rather than as documentation. The web client is generated from it, so
+    /// a record that changes shape changes the client, and a client that was not regenerated
+    /// fails its drift test rather than failing in a browser.
+    /// </para>
+    /// </summary>
+    private static List<OperationManifestEntry> Manifest(OperationDispatcher dispatcher)
+    {
+        List<OperationManifestEntry> entries = [];
+
+        foreach (UseCaseDescriptor descriptor in dispatcher.Operations)
+        {
+            OperationBinding binding = dispatcher.Find(descriptor.Name)
+                ?? throw new InvalidOperationException($"No binding for {descriptor.Name}.");
+
+            entries.Add(new OperationManifestEntry(
+                descriptor.Name,
+                descriptor.Permission.ToString(),
+                descriptor.AiExposure == AiExposure.Allowed,
+                OperationSchemas.For(binding.RequestType),
+                OperationSchemas.For(binding.ResponseType)));
+        }
+
+        return entries;
     }
 
     /// <summary>
@@ -159,3 +184,11 @@ internal static class OperationEndpoints
                 ? null
                 : new Dictionary<string, object?>(StringComparer.Ordinal) { ["details"] = result.Details });
 }
+
+/// <summary>One operation, as the manifest describes it.</summary>
+internal sealed record OperationManifestEntry(
+    string Name,
+    string Permission,
+    bool AvailableToAi,
+    JsonElement ArgumentsSchema,
+    JsonElement ResultSchema);

@@ -178,6 +178,35 @@ public static class UseCaseCatalog
         "read_audit_history", PermissionKind.ReadAudit, AiExposure.Denied,
         AuditAction.AuditRead, redactsOutput: false);
 
+    public static UseCaseDescriptor ListMemberships { get; } = new(
+        "list_memberships", PermissionKind.ManageAccess, AiExposure.Denied,
+        AuditAction.AuditRead, redactsOutput: false);
+
+    // Provisioning. Added in Phase 8, because until then the only thing that could create
+    // anything was the one-time bootstrap and a second person could not be onboarded at all.
+    //
+    // Every one of them is Denied to AI. The eighteen-name AI surface is what info.md permits and
+    // it does not include making things; adding an operation here must never widen it.
+    public static UseCaseDescriptor CreateProject { get; } = new(
+        "create_project", PermissionKind.ManageProjects, AiExposure.Denied,
+        AuditAction.ProjectCreated, redactsOutput: false);
+
+    public static UseCaseDescriptor CreateWorkItem { get; } = new(
+        "create_work_item", PermissionKind.ManageWorkItems, AiExposure.Denied,
+        AuditAction.WorkItemCreated, redactsOutput: false);
+
+    public static UseCaseDescriptor CreateUserAccount { get; } = new(
+        "create_user_account", PermissionKind.ManageAccounts, AiExposure.Denied,
+        AuditAction.AccountCreated, redactsOutput: false);
+
+    public static UseCaseDescriptor ListWorkItems { get; } = new(
+        "list_work_items", PermissionKind.ReadKnowledge, AiExposure.Denied,
+        AuditAction.RecordViewed, redactsOutput: true);
+
+    public static UseCaseDescriptor ListRecords { get; } = new(
+        "list_records", PermissionKind.ReadKnowledge, AiExposure.Denied,
+        AuditAction.RecordViewed, redactsOutput: true);
+
     /// <summary>Every operation. Adding a use case without adding it here fails a test.</summary>
     public static IReadOnlyList<UseCaseDescriptor> All { get; } =
     [
@@ -192,7 +221,8 @@ public static class UseCaseCatalog
         DetectSecrets, RedactSensitiveData,
         ExportProject, BackupSystem, RestoreSystem, CheckSystemHealth,
         GrantMembership, RevokeMembership, EnableProjectAiAccess, DisableProjectAiAccess,
-        ReadAuditHistory,
+        ReadAuditHistory, ListMemberships,
+        CreateProject, CreateWorkItem, CreateUserAccount, ListWorkItems, ListRecords,
     ];
 
     /// <summary>

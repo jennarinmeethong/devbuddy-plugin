@@ -90,6 +90,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithSummary("Liveness only. Component health is an authorised operation, because it names components.");
 
 app.MapAuthentication();
+app.MapMe();
 app.MapOperations();
 
 await app.RunAsync();

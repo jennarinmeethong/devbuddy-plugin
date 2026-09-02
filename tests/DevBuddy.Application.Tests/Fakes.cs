@@ -72,6 +72,7 @@ internal sealed class FakePorts :
     IAuditReader,
     IAdministrativeOperations,
     IKnowledgeQualityChecks,
+    ICredentialManager,
     IClock
 {
     private int _interactions;
@@ -94,6 +95,15 @@ internal sealed class FakePorts :
     public ProjectAiAccessPolicy Policy { get; set; } = new(TestData.Scope);
 
     public KnowledgeRecord? Saved { get; private set; }
+
+    public WorkItem? SavedWorkItem { get; private set; }
+
+    public Project? SavedProject { get; private set; }
+
+    public string? CreatedAccountEmail { get; private set; }
+
+    /// <summary>Makes account creation return null, the way a duplicate address does.</summary>
+    public bool AccountAlreadyExists { get; set; }
 
     /// <summary>Marks the redactor as having been reached, and makes that visible in output.</summary>
     public string Redact(string text)
@@ -121,6 +131,27 @@ internal sealed class FakePorts :
     {
         Touch();
         return Task.FromResult(WorkItem);
+    }
+
+    public Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(
+        ProjectScope scope, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<WorkItem>>(WorkItem is null ? [] : [WorkItem]);
+    }
+
+    public Task<IReadOnlyList<KnowledgeRecord>> ListRecordsAsync(
+        ProjectScope scope, IReadOnlyList<RecordStatus>? statuses, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<KnowledgeRecord>>(Record is null ? [] : [Record]);
+    }
+
+    public Task AddWorkItemAsync(WorkItem workItem, CancellationToken cancellationToken)
+    {
+        Touch();
+        SavedWorkItem = workItem;
+        return Task.CompletedTask;
     }
 
     public Task AddRecordAsync(KnowledgeRecord record, CancellationToken cancellationToken)
@@ -232,6 +263,37 @@ internal sealed class FakePorts :
             [new Project(TestData.ProjectAlpha, workspaceId, "Alpha", TestData.Now)]);
     }
 
+    public Task<AccountCreation?> CreateAccountAsync(
+        string email, string displayName, CancellationToken cancellationToken)
+    {
+        Touch();
+        CreatedAccountEmail = email;
+
+        return Task.FromResult<AccountCreation?>(
+            AccountAlreadyExists
+                ? null
+                : new AccountCreation(UserId.New(), "setup-token", TestData.Now.AddMinutes(30)));
+    }
+
+    public Task SetPasswordAsync(UserId userId, string password, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> HasCredentialAsync(UserId userId, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult(true);
+    }
+
+    public Task AddProjectAsync(Project project, CancellationToken cancellationToken)
+    {
+        Touch();
+        SavedProject = project;
+        return Task.CompletedTask;
+    }
+
     public Task<Project?> FindProjectAsync(ProjectScope scope, CancellationToken cancellationToken)
     {
         Touch();
@@ -241,6 +303,13 @@ internal sealed class FakePorts :
 
     public Task<IReadOnlyList<Membership>> ListMembershipsAsync(
         WorkspaceId workspaceId, UserId userId, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<Membership>>(Membership is null ? [] : [Membership]);
+    }
+
+    public Task<IReadOnlyList<Membership>> ListMembershipsForWorkspaceAsync(
+        WorkspaceId workspaceId, CancellationToken cancellationToken)
     {
         Touch();
         return Task.FromResult<IReadOnlyList<Membership>>(Membership is null ? [] : [Membership]);

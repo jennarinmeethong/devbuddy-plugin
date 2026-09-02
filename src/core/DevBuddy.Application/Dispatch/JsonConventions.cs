@@ -2,6 +2,8 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using DevBuddy.Application.Pipeline;
+using DevBuddy.Application.UseCases;
 using DevBuddy.Domain.Tenancy;
 
 namespace DevBuddy.Application.Dispatch;
@@ -23,12 +25,88 @@ public static class JsonConventions
     /// </summary>
     public static JsonSerializerOptions Options { get; } = Build();
 
+    /// <summary>
+    /// Drops the members the pipeline reads but nobody sends or receives.
+    /// <para>
+    /// Every request has a <c>ResourceReference</c> for the audit entry, a project request derives
+    /// its workspace from its scope, and a scannable request exposes its own free text so the
+    /// scanner can walk it. None of that is payload: a caller cannot set it, and returning it
+    /// would describe the pipeline rather than the answer. Left in, they would also appear in
+    /// every generated schema as optional fields a client might reasonably try to fill.
+    /// </para>
+    /// <para>
+    /// Removed here rather than by attributing thirty-odd records, because the rule is a property
+    /// of the contracts and putting it on each implementation is thirty chances to forget.
+    /// </para>
+    /// </summary>
+    private static void HideDerivedMembers(JsonTypeInfo info)
+    {
+        Type type = info.Type;
+
+        List<string> derived = [];
+
+        if (typeof(IUseCaseRequest).IsAssignableFrom(type))
+        {
+            derived.Add(nameof(IUseCaseRequest.ResourceReference));
+
+            // A project request carries a scope and derives both halves from it. A workspace
+            // request carries its workspace as real data and only derives the project, which is
+            // always null.
+            derived.Add(nameof(IUseCaseRequest.ProjectId));
+
+            if (typeof(ProjectRequest).IsAssignableFrom(type))
+            {
+                derived.Add(nameof(IUseCaseRequest.WorkspaceId));
+            }
+        }
+
+        if (typeof(IScannableRequest).IsAssignableFrom(type))
+        {
+            derived.Add(nameof(IScannableRequest.ContentForScanning));
+        }
+
+        if (typeof(IAuditableResult).IsAssignableFrom(type))
+        {
+            derived.Add(nameof(IAuditableResult.AuditDetails));
+        }
+
+        foreach (string name in derived)
+        {
+            JsonPropertyInfo? property = info.Properties
+                .FirstOrDefault(candidate => string.Equals(
+                    candidate.Name, ToWireName(name), StringComparison.Ordinal));
+
+            if (property is not null)
+            {
+                info.Properties.Remove(property);
+            }
+        }
+    }
+
+    private static string ToWireName(string name) => char.ToLowerInvariant(name[0]) + name[1..];
+
+    /// <summary>
+    /// Whether this type is one of the single-field identifier structs, which travel as strings.
+    /// <para>
+    /// Public because schema generation needs the same answer the converter uses. Two predicates
+    /// would eventually disagree, and the disagreement would show up as a generated client that
+    /// types an identifier as something the server will not accept.
+    /// </para>
+    /// </summary>
+    public static bool IsGuidIdentifier(Type type) =>
+        GuidIdentifierConverterFactory.Describe(type) is not null;
+
     private static JsonSerializerOptions Build()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             WriteIndented = false,
+
+            // The web defaults would also read a number written as a string. Turned off, because
+            // a generated client has to describe one shape per field and "a number, or a number
+            // in quotes" is not a contract anybody can hold up their end of.
+            NumberHandling = JsonNumberHandling.Strict,
         };
 
         // Enums as names. A tool schema that says "Decision" is usable; one that says 3 is not.
@@ -39,7 +117,10 @@ public static class JsonConventions
         // Set explicitly rather than left to be attached on first use. Schema export needs a
         // resolver, and an options object that only acquires one when something happens to
         // serialise first is a startup order dependency waiting to bite.
-        options.TypeInfoResolver = new DefaultJsonTypeInfoResolver();
+        options.TypeInfoResolver = new DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { HideDerivedMembers },
+        };
 
         options.MakeReadOnly();
         return options;
@@ -73,7 +154,7 @@ internal sealed class GuidIdentifierConverterFactory : JsonConverterFactory
     /// A value type with a public <c>Guid Value</c> and a constructor taking one. Deliberately
     /// narrow: anything looser would start converting types nobody meant it to.
     /// </summary>
-    private static (ConstructorInfo Constructor, PropertyInfo Value)? Describe(Type type)
+    internal static (ConstructorInfo Constructor, PropertyInfo Value)? Describe(Type type)
     {
         if (!type.IsValueType || type.IsEnum || type.IsGenericType)
         {

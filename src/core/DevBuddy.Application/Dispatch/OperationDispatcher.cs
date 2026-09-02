@@ -98,6 +98,7 @@ public sealed class OperationDispatcher
 public sealed record OperationBinding(
     UseCaseDescriptor Descriptor,
     Type RequestType,
+    Type ResponseType,
     Func<JsonElement, CallerContext, CancellationToken, Task<DispatchResult>> Invoke)
 {
     /// <summary>
@@ -118,6 +119,7 @@ public sealed record OperationBinding(
         return new OperationBinding(
             useCase.Descriptor,
             typeof(TRequest),
+            typeof(TResponse),
             async (arguments, caller, cancellationToken) =>
             {
                 TRequest request;

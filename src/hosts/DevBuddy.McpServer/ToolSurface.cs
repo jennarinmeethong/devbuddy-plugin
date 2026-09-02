@@ -1,6 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Schema;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Pipeline;
 using ModelContextProtocol.Protocol;
@@ -104,35 +101,10 @@ public static class ToolSurface
                 Description = Descriptions.TryGetValue(descriptor.Name, out string? text)
                     ? text
                     : "No description is recorded for this operation.",
-                InputSchema = SchemaFor(binding.RequestType),
+                InputSchema = OperationSchemas.For(binding.RequestType),
             });
         }
 
         return tools;
-    }
-
-    /// <summary>
-    /// A JSON schema for the arguments, generated from the request record.
-    /// <para>
-    /// Generated rather than hand-written, so it cannot describe a shape the code does not accept.
-    /// If generation fails for a type the exporter cannot express, the tool still ships with a
-    /// permissive schema: a tool with a loose schema is worse than one with a precise schema and
-    /// far better than no tool, and the pipeline validates the arguments regardless.
-    /// </para>
-    /// </summary>
-    private static JsonElement SchemaFor(Type requestType)
-    {
-        try
-        {
-            JsonNode schema = JsonConventions.Options.GetJsonSchemaAsNode(
-                requestType,
-                new JsonSchemaExporterOptions { TreatNullObliviousAsNonNullable = true });
-
-            return JsonSerializer.Deserialize<JsonElement>(schema.ToJsonString());
-        }
-        catch (NotSupportedException)
-        {
-            return JsonSerializer.Deserialize<JsonElement>("""{"type":"object"}""");
-        }
     }
 }

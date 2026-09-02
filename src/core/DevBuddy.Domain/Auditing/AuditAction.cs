@@ -36,4 +36,9 @@ public enum AuditAction
     ContentScanned = 24,
     HealthChecked = 25,
     AuditRead = 26,
+
+    // Added in Phase 8 with the provisioning operations the administration UI needs.
+    ProjectCreated = 27,
+    WorkItemCreated = 28,
+    AccountCreated = 29,
 }

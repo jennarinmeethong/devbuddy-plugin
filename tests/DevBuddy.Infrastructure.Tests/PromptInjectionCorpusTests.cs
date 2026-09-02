@@ -286,6 +286,17 @@ public sealed class PromptInjectionCorpusTests : IDisposable
             WorkItemId id, ProjectScope scope, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(
+            ProjectScope scope, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<KnowledgeRecord>> ListRecordsAsync(
+            ProjectScope scope, IReadOnlyList<RecordStatus>? statuses, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddWorkItemAsync(WorkItem workItem, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task AddRecordAsync(KnowledgeRecord record, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
