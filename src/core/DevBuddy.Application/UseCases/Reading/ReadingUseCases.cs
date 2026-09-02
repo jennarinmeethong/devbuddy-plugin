@@ -174,32 +174,25 @@ public sealed class ListProjectsUseCase(IProjectDirectory directory, IAccessDire
         IReadOnlyList<Project> projects = await _directory.ListProjectsForUserAsync(
             request.WorkspaceId, caller.UserId, cancellationToken);
 
-        if (caller.Channel == AccessChannel.Ai)
-        {
-            projects = await FilterToAiEnabledAsync(projects, cancellationToken);
-        }
-
-        return new ListProjectsResponse(
-            [.. projects.Select(project => new ProjectSummary(project.Id, project.Name, project.CreatedAt))]);
-    }
-
-    private async Task<IReadOnlyList<Project>> FilterToAiEnabledAsync(
-        IReadOnlyList<Project> projects, CancellationToken cancellationToken)
-    {
-        List<Project> visible = [];
+        List<ProjectSummary> summaries = [];
 
         foreach (Project project in projects)
         {
             ProjectAiAccessPolicy policy =
                 await _access.GetAiAccessPolicyAsync(project.Scope, cancellationToken);
 
-            if (policy.IsEnabled)
+            // On the AI channel a project the owner never opened is absent rather than listed as
+            // denied. Naming a project is itself a disclosure (SB-08).
+            if (caller.Channel == AccessChannel.Ai && !policy.IsEnabled)
             {
-                visible.Add(project);
+                continue;
             }
+
+            summaries.Add(new ProjectSummary(
+                project.Id, project.Name, project.CreatedAt, policy.IsEnabled));
         }
 
-        return visible;
+        return new ListProjectsResponse(summaries);
     }
 }
 

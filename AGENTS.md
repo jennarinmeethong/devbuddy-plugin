@@ -12,7 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 7 are complete; Phase 8 (web administration UI) is next.
+  criteria. Phases 0 to 8 are complete; Phase 9 (Claude and Codex plugin packages) is next.
 
 ## Project Structure & Module Organization
 
@@ -25,6 +25,7 @@ src/core/DevBuddy.Infrastructure  EF Core/Npgsql, MinIO, Git/GitHub, scanners
 src/hosts/DevBuddy.Api            ASP.NET Core minimal API
 src/hosts/DevBuddy.McpServer      MCP server — AI-facing, allow-listed tools only
 src/hosts/DevBuddy.Cli            console host
+web/admin                         React administration UI, built and tested with Bun
 tests/                            one test project per source project, plus Security.Tests
 docs/adr/                         architecture decision records
 docs/security/                    threat model, control baseline, verification matrix
@@ -62,6 +63,30 @@ past the dispatcher is the thing this shape exists to prevent.
 Wire conventions live in `Application/Dispatch/JsonConventions.cs` and are shared by all three
 hosts. A request or response type whose constructor parameters cannot be bound by name fails
 `WireContractTests` rather than returning a 500 from one host at run time.
+
+### The web client
+
+`web/admin` is built and tested with **Bun**, not npm — that is what this machine has.
+
+```bash
+cd web/admin && bun install
+bun run build     # tsc --noEmit && vite build
+bun test          # smoke tests over the real screens, with a fake API
+```
+
+`web/admin/src/api/operations.ts` is **generated** from `GET /operations` and committed. Do not
+edit it. After changing an operation, its request record, or its response record, regenerate:
+
+```bash
+DEVBUDDY_WRITE_CLIENT=1 dotnet test tests/DevBuddy.Api.Tests -c Release \
+  --filter FullyQualifiedName~GeneratedClientTests
+```
+
+The same test compares the committed file when that variable is not set, so drift fails CI.
+
+The UI hides what the server would refuse, using the permissions `GET /me` reports. That is a
+courtesy and never a control: every operation is authorised again server-side, and the tests that
+prove it live in `DevBuddy.Api.Tests`, not in the browser.
 
 Two domain names differ from the obvious one, deliberately: `SourceRepository` (not `Repository`,
 which collides with the persistence pattern) and `DeploymentEnvironment` (not `Environment`, which

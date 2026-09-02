@@ -173,6 +173,26 @@ public sealed class ApiFixture : IAsyncLifetime
         return membership.Id;
     }
 
+    /// <summary>
+    /// Another project in the same workspace, so a test whose subject is the AI access policy
+    /// starts from the default rather than from whatever an earlier test left behind. AI access
+    /// is off for it, because off is what absence means.
+    /// </summary>
+    public async Task<ProjectScope> CreateProjectAsync(string name)
+    {
+        var projectId = ProjectId.New();
+
+        using IServiceScope scope = OpenScope(Workspace);
+        var db = scope.ServiceProvider.GetRequiredService<DevBuddyDbContext>();
+
+        db.Projects.Add(RowMappers.ToRow(
+            new Project(projectId, Workspace, name, DateTimeOffset.UtcNow)));
+
+        await db.SaveChangesAsync();
+
+        return new ProjectScope(Workspace, projectId);
+    }
+
     /// <summary>Adds a second workspace with a project, for the isolation cases.</summary>
     public async Task<ProjectScope> CreateSeparateWorkspaceAsync(UserId owner)
     {

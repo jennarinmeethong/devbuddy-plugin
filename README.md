@@ -10,19 +10,19 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 7 complete of 11.** 41 use cases behind one pipeline, PostgreSQL with full-text
+**Phases 0 to 8 complete of 11.** 41 use cases behind one pipeline, PostgreSQL with full-text
 search, MinIO evidence storage, the product own sign-in with lockout and rotating tokens, tenant
 isolation enforced server-side on every request, a draft-to-published path whose audit history
 records who approved exactly which revision, read-only analysis that provably executes nothing, a
 secret scanner that refuses credentials on the way in and redacts them on the way out, and three
-hosts over that one core: an HTTP API, an MCP server on stdio and authenticated HTTP, and a
-console. There is no web UI and no plugin package yet.
+hosts over that one core — an HTTP API, an MCP server on stdio and authenticated HTTP, and a
+console — and a React administration UI over a client generated from the API. There is no plugin
+package and no container yet.
 
-**Twenty-three of 33 security controls are verified; two more are implemented but unproven.**
+**Twenty-four of 33 security controls are verified; one more is implemented but unproven.**
 Source synchronisation reads a mounted working copy rather than the GitHub API, so pull requests
-and issues are not available. Nothing creates a user, workspace, project, or work item except the
-one-time bootstrap, so a second person cannot yet be onboarded. Do not connect real project data
-until the remaining controls are verified.
+and issues are not available. Only the first workspace can be created, and teams have no
+operations. Do not connect real project data until the remaining controls are verified.
 
 ## Documents
 
@@ -46,4 +46,10 @@ dotnet build DevBuddy.slnx -c Release
 
 ```bash
 dotnet test DevBuddy.slnx -c Release
+```
+
+The web client is built and tested with [Bun](https://bun.com):
+
+```bash
+cd web/admin && bun install && bun run build && bun test
 ```

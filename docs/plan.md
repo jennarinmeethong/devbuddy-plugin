@@ -568,6 +568,74 @@ published-record history, role-appropriate audit visibility, and basic system he
 **Exit criteria:** each listed capability is reachable and exercised in a smoke test; a viewer-role
 session cannot see approval or audit surfaces, verified server-side.
 
+**Status: COMPLETE (2026-09-03).** Both exit criteria are met. SB-26 reaches `TESTED`, taking the
+total to 24 of 33 with only SB-21 left `IMPLEMENTED` but unproven. 343 .NET tests and 19 web tests
+pass, 0 warnings, formatting clean, and the whole stack was driven end to end in a browser against
+a real PostgreSQL.
+
+The server half had to come first, because the server could not support an administration UI:
+nothing in the system created a user, a workspace, a project, or a work item except the one-time
+bootstrap, so an installation had exactly one person in it and no way to gain a second.
+
+What landed on the server:
+
+- **Six provisioning operations** — `create_project`, `create_work_item`, `create_user_account`,
+  `list_memberships`, `list_work_items`, `list_records` — all denied to AI. The exported tool
+  surface is still the same eighteen names, which is the allow-list doing its job while the
+  catalogue grew by six.
+- **Accounts with no credential.** `create_user_account` returns a single-use setup token its owner
+  redeems to choose a password. An administrator who picked one would know it, and the point of an
+  account is that only its owner does. There is no mail transport, so the token is handed to the
+  administrator to carry — said on the screen rather than left to be discovered.
+- **`GET /me`**, outside the pipeline for the same structural reason as sign-in: every operation
+  names a workspace and is authorised against membership of it, so "which workspaces am I in" has
+  no workspace to name.
+- **Three new permissions** — `ManageProjects` and `ManageAccounts` for administrators,
+  `ManageWorkItems` from contributor upward, because registering the work a draft is about is part
+  of contributing rather than of administering.
+
+What landed in the browser, in `web/admin`:
+
+- **Vite, React, TypeScript, Tailwind, TanStack Query, React Router**, built and tested with Bun.
+  The handful of UI primitives are written here rather than pulled from a component library: the
+  whole visual surface is a form, a table, and a panel.
+- **A generated client.** `GET /operations` carries a JSON schema for every operation's arguments
+  and result, and `web/admin/src/api/operations.ts` is generated from it. A test regenerates and
+  compares, so an operation added, renamed, or reshaped without regenerating fails in CI rather
+  than in a browser. It found its first drift within the hour, which is the point of it.
+- **The approval screen shows the exact revision and its hash, and submits that hash.** There is
+  no path from the UI to "approve the latest". A smoke test asserts the request body carries the
+  hash that was on screen.
+- **Role-driven navigation**, built from the permissions `/me` reports. A viewer is offered neither
+  membership administration nor the audit trail; the server refuses both regardless, and that is
+  what the integration tests prove.
+
+Verified by actually running it: PostgreSQL in Docker, migrations and bootstrap through the
+console, the API, and the dev server, driven in a browser. Sign in, workspace, projects with the
+AI policy shown as state, enabling AI access, membership administration, onboarding a second
+person and seeing their setup token, registering a work item, component health, and an audit trail
+showing the actions just performed with no content in them. Running it found a real bug that no
+test had: the servers ignored the `DEVBUDDY_` environment prefix the console reads, so a
+deployment configured one way started the console and left the API insisting no connection string
+existed.
+
+Known gaps, carried forward rather than papered over:
+
+- **Additional workspaces cannot be created.** The bootstrap makes the first one; creating another
+  needs an installation-level role that v1 does not have, and inventing one is a tenancy decision
+  for the project owner rather than something to slip in. info.md asks for the simplest
+  single-workspace experience first, and everything inside a workspace is administrable.
+- **Teams have no operations.** The entity exists and nothing reads or writes it. Membership is
+  granted per person, workspace-wide or per project, which covers the access model; teams are a
+  grouping nobody can yet create.
+- **The refresh token lives in `sessionStorage`.** The server issues bearer tokens rather than
+  setting an HttpOnly cookie, so the browser has to hold one somewhere. Recorded against SB-14;
+  the fix is a cookie-based refresh, which is a server change.
+- **Rate limiting still covers the credential endpoints only**, and there is no concurrent-job cap
+  (SB-21, Phase 10).
+- **Recovery and setup tokens are still written to the log and handed to an administrator**,
+  because no delivery channel exists.
+
 ---
 
 ## Phase 9 — Claude and Codex plugin packages

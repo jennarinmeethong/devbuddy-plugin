@@ -13,29 +13,33 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 7 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
+Phases 0 to 8 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
 `UseCaseExecutor` pipeline and 41 use cases; Phase 3 PostgreSQL, full-text search, and MinIO;
 Phase 4 identity, authorization, and tenant isolation; Phase 5 the lifecycle and audit history;
 Phase 6 read-only analysis, the real secret scanner and redactor, the path and URL guards, and
 source synchronisation from a mounted working copy; Phase 7 the three hosts — the HTTP API, the
-MCP server over stdio and authenticated HTTP, and the console. 332 tests pass. Twenty-three of 33
-controls are `TESTED`.
+MCP server over stdio and authenticated HTTP, and the console; Phase 8 the provisioning operations
+and the React administration UI in `web/admin`. 343 .NET tests and 19 web tests pass. Twenty-four
+of 33 controls are `TESTED`.
 
 **Source synchronisation reads a working copy, not the GitHub API.** Pull requests, issues, and
 review threads are not available, and `analyze_change_impact` on a commit stored in a pack file
 reports that rather than returning an empty answer.
 
-**Phase 8 (web administration UI) is next.** There is no UI and no plugin package.
+**Phase 9 (Claude and Codex plugin packages) is next.** There is no plugin package and no
+container.
 
-**Nothing creates a user, a workspace, a project, or a work item except the one-time
-bootstrap.** `IInstallationBootstrapper` makes the first workspace and the first administrator on
-an empty database, and refuses afterwards. There is no operation for provisioning anything else,
-so `grant_membership` can only add somebody who already exists. That belongs with membership
-administration in Phase 8; do not describe the current system as able to onboard a second person.
+**Only the first workspace can be created.** `IInstallationBootstrapper` makes it and the first
+administrator on an empty database, and refuses afterwards. Everything inside a workspace can now
+be provisioned — projects, work items, accounts, memberships — but creating a *second workspace*
+needs an installation-level role v1 does not have. Do not describe the system as multi-workspace
+in operation; it is multi-workspace in the data model.
 
-**Account recovery tokens are written to the application log** because no delivery channel exists
-yet. It is called out in the code and in the endpoint summary, and it goes away when an email
-transport lands.
+**Teams have no operations.** The entity and its table exist and nothing reads or writes them.
+
+**Recovery and setup tokens are handed to an administrator and written to the log**, because no
+delivery channel exists yet. Called out in the code, in the endpoint summary, and on the screen
+that shows one. It goes away when an email transport lands.
 
 ## Commands
 
@@ -52,11 +56,21 @@ dotnet run --project src/hosts/DevBuddy.Cli -- migrate
 dotnet run --project src/hosts/DevBuddy.Cli -- operations --ai
 ```
 
-It reads `appsettings.json` in the working directory and environment variables prefixed
-`DEVBUDDY_`, and refuses to start without a connection string rather than inventing one.
+All three hosts read `appsettings.json` in the working directory and environment variables
+prefixed `DEVBUDDY_`, and refuse to start without a connection string rather than inventing one.
 
-There is no container or web toolchain yet. Do not suggest `docker compose` or `npm` commands
-until the corresponding phase commits their configuration.
+The web client uses **Bun**, not npm — that is what this machine has:
+
+```bash
+cd web/admin && bun install && bun run build && bun test
+```
+
+`web/admin/src/api/operations.ts` is generated from `GET /operations` and committed. Never edit it
+by hand; regenerate it with the command in `AGENTS.md` after changing any operation or its
+request or response record, or the drift test fails.
+
+There is no container toolchain yet. Do not suggest `docker compose` commands until Phase 10
+commits their configuration.
 
 ## Architecture in one paragraph
 

@@ -39,12 +39,16 @@ public sealed class CrossSurfaceTests(ApiFixture fixture)
         UserId reader = await fixture.CreateUserAsync(email);
         await fixture.GrantAsync(reader, Role.Contributor);
 
-        Guid recordId = await PublishRecordAsync("Rollback is a migration, not a restore");
+        // A project of its own. The subject here is the default, and a shared project would make
+        // this test depend on whether some other test had switched AI access on first.
+        ProjectScope closed = await fixture.CreateProjectAsync($"Closed {Guid.NewGuid():N}"[..14]);
+
+        Guid recordId = await PublishRecordAsync("Rollback is a migration, not a restore", closed);
 
         object scope = new
         {
-            workspaceId = fixture.Workspace.Value,
-            projectId = fixture.Project.Value,
+            workspaceId = closed.WorkspaceId.Value,
+            projectId = closed.ProjectId.Value,
         };
 
         // The human channel, over real HTTP, with a real bearer token.
@@ -71,7 +75,7 @@ public sealed class CrossSurfaceTests(ApiFixture fixture)
         // And now the control that separated them. Turning the policy on makes the same call
         // succeed, which is what proves the refusal above was the policy rather than a broken
         // wiring somewhere in the MCP path.
-        await fixture.EnableAiAccessAsync(fixture.Scope);
+        await fixture.EnableAiAccessAsync(closed);
 
         CallToolResult allowed = await CallToolAsync(
             reader, UseCaseCatalog.GetRecord.Name, new { scope, recordId });
@@ -137,17 +141,70 @@ public sealed class CrossSurfaceTests(ApiFixture fixture)
     }
 
     /// <summary>
-    /// Drives one record from draft to published over HTTP as the administrator, and returns its
-    /// identifier.
+    /// Control SB-26 on the AI channel: an unapproved revision written on top of a published
+    /// record is not what a tool call returns.
+    /// <para>
+    /// The API half is covered in <c>OperationEndpointTests</c>. This is the surface that matters
+    /// most for it — a model reading unapproved text and treating it as knowledge is the failure
+    /// the whole human-gated lifecycle exists to prevent.
+    /// </para>
     /// </summary>
-    private async Task<Guid> PublishRecordAsync(string title)
+    [Fact]
+    public async Task an_unapproved_revision_is_not_served_to_the_ai_channel_either()
     {
-        WorkItemId workItem = await fixture.SeedWorkItemAsync(
-            fixture.Scope, $"CRQ-{Guid.NewGuid():N}"[..12]);
+        UserId reader = await fixture.CreateUserAsync($"ai-reader-{Guid.NewGuid():N}@example.test");
+        await fixture.GrantAsync(reader, Role.Contributor);
+
+        Guid recordId = await PublishRecordAsync("Approved text a reader is entitled to");
+        await fixture.EnableAiAccessAsync(fixture.Scope);
+
+        object scope = new { workspaceId = fixture.Workspace.Value, projectId = fixture.Project.Value };
 
         using HttpClient client = await fixture.SignInAsAdministratorAsync();
 
-        object scope = new { workspaceId = fixture.Workspace.Value, projectId = fixture.Project.Value };
+        await PostAsync(
+            client,
+            UseCaseCatalog.ReviseDraft.Name,
+            new
+            {
+                scope,
+                recordId,
+                title = "Approved text a reader is entitled to",
+                body = "UNAPPROVED text nobody has reviewed.",
+                provenance = new
+                {
+                    sourceKind = nameof(ProvenanceSourceKind.HumanAuthored),
+                    sourceLocator = "meeting/2026-09-03",
+                    author = "integration test",
+                    recordedAt = DateTimeOffset.UtcNow,
+                },
+            });
+
+        CallToolResult result = await CallToolAsync(
+            reader, UseCaseCatalog.GetRecord.Name, new { scope, recordId });
+
+        Assert.False(result.IsError, Rendered(result));
+        Assert.Contains("Approved text a reader is entitled to", Rendered(result), StringComparison.Ordinal);
+        Assert.DoesNotContain("UNAPPROVED", Rendered(result), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Drives one record from draft to published over HTTP as the administrator, and returns its
+    /// identifier.
+    /// </summary>
+    private async Task<Guid> PublishRecordAsync(string title, ProjectScope? into = null)
+    {
+        ProjectScope target = into ?? fixture.Scope;
+
+        WorkItemId workItem = await fixture.SeedWorkItemAsync(target, $"CRQ-{Guid.NewGuid():N}"[..12]);
+
+        using HttpClient client = await fixture.SignInAsAdministratorAsync();
+
+        object scope = new
+        {
+            workspaceId = target.WorkspaceId.Value,
+            projectId = target.ProjectId.Value,
+        };
 
         JsonElement draft = await PostAsync(
             client,

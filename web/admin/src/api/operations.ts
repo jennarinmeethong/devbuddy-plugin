@@ -155,6 +155,7 @@ export type ListProjectsResult = {
       projectId: string;
       name: string;
       createdAt: string;
+      aiAccessEnabled: boolean;
     }>;
 };
 

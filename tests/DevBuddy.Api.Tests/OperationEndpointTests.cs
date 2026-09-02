@@ -245,6 +245,104 @@ public sealed class OperationEndpointTests(ApiFixture fixture)
         Assert.Equal(nameof(RecordStatus.Published), result.GetProperty("status").GetString());
     }
 
+    /// <summary>
+    /// Control SB-26, through the surfaces rather than only at the pipeline: a revision written
+    /// after publication does not become what readers see.
+    /// <para>
+    /// The rule lives in the aggregate and is covered there. What this adds is that neither HTTP
+    /// route serves the newer text — not <c>get_record</c>, which defaults to the published
+    /// revision, and not the listing, which reports which revision is live.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task a_draft_written_after_publication_is_not_what_a_reader_gets()
+    {
+        WorkItemId workItem = await fixture.SeedWorkItemAsync(fixture.Scope, $"CRQ-{Guid.NewGuid():N}"[..12]);
+
+        using HttpClient client = await fixture.SignInAsAdministratorAsync();
+
+        object scope = new { workspaceId = fixture.Workspace.Value, projectId = fixture.Project.Value };
+
+        const string Published = "The published text a reader is entitled to.";
+        const string Unapproved = "UNAPPROVED text nobody has reviewed.";
+
+        (HttpStatusCode created, JsonElement draft) = await Invoke(
+            client,
+            UseCaseCatalog.CreateDraft.Name,
+            new
+            {
+                scope,
+                workItemId = workItem.Value,
+                kind = nameof(RecordKind.Decision),
+                title = "Separation of drafts from published records",
+                body = Published,
+                provenance = new
+                {
+                    sourceKind = nameof(ProvenanceSourceKind.HumanAuthored),
+                    sourceLocator = "meeting/2026-09-03",
+                    author = "integration test",
+                    recordedAt = DateTimeOffset.UtcNow,
+                },
+            });
+
+        Assert.Equal(HttpStatusCode.OK, created);
+        Guid recordId = draft.GetProperty("recordId").GetGuid();
+
+        await Invoke(client, UseCaseCatalog.SubmitForApproval.Name, new { scope, recordId });
+
+        (HttpStatusCode approved, _) = await Invoke(
+            client,
+            UseCaseCatalog.ApproveRecord.Name,
+            new { scope, recordId, approvedContentHash = await CurrentHash(client, scope, recordId) });
+
+        Assert.Equal(HttpStatusCode.OK, approved);
+
+        (HttpStatusCode published, _) = await Invoke(
+            client, UseCaseCatalog.PublishRecord.Name, new { scope, recordId });
+
+        Assert.Equal(HttpStatusCode.OK, published);
+
+        // A new revision on top of the published one. Nobody has approved it.
+        (HttpStatusCode revised, _) = await Invoke(
+            client,
+            UseCaseCatalog.ReviseDraft.Name,
+            new
+            {
+                scope,
+                recordId,
+                title = "Separation of drafts from published records",
+                body = Unapproved,
+                provenance = new
+                {
+                    sourceKind = nameof(ProvenanceSourceKind.HumanAuthored),
+                    sourceLocator = "meeting/2026-09-03",
+                    author = "integration test",
+                    recordedAt = DateTimeOffset.UtcNow,
+                },
+            });
+
+        Assert.Equal(HttpStatusCode.OK, revised);
+
+        (HttpStatusCode read, JsonElement record) = await Invoke(
+            client, UseCaseCatalog.GetRecord.Name, new { scope, recordId });
+
+        Assert.Equal(HttpStatusCode.OK, read);
+        Assert.Equal(Published, record.GetProperty("body").GetString());
+        Assert.DoesNotContain("UNAPPROVED", record.GetProperty("body").GetString()!, StringComparison.Ordinal);
+
+        // And the listing says which revision is live, so a reader is never left inferring it
+        // from a revision number that has moved on.
+        (_, JsonElement listing) = await Invoke(
+            client, UseCaseCatalog.ListRecords.Name, new { scope, statuses = (string[]?)null });
+
+        JsonElement summary = listing.GetProperty("records").EnumerateArray()
+            .Single(entry => entry.GetProperty("recordId").GetGuid() == recordId);
+
+        Assert.NotEqual(
+            summary.GetProperty("currentRevisionNumber").GetInt32(),
+            summary.GetProperty("publishedRevisionNumber").GetInt32());
+    }
+
     private static async Task<string> CurrentHash(HttpClient client, object scope, Guid recordId)
     {
         (HttpStatusCode status, JsonElement history) = await Invoke(

@@ -107,7 +107,17 @@ public sealed record WorkItemView(
 }
 
 /// <summary>One project a caller is a member of.</summary>
-public sealed record ProjectSummary(ProjectId ProjectId, string Name, DateTimeOffset CreatedAt);
+/// <summary>
+/// One project, and whether its owner has opened it to AI.
+/// <para>
+/// The policy travels with the project because the administration screen has to show it, and a
+/// screen that had to ask separately for each project would make the most consequential switch in
+/// the product the slowest thing on the page. On the AI channel the answer is always true, because
+/// a project that is not enabled does not appear in the list at all.
+/// </para>
+/// </summary>
+public sealed record ProjectSummary(
+    ProjectId ProjectId, string Name, DateTimeOffset CreatedAt, bool AiAccessEnabled);
 
 /// <summary>
 /// One revision in a record history, with the approval that covers it if there is one. This is

@@ -14,6 +14,12 @@ using Microsoft.IdentityModel.Tokens;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+// Environment variables are read with the DEVBUDDY_ prefix as well as bare, so one convention
+// covers all three hosts. The console has always read them that way; the servers did not, which
+// meant a deployment that configured DEVBUDDY_ConnectionStrings__DevBuddy started the console
+// fine and left the API insisting no connection string was configured.
+builder.Configuration.AddEnvironmentVariables("DEVBUDDY_");
+
 builder.Services.AddDevBuddy(builder.Configuration, "The API");
 
 IdentitySettings identitySettings = HostComposition.ReadIdentitySettings(builder.Configuration);
