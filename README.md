@@ -10,17 +10,17 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 5 complete of 11; Phase 6 complete apart from source synchronisation.** 41 use cases
+**Phases 0 to 6 complete of 11.** 41 use cases
 behind one pipeline, PostgreSQL with full-text search, MinIO evidence storage, the product own
 sign-in with lockout and rotating tokens, tenant isolation enforced server-side on every request, a
 draft-to-published path whose audit history records who approved exactly which revision, read-only
 analysis that provably executes nothing, and a secret scanner that refuses credentials on the way in
 and redacts them on the way out. There is no MCP server and no web UI yet.
 
-**Sixteen of 33 security controls are verified; nine more are implemented but unproven.** Source
-synchronisation is not implemented, so `sync_sources`, `compare_snapshots` and
-`analyze_change_impact` fail if called. Do not connect real project data until the remaining
-controls are verified.
+**Seventeen of 33 security controls are verified; eight more are implemented but unproven.**
+Source synchronisation reads a mounted working copy rather than the GitHub API, so pull requests
+and issues are not available. Do not connect real project data until the remaining controls are
+verified.
 
 ## Documents
 

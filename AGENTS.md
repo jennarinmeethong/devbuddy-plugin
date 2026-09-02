@@ -12,8 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 5 are complete, and Phase 6 apart from source synchronisation; Phase 7
-  (API, MCP server, console) is next.
+  criteria. Phases 0 to 6 are complete; Phase 7 (API, MCP server, console) is next.
 
 ## Project Structure & Module Organization
 
@@ -141,6 +140,8 @@ These are requirements, not aspirations. `docs/security/security-baseline.md` ha
   build if a process or dynamic-loading API appears (SB-04).
 - File paths go through `PathGuard` and outbound URLs through `UrlGuard`. Both resolve before they
   compare, which is what catches a symlink and a rebinding DNS answer.
+- Git is read as files, never run. `GitObjectStore` opens loose objects through a zlib stream;
+  packed objects are reported as unsupported by name rather than returned as absent history.
 - Approval binds to an exact revision hash. Revisions are immutable.
 - Audit entries carry metadata, never payload. A response contributes its own detail through
   `IAuditableResult`; the domain caps every value at 200 characters and refuses anything longer.

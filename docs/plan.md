@@ -428,9 +428,12 @@ the quality and safety gates.
 before egress; a prompt-injection corpus (malicious content in source files, docs, and PR bodies)
 produces no tool call outside the allowed set; path-traversal and SSRF attempts are rejected.
 
-**Status: COMPLETE for the safety gates and analysis. Source synchronisation was NOT delivered.**
-All four exit criteria are met and seven controls reach `TESTED` — SB-01, SB-02, SB-03, SB-04,
-SB-05, SB-06 and SB-17 — taking the total to sixteen of 33. 289 tests pass.
+**Status: COMPLETE (2026-09-01).** All four exit criteria are met and eight controls reach
+`TESTED` — SB-01, SB-02, SB-03, SB-04, SB-05, SB-06, SB-17 and SB-22 — taking the total to
+seventeen of 33. 305 tests pass.
+
+Source synchronisation was missing when the phase was first reported and has since been closed;
+what it does and does not cover is at the end of this section.
 
 What landed:
 
@@ -448,17 +451,21 @@ What landed:
   public and a private address.
 - **The three knowledge-quality sweeps**, reporting and never repairing.
 
-What did not land, and why:
+Source synchronisation, closed after the phase was first reported:
 
-**`sync_sources`, `compare_snapshots` and `analyze_change_impact` do not work.**
-`ISourceSystemClient` has no adapter; `UnavailableSourceSystemClient` throws with an explanation.
-A GitHub client written against a live API could not have been tested here, and untested
-security-relevant surface is the one thing this project keeps refusing to ship. The port is
-unchanged, so adding the adapter is a registration change. Two of those three are on the AI
-allow-list and will fail if called, which is stated rather than discovered.
-
-**SB-22 is implemented but untested.** Every analysis runs under a deadline and a file-count
-ceiling; the pathological-input test that would prove it has not been written.
+- **`WorkingCopySourceSystemClient` reads git as files.** HEAD, loose and packed references,
+  commit objects, and tree objects, through a zlib stream. Not by running git: "it is only git" is
+  exactly the exception that makes SB-04 stop meaning anything.
+- **Tested against real git objects.** The fixture writes them — blobs, trees, commits, named by
+  the SHA-1 of their own bytes — so the reader is exercised against the format it claims to read
+  rather than against a mock of it. Shelling out to git for the fixture would have made the test
+  depend on whichever git is on the machine, next to a control forbidding exactly that.
+- **Packed objects are not supported, by name.** Reading a pack file means implementing delta
+  chains, and a partial implementation fails in ways that look like missing history rather than a
+  missing feature. `analyze_change_impact` on a packed commit says so and says what to do about
+  it. Snapshots and comparison work either way, because references are readable from `packed-refs`.
+- **A provider API adapter is still worth having** for pull requests, issues, and review threads,
+  which a working copy does not carry. ADR-0010 is unchanged and the port is unchanged.
 
 ---
 

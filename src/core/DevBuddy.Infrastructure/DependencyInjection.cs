@@ -77,8 +77,9 @@ public static class DependencyInjection
         services.AddScoped<ICodeAnalyzer, FileSystemCodeAnalyzer>();
         services.AddScoped<IKnowledgeQualityChecks, KnowledgeQualityChecks>();
 
-        // Not implemented. Registered so the container resolves and every call says so.
-        services.AddScoped<ISourceSystemClient, UnavailableSourceSystemClient>();
+        // Reads the mounted working copy: git metadata and loose objects, as files. A provider
+        // API adapter slots in behind the same port when one is written (ADR-0010).
+        services.AddScoped<ISourceSystemClient, WorkingCopySourceSystemClient>();
 
         services.AddSingleton<IHostResolver, DnsHostResolver>();
         services.AddSingleton<UrlGuard>();

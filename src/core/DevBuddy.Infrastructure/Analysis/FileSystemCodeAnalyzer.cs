@@ -57,7 +57,18 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
 
         // Its own deadline, so one pathological repository cannot hold a request open (SB-22).
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(_options.Timeout);
+
+        if (_options.Timeout <= TimeSpan.Zero)
+        {
+            // A non-positive budget means no time, not unlimited time. Failing closed on a
+            // misconfiguration is the whole point of having a limit, and it makes the limit
+            // testable without racing a timer.
+            await deadline.CancelAsync();
+        }
+        else
+        {
+            deadline.CancelAfter(_options.Timeout);
+        }
 
         if (kind == AnalysisKind.WorkItems)
         {
@@ -73,18 +84,36 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
         }
 
         PathGuard guard = _options.GuardFor(scope, repositoryId).Create();
-        List<ScannedFile> files = Walk(guard, target, deadline.Token);
 
-        return kind switch
+        try
         {
-            AnalysisKind.Project => Project(files),
-            AnalysisKind.Code => Code(files),
-            AnalysisKind.Documents => Documents(files, guard, deadline.Token),
-            AnalysisKind.Architecture => Architecture(files, guard, deadline.Token),
-            AnalysisKind.GitHistory => GitHistory(guard, deadline.Token),
-            AnalysisKind.TestEvidence => TestEvidence(files),
-            _ => new AnalysisReport(kind, "This analysis is not available.", []),
-        };
+            List<ScannedFile> files = Walk(guard, target, deadline.Token);
+
+            return kind switch
+            {
+                AnalysisKind.Project => Project(files),
+                AnalysisKind.Code => Code(files),
+                AnalysisKind.Documents => Documents(files, guard, deadline.Token),
+                AnalysisKind.Architecture => Architecture(files, guard, deadline.Token),
+                AnalysisKind.GitHistory => GitHistory(guard, deadline.Token),
+                AnalysisKind.TestEvidence => TestEvidence(files),
+                _ => new AnalysisReport(kind, "This analysis is not available.", []),
+            };
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The deadline fired, not the caller. A repository under study is attacker-controlled,
+            // so a pathological one has to end in a report that says it was cut short rather than
+            // in an exception the caller has to guess the meaning of (SB-22).
+            //
+            // A caller who cancelled is a different matter and their cancellation propagates:
+            // the `when` clause is what tells the two apart.
+            return new AnalysisReport(
+                kind,
+                $"The analysis was stopped after {_options.Timeout.TotalSeconds:0.###} seconds and is "
+                + "incomplete. Narrow the target or raise the limit.",
+                []);
+        }
     }
 
     /// <summary>
