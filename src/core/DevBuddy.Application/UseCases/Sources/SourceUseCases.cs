@@ -19,13 +19,22 @@ public sealed record SyncSourcesResponse(
     SourceRepositoryId RepositoryId,
     string CommitId,
     DateTimeOffset CapturedAt,
-    int LinkCount);
+    int LinkCount,
+    // Null rather than 0: null means this source system cannot answer (a mounted working copy),
+    // 0 means it answered and found none. A GitHub-backed source answers both.
+    int? OpenPullRequestCount,
+    int? OpenIssueCount);
 
 /// <summary>
 /// Imports a snapshot from an authorised repository.
 /// <para>
 /// One-way (ADR-0010). Nothing is written back to the source system, which is why this needs
 /// only read scope on a GitHub token and why there is no conflict resolution to get wrong.
+/// </para>
+/// <para>
+/// Pull request and issue counts are reported alongside the snapshot when the active source
+/// system can answer that question — the GitHub API client can, a mounted working copy cannot,
+/// and this reports the difference honestly rather than guessing zero.
 /// </para>
 /// </summary>
 public sealed class SyncSourcesUseCase(ISourceSystemClient sourceSystem)
@@ -41,8 +50,29 @@ public sealed class SyncSourcesUseCase(ISourceSystemClient sourceSystem)
         SourceSnapshot snapshot =
             await _sourceSystem.FetchSnapshotAsync(request.RepositoryId, request.Scope, cancellationToken);
 
+        int? openPullRequests = null;
+        int? openIssues = null;
+
+        try
+        {
+            IReadOnlyList<PullRequestSummary> pullRequests = await _sourceSystem.FetchPullRequestsAsync(
+                request.RepositoryId, request.Scope, cancellationToken);
+            openPullRequests = pullRequests.Count(pr => string.Equals(pr.State, "open", StringComparison.OrdinalIgnoreCase));
+
+            IReadOnlyList<IssueSummary> issues = await _sourceSystem.FetchIssuesAsync(
+                request.RepositoryId, request.Scope, cancellationToken);
+            openIssues = issues.Count(issue => string.Equals(issue.State, "open", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (NotSupportedException)
+        {
+            // The active source system has no pull request or issue data — a mounted working
+            // copy, today. The snapshot import still succeeded; this is additional detail the
+            // response reports as absent rather than as zero.
+        }
+
         return new SyncSourcesResponse(
-            snapshot.RepositoryId, snapshot.CommitId, snapshot.CapturedAt, snapshot.Links.Count);
+            snapshot.RepositoryId, snapshot.CommitId, snapshot.CapturedAt, snapshot.Links.Count,
+            openPullRequests, openIssues);
     }
 }
 

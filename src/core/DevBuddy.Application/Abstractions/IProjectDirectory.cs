@@ -20,4 +20,13 @@ public interface IProjectDirectory
     Task<Project?> FindProjectAsync(ProjectScope scope, CancellationToken cancellationToken);
 
     Task AddProjectAsync(Project project, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes a project and everything scoped to it: work items, records and their revisions,
+    /// approvals and corrections, evidence rows and bytes, source repositories, deployment
+    /// environments, the AI access policy, and project-scoped memberships. Audit history is kept —
+    /// it records that access happened, not the project's content, and it is the trail an
+    /// investigation into the deletion itself would need.
+    /// </summary>
+    Task DeleteProjectAsync(ProjectScope scope, CancellationToken cancellationToken);
 }

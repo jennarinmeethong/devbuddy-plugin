@@ -731,6 +731,29 @@ namespace DevBuddy.Infrastructure.Persistence.Migrations
                     b.ToTable("source_snapshots", (string)null);
                 });
 
+            modelBuilder.Entity("DevBuddy.Infrastructure.Persistence.TeamMemberRow", b =>
+                {
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("team_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("TeamId", "UserId")
+                        .HasName("pk_team_members");
+
+                    b.HasIndex("WorkspaceId", "TeamId")
+                        .HasDatabaseName("ix_team_members_workspace_id_team_id");
+
+                    b.ToTable("team_members", (string)null);
+                });
+
             modelBuilder.Entity("DevBuddy.Infrastructure.Persistence.TeamRow", b =>
                 {
                     b.Property<Guid>("Id")

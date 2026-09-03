@@ -1,7 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
@@ -9,7 +7,6 @@ using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using NpgsqlTypes;
 
 namespace DevBuddy.Infrastructure.Administration;
 
@@ -24,18 +21,6 @@ namespace DevBuddy.Infrastructure.Administration;
 /// </summary>
 internal sealed class BackupService
 {
-    /// <summary>
-    /// Written with the tenant filters off, on purpose and in exactly one place. A backup is the
-    /// one operation whose correct scope is everything; every other read in this system is scoped
-    /// and stays scoped.
-    /// </summary>
-    private static readonly JsonSerializerOptions Format = new()
-    {
-        WriteIndented = false,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { DropGeneratedColumns } },
-    };
-
     private readonly DevBuddyDbContext _db;
     private readonly IEvidenceBlobStore _blobs;
     private readonly IClock _clock;
@@ -71,7 +56,7 @@ internal sealed class BackupService
 
         await using (FileStream file = File.Create(rows))
         {
-            await JsonSerializer.SerializeAsync(file, archive, Format, cancellationToken);
+            await JsonSerializer.SerializeAsync(file, archive, ArchiveJson.Options, cancellationToken);
         }
 
         long evidenceBytes = await CopyEvidenceOutAsync(archive, directory, cancellationToken);
@@ -111,7 +96,7 @@ internal sealed class BackupService
 
         await using (FileStream file = rows.OpenRead())
         {
-            archive = await JsonSerializer.DeserializeAsync<BackupArchive>(file, Format, cancellationToken);
+            archive = await JsonSerializer.DeserializeAsync<BackupArchive>(file, ArchiveJson.Options, cancellationToken);
         }
 
         if (archive is null)
@@ -158,26 +143,6 @@ internal sealed class BackupService
             $"Restored {archive.KnowledgeRecords.Count} records, {archive.WorkItems.Count} work "
             + $"items, {archive.Users.Count} accounts, and {artefacts} artefacts. Everyone signs "
             + "in again: sessions are not part of a backup.");
-    }
-
-    /// <summary>
-    /// Leaves out the columns PostgreSQL computes for itself.
-    /// <para>
-    /// The full-text search vector is generated from the title and body on every write. It is not
-    /// data, it is a derived index, and a backup carrying it would be storing an answer the
-    /// database recomputes anyway — and could not read back, because the type it arrives as cannot
-    /// be constructed from JSON at all. Reindexing after a restore is the database's job.
-    /// </para>
-    /// </summary>
-    private static void DropGeneratedColumns(JsonTypeInfo info)
-    {
-        for (int index = info.Properties.Count - 1; index >= 0; index--)
-        {
-            if (info.Properties[index].PropertyType == typeof(NpgsqlTsVector))
-            {
-                info.Properties.RemoveAt(index);
-            }
-        }
     }
 
     private string Root() => Path.GetFullPath(_options.RootPath);

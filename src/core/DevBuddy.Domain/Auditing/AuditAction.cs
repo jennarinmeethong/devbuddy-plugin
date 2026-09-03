@@ -45,4 +45,15 @@ public enum AuditAction
     // Phase 9, with the plugin packages that made the stdio transport real.
     MachineTokenIssued = 30,
     MachineTokenRevoked = 31,
+
+    // Closing v1 gaps after Phase 11: project deletion, team administration, a second
+    // workspace, and an actual export artefact.
+    ProjectDeleted = 32,
+    TeamCreated = 33,
+    TeamRenamed = 34,
+    TeamDeleted = 35,
+    TeamMemberAdded = 36,
+    TeamMemberRemoved = 37,
+    WorkspaceCreated = 38,
+    ExportDownloaded = 39,
 }

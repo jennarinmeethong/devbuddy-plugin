@@ -118,17 +118,23 @@ internal static class AuthenticationEndpoints
     private static async Task<IResult> BeginRecoveryAsync(
         BeginRecoveryRequest request,
         IAccountRecoveryService recovery,
-        ILoggerFactory loggers,
+        IEmailSender email,
         CancellationToken cancellationToken)
     {
         string? token = await recovery.BeginAsync(request.Email, cancellationToken);
 
         if (token is not null)
         {
-            // Delivery is not built. The token is logged so a self-hosted operator can complete a
-            // recovery by hand, and this is called out rather than left to be discovered: it is a
-            // secret in a log, and an email transport in a later phase removes it.
-            RecoveryLog.TokenIssuedWithoutDelivery(loggers.CreateLogger("DevBuddy.Recovery"));
+            // With no SMTP configured, IEmailSender's fallback logs this instead — the same "an
+            // operator completes recovery by hand" behaviour this always had, just fixed: the
+            // token used to be described as written to the log without actually being in it.
+            await email.SendAsync(
+                new EmailMessage(
+                    request.Email,
+                    "Reset your DevBuddy password",
+                    $"Use this token to reset your password: {token}\n\n"
+                        + "If you did not request this, no action is needed."),
+                cancellationToken);
         }
 
         return Results.Accepted();
@@ -157,17 +163,6 @@ internal static class AuthenticationEndpoints
                 statusCode: StatusCodes.Status400BadRequest),
         };
     }
-}
-
-/// <summary>Source-generated log messages, so logging costs nothing when it is switched off.</summary>
-internal static partial class RecoveryLog
-{
-    [LoggerMessage(
-        EventId = 1,
-        Level = LogLevel.Warning,
-        Message = "A recovery token was issued and written to this log because no delivery channel "
-            + "is configured. Deliver it out of band and treat this log line as sensitive.")]
-    public static partial void TokenIssuedWithoutDelivery(ILogger logger);
 }
 
 internal sealed record SignInRequest(string Email, string Password);

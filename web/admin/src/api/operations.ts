@@ -49,11 +49,20 @@ export type OperationName =
   | "disable_project_ai_access"
   | "read_audit_history"
   | "list_memberships"
+  | "create_workspace"
   | "create_project"
+  | "delete_project"
   | "create_work_item"
   | "create_user_account"
   | "list_work_items"
   | "list_records"
+  | "create_team"
+  | "rename_team"
+  | "delete_team"
+  | "list_teams"
+  | "list_team_members"
+  | "add_team_member"
+  | "remove_team_member"
   | "issue_machine_token"
   | "list_machine_tokens"
   | "revoke_machine_token"
@@ -71,7 +80,9 @@ export type PermissionName =
   | "ManageOwnCredentials"
   | "ManageProjects"
   | "ManageSources"
+  | "ManageTeams"
   | "ManageWorkItems"
+  | "ProvisionWorkspace"
   | "PublishRecord"
   | "ReadAudit"
   | "ReadKnowledge"
@@ -580,6 +591,8 @@ export type SyncSourcesResult = {
   commitId: string;
   capturedAt: string;
   linkCount: number;
+  openPullRequestCount: number | null;
+  openIssueCount: number | null;
 };
 
 export type ValidateProvenanceArguments = {
@@ -777,7 +790,7 @@ export type ReadAuditHistoryResult = {
       workspaceId: string | null;
       projectId: string | null;
       actorId: string;
-      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked";
+      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded";
       outcome: "Succeeded" | "Denied" | "Failed";
       resourceReference: string;
       occurredAt: string;
@@ -800,6 +813,19 @@ export type ListMembershipsResult = {
     }>;
 };
 
+export type CreateWorkspaceArguments = {
+  sponsorWorkspaceId: string;
+  name: string;
+  firstProjectName?: string | null;
+  workspaceId?: string;
+};
+
+export type CreateWorkspaceResult = {
+  workspaceId: string;
+  projectId: string | null;
+  name: string;
+};
+
 export type CreateProjectArguments = {
   name: string;
   workspaceId: string;
@@ -808,6 +834,17 @@ export type CreateProjectArguments = {
 export type CreateProjectResult = {
   projectId: string;
   name: string;
+};
+
+export type DeleteProjectArguments = {
+  scope: {
+    workspaceId: string;
+    projectId: string;
+  };
+};
+
+export type DeleteProjectResult = {
+  projectId: string;
 };
 
 export type CreateWorkItemArguments = {
@@ -879,6 +916,78 @@ export type ListRecordsResult = {
       publishedRevisionNumber: number | null;
       updatedAt: string;
     }>;
+};
+
+export type CreateTeamArguments = {
+  name: string;
+  workspaceId: string;
+};
+
+export type CreateTeamResult = {
+  teamId: string;
+  name: string;
+};
+
+export type RenameTeamArguments = {
+  teamId: string;
+  name: string;
+  workspaceId: string;
+};
+
+export type RenameTeamResult = {
+  teamId: string;
+  name: string;
+};
+
+export type DeleteTeamArguments = {
+  teamId: string;
+  workspaceId: string;
+};
+
+export type DeleteTeamResult = {
+  teamId: string;
+};
+
+export type ListTeamsArguments = {
+  workspaceId: string;
+};
+
+export type ListTeamsResult = {
+  teams: Array<{
+      teamId: string;
+      name: string;
+    }>;
+};
+
+export type ListTeamMembersArguments = {
+  teamId: string;
+  workspaceId: string;
+};
+
+export type ListTeamMembersResult = {
+  memberIds: unknown[];
+};
+
+export type AddTeamMemberArguments = {
+  teamId: string;
+  userId: string;
+  workspaceId: string;
+};
+
+export type AddTeamMemberResult = {
+  teamId: string;
+  userId: string;
+};
+
+export type RemoveTeamMemberArguments = {
+  teamId: string;
+  userId: string;
+  workspaceId: string;
+};
+
+export type RemoveTeamMemberResult = {
+  teamId: string;
+  userId: string;
 };
 
 export type IssueMachineTokenArguments = {
@@ -960,11 +1069,20 @@ export interface Operations {
   "disable_project_ai_access": { arguments: DisableProjectAiAccessArguments; result: DisableProjectAiAccessResult };
   "read_audit_history": { arguments: ReadAuditHistoryArguments; result: ReadAuditHistoryResult };
   "list_memberships": { arguments: ListMembershipsArguments; result: ListMembershipsResult };
+  "create_workspace": { arguments: CreateWorkspaceArguments; result: CreateWorkspaceResult };
   "create_project": { arguments: CreateProjectArguments; result: CreateProjectResult };
+  "delete_project": { arguments: DeleteProjectArguments; result: DeleteProjectResult };
   "create_work_item": { arguments: CreateWorkItemArguments; result: CreateWorkItemResult };
   "create_user_account": { arguments: CreateUserAccountArguments; result: CreateUserAccountResult };
   "list_work_items": { arguments: ListWorkItemsArguments; result: ListWorkItemsResult };
   "list_records": { arguments: ListRecordsArguments; result: ListRecordsResult };
+  "create_team": { arguments: CreateTeamArguments; result: CreateTeamResult };
+  "rename_team": { arguments: RenameTeamArguments; result: RenameTeamResult };
+  "delete_team": { arguments: DeleteTeamArguments; result: DeleteTeamResult };
+  "list_teams": { arguments: ListTeamsArguments; result: ListTeamsResult };
+  "list_team_members": { arguments: ListTeamMembersArguments; result: ListTeamMembersResult };
+  "add_team_member": { arguments: AddTeamMemberArguments; result: AddTeamMemberResult };
+  "remove_team_member": { arguments: RemoveTeamMemberArguments; result: RemoveTeamMemberResult };
   "issue_machine_token": { arguments: IssueMachineTokenArguments; result: IssueMachineTokenResult };
   "list_machine_tokens": { arguments: ListMachineTokensArguments; result: ListMachineTokensResult };
   "revoke_machine_token": { arguments: RevokeMachineTokenArguments; result: RevokeMachineTokenResult };
@@ -1012,11 +1130,20 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "disable_project_ai_access": { permission: "ManageAccess", availableToAi: false },
   "read_audit_history": { permission: "ReadAudit", availableToAi: false },
   "list_memberships": { permission: "ManageAccess", availableToAi: false },
+  "create_workspace": { permission: "ProvisionWorkspace", availableToAi: false },
   "create_project": { permission: "ManageProjects", availableToAi: false },
+  "delete_project": { permission: "ManageProjects", availableToAi: false },
   "create_work_item": { permission: "ManageWorkItems", availableToAi: false },
   "create_user_account": { permission: "ManageAccounts", availableToAi: false },
   "list_work_items": { permission: "ReadKnowledge", availableToAi: false },
   "list_records": { permission: "ReadKnowledge", availableToAi: false },
+  "create_team": { permission: "ManageTeams", availableToAi: false },
+  "rename_team": { permission: "ManageTeams", availableToAi: false },
+  "delete_team": { permission: "ManageTeams", availableToAi: false },
+  "list_teams": { permission: "ManageTeams", availableToAi: false },
+  "list_team_members": { permission: "ManageTeams", availableToAi: false },
+  "add_team_member": { permission: "ManageTeams", availableToAi: false },
+  "remove_team_member": { permission: "ManageTeams", availableToAi: false },
   "issue_machine_token": { permission: "ManageOwnCredentials", availableToAi: false },
   "list_machine_tokens": { permission: "ManageOwnCredentials", availableToAi: false },
   "revoke_machine_token": { permission: "ManageOwnCredentials", availableToAi: false },

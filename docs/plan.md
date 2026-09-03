@@ -908,15 +908,74 @@ What landed:
   A deleted-project sweep has no trigger, because no operation in this build deletes a project at
   all. `docs/security/release-readiness.md` asks the project owner to accept these three explicitly.
 
-**A pre-existing environment issue, not a defect in this phase's code:** the DevBuddy.Infrastructure.Tests
-assembly's own copy of `Docker.DotNet.Handler.Abstractions.dll` is blocked by this machine's
-Application Control policy, failing the 41 tests in that project that use Testcontainers (evidence
-store and persistence tests unrelated to SB-18 or SB-27). The identical Testcontainers usage in
-DevBuddy.Security.Tests and DevBuddy.Api.Tests runs reliably in the same environment, which is why
-this phase's Postgres-backed verification (`PersonalDataChannelTests`, `RetentionEnforcementTests`)
-was written there instead. Deleting and rebuilding that one assembly's `bin`/`obj` did not clear
-it. This is a host security policy, not a code path this project controls, and it was not
-introduced by this phase — the same 41 tests fail identically against the pre-Phase-11 code.
+**An environment issue during this phase, resolved without a code change:** the
+DevBuddy.Infrastructure.Tests assembly's own copy of `Docker.DotNet.Handler.Abstractions.dll` was
+blocked for a time by this machine's Application Control policy, failing the Testcontainers-dependent
+tests in that project. The identical Testcontainers usage in DevBuddy.Security.Tests and
+DevBuddy.Api.Tests ran reliably throughout, which is why this phase's Postgres-backed verification
+(`PersonalDataChannelTests`, `RetentionEnforcementTests`) was written there instead of in
+Infrastructure.Tests. By the time the gap-closing work below finished, the block had cleared on its
+own and the full DevBuddy.Infrastructure.Tests suite passed again — a host security policy, never a
+code path this project controlled.
+
+---
+
+## Closing the v1 gaps named at the end of Phase 11
+
+**Status: COMPLETE (2026-09-03).** The Phase 11 release-readiness note accepted three residual
+risks against SB-27 (retention) pending further work, and CLAUDE.md separately named four
+functional v1 gaps that were true but not security-control failures: only one workspace could
+ever be created, teams had no operations, a setup or recovery token had no real delivery channel,
+and source synchronisation could not read pull requests, issues, or review threads. All are closed.
+405 .NET tests grew to 433; all of them pass, alongside all 23 web tests. The matrix reaches 32
+`TESTED` of 33, with SB-29 the sole `IMPLEMENTED` row, unchanged, because it needs an actual
+release to prove.
+
+What landed:
+
+- **`delete_project`** removes a project's work items, records with their full revision history,
+  evidence rows and bytes, source repositories, and project-scoped memberships, immediately.
+  Audit history survives the project it describes. This is also what closes SB-27's deleted-project
+  residual: an immediate delete satisfies "hard purge within 30 days" trivially, so the sweep that
+  control once lacked a trigger for is unneeded rather than missing.
+- **`export_project` writes an actual copy** — records, work items, and evidence bytes — through a
+  new `ExportService` structured like `BackupService`, scoped to one project. This closes SB-27's
+  other residual: `dotnet run -- retention` now purges an export directory past its window the same
+  way it purges a stale backup.
+- **Team administration**: `create_team`, `rename_team`, `delete_team`, `list_teams`,
+  `list_team_members`, `add_team_member`, `remove_team_member`. The entity and its table existed
+  since Phase 1 with nothing reading or writing them. A team still carries no permission of its
+  own — `Membership` decides what anyone may do, unchanged.
+- **`create_workspace`**, sponsored by a workspace the caller already administers and authorised
+  against it through the ordinary pipeline — not a new installation-wide role, which would have
+  been a materially different security model from everything else here. `IInstallationBootstrapper`
+  is untouched: it still makes the first workspace once, on an empty database, and still refuses
+  afterwards.
+- **`IEmailSender`** replaces the ad hoc paths that used to hand a setup or recovery token to
+  whoever was already looking. `EmailOptions.Provider` defaults to `Log` — the same "an operator
+  completes this by hand" behaviour this system always had, fixed rather than only kept: the
+  previous code logged a warning claiming a recovery token was written to the log without the
+  token actually being in it. `Smtp` (MailKit) delivers it for real once an operator configures a
+  server.
+- **GitHub API source synchronisation**, opt-in via `GitHubOptions.Mode = GitHubApi`, behind the
+  same `ISourceSystemClient` port the working-copy reader already used — exactly the extension
+  point its own doc comment predicted. `sync_sources`, `compare_snapshots`, and
+  `analyze_change_impact` all gain a live-API path with no catalogue or AI-surface change, since
+  they already depended on the port rather than the implementation. Pull requests, issues, and
+  review comments are newly readable; a mounted working copy still refuses those questions rather
+  than answering them as empty. Off by default, and inert until an operator both sets a token and
+  adds `api.github.com` to `OutboundAccess:AllowedHosts` — proven by a test asserting the request
+  never reaches the transport when that host is absent.
+
+Two bugs were found and fixed along the way, neither previously covered by a test: `RenameTeamUseCase`
+first attempt threw an EF Core identity-conflict, because updating a row read with `AsNoTracking`
+requires fetching the tracked instance rather than attaching a fresh one — the same pattern
+`AccessDirectory.UpdateMembershipAsync` already used elsewhere, now matched. And the exact
+recovery-token logging bug named above: `RecoveryLog.TokenIssuedWithoutDelivery` had no parameter
+for the token at all, so the log line it wrote never contained what it claimed to.
+
+`docs/security/release-readiness.md` reflects the closures in full; `docs/security/verification-matrix.md`
+records SB-27 at `TESTED`.
 
 ---
 

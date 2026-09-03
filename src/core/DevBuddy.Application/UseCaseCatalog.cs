@@ -189,9 +189,52 @@ public static class UseCaseCatalog
     //
     // Every one of them is Denied to AI. The eighteen-name AI surface is what info.md permits and
     // it does not include making things; adding an operation here must never widen it.
+    /// <summary>
+    /// Sponsored by a workspace the caller already administers — see
+    /// <see cref="Abstractions.IWorkspaceProvisioner"/> for why there is no separate
+    /// installation-administrator concept behind this.
+    /// </summary>
+    public static UseCaseDescriptor CreateWorkspace { get; } = new(
+        "create_workspace", PermissionKind.ProvisionWorkspace, AiExposure.Denied,
+        AuditAction.WorkspaceCreated, redactsOutput: false);
+
     public static UseCaseDescriptor CreateProject { get; } = new(
         "create_project", PermissionKind.ManageProjects, AiExposure.Denied,
         AuditAction.ProjectCreated, redactsOutput: false);
+
+    public static UseCaseDescriptor DeleteProject { get; } = new(
+        "delete_project", PermissionKind.ManageProjects, AiExposure.Denied,
+        AuditAction.ProjectDeleted, redactsOutput: false);
+
+    // Team administration. Closing a gap the entity has carried since Phase 1: nothing read or
+    // wrote a team before this. A team carries no permission of its own — Membership still does.
+    public static UseCaseDescriptor CreateTeam { get; } = new(
+        "create_team", PermissionKind.ManageTeams, AiExposure.Denied,
+        AuditAction.TeamCreated, redactsOutput: false);
+
+    public static UseCaseDescriptor RenameTeam { get; } = new(
+        "rename_team", PermissionKind.ManageTeams, AiExposure.Denied,
+        AuditAction.TeamRenamed, redactsOutput: false);
+
+    public static UseCaseDescriptor DeleteTeam { get; } = new(
+        "delete_team", PermissionKind.ManageTeams, AiExposure.Denied,
+        AuditAction.TeamDeleted, redactsOutput: false);
+
+    public static UseCaseDescriptor ListTeams { get; } = new(
+        "list_teams", PermissionKind.ManageTeams, AiExposure.Denied,
+        AuditAction.AuditRead, redactsOutput: false);
+
+    public static UseCaseDescriptor ListTeamMembers { get; } = new(
+        "list_team_members", PermissionKind.ManageTeams, AiExposure.Denied,
+        AuditAction.AuditRead, redactsOutput: false);
+
+    public static UseCaseDescriptor AddTeamMember { get; } = new(
+        "add_team_member", PermissionKind.ManageTeams, AiExposure.Denied,
+        AuditAction.TeamMemberAdded, redactsOutput: false);
+
+    public static UseCaseDescriptor RemoveTeamMember { get; } = new(
+        "remove_team_member", PermissionKind.ManageTeams, AiExposure.Denied,
+        AuditAction.TeamMemberRemoved, redactsOutput: false);
 
     public static UseCaseDescriptor CreateWorkItem { get; } = new(
         "create_work_item", PermissionKind.ManageWorkItems, AiExposure.Denied,
@@ -239,7 +282,9 @@ public static class UseCaseCatalog
         ExportProject, BackupSystem, CheckSystemHealth,
         GrantMembership, RevokeMembership, EnableProjectAiAccess, DisableProjectAiAccess,
         ReadAuditHistory, ListMemberships,
-        CreateProject, CreateWorkItem, CreateUserAccount, ListWorkItems, ListRecords,
+        CreateWorkspace,
+        CreateProject, DeleteProject, CreateWorkItem, CreateUserAccount, ListWorkItems, ListRecords,
+        CreateTeam, RenameTeam, DeleteTeam, ListTeams, ListTeamMembers, AddTeamMember, RemoveTeamMember,
         IssueMachineToken, ListMachineTokens, RevokeMachineToken,
     ];
 

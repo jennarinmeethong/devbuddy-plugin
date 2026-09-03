@@ -53,6 +53,9 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
+    <!-- AddHttpClient, for the GitHub API adapter (ADR-0010) — the one outbound HTTP call this
+         system makes, and every request through it still goes through UrlGuard first (SB-03). -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup Label="Integration testing (Phase 3)">
@@ -62,6 +65,12 @@
     <!-- MinIO is the default evidence store, so the default path is what gets tested. Covering
          only the filesystem fallback would prove the adapter we do not ship. -->
     <PackageVersion Include="Testcontainers.Minio" Version="4.14.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Email delivery">
+    <!-- SMTP only, and MailKit rather than the BCL's own SmtpClient: Microsoft has marked that
+         one obsolete for new development, and this is exactly new development. -->
+    <PackageVersion Include="MailKit" Version="4.17.0" />
   </ItemGroup>
 
   <!-- Added by the phase that first needs them, so the dependency surface stays honest:

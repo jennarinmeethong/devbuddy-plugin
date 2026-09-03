@@ -12,8 +12,8 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 10 are complete; Phase 11 (security verification and release
-  readiness) is next.
+  criteria. Phases 0 to 11 are complete, and the v1 gaps named at the end of Phase 11 are closed
+  (see `docs/plan.md`'s "Closing the v1 gaps" section and `CLAUDE.md`).
 
 ## Project Structure & Module Organization
 

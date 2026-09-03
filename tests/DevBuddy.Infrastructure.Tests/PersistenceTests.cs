@@ -6,10 +6,12 @@ using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
+using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.Infrastructure.Persistence.Mapping;
 using DevBuddy.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace DevBuddy.Infrastructure.Tests;
 
@@ -287,7 +289,7 @@ public sealed class PersistenceTests(PostgresFixture fixture)
         await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
 
         var directory = new AccessDirectory(context);
-        var projects = new ProjectDirectory(context);
+        var projects = new ProjectDirectory(context, new FileSystemEvidenceBlobStore(Options.Create(new EvidenceStoreOptions())));
         var audit = new AuditStore(context);
         var evidence = new EvidenceMetadataStore(context);
 
@@ -359,7 +361,7 @@ public sealed class PersistenceTests(PostgresFixture fixture)
         await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
 
         var directory = new AccessDirectory(context);
-        var projects = new ProjectDirectory(context);
+        var projects = new ProjectDirectory(context, new FileSystemEvidenceBlobStore(Options.Create(new EvidenceStoreOptions())));
 
         Membership grant = Membership.ForWorkspace(
             MembershipId.New(), seed.Author, seed.Workspace, Role.Contributor, Seed.Now, seed.Author);

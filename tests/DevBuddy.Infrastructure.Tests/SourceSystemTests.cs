@@ -278,6 +278,39 @@ public sealed class SourceSystemTests : IDisposable
         Assert.Contains("git metadata", failure.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// A mounted working copy has no pull request, issue, or review data — only the hosting
+    /// provider's API does. Refused rather than answered as empty, so <c>SyncSourcesUseCase</c>
+    /// can tell "none exist" from "this source cannot say."
+    /// </summary>
+    [Theory]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public async Task pull_requests_issues_and_reviews_are_refused_not_answered_as_empty(
+        bool pullRequests, bool issues, bool reviews)
+    {
+        WorkingCopySourceSystemClient client = Client();
+
+        if (pullRequests)
+        {
+            await Assert.ThrowsAsync<NotSupportedException>(
+                () => client.FetchPullRequestsAsync(_repository, _scope, Ct));
+        }
+
+        if (issues)
+        {
+            await Assert.ThrowsAsync<NotSupportedException>(
+                () => client.FetchIssuesAsync(_repository, _scope, Ct));
+        }
+
+        if (reviews)
+        {
+            await Assert.ThrowsAsync<NotSupportedException>(
+                () => client.FetchReviewThreadsAsync(_repository, _scope, pullRequestNumber: 1, Ct));
+        }
+    }
+
     private WorkingCopySourceSystemClient Client() =>
         new(Options.Create(new AnalysisOptions { RootPath = _root }), new FixedClock());
 

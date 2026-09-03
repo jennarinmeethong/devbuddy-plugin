@@ -143,6 +143,47 @@ public sealed class HandoverAndOperationsTests
     }
 
     [Fact]
+    public async Task sync_sources_reports_open_pull_requests_and_issues_when_the_source_system_has_them()
+    {
+        var harness = new Harness();
+
+        harness.Ports.PullRequests =
+        [
+            new(1, "Open one", "open", "alice", "body", TestData.Now, "https://example/pr/1"),
+            new(2, "Closed one", "closed", "alice", "body", TestData.Now, "https://example/pr/2"),
+        ];
+
+        harness.Ports.Issues =
+        [
+            new(1, "Open issue", "open", "bob", "body", TestData.Now, "https://example/issues/1"),
+        ];
+
+        SyncSourcesResponse response = await harness.SucceedAsync(
+            new SyncSourcesUseCase(harness.Ports),
+            new SyncSourcesRequest(TestData.Scope, TestData.Repository));
+
+        Assert.Equal(1, response.OpenPullRequestCount);
+        Assert.Equal(1, response.OpenIssueCount);
+    }
+
+    [Fact]
+    public async Task sync_sources_reports_no_pull_request_or_issue_data_rather_than_zero_when_unsupported()
+    {
+        var harness = new Harness();
+        harness.Ports.PullRequests = null;
+        harness.Ports.Issues = null;
+
+        SyncSourcesResponse response = await harness.SucceedAsync(
+            new SyncSourcesUseCase(harness.Ports),
+            new SyncSourcesRequest(TestData.Scope, TestData.Repository));
+
+        // Null, not zero: a mounted working copy cannot say, which is a different claim from
+        // "this source system checked and found none."
+        Assert.Null(response.OpenPullRequestCount);
+        Assert.Null(response.OpenIssueCount);
+    }
+
+    [Fact]
     public async Task the_quality_sweeps_report_under_their_own_operation_names()
     {
         var harness = new Harness();

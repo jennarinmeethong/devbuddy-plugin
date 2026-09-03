@@ -4,6 +4,7 @@ using DevBuddy.Domain.Auditing;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Tenancy;
+using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Persistence.Mapping;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,9 +14,10 @@ namespace DevBuddy.Infrastructure.Persistence.Repositories;
 /// The tenancy graph. Only ever returns the projects a named user is actually a member of, which
 /// is what narrows AI results to the requesting user rather than to the AI credential (SB-09).
 /// </summary>
-internal sealed class ProjectDirectory(DevBuddyDbContext db) : IProjectDirectory
+internal sealed class ProjectDirectory(DevBuddyDbContext db, IEvidenceBlobStore blobs) : IProjectDirectory
 {
     private readonly DevBuddyDbContext _db = Guard.NotNull(db, nameof(db));
+    private readonly IEvidenceBlobStore _blobs = Guard.NotNull(blobs, nameof(blobs));
 
     public async Task<IReadOnlyList<Project>> ListProjectsForUserAsync(
         WorkspaceId workspaceId, UserId userId, CancellationToken cancellationToken)
@@ -64,6 +66,179 @@ internal sealed class ProjectDirectory(DevBuddyDbContext db) : IProjectDirectory
     {
         _db.Projects.Add(RowMappers.ToRow(Guard.NotNull(project, nameof(project))));
         await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Evidence bytes are removed before their rows: a blob orphaned by a failure partway through
+    /// is recoverable by the retention sweep (SB-27); a blob deleted after its row already forgot
+    /// the storage key is not. Everything else is a set-based delete scoped to the project, with
+    /// no cross-table ordering that matters — there are no foreign keys between these tables at
+    /// the database level, only a shared project identifier.
+    /// </summary>
+    public async Task DeleteProjectAsync(ProjectScope scope, CancellationToken cancellationToken)
+    {
+        Guid workspaceId = scope.WorkspaceId.Value;
+        Guid projectId = scope.ProjectId.Value;
+
+        List<EvidenceObjectRow> evidence = await _db.EvidenceObjects
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ToListAsync(cancellationToken);
+
+        foreach (EvidenceObjectRow artefact in evidence)
+        {
+            await _blobs.DeleteAsync(scope, artefact.StorageKey, cancellationToken);
+        }
+
+        await _db.EvidenceObjects
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        // Revisions, approvals, and corrections cascade from this at the database level
+        // (DeleteBehavior.Cascade on each foreign key), so a set-based delete here is enough.
+        await _db.KnowledgeRecords
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.WorkItems
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.SourceSnapshots
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.SourceRepositories
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.DeploymentEnvironments
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.AiAccessPolicies
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        // Not filtered in the model (an administrator revoking access has to see a grant in order
+        // to revoke it), so no IgnoreQueryFilters call is needed here.
+        await _db.Memberships
+            .Where(row => row.WorkspaceId == workspaceId && row.ProjectId == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.Projects
+            .IgnoreQueryFilters()
+            .Where(row => row.WorkspaceId == workspaceId && row.Id == projectId)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+}
+
+/// <summary>Team administration. See <see cref="ITeamDirectory"/> for what a team is and is not.</summary>
+internal sealed class TeamDirectory(DevBuddyDbContext db) : ITeamDirectory
+{
+    private readonly DevBuddyDbContext _db = Guard.NotNull(db, nameof(db));
+
+    public async Task<IReadOnlyList<Team>> ListTeamsAsync(
+        WorkspaceId workspaceId, CancellationToken cancellationToken)
+    {
+        List<TeamRow> rows = await _db.Teams
+            .Where(team => team.WorkspaceId == workspaceId.Value)
+            .OrderBy(team => team.Name)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(RowMappers.ToDomain)];
+    }
+
+    public async Task<Team?> FindTeamAsync(
+        TeamId id, WorkspaceId workspaceId, CancellationToken cancellationToken)
+    {
+        TeamRow? row = await _db.Teams
+            .Where(team => team.WorkspaceId == workspaceId.Value && team.Id == id.Value)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return row is null ? null : RowMappers.ToDomain(row);
+    }
+
+    public async Task AddTeamAsync(Team team, CancellationToken cancellationToken)
+    {
+        _db.Teams.Add(RowMappers.ToRow(Guard.NotNull(team, nameof(team))));
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateTeamAsync(Team team, CancellationToken cancellationToken)
+    {
+        Guard.NotNull(team, nameof(team));
+
+        TeamRow existing = await _db.Teams
+            .FirstOrDefaultAsync(row => row.Id == team.Id.Value, cancellationToken)
+            ?? throw new InvalidOperationException($"Team {team.Id} does not exist.");
+
+        existing.Name = team.Name;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteTeamAsync(
+        TeamId id, WorkspaceId workspaceId, CancellationToken cancellationToken)
+    {
+        await _db.TeamMembers
+            .Where(member => member.WorkspaceId == workspaceId.Value && member.TeamId == id.Value)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.Teams
+            .Where(team => team.WorkspaceId == workspaceId.Value && team.Id == id.Value)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<UserId>> ListTeamMembersAsync(
+        TeamId id, CancellationToken cancellationToken)
+    {
+        List<Guid> ids = await _db.TeamMembers
+            .AsNoTracking()
+            .Where(member => member.TeamId == id.Value)
+            .OrderBy(member => member.UserId)
+            .Select(member => member.UserId)
+            .ToListAsync(cancellationToken);
+
+        return [.. ids.Select(value => new UserId(value))];
+    }
+
+    public async Task AddTeamMemberAsync(
+        TeamId id, WorkspaceId workspaceId, UserId userId, CancellationToken cancellationToken)
+    {
+        bool exists = await _db.TeamMembers
+            .AnyAsync(member => member.TeamId == id.Value && member.UserId == userId.Value, cancellationToken);
+
+        if (exists)
+        {
+            // Adding somebody already in the team is a no-op, not a conflict: the caller asked
+            // for a state, not for an event to definitely occur.
+            return;
+        }
+
+        _db.TeamMembers.Add(new TeamMemberRow
+        {
+            TeamId = id.Value,
+            WorkspaceId = workspaceId.Value,
+            UserId = userId.Value,
+        });
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveTeamMemberAsync(TeamId id, UserId userId, CancellationToken cancellationToken)
+    {
+        await _db.TeamMembers
+            .Where(member => member.TeamId == id.Value && member.UserId == userId.Value)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 }
 

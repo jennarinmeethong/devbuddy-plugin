@@ -3,6 +3,7 @@ using Amazon.S3;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Infrastructure.Administration;
 using DevBuddy.Infrastructure.Analysis;
+using DevBuddy.Infrastructure.Email;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
 using DevBuddy.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ using DevBuddy.Infrastructure.Time;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DevBuddy.Infrastructure;
@@ -38,9 +40,17 @@ public static class DependencyInjection
         Action<AnalysisOptions>? configureAnalysis = null,
         Action<OutboundAccessOptions>? configureOutbound = null,
         Action<BackupOptions>? configureBackup = null,
-        Action<RetentionOptions>? configureRetention = null)
+        Action<RetentionOptions>? configureRetention = null,
+        Action<ExportOptions>? configureExport = null,
+        Action<EmailOptions>? configureEmail = null,
+        Action<GitHubOptions>? configureGitHub = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        if (configureGitHub is not null)
+        {
+            services.Configure(configureGitHub);
+        }
 
         if (configureBackup is not null)
         {
@@ -50,6 +60,16 @@ public static class DependencyInjection
         if (configureRetention is not null)
         {
             services.Configure(configureRetention);
+        }
+
+        if (configureExport is not null)
+        {
+            services.Configure(configureExport);
+        }
+
+        if (configureEmail is not null)
+        {
+            services.Configure(configureEmail);
         }
 
         if (configureAnalysis is not null)
@@ -70,7 +90,9 @@ public static class DependencyInjection
 
         services.AddScoped<IKnowledgeRepository, KnowledgeRepository>();
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
+        services.AddScoped<ITeamDirectory, TeamDirectory>();
         services.AddScoped<IAccessDirectory, AccessDirectory>();
+        services.AddScoped<IWorkspaceProvisioner, WorkspaceProvisioner>();
         services.AddScoped<ISearchIndex, PostgresSearchIndex>();
         services.AddScoped<EvidenceMetadataStore>();
 
@@ -80,6 +102,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<BackupService>();
+        services.AddScoped<ExportService>();
         services.AddScoped<IAdministrativeOperations, AdministrativeOperations>();
         services.AddScoped<IRetentionEnforcer, RetentionService>();
 
@@ -103,9 +126,20 @@ public static class DependencyInjection
             provider.GetRequiredService<AnalysisSlots>()));
         services.AddScoped<IKnowledgeQualityChecks, KnowledgeQualityChecks>();
 
-        // Reads the mounted working copy: git metadata and loose objects, as files. A provider
-        // API adapter slots in behind the same port when one is written (ADR-0010).
-        services.AddScoped<ISourceSystemClient, WorkingCopySourceSystemClient>();
+        // Reads the mounted working copy by default: git metadata and loose objects, as files, no
+        // network and no token (SB-04). The GitHub API adapter (ADR-0010) is the same port, opt-in
+        // via GitHubOptions.Mode — off leaves this line's behaviour exactly as it always was.
+        services.AddScoped<WorkingCopySourceSystemClient>();
+        services.AddHttpClient<GitHubApiSourceSystemClient>();
+
+        services.AddScoped<ISourceSystemClient>(provider =>
+        {
+            IOptions<GitHubOptions> options = provider.GetRequiredService<IOptions<GitHubOptions>>();
+
+            return options.Value.Mode == SourceSystemMode.GitHubApi
+                ? provider.GetRequiredService<GitHubApiSourceSystemClient>()
+                : provider.GetRequiredService<WorkingCopySourceSystemClient>();
+        });
 
         services.AddSingleton<IHostResolver, DnsHostResolver>();
         services.AddSingleton<UrlGuard>();
@@ -183,6 +217,16 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IEvidenceStore, EvidenceStore>();
+
+        services.AddScoped<IEmailSender>(provider =>
+        {
+            IOptions<EmailOptions> options = provider.GetRequiredService<IOptions<EmailOptions>>();
+
+            return options.Value.Provider == EmailProvider.Smtp
+                ? new SmtpEmailSender(options)
+                : new LogEmailSender(provider.GetRequiredService<ILogger<LogEmailSender>>());
+        });
+
         return services;
     }
 }

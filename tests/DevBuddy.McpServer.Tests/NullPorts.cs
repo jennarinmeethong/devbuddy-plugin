@@ -32,6 +32,9 @@ internal sealed class NullPorts :
     IPersonalDataScanner,
     IPersonalDataRedactor,
     IProjectDirectory,
+    ITeamDirectory,
+    IWorkspaceProvisioner,
+    IEmailSender,
     IAccessDirectory,
     IAuditReader,
     IAuditSink,
@@ -111,6 +114,18 @@ internal sealed class NullPorts :
         SourceSnapshot earlier, SourceSnapshot later, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<IReadOnlyList<PullRequestSummary>> FetchPullRequestsAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<IssueSummary>> FetchIssuesAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<ReviewThreadSummary>> FetchReviewThreadsAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, int pullRequestNumber, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<AnalysisReport> AnalyzeAsync(
         AnalysisKind kind, ProjectScope scope, SourceRepositoryId? repositoryId, string? target,
         CancellationToken cancellationToken) =>
@@ -131,6 +146,44 @@ internal sealed class NullPorts :
         throw new NotSupportedException();
 
     public Task AddProjectAsync(Project project, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task DeleteProjectAsync(ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<Team>> ListTeamsAsync(
+        WorkspaceId workspaceId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<Team?> FindTeamAsync(
+        TeamId id, WorkspaceId workspaceId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task AddTeamAsync(Team team, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task UpdateTeamAsync(Team team, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task DeleteTeamAsync(TeamId id, WorkspaceId workspaceId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<UserId>> ListTeamMembersAsync(
+        TeamId id, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task AddTeamMemberAsync(
+        TeamId id, WorkspaceId workspaceId, UserId userId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task RemoveTeamMemberAsync(TeamId id, UserId userId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<WorkspaceProvisioningResult> CreateAsync(
+        string name, UserId administrator, string? firstProjectName, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task<IReadOnlyList<Membership>> ListMembershipsForWorkspaceAsync(
@@ -236,6 +289,9 @@ internal sealed class NullPorts :
         services.AddSingleton<IPersonalDataScanner>(ports);
         services.AddSingleton<IPersonalDataRedactor>(ports);
         services.AddSingleton<IProjectDirectory>(ports);
+        services.AddSingleton<ITeamDirectory>(ports);
+        services.AddSingleton<IWorkspaceProvisioner>(ports);
+        services.AddSingleton<IEmailSender>(ports);
         services.AddSingleton<IAccessDirectory>(ports);
         services.AddSingleton<IAuditReader>(ports);
         services.AddSingleton<IAuditSink>(ports);

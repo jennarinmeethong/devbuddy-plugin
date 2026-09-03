@@ -70,4 +70,20 @@ public enum PermissionKind
     /// </para>
     /// </summary>
     ManageOwnCredentials = 16,
+
+    // Added closing v1 gaps after Phase 11.
+
+    /// <summary>Create, rename, delete a team, and add or remove its members.</summary>
+    ManageTeams = 17,
+
+    /// <summary>
+    /// Create a new, separate workspace, sponsored by one the caller already administers.
+    /// <para>
+    /// Not an installation-wide superuser flag — there is no such concept in this system, and
+    /// adding one would be a materially different security model from everything else here. An
+    /// existing workspace administrator can stand up another workspace, the same way the one-time
+    /// bootstrap stands up the first one, and becomes its administrator in turn.
+    /// </para>
+    /// </summary>
+    ProvisionWorkspace = 18,
 }

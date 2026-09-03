@@ -30,6 +30,8 @@ internal static class TestData
     public static readonly SourceRepositoryId Repository =
         new(new Guid("77777777-7777-7777-7777-777777777777"));
 
+    public static readonly TeamId Team = new(new Guid("88888888-8888-8888-8888-888888888888"));
+
     public static ProjectScope Scope => new(Workspace, ProjectAlpha);
 
     public static CallerContext Human => new(Author, AccessChannel.Human, "req-human");
@@ -70,6 +72,9 @@ internal sealed class FakePorts :
     IPersonalDataScanner,
     IPersonalDataRedactor,
     IProjectDirectory,
+    ITeamDirectory,
+    IWorkspaceProvisioner,
+    IEmailSender,
     IAccessDirectory,
     IAuditReader,
     IAdministrativeOperations,
@@ -255,6 +260,40 @@ internal sealed class FakePorts :
             [new("branch", earlier.Reference, later.Reference)]);
     }
 
+    /// <summary>Null simulates a working-copy-backed client, which has none of this data.</summary>
+    public IReadOnlyList<PullRequestSummary>? PullRequests { get; set; } = [];
+
+    public IReadOnlyList<IssueSummary>? Issues { get; set; } = [];
+
+    public IReadOnlyList<ReviewThreadSummary>? ReviewThreads { get; set; } = [];
+
+    public Task<IReadOnlyList<PullRequestSummary>> FetchPullRequestsAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken)
+    {
+        Touch();
+        return PullRequests is null
+            ? throw new NotSupportedException("fake: no pull request data")
+            : Task.FromResult(PullRequests);
+    }
+
+    public Task<IReadOnlyList<IssueSummary>> FetchIssuesAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Issues is null
+            ? throw new NotSupportedException("fake: no issue data")
+            : Task.FromResult(Issues);
+    }
+
+    public Task<IReadOnlyList<ReviewThreadSummary>> FetchReviewThreadsAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, int pullRequestNumber, CancellationToken cancellationToken)
+    {
+        Touch();
+        return ReviewThreads is null
+            ? throw new NotSupportedException("fake: no review data")
+            : Task.FromResult(ReviewThreads);
+    }
+
     public Task<AnalysisReport> AnalyzeAsync(
         AnalysisKind kind, ProjectScope scope, SourceRepositoryId? repositoryId, string? target,
         CancellationToken cancellationToken)
@@ -337,6 +376,107 @@ internal sealed class FakePorts :
     {
         Touch();
         SavedProject = project;
+        return Task.CompletedTask;
+    }
+
+    public ProjectScope? DeletedProjectScope { get; private set; }
+
+    public Task DeleteProjectAsync(ProjectScope scope, CancellationToken cancellationToken)
+    {
+        Touch();
+        DeletedProjectScope = scope;
+        return Task.CompletedTask;
+    }
+
+    public Team? Team { get; set; } = new(TestData.Team, TestData.Workspace, "Platform");
+
+    public Team? SavedTeam { get; private set; }
+
+    public TeamId? DeletedTeamId { get; private set; }
+
+    public List<UserId> TeamMembers { get; } = [TestData.Author];
+
+    public (TeamId TeamId, UserId UserId)? AddedTeamMember { get; private set; }
+
+    public (TeamId TeamId, UserId UserId)? RemovedTeamMember { get; private set; }
+
+    public Task<IReadOnlyList<Team>> ListTeamsAsync(
+        WorkspaceId workspaceId, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<Team>>(Team is null ? [] : [Team]);
+    }
+
+    public Task<Team?> FindTeamAsync(TeamId id, WorkspaceId workspaceId, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult(Team);
+    }
+
+    public Task AddTeamAsync(Team team, CancellationToken cancellationToken)
+    {
+        Touch();
+        SavedTeam = team;
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateTeamAsync(Team team, CancellationToken cancellationToken)
+    {
+        Touch();
+        SavedTeam = team;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteTeamAsync(TeamId id, WorkspaceId workspaceId, CancellationToken cancellationToken)
+    {
+        Touch();
+        DeletedTeamId = id;
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<UserId>> ListTeamMembersAsync(TeamId id, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<UserId>>(TeamMembers);
+    }
+
+    public Task AddTeamMemberAsync(
+        TeamId id, WorkspaceId workspaceId, UserId userId, CancellationToken cancellationToken)
+    {
+        Touch();
+        AddedTeamMember = (id, userId);
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveTeamMemberAsync(TeamId id, UserId userId, CancellationToken cancellationToken)
+    {
+        Touch();
+        RemovedTeamMember = (id, userId);
+        return Task.CompletedTask;
+    }
+
+    public (string Name, UserId Administrator, string? FirstProjectName)? ProvisionedWorkspace
+    {
+        get;
+        private set;
+    }
+
+    public Task<WorkspaceProvisioningResult> CreateAsync(
+        string name, UserId administrator, string? firstProjectName, CancellationToken cancellationToken)
+    {
+        Touch();
+        ProvisionedWorkspace = (name, administrator, firstProjectName);
+
+        return Task.FromResult(new WorkspaceProvisioningResult(
+            WorkspaceId.New(), firstProjectName is null ? null : ProjectId.New()));
+    }
+
+    public EmailMessage? SentEmail { get; private set; }
+
+    Task IEmailSender.SendAsync(EmailMessage message, CancellationToken cancellationToken)
+    {
+        Touch();
+        SentEmail = message;
         return Task.CompletedTask;
     }
 

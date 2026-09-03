@@ -33,6 +33,16 @@ internal static class RowMappers
         CreatedAt = workspace.CreatedAt,
     };
 
+    public static Team ToDomain(TeamRow row) =>
+        new(new TeamId(row.Id), new WorkspaceId(row.WorkspaceId), row.Name);
+
+    public static TeamRow ToRow(Team team) => new()
+    {
+        Id = team.Id.Value,
+        WorkspaceId = team.WorkspaceId.Value,
+        Name = team.Name,
+    };
+
     public static Project ToDomain(ProjectRow row) =>
         new(new ProjectId(row.Id), new WorkspaceId(row.WorkspaceId), row.Name, row.CreatedAt);
 

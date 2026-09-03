@@ -20,6 +20,57 @@ namespace DevBuddy.Application.UseCases.Administration;
 // Every one of them is denied to AI. info.md permits AI to search, get, analyse, draft, and hand
 // over. Making a project or an account is none of those.
 
+public sealed record CreateWorkspaceRequest(WorkspaceId SponsorWorkspaceId, string Name, string? FirstProjectName = null)
+    : WorkspaceRequest(SponsorWorkspaceId), IScannableRequest
+{
+    public override string ResourceReference => Name;
+
+    public IEnumerable<string> ContentForScanning
+    {
+        get
+        {
+            yield return Name;
+
+            if (FirstProjectName is not null)
+            {
+                yield return FirstProjectName;
+            }
+        }
+    }
+
+    public override IReadOnlyList<string> Validate() =>
+        string.IsNullOrWhiteSpace(Name) ? ["A workspace needs a name."] : [];
+}
+
+public sealed record WorkspaceCreatedResponse(WorkspaceId WorkspaceId, ProjectId? ProjectId, string Name)
+    : IAuditableResult
+{
+    public IReadOnlyDictionary<string, string> AuditDetails =>
+        new Dictionary<string, string>(StringComparer.Ordinal) { ["workspaceId"] = WorkspaceId.Value.ToString() };
+}
+
+/// <summary>
+/// Stands a new workspace up, sponsored by one the caller already administers, and makes the
+/// caller its administrator. Not a superuser action: the permission check runs against the
+/// sponsor workspace through the ordinary pipeline, exactly like every other operation here.
+/// </summary>
+public sealed class CreateWorkspaceUseCase(IWorkspaceProvisioner provisioner)
+    : UseCase<CreateWorkspaceRequest, WorkspaceCreatedResponse>
+{
+    private readonly IWorkspaceProvisioner _provisioner = Guard.NotNull(provisioner, nameof(provisioner));
+
+    public override UseCaseDescriptor Descriptor => UseCaseCatalog.CreateWorkspace;
+
+    protected internal override async Task<WorkspaceCreatedResponse> HandleAsync(
+        CreateWorkspaceRequest request, CallerContext caller, CancellationToken cancellationToken)
+    {
+        WorkspaceProvisioningResult result = await _provisioner.CreateAsync(
+            request.Name, caller.UserId, request.FirstProjectName, cancellationToken);
+
+        return new WorkspaceCreatedResponse(result.WorkspaceId, result.ProjectId, request.Name);
+    }
+}
+
 public sealed record CreateProjectRequest(WorkspaceId WorkspaceId, string Name)
     : WorkspaceRequest(WorkspaceId), IScannableRequest
 {
@@ -66,6 +117,44 @@ public sealed class CreateProjectUseCase(IProjectDirectory directory, IClock clo
         await _directory.AddProjectAsync(project, cancellationToken);
 
         return new ProjectCreatedResponse(project.Id, project.Name);
+    }
+}
+
+public sealed record DeleteProjectRequest(ProjectScope Scope) : ProjectRequest(Scope)
+{
+    public override string ResourceReference => "project";
+}
+
+public sealed record ProjectDeletedResponse(ProjectId ProjectId) : IAuditableResult
+{
+    public IReadOnlyDictionary<string, string> AuditDetails =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["projectId"] = ProjectId.Value.ToString(),
+        };
+}
+
+/// <summary>
+/// Removes a project and everything scoped to it, immediately rather than after a grace period.
+/// The retention schedule's "within 30 days" is a ceiling a synchronous delete satisfies
+/// trivially; a soft-delete state machine with its own undo window is a feature nobody asked for
+/// yet (SB-27).
+/// </summary>
+public sealed class DeleteProjectUseCase(IProjectDirectory directory)
+    : UseCase<DeleteProjectRequest, ProjectDeletedResponse>
+{
+    private readonly IProjectDirectory _directory = Guard.NotNull(directory, nameof(directory));
+
+    public override UseCaseDescriptor Descriptor => UseCaseCatalog.DeleteProject;
+
+    protected internal override async Task<ProjectDeletedResponse> HandleAsync(
+        DeleteProjectRequest request, CallerContext caller, CancellationToken cancellationToken)
+    {
+        Project project = await _directory.FindProjectAsync(request.Scope, cancellationToken)
+            ?? throw new ResourceNotFoundException($"No project {request.Scope.ProjectId} in this workspace.");
+
+        await _directory.DeleteProjectAsync(request.Scope, cancellationToken);
+        return new ProjectDeletedResponse(project.Id);
     }
 }
 
@@ -399,12 +488,13 @@ public sealed record UserAccountCreatedResponse(
 /// </para>
 /// </summary>
 public sealed class CreateUserAccountUseCase(
-    ICredentialManager credentials, IAccessDirectory directory, IClock clock)
+    ICredentialManager credentials, IAccessDirectory directory, IClock clock, IEmailSender email)
     : UseCase<CreateUserAccountRequest, UserAccountCreatedResponse>
 {
     private readonly ICredentialManager _credentials = Guard.NotNull(credentials, nameof(credentials));
     private readonly IAccessDirectory _directory = Guard.NotNull(directory, nameof(directory));
     private readonly IClock _clock = Guard.NotNull(clock, nameof(clock));
+    private readonly IEmailSender _email = Guard.NotNull(email, nameof(email));
 
     public override UseCaseDescriptor Descriptor => UseCaseCatalog.CreateUserAccount;
 
@@ -440,6 +530,17 @@ public sealed class CreateUserAccountUseCase(
                 caller.UserId);
 
         await _directory.AddMembershipAsync(membership, cancellationToken);
+
+        // Still returned in the response too: the token is the same value either way, and an
+        // administrator watching this API response is a real delivery path, not a fallback one.
+        await _email.SendAsync(
+            new EmailMessage(
+                request.Email,
+                "Your DevBuddy account is ready",
+                $"An administrator created a DevBuddy account for you.\n\n"
+                    + $"Setup token: {created.SetupToken}\n"
+                    + $"This token expires at {created.ExpiresAt:u}."),
+            cancellationToken);
 
         return new UserAccountCreatedResponse(
             created.UserId, membership.Id, created.SetupToken, created.ExpiresAt);

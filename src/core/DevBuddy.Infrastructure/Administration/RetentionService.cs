@@ -9,21 +9,21 @@ using Microsoft.Extensions.Options;
 namespace DevBuddy.Infrastructure.Administration;
 
 /// <summary>
-/// One retention pass, across every copy the schedule names that this build can actually reach
-/// (SB-27).
+/// One retention pass, across every copy the schedule names (SB-27).
 /// <para>
-/// Three rules run here: audit events past their window are deleted outright; evidence no
-/// revision references, past its grace period, is deleted from both the database and the object
-/// store; and backups past the configured window are deleted from disk — the specific gap
-/// `docs/plan.md` calls out as recorded but not enforced.
+/// Audit events past their window are deleted outright; evidence no revision references, past
+/// its grace period, is deleted from both the database and the object store; backups past their
+/// configured window are deleted from disk — the specific gap `docs/plan.md` once called out as
+/// recorded but not enforced; and exports past their window are deleted the same way, now that
+/// <see cref="ExportService"/> writes an actual copy instead of only a manifest.
 /// </para>
 /// <para>
-/// Three rows in the schedule are not implemented here, on purpose rather than by omission.
+/// Two rows in the schedule are still not implemented here, on purpose rather than by omission.
 /// Draft staleness is already the Phase 6 quality check's job (<c>DetectStaleness</c>), not a
-/// deletion. Exports carry no stored artefact yet — <c>ExportAsync</c> returns a manifest and
-/// writes nothing to disk — so there is nothing to purge until that changes. A project cannot yet
-/// be deleted at all, so the deleted-project purge has no trigger to run from. All three are
-/// named as residual risk rather than silently skipped; see the verification matrix.
+/// deletion. A deleted-project purge is unnecessary rather than missing: deleting a project
+/// (<c>DeleteProjectUseCase</c>) already removes everything scoped to it immediately, so there is
+/// no lagging state for a sweep to catch up on. Application log retention is a container
+/// log-driver setting, outside this codebase entirely. See the release-readiness note.
 /// </para>
 /// </summary>
 internal sealed class RetentionService : IRetentionEnforcer
@@ -33,19 +33,22 @@ internal sealed class RetentionService : IRetentionEnforcer
     private readonly IClock _clock;
     private readonly RetentionOptions _retention;
     private readonly BackupOptions _backup;
+    private readonly ExportOptions _export;
 
     public RetentionService(
         DevBuddyDbContext db,
         IEvidenceBlobStore blobs,
         IClock clock,
         IOptions<RetentionOptions> retention,
-        IOptions<BackupOptions> backup)
+        IOptions<BackupOptions> backup,
+        IOptions<ExportOptions> export)
     {
         _db = Guard.NotNull(db, nameof(db));
         _blobs = Guard.NotNull(blobs, nameof(blobs));
         _clock = Guard.NotNull(clock, nameof(clock));
         _retention = Guard.NotNull(retention, nameof(retention)).Value;
         _backup = Guard.NotNull(backup, nameof(backup)).Value;
+        _export = Guard.NotNull(export, nameof(export)).Value;
     }
 
     public async Task<RetentionReport> ApplyAsync(CancellationToken cancellationToken)
@@ -54,10 +57,12 @@ internal sealed class RetentionService : IRetentionEnforcer
 
         int auditEventsDeleted = await PurgeAuditEventsAsync(now, cancellationToken);
         int evidenceDeleted = await PurgeOrphanedEvidenceAsync(now, cancellationToken);
-        int backupsDeleted = PurgeBackups(now);
+        int backupsDeleted = PurgeTimestampedDirectories(_backup.RootPath, "backup", _backup.Retention, now);
+        int exportsDeleted = PurgeExports(now);
         int archivedEligible = await CountArchivedRecordsEligibleAsync(now, cancellationToken);
 
-        return new RetentionReport(auditEventsDeleted, evidenceDeleted, backupsDeleted, archivedEligible);
+        return new RetentionReport(
+            auditEventsDeleted, evidenceDeleted, backupsDeleted, exportsDeleted, archivedEligible);
     }
 
     /// <summary>Deleted outright. The schedule gives audit events no exception and no report step.</summary>
@@ -118,25 +123,50 @@ internal sealed class RetentionService : IRetentionEnforcer
     }
 
     /// <summary>
-    /// Directory names carry the moment the backup was taken (<see cref="BackupService"/>), so
-    /// that is what ages a backup out rather than filesystem metadata a copy or a restore could
-    /// have changed.
+    /// Every export directory is one project subdirectory deep — <c>{root}/{projectId}/{export
+    /// directory}</c> — so a project's exports can be found without reading every other
+    /// project's, unlike backups, which are one flat directory of the whole installation.
     /// </summary>
-    private int PurgeBackups(DateTimeOffset now)
+    private int PurgeExports(DateTimeOffset now)
     {
-        string root = Path.GetFullPath(_backup.RootPath);
+        string root = Path.GetFullPath(_export.RootPath);
 
         if (!Directory.Exists(root))
         {
             return 0;
         }
 
-        DateTimeOffset cutoff = now - _backup.Retention;
+        int deleted = 0;
+
+        foreach (string projectDirectory in Directory.GetDirectories(root))
+        {
+            deleted += PurgeTimestampedDirectories(projectDirectory, "export", _export.Retention, now);
+        }
+
+        return deleted;
+    }
+
+    /// <summary>
+    /// Directory names carry the moment the copy was taken (<see cref="BackupService"/>,
+    /// <see cref="ExportService"/>), so that is what ages one out rather than filesystem metadata
+    /// a copy or a restore could have changed.
+    /// </summary>
+    private static int PurgeTimestampedDirectories(
+        string rootPath, string prefix, TimeSpan retention, DateTimeOffset now)
+    {
+        string root = Path.GetFullPath(rootPath);
+
+        if (!Directory.Exists(root))
+        {
+            return 0;
+        }
+
+        DateTimeOffset cutoff = now - retention;
         int deleted = 0;
 
         foreach (string directory in Directory.GetDirectories(root))
         {
-            if (BackupTimestamp(Path.GetFileName(directory)) is { } takenAt && takenAt < cutoff)
+            if (TimestampOf(Path.GetFileName(directory), prefix) is { } takenAt && takenAt < cutoff)
             {
                 Directory.Delete(directory, recursive: true);
                 deleted++;
@@ -157,12 +187,15 @@ internal sealed class RetentionService : IRetentionEnforcer
             .CountAsync(record => record.ArchivedAt != null && record.ArchivedAt < cutoff, cancellationToken);
     }
 
-    /// <summary>Parses the <c>backup-yyyyMMdd-HHmmss-...</c> name <see cref="BackupService"/> writes.</summary>
-    private static DateTimeOffset? BackupTimestamp(string directoryName)
+    /// <summary>
+    /// Parses the <c>{prefix}-yyyyMMdd-HHmmss-...</c> name <see cref="BackupService"/> and
+    /// <see cref="ExportService"/> write.
+    /// </summary>
+    private static DateTimeOffset? TimestampOf(string directoryName, string prefix)
     {
         string[] parts = directoryName.Split('-');
 
-        if (parts.Length < 3 || parts[0] != "backup")
+        if (parts.Length < 3 || parts[0] != prefix)
         {
             return null;
         }

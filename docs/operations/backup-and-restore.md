@@ -111,8 +111,8 @@ long they are meant to be kept, and a backup past that window is deleted the nex
 dotnet run --project src/hosts/DevBuddy.Cli -- retention
 ```
 
-runs. That command also purges audit events past their window and evidence no revision references
-past its grace period — every copy this build can currently reach. It runs nothing on its own; put
-it on whatever cron or task scheduler the deployment already has, on whatever cadence fits. See
-`docs/security/release-readiness.md` for the copies it does not yet reach — exports, application
-logs, and a deleted project — and why.
+runs. That command also purges audit events past their window, evidence no revision references
+past its grace period, and exports past theirs — every copy this build makes a durable one of. It
+runs nothing on its own; put it on whatever cron or task scheduler the deployment already has, on
+whatever cadence fits. Application log retention is the one copy this does not reach — a container
+log-driver setting, not application code — see `docs/security/release-readiness.md`.

@@ -137,6 +137,7 @@ internal static class Runner
             Console.WriteLine($"audit events deleted        {report.AuditEventsDeleted}");
             Console.WriteLine($"orphaned evidence deleted    {report.OrphanedEvidenceDeleted}");
             Console.WriteLine($"backups deleted              {report.BackupsDeleted}");
+            Console.WriteLine($"exports deleted              {report.ExportsDeleted}");
             Console.WriteLine($"archived records eligible    {report.ArchivedRecordsEligibleForDeletion}");
 
             if (report.ArchivedRecordsEligibleForDeletion > 0)

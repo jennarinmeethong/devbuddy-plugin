@@ -129,6 +129,31 @@ public sealed class RetentionEnforcementTests(SecurityFixture fixture)
     }
 
     [Fact]
+    public async Task an_export_past_its_window_is_deleted_and_a_recent_one_survives()
+    {
+        World world = await _fixture.CreateWorldAsync();
+        using Session session = _fixture.OpenSession(world.Workspace);
+
+        // Exports nest one project directory deep, unlike backups.
+        string projectDirectory = Path.Combine(_fixture.ExportRoot, world.AlphaId.Value.ToString("N"));
+        Directory.CreateDirectory(projectDirectory);
+
+        string oldExport = Path.Combine(projectDirectory, "export-20150101-000000-" + Guid.NewGuid().ToString("N"));
+        string recentExport = Path.Combine(
+            projectDirectory,
+            $"export-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
+
+        Directory.CreateDirectory(oldExport);
+        Directory.CreateDirectory(recentExport);
+
+        RetentionReport report = await session.Resolve<IRetentionEnforcer>().ApplyAsync(CancellationToken.None);
+
+        Assert.True(report.ExportsDeleted >= 1);
+        Assert.False(Directory.Exists(oldExport));
+        Assert.True(Directory.Exists(recentExport));
+    }
+
+    [Fact]
     public async Task an_archived_record_past_its_window_is_reported_eligible_but_not_deleted()
     {
         World world = await _fixture.CreateWorldAsync();

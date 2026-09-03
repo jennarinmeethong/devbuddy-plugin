@@ -13,22 +13,27 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 11 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
-`UseCaseExecutor` pipeline and the first 41 of what is now 49 operations; Phase 3 PostgreSQL, full-text search, and MinIO;
-Phase 4 identity, authorization, and tenant isolation; Phase 5 the lifecycle and audit history;
-Phase 6 read-only analysis, the real secret scanner and redactor, the path and URL guards, and
-source synchronisation from a mounted working copy; Phase 7 the three hosts — the HTTP API, the
-MCP server over stdio and authenticated HTTP, and the console; Phase 8 the provisioning operations
-and the React administration UI in `web/admin`; Phase 9 machine tokens and the Claude and Codex
-plugin packages; Phase 10 the container images, the Compose stack, backup and restore, and the
-supply-chain checks; Phase 11 the personal-data policy and retention enforcement. 405 .NET tests
-and 23 web tests exist; 364 .NET tests pass in this environment (see the Infrastructure.Tests note
-below) and all 23 web tests pass. 31 of 33 controls are `TESTED`, 2 are `IMPLEMENTED` but not
-fully proven, and none are `NOT IMPLEMENTED`.
+Phases 0 to 11 are **complete**, and the v1 gaps named at the end of Phase 11 are closed. Phase 1
+delivered `DevBuddy.Domain`; Phase 2 the `UseCaseExecutor` pipeline and the first 41 of what is now
+58 operations; Phase 3 PostgreSQL, full-text search, and MinIO; Phase 4 identity, authorization,
+and tenant isolation; Phase 5 the lifecycle and audit history; Phase 6 read-only analysis, the real
+secret scanner and redactor, the path and URL guards, and source synchronisation from a mounted
+working copy; Phase 7 the three hosts — the HTTP API, the MCP server over stdio and authenticated
+HTTP, and the console; Phase 8 the provisioning operations and the React administration UI in
+`web/admin`; Phase 9 machine tokens and the Claude and Codex plugin packages; Phase 10 the
+container images, the Compose stack, backup and restore, and the supply-chain checks; Phase 11 the
+personal-data policy and retention enforcement. 433 .NET tests and 23 web tests exist, and all of
+them pass in this environment. 32 of 33 controls are `TESTED`; SB-29 is `IMPLEMENTED` and moves to
+`TESTED` when a release actually ships one.
 
-**Source synchronisation reads a working copy, not the GitHub API.** Pull requests, issues, and
-review threads are not available, and `analyze_change_impact` on a commit stored in a pack file
-reports that rather than returning an empty answer.
+**Source synchronisation can now read the GitHub API, opt-in.** `GitHubOptions.Mode` defaults to
+`WorkingCopy` — the mounted-checkout reader Phase 6 shipped, unchanged. Setting it to `GitHubApi`
+(a token, and `api.github.com` added to `OutboundAccess:AllowedHosts` — the empty-allow-list
+default is not weakened by this existing) swaps in a client that reads pull requests, issues, and
+review comments live, and answers `analyze_change_impact` against a commit in a pack file the same
+way a checkout does. `sync_sources` reports open pull request and issue counts when the active
+client can answer that; a working-copy-backed installation still reports them as absent, honestly,
+not as zero.
 
 **SB-18, the personal-data policy, is denied by default on the AI channel and nowhere else.**
 Customer, production, and personal data are blocked from a draft and redacted from a read whenever
@@ -36,21 +41,38 @@ the caller is on the AI channel and the project's AI access policy carries no ap
 scope. A human is never subject to it — SB-18 is an AI data policy, not a general content
 restriction — and a secret is still refused even inside an approved scope, per `info.md`.
 
-**SB-27, retention, is enforced for audit events, evidence, and backups; not yet for everything
-`docs/plan.md`'s schedule names.** `dotnet run -- retention` is a console command, outside the
-pipeline for the same reason `restore` is, run on whatever schedule the operator's own cron
-provides. Exports (no stored artefact exists yet to purge), application log retention (a
-container log-driver setting, not application code), and a deleted-project sweep (no operation
-deletes a project at all in v1) are named residual risk in
-`docs/security/release-readiness.md`, not silently skipped.
+**SB-27, retention, is enforced for audit events, evidence, backups, and exports.**
+`dotnet run -- retention` is a console command, outside the pipeline for the same reason `restore`
+is, run on whatever schedule the operator's own cron provides. `export_project` now writes an
+actual copy — records, work items, and evidence bytes — instead of only a manifest, so there is
+something for the sweep to purge. A deleted project is purged immediately by `delete_project`
+itself rather than by a lagging sweep. Application log retention remains a container log-driver
+setting outside this codebase, sized in `docker/compose.yaml`, not tested here.
 
-**`DevBuddy.Infrastructure.Tests`'s Testcontainers-dependent tests are blocked on this machine by
-an Application Control policy** on that project's own copy of `Docker.DotNet.Handler.Abstractions.dll`
-— 41 of 145 tests in that assembly, all pre-existing and unrelated to Phase 11. The identical
-Testcontainers usage in `DevBuddy.Security.Tests` and `DevBuddy.Api.Tests` runs reliably in the
-same environment, which is why Phase 11's own Postgres-backed verification lives there instead of
-in Infrastructure.Tests. This is a host security policy, not a defect this project's code
-introduced or can work around from inside a test.
+**A project can be deleted.** `delete_project` (Administrator, workspace- or project-scoped) removes
+its work items, records with their full revision history, evidence rows and bytes, source
+repositories, and project-scoped memberships, immediately. Audit history survives the project it
+describes — deleting content is not the same as erasing that the deletion happened.
+
+**A team can be created, renamed, staffed, and deleted.** The entity and its table existed since
+Phase 1 with nothing reading or writing them; `create_team`, `rename_team`, `delete_team`,
+`list_teams`, `list_team_members`, `add_team_member`, and `remove_team_member` close that. A team
+still carries no permission of its own — `Membership` decides what anyone may do, exactly as
+before.
+
+**A second workspace can be created — by an existing workspace administrator, not by a new
+"installation administrator" role.** `create_workspace` takes a sponsor workspace the caller
+already administers, authorises against it through the ordinary pipeline, and makes the caller
+administrator of the new one, the same shape `IInstallationBootstrapper` uses for the first one.
+`IInstallationBootstrapper` is unchanged: it still refuses once any workspace exists, because it is
+still the zero-membership case with nobody to authorise. There is no installation-wide superuser
+concept anywhere in this system.
+
+**Setup and recovery tokens are delivered by `IEmailSender`.** `EmailOptions.Provider` defaults to
+`Log`: no SMTP configured means the token is logged, the same "an operator completes this by hand"
+behaviour this system always had — fixed, not just kept, since the equivalent code before this
+port existed logged a warning claiming the token was written to the log without actually including
+it. Setting `Provider` to `Smtp` (MailKit) delivers it for real, to the account's own address.
 
 **Restore is a console command, not an operation.** Every operation is authorised against a
 membership, and a restore from total loss runs against a database with no memberships in it, so
@@ -65,18 +87,6 @@ passwords and machine tokens are.
 let anybody who could start the process start it as anybody, and a test fails if either plugin
 package mentions it. A token carries exactly its owner's permissions and is revocable on the next
 call.
-
-**Only the first workspace can be created.** `IInstallationBootstrapper` makes it and the first
-administrator on an empty database, and refuses afterwards. Everything inside a workspace can now
-be provisioned — projects, work items, accounts, memberships — but creating a *second workspace*
-needs an installation-level role v1 does not have. Do not describe the system as multi-workspace
-in operation; it is multi-workspace in the data model.
-
-**Teams have no operations.** The entity and its table exist and nothing reads or writes them.
-
-**Recovery and setup tokens are handed to an administrator and written to the log**, because no
-delivery channel exists yet. Called out in the code, in the endpoint summary, and on the screen
-that shows one. It goes away when an email transport lands.
 
 ## Commands
 

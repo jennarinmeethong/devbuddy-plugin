@@ -84,7 +84,16 @@ public static class DevBuddyOperations
         services.AddScoped<ReadAuditHistoryUseCase>();
         services.AddScoped<ListMembershipsUseCase>();
 
+        services.AddScoped<CreateWorkspaceUseCase>();
         services.AddScoped<CreateProjectUseCase>();
+        services.AddScoped<DeleteProjectUseCase>();
+        services.AddScoped<CreateTeamUseCase>();
+        services.AddScoped<RenameTeamUseCase>();
+        services.AddScoped<DeleteTeamUseCase>();
+        services.AddScoped<ListTeamsUseCase>();
+        services.AddScoped<ListTeamMembersUseCase>();
+        services.AddScoped<AddTeamMemberUseCase>();
+        services.AddScoped<RemoveTeamMemberUseCase>();
         services.AddScoped<CreateWorkItemUseCase>();
         services.AddScoped<CreateUserAccountUseCase>();
         services.AddScoped<ListWorkItemsUseCase>();
@@ -145,7 +154,16 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<CheckSystemHealthUseCase>(), executor),
 
             Bind(services.GetRequiredService<ListMembershipsUseCase>(), executor),
+            Bind(services.GetRequiredService<CreateWorkspaceUseCase>(), executor),
             Bind(services.GetRequiredService<CreateProjectUseCase>(), executor),
+            Bind(services.GetRequiredService<DeleteProjectUseCase>(), executor),
+            Bind(services.GetRequiredService<CreateTeamUseCase>(), executor),
+            Bind(services.GetRequiredService<RenameTeamUseCase>(), executor),
+            Bind(services.GetRequiredService<DeleteTeamUseCase>(), executor),
+            Bind(services.GetRequiredService<ListTeamsUseCase>(), executor),
+            Bind(services.GetRequiredService<ListTeamMembersUseCase>(), executor),
+            Bind(services.GetRequiredService<AddTeamMemberUseCase>(), executor),
+            Bind(services.GetRequiredService<RemoveTeamMemberUseCase>(), executor),
             Bind(services.GetRequiredService<CreateWorkItemUseCase>(), executor),
             Bind(services.GetRequiredService<CreateUserAccountUseCase>(), executor),
             Bind(services.GetRequiredService<ListWorkItemsUseCase>(), executor),

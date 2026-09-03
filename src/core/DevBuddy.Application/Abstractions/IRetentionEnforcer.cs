@@ -24,4 +24,5 @@ public sealed record RetentionReport(
     int AuditEventsDeleted,
     int OrphanedEvidenceDeleted,
     int BackupsDeleted,
+    int ExportsDeleted,
     int ArchivedRecordsEligibleForDeletion);

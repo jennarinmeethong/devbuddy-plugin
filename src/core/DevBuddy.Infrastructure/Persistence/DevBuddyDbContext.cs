@@ -41,6 +41,8 @@ public class DevBuddyDbContext : DbContext
 
     internal DbSet<TeamRow> Teams => Set<TeamRow>();
 
+    internal DbSet<TeamMemberRow> TeamMembers => Set<TeamMemberRow>();
+
     internal DbSet<ProjectRow> Projects => Set<ProjectRow>();
 
     internal DbSet<SourceRepositoryRow> SourceRepositories => Set<SourceRepositoryRow>();
@@ -100,6 +102,14 @@ public class DevBuddyDbContext : DbContext
             row.HasKey(entity => entity.Id);
             row.Property(entity => entity.Name).HasMaxLength(200).IsRequired();
             row.HasIndex(entity => new { entity.WorkspaceId, entity.Name });
+            row.HasQueryFilter(entity => entity.WorkspaceId == CurrentWorkspace);
+        });
+
+        modelBuilder.Entity<TeamMemberRow>(row =>
+        {
+            row.ToTable("team_members");
+            row.HasKey(entity => new { entity.TeamId, entity.UserId });
+            row.HasIndex(entity => new { entity.WorkspaceId, entity.TeamId });
             row.HasQueryFilter(entity => entity.WorkspaceId == CurrentWorkspace);
         });
 

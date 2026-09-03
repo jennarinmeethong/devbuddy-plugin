@@ -42,6 +42,23 @@ internal sealed class TeamRow
     public string Name { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Who is in a team. Grouping only — a team carries no role or permission of its own, so this
+/// join is deliberately thinner than <see cref="MembershipRow"/>.
+/// </summary>
+internal sealed class TeamMemberRow
+{
+    public Guid TeamId { get; set; }
+
+    /// <summary>
+    /// Denormalised from the team, so the tenant query filter can apply to this row directly
+    /// without a join.
+    /// </summary>
+    public Guid WorkspaceId { get; set; }
+
+    public Guid UserId { get; set; }
+}
+
 internal sealed class ProjectRow
 {
     public Guid Id { get; set; }

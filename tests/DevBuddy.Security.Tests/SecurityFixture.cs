@@ -40,6 +40,13 @@ public sealed class SecurityFixture : IAsyncLifetime
     public string BackupRoot { get; } =
         Path.Combine(Path.GetTempPath(), "devbuddy-security-backups-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>Where this fixture's exports land.</summary>
+    public string ExportRoot { get; } =
+        Path.Combine(Path.GetTempPath(), "devbuddy-security-exports-" + Guid.NewGuid().ToString("N"));
+
+    /// <summary>Every message the real pipeline tried to send, for tests that check delivery.</summary>
+    public TestEmailSender Emails { get; } = new();
+
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
@@ -55,7 +62,13 @@ public sealed class SecurityFixture : IAsyncLifetime
                 evidence.Provider = EvidenceStoreProvider.FileSystem;
                 evidence.RootPath = Path.Combine(Path.GetTempPath(), "devbuddy-security-" + Guid.NewGuid().ToString("N"));
             },
-            configureBackup: backup => backup.RootPath = BackupRoot);
+            configureBackup: backup => backup.RootPath = BackupRoot,
+            configureExport: export => export.RootPath = ExportRoot);
+
+        // Replaces the real IEmailSender registration above (last registration wins): the fixture
+        // proves the pipeline actually calls the port, not what a specific transport does with
+        // the message, which is covered where SmtpEmailSender and LogEmailSender live instead.
+        services.AddSingleton<IEmailSender>(Emails);
 
         services.AddDevBuddyIdentity(identity =>
         {
@@ -254,6 +267,36 @@ public sealed record World(WorkspaceId Workspace, ProjectId AlphaId, ProjectId B
 internal static class TestToken
 {
     public static CancellationToken None => CancellationToken.None;
+}
+
+/// <summary>
+/// A shared, thread-safe inbox in place of a real transport. Registered as a singleton so every
+/// scope in the fixture's container writes into the one list a test reads back from.
+/// </summary>
+public sealed class TestEmailSender : IEmailSender
+{
+    private readonly List<EmailMessage> _sent = [];
+
+    public IReadOnlyList<EmailMessage> Sent
+    {
+        get
+        {
+            lock (_sent)
+            {
+                return [.. _sent];
+            }
+        }
+    }
+
+    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+    {
+        lock (_sent)
+        {
+            _sent.Add(message);
+        }
+
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>One container for the whole assembly.</summary>

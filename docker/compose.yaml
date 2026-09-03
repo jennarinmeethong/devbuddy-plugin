@@ -86,11 +86,14 @@ services:
       DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
       DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
       DEVBUDDY_Backup__RootPath: /srv/backups
+      DEVBUDDY_Export__RootPath: /srv/exports
     volumes:
       # The console is how a restore is performed — it runs outside the pipeline, because a restore
       # from total loss has no accounts to authorise against — so it needs the backups and the
-      # object store the artefacts go back into.
+      # object store the artefacts go back into. Exports and backups share this container's image
+      # so `dotnet ... -- retention` can purge both from wherever an operator's cron runs it.
       - backups:/srv/backups
+      - exports:/srv/exports
     depends_on:
       database:
         condition: service_healthy
@@ -123,11 +126,13 @@ services:
       DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
       DEVBUDDY_Analysis__RootPath: /srv/projects
       DEVBUDDY_Backup__RootPath: /srv/backups
+      DEVBUDDY_Export__RootPath: /srv/exports
     volumes:
       # Read-only. Analysis reads a working copy and never writes to it, and the mount says so as
       # well as the code (SB-04).
       - ${DEVBUDDY_PROJECTS_PATH:-./projects}:/srv/projects:ro
       - backups:/srv/backups
+      - exports:/srv/exports
     depends_on:
       database:
         condition: service_healthy
@@ -183,6 +188,7 @@ volumes:
   database:
   evidence:
   backups:
+  exports:
 
 networks:
   internal:

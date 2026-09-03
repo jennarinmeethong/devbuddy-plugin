@@ -141,6 +141,31 @@ internal sealed class WorkingCopySourceSystemClient : ISourceSystemClient
         return Task.FromResult<IReadOnlyList<SnapshotDifference>>(differences);
     }
 
+    /// <summary>
+    /// A mounted working copy has no record of a pull request, issue, or review — those live only
+    /// at the hosting provider. Refused rather than answered as empty: an empty list would read as
+    /// "no open pull requests," which is a different, false claim from "this client cannot say."
+    /// </summary>
+    public Task<IReadOnlyList<PullRequestSummary>> FetchPullRequestsAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException(
+            "A mounted working copy has no pull request data. Configure GitHub API access to read it.");
+
+    /// <inheritdoc cref="FetchPullRequestsAsync"/>
+    public Task<IReadOnlyList<IssueSummary>> FetchIssuesAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken) =>
+        throw new NotSupportedException(
+            "A mounted working copy has no issue data. Configure GitHub API access to read it.");
+
+    /// <inheritdoc cref="FetchPullRequestsAsync"/>
+    public Task<IReadOnlyList<ReviewThreadSummary>> FetchReviewThreadsAsync(
+        SourceRepositoryId repositoryId,
+        ProjectScope scope,
+        int pullRequestNumber,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException(
+            "A mounted working copy has no review data. Configure GitHub API access to read it.");
+
     /// <summary>Added, removed, and changed paths, in one sorted list.</summary>
     internal static IReadOnlyList<string> ChangedPaths(
         IReadOnlyDictionary<string, string> before, IReadOnlyDictionary<string, string> after)

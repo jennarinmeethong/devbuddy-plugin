@@ -132,15 +132,42 @@ internal sealed class UseCaseRegistry
         Add(new ListMembershipsUseCase(ports),
             new ListMembershipsRequest(TestData.Workspace));
 
+        Add(new CreateWorkspaceUseCase(ports),
+            new CreateWorkspaceRequest(TestData.Workspace, "New Workspace"));
+
         Add(new CreateProjectUseCase(ports, ports),
             new CreateProjectRequest(TestData.Workspace, "Beta"));
+
+        Add(new DeleteProjectUseCase(ports),
+            new DeleteProjectRequest(TestData.Scope));
+
+        Add(new CreateTeamUseCase(ports),
+            new CreateTeamRequest(TestData.Workspace, "Platform"));
+
+        Add(new RenameTeamUseCase(ports),
+            new RenameTeamRequest(TestData.Workspace, TestData.Team, "Renamed"));
+
+        Add(new DeleteTeamUseCase(ports),
+            new DeleteTeamRequest(TestData.Workspace, TestData.Team));
+
+        Add(new ListTeamsUseCase(ports),
+            new ListTeamsRequest(TestData.Workspace));
+
+        Add(new ListTeamMembersUseCase(ports),
+            new ListTeamMembersRequest(TestData.Workspace, TestData.Team));
+
+        Add(new AddTeamMemberUseCase(ports),
+            new AddTeamMemberRequest(TestData.Workspace, TestData.Team, TestData.Reviewer));
+
+        Add(new RemoveTeamMemberUseCase(ports),
+            new RemoveTeamMemberRequest(TestData.Workspace, TestData.Team, TestData.Author));
 
         Add(new CreateWorkItemUseCase(ports, ports),
             new CreateWorkItemRequest(
                 TestData.Scope, "CRQ-1", WorkItemType.ChangeRequest,
                 "Import normalisation", "Identifiers are normalised on the way in."));
 
-        Add(new CreateUserAccountUseCase(ports, ports, ports),
+        Add(new CreateUserAccountUseCase(ports, ports, ports, ports),
             new CreateUserAccountRequest(
                 TestData.Workspace, "newcomer@example.test", "Newcomer", Role.Contributor));
 

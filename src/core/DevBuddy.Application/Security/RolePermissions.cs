@@ -52,6 +52,8 @@ public static class RolePermissions
         PermissionKind.ManageAccess,
         PermissionKind.ReadAudit,
         PermissionKind.AdministerSystem,
+        PermissionKind.ManageTeams,
+        PermissionKind.ProvisionWorkspace,
     ];
 
     /// <summary>Whether this role carries this permission. Unknown roles grant nothing.</summary>
