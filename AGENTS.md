@@ -12,8 +12,7 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 9 are complete, except the Claude Code half of the Phase 9 walkthrough,
-  which needs that CLI signed in. Phase 10 (packaging, hosting, supply chain) is next.
+  criteria. Phases 0 to 9 are complete; Phase 10 (packaging, hosting, supply chain) is next.
 
 ## Project Structure & Module Organization
 

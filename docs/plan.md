@@ -657,12 +657,19 @@ per-AI implementations.
 create draft against a local instance, and the resulting draft appears in the web UI awaiting
 human approval.
 
-**Status: COMPLETE for Codex, BLOCKED for Claude Code (2026-09-03).** Both packages are built and
-pinned by tests, and the walkthrough ran end to end in Codex against a local instance: a search, a
-project listing, and a `create_draft` that appears in the web UI as a Draft awaiting a person,
-provenance `AiDraft`, `isAiGenerated` true. The Claude Code half could not be run because the
-`claude` CLI on this machine is not signed in, and signing in is not something to do on somebody
-else's behalf. The command is at the end of this section; it is one step.
+**Status: COMPLETE (2026-09-03).** Both exit criteria are met. The walkthrough ran end to end in
+**both** hosts against a local instance, each in its own bootstrapped installation:
+
+| | Claude Code | Codex |
+|---|---|---|
+| `list_projects` | Alpha, AI access enabled | Alpha, AI access enabled |
+| `search_knowledge` | 0 hits | 0 hits |
+| `analyze_project` | 2 files, 372 B | not called |
+| `create_draft` | `540abb20` | `c95898dd` |
+
+Both drafts appear in the web UI as a Draft awaiting a person, provenance `AiDraft`,
+`isAiGenerated` true, with the content hash shown and "No approval covers this revision". Neither
+host could reach an operation people alone may perform, because neither was ever told one exists.
 
 367 .NET tests and 23 web tests pass, 0 warnings, formatting clean.
 
@@ -713,12 +720,15 @@ Running it found two things tests had not:
 - **A record with nothing published displayed "published: undefined"**, because the server omits
   null fields rather than sending them and the check was against null alone.
 
-To run the Claude Code half, sign that CLI in and then, with an instance running and a machine
-token minted:
+Two host-side details worth recording, because both cost time to find:
 
-```bash
-claude -p "Using the devbuddy tools: list_projects, then search_knowledge, then create_draft against a work item. Report each result." --mcp-config plugins/claude/.mcp.json
-```
+- **Codex refuses MCP tool calls in non-interactive mode** unless approvals are routed somewhere.
+  `codex exec --approve-for-me` is the documented way; without it every call comes back "requires
+  approval, but approval policy is never", which looks like a server refusal and is not one.
+- **Claude Code needs the tools named**, as `--allowedTools
+  mcp__devbuddy__search_knowledge,...`, or it will not call them in print mode.
+
+Both are in `docs/operations/plugin-hosts.md`.
 
 ---
 

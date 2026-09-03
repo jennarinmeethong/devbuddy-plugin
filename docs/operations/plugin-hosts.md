@@ -93,7 +93,17 @@ Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, filling in the fo
 `plugins/codex/AGENTS.md` where Codex will read it.
 
 Codex refuses MCP tool calls in non-interactive mode unless approvals are routed somewhere — `codex
-exec --approve-for-me` is the documented way, and an interactive session prompts as usual.
+exec --approve-for-me` is the documented way, and an interactive session prompts as usual. Without
+it every call comes back `requires approval, but approval policy is never`, which reads like a
+server refusal and is not one.
+
+### Running either non-interactively
+
+Claude Code needs the tools named before it will call them in print mode:
+
+```bash
+claude -p "..." --mcp-config plugins/claude/.mcp.json --allowedTools "mcp__devbuddy__search_knowledge,mcp__devbuddy__create_draft"
+```
 
 ## Verifying an installation
 

@@ -10,7 +10,7 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 9 complete of 11**, bar the Claude Code half of one walkthrough. 41 use cases behind one pipeline, PostgreSQL with full-text
+**Phases 0 to 9 complete of 11.** 41 use cases behind one pipeline, PostgreSQL with full-text
 search, MinIO evidence storage, the product own sign-in with lockout and rotating tokens, tenant
 isolation enforced server-side on every request, a draft-to-published path whose audit history
 records who approved exactly which revision, read-only analysis that provably executes nothing, a

@@ -13,7 +13,7 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 9 are **complete**, bar one blocked check. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
+Phases 0 to 9 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
 `UseCaseExecutor` pipeline and 41 use cases; Phase 3 PostgreSQL, full-text search, and MinIO;
 Phase 4 identity, authorization, and tenant isolation; Phase 5 the lifecycle and audit history;
 Phase 6 read-only analysis, the real secret scanner and redactor, the path and URL guards, and
@@ -27,10 +27,6 @@ review threads are not available, and `analyze_change_impact` on a commit stored
 reports that rather than returning an empty answer.
 
 **Phase 10 (packaging, hosting, supply chain) is next.** There is no container toolchain.
-
-**The Phase 9 walkthrough ran in Codex, not in Claude Code.** The `claude` CLI on this machine is
-not signed in; the command to finish it is at the end of the Phase 9 status in `docs/plan.md`. Do
-not describe that half as verified.
 
 **Identity over MCP stdio is a machine token in `DEVBUDDY_TOKEN`.** `DEVBUDDY_ACTOR` is gone: it
 let anybody who could start the process start it as anybody, and a test fails if either plugin
