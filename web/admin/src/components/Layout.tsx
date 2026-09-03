@@ -46,6 +46,15 @@ export function Layout() {
       end: false,
       visible: grants(access, "AdministerSystem"),
     },
+    {
+      to: `/w/${workspaceId}/plugin-access`,
+      label: "Plugin access",
+      end: false,
+
+      // Everybody, including a viewer. A token carries its owner's permissions and no more, so
+      // being able to mint one grants nothing that signing in does not.
+      visible: grants(access, "ManageOwnCredentials"),
+    },
   ].filter((link) => link.visible);
 
   return (

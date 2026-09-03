@@ -128,13 +128,32 @@ async function send(path: string, init: RequestInit, authenticated: boolean): Pr
 }
 
 /**
- * Exchanges the refresh token for a new pair.
+ * The exchange currently in flight, if any.
+ *
+ * Refresh tokens rotate and are single-use, and presenting one twice is treated as theft: the
+ * server revokes the whole family and the person has to sign in again. Two callers refreshing at
+ * once is not theft, though — it is a page that mounted and fired three queries, and every one of
+ * them got a 401 at the same moment. Without this they would race, the loser would present a token
+ * that had just been spent, and the session would end for a reason nobody could explain.
+ */
+let inFlight: Promise<boolean> | null = null;
+
+/**
+ * Exchanges the refresh token for a new pair, once, however many callers ask at the same time.
  *
  * Returns false when there is nothing to exchange or the exchange was refused, which the caller
  * treats as "signed out" rather than retrying. A reused or revoked token comes back 401 and the
  * server has already ended that session, so retrying would only end it again.
  */
-export async function refreshSession(): Promise<boolean> {
+export function refreshSession(): Promise<boolean> {
+  inFlight ??= exchange().finally(() => {
+    inFlight = null;
+  });
+
+  return inFlight;
+}
+
+async function exchange(): Promise<boolean> {
   const refreshToken = storedRefreshToken();
 
   if (!refreshToken) {

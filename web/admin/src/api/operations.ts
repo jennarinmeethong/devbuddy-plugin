@@ -55,6 +55,9 @@ export type OperationName =
   | "create_user_account"
   | "list_work_items"
   | "list_records"
+  | "issue_machine_token"
+  | "list_machine_tokens"
+  | "revoke_machine_token"
   ;
 
 /** Permission names, as /me reports the ones a caller holds. */
@@ -66,6 +69,7 @@ export type PermissionName =
   | "ManageAccess"
   | "ManageAccounts"
   | "ManageIndex"
+  | "ManageOwnCredentials"
   | "ManageProjects"
   | "ManageSources"
   | "ManageWorkItems"
@@ -785,7 +789,7 @@ export type ReadAuditHistoryResult = {
       workspaceId: string | null;
       projectId: string | null;
       actorId: string;
-      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated";
+      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked";
       outcome: "Succeeded" | "Denied" | "Failed";
       resourceReference: string;
       occurredAt: string;
@@ -889,6 +893,43 @@ export type ListRecordsResult = {
     }>;
 };
 
+export type IssueMachineTokenArguments = {
+  name: string;
+  lifetimeDays?: number;
+  workspaceId: string;
+};
+
+export type IssueMachineTokenResult = {
+  tokenId: string;
+  name: string;
+  token: string;
+  expiresAt: string;
+};
+
+export type ListMachineTokensArguments = {
+  workspaceId: string;
+};
+
+export type ListMachineTokensResult = {
+  tokens: Array<{
+      id: string;
+      name: string;
+      issuedAt: string;
+      expiresAt: string;
+      lastUsedAt: string | null;
+      isActive: boolean;
+    }>;
+};
+
+export type RevokeMachineTokenArguments = {
+  tokenId: string;
+  workspaceId: string;
+};
+
+export type RevokeMachineTokenResult = {
+  tokenId: string;
+};
+
 /** Argument and result types, keyed by operation name. */
 export interface Operations {
   "search_knowledge": { arguments: SearchKnowledgeArguments; result: SearchKnowledgeResult };
@@ -937,6 +978,9 @@ export interface Operations {
   "create_user_account": { arguments: CreateUserAccountArguments; result: CreateUserAccountResult };
   "list_work_items": { arguments: ListWorkItemsArguments; result: ListWorkItemsResult };
   "list_records": { arguments: ListRecordsArguments; result: ListRecordsResult };
+  "issue_machine_token": { arguments: IssueMachineTokenArguments; result: IssueMachineTokenResult };
+  "list_machine_tokens": { arguments: ListMachineTokensArguments; result: ListMachineTokensResult };
+  "revoke_machine_token": { arguments: RevokeMachineTokenArguments; result: RevokeMachineTokenResult };
 }
 
 /** What each operation needs, and whether the AI surface may reach it. */
@@ -987,4 +1031,7 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "create_user_account": { permission: "ManageAccounts", availableToAi: false },
   "list_work_items": { permission: "ReadKnowledge", availableToAi: false },
   "list_records": { permission: "ReadKnowledge", availableToAi: false },
+  "issue_machine_token": { permission: "ManageOwnCredentials", availableToAi: false },
+  "list_machine_tokens": { permission: "ManageOwnCredentials", availableToAi: false },
+  "revoke_machine_token": { permission: "ManageOwnCredentials", availableToAi: false },
 };

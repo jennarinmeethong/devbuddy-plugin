@@ -71,6 +71,8 @@ public class DevBuddyDbContext : DbContext
 
     internal DbSet<RecoveryTokenRow> RecoveryTokens => Set<RecoveryTokenRow>();
 
+    internal DbSet<MachineTokenRow> MachineTokens => Set<MachineTokenRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
@@ -208,6 +210,19 @@ public class DevBuddyDbContext : DbContext
             row.ToTable("recovery_tokens");
             row.HasKey(entity => entity.Id);
             row.Property(entity => entity.TokenHash).HasMaxLength(64).IsRequired().IsFixedLength();
+            row.HasIndex(entity => entity.TokenHash).IsUnique();
+            row.HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
+        });
+
+        // A table of its own rather than a flag on refresh_tokens. That table's invariant is that
+        // a token is presented exactly once, which is what makes a second presentation mean
+        // theft; a row in it meant to be presented every day would quietly retire that rule.
+        modelBuilder.Entity<MachineTokenRow>(row =>
+        {
+            row.ToTable("machine_tokens");
+            row.HasKey(entity => entity.Id);
+            row.Property(entity => entity.TokenHash).HasMaxLength(64).IsRequired().IsFixedLength();
+            row.Property(entity => entity.Name).HasMaxLength(200).IsRequired();
             row.HasIndex(entity => entity.TokenHash).IsUnique();
             row.HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
         });

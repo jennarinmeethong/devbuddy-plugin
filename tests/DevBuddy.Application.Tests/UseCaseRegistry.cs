@@ -152,6 +152,15 @@ internal sealed class UseCaseRegistry
 
         Add(new ListRecordsUseCase(ports),
             new ListRecordsRequest(TestData.Scope, [RecordStatus.PendingApproval]));
+
+        Add(new IssueMachineTokenUseCase(ports),
+            new IssueMachineTokenRequest(TestData.Workspace, "laptop"));
+
+        Add(new ListMachineTokensUseCase(ports),
+            new ListMachineTokensRequest(TestData.Workspace));
+
+        Add(new RevokeMachineTokenUseCase(ports),
+            new RevokeMachineTokenRequest(TestData.Workspace, MachineTokenId.New()));
     }
 
     public IReadOnlyList<RegisteredUseCase> Entries => _entries;

@@ -264,10 +264,37 @@ describe("audit and health", () => {
   });
 });
 
+describe("plugin access", () => {
+  test("a token can be minted and is shown exactly once", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/plugin-access`));
+
+    expect(await screen.findByText("Work laptop")).toBeDefined();
+
+    fireEvent.change(await screen.findByPlaceholderText("Work laptop, Codex"), {
+      target: { value: "Codex" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mint" }));
+
+    await waitFor(() => expect(server.called("issue_machine_token")).toBeDefined());
+    expect(await screen.findByText("the-token-shown-exactly-once")).toBeDefined();
+  });
+
+  test("a token can be revoked", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/plugin-access`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+
+    await waitFor(() => expect(server.called("revoke_machine_token")).toBeDefined());
+  });
+});
+
 describe("role-driven navigation", () => {
   test("a viewer is offered neither membership administration nor the audit trail", async () => {
     server.restore();
-    server = fakeServer(["ReadKnowledge"]);
+    server = fakeServer(["ReadKnowledge", "ManageOwnCredentials"]);
 
     signedIn();
     render(mount(`/w/${WORKSPACE}`));
@@ -278,6 +305,10 @@ describe("role-driven navigation", () => {
     expect(within(nav).queryByRole("link", { name: "Members" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Audit" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Health" })).toBeNull();
+
+    // Plugin access is offered, and to a viewer as much as to anybody. A token carries its
+    // owner's permissions and no more, so being able to mint one grants nothing.
+    expect(within(nav).getByRole("link", { name: "Plugin access" })).toBeDefined();
 
     // And no create form, because creating a project is not something a viewer may do. The server
     // refuses it either way; that is proved in DevBuddy.Api.Tests, not here.

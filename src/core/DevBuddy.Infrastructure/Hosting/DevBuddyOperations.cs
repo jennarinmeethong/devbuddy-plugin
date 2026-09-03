@@ -90,6 +90,9 @@ public static class DevBuddyOperations
         services.AddScoped<CreateUserAccountUseCase>();
         services.AddScoped<ListWorkItemsUseCase>();
         services.AddScoped<ListRecordsUseCase>();
+        services.AddScoped<IssueMachineTokenUseCase>();
+        services.AddScoped<ListMachineTokensUseCase>();
+        services.AddScoped<RevokeMachineTokenUseCase>();
 
         services.AddScoped(BuildDispatcher);
         return services;
@@ -149,6 +152,9 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<CreateUserAccountUseCase>(), executor),
             Bind(services.GetRequiredService<ListWorkItemsUseCase>(), executor),
             Bind(services.GetRequiredService<ListRecordsUseCase>(), executor),
+            Bind(services.GetRequiredService<IssueMachineTokenUseCase>(), executor),
+            Bind(services.GetRequiredService<ListMachineTokensUseCase>(), executor),
+            Bind(services.GetRequiredService<RevokeMachineTokenUseCase>(), executor),
 
             Bind(services.GetRequiredService<GrantMembershipUseCase>(), executor),
             Bind(services.GetRequiredService<RevokeMembershipUseCase>(), executor),

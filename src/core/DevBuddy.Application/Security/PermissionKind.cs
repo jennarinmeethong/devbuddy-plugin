@@ -58,4 +58,16 @@ public enum PermissionKind
 
     /// <summary>Create an account for somebody who does not have one yet.</summary>
     ManageAccounts = 15,
+
+    /// <summary>
+    /// Mint and revoke credentials for your own processes: the token a locally launched plugin
+    /// puts in its configuration.
+    /// <para>
+    /// Held by every role, including Viewer, and that is not a loosening. A machine token carries
+    /// exactly the permissions its owner already has, so being able to make one grants nothing
+    /// new; refusing it would only mean a viewer could read knowledge in a browser and not from
+    /// the editor they actually work in.
+    /// </para>
+    /// </summary>
+    ManageOwnCredentials = 16,
 }

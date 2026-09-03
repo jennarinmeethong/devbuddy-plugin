@@ -113,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountRecoveryService, AccountRecoveryService>();
         services.AddScoped<IWorkspaceResolver, WorkspaceResolver>();
         services.AddScoped<ISignedInUserDirectory, SignedInUserDirectory>();
+        services.AddScoped<IMachineTokenService, MachineTokenService>();
 
         // The one path that creates an identity without one. Registered with identity rather
         // than with persistence because it needs the credential manager to set a password.

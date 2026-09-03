@@ -53,6 +53,15 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public ProjectScope Scope => new(Workspace, Project);
 
+    /// <summary>
+    /// The container's connection string, for the tests that launch a second host process against
+    /// the same database.
+    /// </summary>
+    public string ConnectionString => _container.GetConnectionString();
+
+    /// <summary>The signing key the hosted application uses, so a child process matches it.</summary>
+    public const string SigningKey = "api-integration-tests-signing-key-not-for-production";
+
     public WebApplicationFactory<ApiHost> Factory =>
         _factory ?? throw new InvalidOperationException("The fixture has not been initialised.");
 
@@ -231,6 +240,20 @@ public sealed class ApiFixture : IAsyncLifetime
         return item.Id;
     }
 
+    /// <summary>
+    /// Mints a machine token for somebody, the way the plugin configuration expects one.
+    /// </summary>
+    public async Task<string> IssueMachineTokenAsync(UserId userId, string name)
+    {
+        using IServiceScope scope = OpenScope(Workspace);
+
+        MachineTokenIssued issued = await scope.ServiceProvider
+            .GetRequiredService<IMachineTokenService>()
+            .IssueAsync(userId, name, TimeSpan.FromDays(1), CancellationToken.None);
+
+        return issued.Token;
+    }
+
     /// <summary>Turns AI access on for a project. Off is the default and is never written here.</summary>
     public async Task EnableAiAccessAsync(ProjectScope scope)
     {
@@ -271,7 +294,7 @@ public sealed class ApiFixture : IAsyncLifetime
         return factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ConnectionStrings:DevBuddy", _container.GetConnectionString());
-            builder.UseSetting("Identity:SigningKey", "api-integration-tests-signing-key-not-for-production");
+            builder.UseSetting("Identity:SigningKey", SigningKey);
             builder.UseSetting("Identity:MinimumPasswordLength", "12");
             builder.UseSetting("Identity:MaxFailedAttempts", "3");
 

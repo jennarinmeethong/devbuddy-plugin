@@ -32,6 +32,7 @@ const ALL_PERMISSIONS = [
   "ArchiveRecord",
   "ManageProjects",
   "ManageAccounts",
+  "ManageOwnCredentials",
   "ManageSources",
   "ManageIndex",
   "ScanContent",
@@ -177,6 +178,25 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
         },
       ],
     },
+    list_machine_tokens: {
+      tokens: [
+        {
+          id: "88888888-8888-8888-8888-888888888888",
+          name: "Work laptop",
+          issuedAt: "2026-09-01T09:00:00+00:00",
+          expiresAt: "2026-12-01T09:00:00+00:00",
+          lastUsedAt: null,
+          isActive: true,
+        },
+      ],
+    },
+    issue_machine_token: {
+      tokenId: "99999999-9999-9999-9999-999999999999",
+      name: "Codex",
+      token: "the-token-shown-exactly-once",
+      expiresAt: "2026-12-01T09:00:00+00:00",
+    },
+    revoke_machine_token: { tokenId: "88888888-8888-8888-8888-888888888888" },
     check_system_health: {
       isHealthy: true,
       components: [

@@ -10,14 +10,14 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 8 complete of 11.** 41 use cases behind one pipeline, PostgreSQL with full-text
+**Phases 0 to 9 complete of 11**, bar the Claude Code half of one walkthrough. 41 use cases behind one pipeline, PostgreSQL with full-text
 search, MinIO evidence storage, the product own sign-in with lockout and rotating tokens, tenant
 isolation enforced server-side on every request, a draft-to-published path whose audit history
 records who approved exactly which revision, read-only analysis that provably executes nothing, a
 secret scanner that refuses credentials on the way in and redacts them on the way out, and three
 hosts over that one core — an HTTP API, an MCP server on stdio and authenticated HTTP, and a
-console — and a React administration UI over a client generated from the API. There is no plugin
-package and no container yet.
+console — a React administration UI over a client generated from the API, and thin Claude and
+Codex plugin packages over that same MCP server. There is no container yet.
 
 **Twenty-four of 33 security controls are verified; one more is implemented but unproven.**
 Source synchronisation reads a mounted working copy rather than the GitHub API, so pull requests
@@ -33,6 +33,7 @@ operations. Do not connect real project data until the remaining controls are ve
 | [docs/security/threat-model.md](docs/security/threat-model.md) | Assets, trust boundaries, adversaries, threats. |
 | [docs/security/security-baseline.md](docs/security/security-baseline.md) | The 33 controls and how each will be proved. |
 | [docs/security/verification-matrix.md](docs/security/verification-matrix.md) | What has actually been tested. The only place a control counts as proven. |
+| [docs/operations/plugin-hosts.md](docs/operations/plugin-hosts.md) | Installing the plugins, and what the tool boundary does not cover. |
 | [docs/adr/](docs/adr/) | Architecture decision records. |
 | [AGENTS.md](AGENTS.md) | Contributor guide: structure, commands, style, testing, security expectations. |
 

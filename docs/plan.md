@@ -657,6 +657,69 @@ per-AI implementations.
 create draft against a local instance, and the resulting draft appears in the web UI awaiting
 human approval.
 
+**Status: COMPLETE for Codex, BLOCKED for Claude Code (2026-09-03).** Both packages are built and
+pinned by tests, and the walkthrough ran end to end in Codex against a local instance: a search, a
+project listing, and a `create_draft` that appears in the web UI as a Draft awaiting a person,
+provenance `AiDraft`, `isAiGenerated` true. The Claude Code half could not be run because the
+`claude` CLI on this machine is not signed in, and signing in is not something to do on somebody
+else's behalf. The command is at the end of this section; it is one step.
+
+367 .NET tests and 23 web tests pass, 0 warnings, formatting clean.
+
+**A hole was found and closed first, and it was ours.** The MCP stdio server took its caller
+identifier from `DEVBUDDY_ACTOR`, an environment variable. Anybody who could start the process
+could start it as anybody. That had never mattered because nothing launched it; Phase 9 is the
+phase that ships configuration telling people to launch it, so shipping the packages on top of it
+would have shipped impersonation as documented configuration.
+
+What landed:
+
+- **Machine tokens.** A long-lived, revocable credential a process presents instead of signing in:
+  256 bits of randomness, stored as a SHA-256 digest, named, expiring, resolved against the
+  database on every call so revocation is immediate rather than effective at the next restart. A
+  separate table from refresh tokens on purpose — that table's invariant is that a token is used
+  exactly once, which is what makes a second presentation mean theft, and a row meant to be
+  presented daily would have quietly retired it.
+- **It grants nothing.** A token carries exactly its owner's permissions: the same memberships,
+  roles, and per-project AI policy. `ManageOwnCredentials` is held by every role including Viewer,
+  because refusing it would only mean a viewer could read knowledge in a browser and not from the
+  editor they work in. Three operations — issue, list, revoke — all acting on the caller and
+  nobody else, all denied to AI.
+- **A Plugin access screen** in the web UI, offered to everybody, showing the token once.
+- **Two packages.** `plugins/claude/` with a manifest, an MCP configuration, four slash commands,
+  and a skill; `plugins/codex/` with `AGENTS.md` and a `config.toml`. Instructions differ,
+  capability does not.
+- **The packages are pinned by tests.** A shipped instruction file may not so much as name an
+  operation people alone may perform — not as an example, not to say it is unavailable, because a
+  name in a file an assistant reads is a name it now knows to try. Both files must describe exactly
+  the eighteen exposed tools, both must launch the same server over stdio, both must configure a
+  token and never an actor identifier, and both must still say that prompt text is not a security
+  boundary and that the tool boundary is not the host's boundary.
+- **The stdio transport is exercised for real.** `StdioTransportTests` launches the host process
+  and speaks MCP over the pipes; `StdioPluginTests` does the same against real PostgreSQL and
+  proves the three that matter: without a token nobody is anybody, with one the caller is exactly
+  its owner, and revoking one stops it on the next call.
+- **`docs/operations/plugin-hosts.md`**, including the part that gets assumed: MCP filtering governs
+  DevBuddy and nothing else. The assistant's own file reads and shell commands go straight past it,
+  and an operator who reasons "DevBuddy would have refused" is wrong — the assistant can `cat` it.
+
+Running it found two things tests had not:
+
+- **The session died on every page reload.** React's development double-mount fired two refreshes
+  at once, the second presented a token the first had just spent, the server correctly read that as
+  theft and revoked the family. Refreshing is single-flight now, and the guard is
+  mutation-checked — it is not a development-only problem, since any page with several queries can
+  get several 401s at the same moment.
+- **A record with nothing published displayed "published: undefined"**, because the server omits
+  null fields rather than sending them and the check was against null alone.
+
+To run the Claude Code half, sign that CLI in and then, with an instance running and a machine
+token minted:
+
+```bash
+claude -p "Using the devbuddy tools: list_projects, then search_knowledge, then create_draft against a work item. Report each result." --mcp-config plugins/claude/.mcp.json
+```
+
 ---
 
 ## Phase 10 — Packaging, hosting, and supply chain

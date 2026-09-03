@@ -20,6 +20,12 @@ public sealed record CallerContext
         RequestId = Guard.NotLongerThan(Guard.NotBlank(requestId, nameof(requestId)), 100, nameof(requestId));
     }
 
+    /// <summary>
+    /// Nobody, on the AI channel. For the one question that has the same answer for everyone —
+    /// what tools exist — so a host does not have to invent an identity to ask it.
+    /// </summary>
+    public static CallerContext Anonymous { get; } = new(default, AccessChannel.Ai, "anonymous");
+
     public UserId UserId { get; }
 
     public AccessChannel Channel { get; }

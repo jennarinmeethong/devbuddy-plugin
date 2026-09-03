@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "devbuddy": {
+      "command": "${DEVBUDDY_MCP_COMMAND:-dotnet}",
+      "args": ["${DEVBUDDY_MCP_ASSEMBLY:-DevBuddy.McpServer.dll}", "--stdio"],
+      "env": {
+        "DEVBUDDY_ConnectionStrings__DevBuddy": "${DEVBUDDY_CONNECTION_STRING}",
+        "DEVBUDDY_Identity__SigningKey": "${DEVBUDDY_SIGNING_KEY}",
+        "DEVBUDDY_TOKEN": "${DEVBUDDY_TOKEN}"
+      }
+    }
+  }
+}

@@ -37,6 +37,7 @@ internal sealed class NullPorts :
     IKnowledgeQualityChecks,
     IAuthorizationService,
     ICredentialManager,
+    IMachineTokenService,
     IClock
 {
     public DateTimeOffset UtcNow => throw new NotSupportedException();
@@ -192,6 +193,21 @@ internal sealed class NullPorts :
         string email, string displayName, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<MachineTokenIssued> IssueAsync(
+        UserId userId, string name, TimeSpan lifetime, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<UserId?> ResolveAsync(string token, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<IReadOnlyList<MachineTokenSummary>> ListAsync(
+        UserId userId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<bool> RevokeAsync(
+        UserId userId, MachineTokenId id, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task SetPasswordAsync(UserId userId, string password, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
@@ -219,6 +235,7 @@ internal sealed class NullPorts :
         services.AddSingleton<IKnowledgeQualityChecks>(ports);
         services.AddSingleton<IAuthorizationService>(ports);
         services.AddSingleton<ICredentialManager>(ports);
+        services.AddSingleton<IMachineTokenService>(ports);
         services.AddSingleton<IClock>(ports);
 
         services.AddDevBuddyOperations();

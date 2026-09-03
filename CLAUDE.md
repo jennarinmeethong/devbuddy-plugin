@@ -13,21 +13,29 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 8 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
+Phases 0 to 9 are **complete**, bar one blocked check. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
 `UseCaseExecutor` pipeline and 41 use cases; Phase 3 PostgreSQL, full-text search, and MinIO;
 Phase 4 identity, authorization, and tenant isolation; Phase 5 the lifecycle and audit history;
 Phase 6 read-only analysis, the real secret scanner and redactor, the path and URL guards, and
 source synchronisation from a mounted working copy; Phase 7 the three hosts — the HTTP API, the
 MCP server over stdio and authenticated HTTP, and the console; Phase 8 the provisioning operations
-and the React administration UI in `web/admin`. 343 .NET tests and 19 web tests pass. Twenty-four
-of 33 controls are `TESTED`.
+and the React administration UI in `web/admin`; Phase 9 machine tokens and the Claude and Codex
+plugin packages. 367 .NET tests and 23 web tests pass. Twenty-four of 33 controls are `TESTED`.
 
 **Source synchronisation reads a working copy, not the GitHub API.** Pull requests, issues, and
 review threads are not available, and `analyze_change_impact` on a commit stored in a pack file
 reports that rather than returning an empty answer.
 
-**Phase 9 (Claude and Codex plugin packages) is next.** There is no plugin package and no
-container.
+**Phase 10 (packaging, hosting, supply chain) is next.** There is no container toolchain.
+
+**The Phase 9 walkthrough ran in Codex, not in Claude Code.** The `claude` CLI on this machine is
+not signed in; the command to finish it is at the end of the Phase 9 status in `docs/plan.md`. Do
+not describe that half as verified.
+
+**Identity over MCP stdio is a machine token in `DEVBUDDY_TOKEN`.** `DEVBUDDY_ACTOR` is gone: it
+let anybody who could start the process start it as anybody, and a test fails if either plugin
+package mentions it. A token carries exactly its owner's permissions and is revocable on the next
+call.
 
 **Only the first workspace can be created.** `IInstallationBootstrapper` makes it and the first
 administrator on an empty database, and refuses afterwards. Everything inside a workspace can now

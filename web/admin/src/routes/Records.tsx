@@ -98,10 +98,16 @@ export function Records() {
                 </td>
                 <td className="px-2 py-2 text-xs">
                   {record.currentRevisionNumber}
-                  {record.publishedRevisionNumber !== null &&
-                  record.publishedRevisionNumber !== record.currentRevisionNumber
-                    ? ` (published: ${record.publishedRevisionNumber})`
-                    : ""}
+                  {/*
+                    Null and absent both mean "nothing published". The server omits null fields
+                    rather than sending them, so a check against null alone printed the word
+                    undefined at every reader of an unpublished record.
+                  */}
+                  {record.publishedRevisionNumber == null
+                    ? " (nothing published)"
+                    : record.publishedRevisionNumber !== record.currentRevisionNumber
+                      ? ` (published: ${record.publishedRevisionNumber})`
+                      : ""}
                 </td>
                 <td className="px-2 py-2 text-xs">
                   <When value={record.updatedAt} />

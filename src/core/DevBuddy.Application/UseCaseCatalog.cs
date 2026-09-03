@@ -207,6 +207,21 @@ public static class UseCaseCatalog
         "list_records", PermissionKind.ReadKnowledge, AiExposure.Denied,
         AuditAction.RecordViewed, redactsOutput: true);
 
+    // Credentials a person mints for their own processes. Denied to AI, and the reason is worth
+    // being explicit about: a model that could mint a token could mint one that outlives the
+    // session it was given, which is the opposite of what a per-session grant means.
+    public static UseCaseDescriptor IssueMachineToken { get; } = new(
+        "issue_machine_token", PermissionKind.ManageOwnCredentials, AiExposure.Denied,
+        AuditAction.MachineTokenIssued, redactsOutput: false);
+
+    public static UseCaseDescriptor ListMachineTokens { get; } = new(
+        "list_machine_tokens", PermissionKind.ManageOwnCredentials, AiExposure.Denied,
+        AuditAction.MachineTokenIssued, redactsOutput: false);
+
+    public static UseCaseDescriptor RevokeMachineToken { get; } = new(
+        "revoke_machine_token", PermissionKind.ManageOwnCredentials, AiExposure.Denied,
+        AuditAction.MachineTokenRevoked, redactsOutput: false);
+
     /// <summary>Every operation. Adding a use case without adding it here fails a test.</summary>
     public static IReadOnlyList<UseCaseDescriptor> All { get; } =
     [
@@ -223,6 +238,7 @@ public static class UseCaseCatalog
         GrantMembership, RevokeMembership, EnableProjectAiAccess, DisableProjectAiAccess,
         ReadAuditHistory, ListMemberships,
         CreateProject, CreateWorkItem, CreateUserAccount, ListWorkItems, ListRecords,
+        IssueMachineToken, ListMachineTokens, RevokeMachineToken,
     ];
 
     /// <summary>

@@ -22,6 +22,7 @@ public static class RolePermissions
     private static readonly PermissionKind[] ViewerPermissions =
     [
         PermissionKind.ReadKnowledge,
+        PermissionKind.ManageOwnCredentials,
     ];
 
     private static readonly PermissionKind[] ContributorPermissions =

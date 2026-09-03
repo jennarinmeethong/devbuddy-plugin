@@ -41,4 +41,8 @@ public enum AuditAction
     ProjectCreated = 27,
     WorkItemCreated = 28,
     AccountCreated = 29,
+
+    // Phase 9, with the plugin packages that made the stdio transport real.
+    MachineTokenIssued = 30,
+    MachineTokenRevoked = 31,
 }

@@ -12,7 +12,8 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 8 are complete; Phase 9 (Claude and Codex plugin packages) is next.
+  criteria. Phases 0 to 9 are complete, except the Claude Code half of the Phase 9 walkthrough,
+  which needs that CLI signed in. Phase 10 (packaging, hosting, supply chain) is next.
 
 ## Project Structure & Module Organization
 
@@ -26,6 +27,7 @@ src/hosts/DevBuddy.Api            ASP.NET Core minimal API
 src/hosts/DevBuddy.McpServer      MCP server — AI-facing, allow-listed tools only
 src/hosts/DevBuddy.Cli            console host
 web/admin                         React administration UI, built and tested with Bun
+plugins/claude, plugins/codex     thin packages over the same MCP server
 tests/                            one test project per source project, plus Security.Tests
 docs/adr/                         architecture decision records
 docs/security/                    threat model, control baseline, verification matrix
@@ -87,6 +89,20 @@ The same test compares the committed file when that variable is not set, so drif
 The UI hides what the server would refuse, using the permissions `GET /me` reports. That is a
 courtesy and never a control: every operation is authorised again server-side, and the tests that
 prove it live in `DevBuddy.Api.Tests`, not in the browser.
+
+### The plugin packages
+
+`plugins/claude` and `plugins/codex` are configuration and instructions over the same
+`DevBuddy.McpServer`. Instructions differ; capability does not, and `PluginPackageTests` enforces
+that: both instruction files must describe exactly the eighteen exposed tools, and **neither file
+may name an operation people alone may perform** — not as an example, not to say it is
+unavailable. A name in a file an assistant reads is a name it now knows to try.
+
+Identity over stdio is a machine token in `DEVBUDDY_TOKEN`, never a caller identifier in the
+environment. `DEVBUDDY_ACTOR` is gone and a test fails if either package mentions it.
+
+See `docs/operations/plugin-hosts.md`, particularly the part about what the tool boundary does not
+cover: the assistant's own file reads and shell commands go straight past it.
 
 Two domain names differ from the obvious one, deliberately: `SourceRepository` (not `Repository`,
 which collides with the persistence pattern) and `DeploymentEnvironment` (not `Environment`, which

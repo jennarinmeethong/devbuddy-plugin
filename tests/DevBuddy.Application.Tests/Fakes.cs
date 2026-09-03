@@ -73,6 +73,7 @@ internal sealed class FakePorts :
     IAdministrativeOperations,
     IKnowledgeQualityChecks,
     ICredentialManager,
+    IMachineTokenService,
     IClock
 {
     private int _interactions;
@@ -261,6 +262,33 @@ internal sealed class FakePorts :
         Touch();
         return Task.FromResult<IReadOnlyList<Project>>(
             [new Project(TestData.ProjectAlpha, workspaceId, "Alpha", TestData.Now)]);
+    }
+
+    public Task<MachineTokenIssued> IssueAsync(
+        UserId userId, string name, TimeSpan lifetime, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult(
+            new MachineTokenIssued(MachineTokenId.New(), "machine-token", TestData.Now.AddDays(90)));
+    }
+
+    public Task<UserId?> ResolveAsync(string token, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<UserId?>(null);
+    }
+
+    public Task<IReadOnlyList<MachineTokenSummary>> ListAsync(
+        UserId userId, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<MachineTokenSummary>>([]);
+    }
+
+    public Task<bool> RevokeAsync(UserId userId, MachineTokenId id, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult(true);
     }
 
     public Task<AccountCreation?> CreateAccountAsync(

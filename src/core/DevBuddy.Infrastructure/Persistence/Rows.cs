@@ -400,6 +400,35 @@ internal sealed class UserCredentialRow
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+/// <summary>
+/// A credential a process presents instead of signing in, stored only as a hash.
+/// <para>
+/// No rotation and no family: this one is meant to be presented repeatedly, which is exactly why
+/// it does not live in the refresh-token table. What bounds it instead is an expiry it cannot
+/// exceed, a revocation its owner can perform, and a last-used timestamp so a token nobody uses
+/// any more is visible as one.
+/// </para>
+/// </summary>
+internal sealed class MachineTokenRow
+{
+    public Guid Id { get; set; }
+
+    public Guid UserId { get; set; }
+
+    public string TokenHash { get; set; } = string.Empty;
+
+    /// <summary>What its owner called it, so they can tell it from the others when revoking one.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    public DateTimeOffset IssuedAt { get; set; }
+
+    public DateTimeOffset ExpiresAt { get; set; }
+
+    public DateTimeOffset? RevokedAt { get; set; }
+
+    public DateTimeOffset? LastUsedAt { get; set; }
+}
+
 internal sealed class RefreshTokenRow
 {
     public Guid Id { get; set; }

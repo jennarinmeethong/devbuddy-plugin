@@ -11,6 +11,7 @@ import { Records } from "./routes/Records";
 import { RecordDetail } from "./routes/RecordDetail";
 import { Audit } from "./routes/Audit";
 import { Health } from "./routes/Health";
+import { PluginAccess } from "./routes/PluginAccess";
 
 /**
  * Routes.
@@ -51,6 +52,7 @@ export function App() {
         <Route path="members" element={<Members />} />
         <Route path="audit" element={<Audit />} />
         <Route path="health" element={<Health />} />
+        <Route path="plugin-access" element={<PluginAccess />} />
         <Route path="p/:projectId" element={<WorkItems />} />
         <Route path="p/:projectId/records" element={<Records />} />
         <Route path="p/:projectId/records/:recordId" element={<RecordDetail />} />
