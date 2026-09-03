@@ -121,6 +121,35 @@ internal static class Runner
         });
     }
 
+    /// <summary>
+    /// Applies the retention schedule, outside the pipeline for the same reason as
+    /// <see cref="RestoreAsync"/>: a sweep spans every workspace and project, so there is no
+    /// single caller to authorise it against.
+    /// </summary>
+    public static async Task<int> RetentionAsync(CancellationToken cancellationToken)
+    {
+        return await WithScopeAsync(async scope =>
+        {
+            RetentionReport report = await scope.ServiceProvider
+                .GetRequiredService<IRetentionEnforcer>()
+                .ApplyAsync(cancellationToken);
+
+            Console.WriteLine($"audit events deleted        {report.AuditEventsDeleted}");
+            Console.WriteLine($"orphaned evidence deleted    {report.OrphanedEvidenceDeleted}");
+            Console.WriteLine($"backups deleted              {report.BackupsDeleted}");
+            Console.WriteLine($"archived records eligible    {report.ArchivedRecordsEligibleForDeletion}");
+
+            if (report.ArchivedRecordsEligibleForDeletion > 0)
+            {
+                Console.WriteLine(
+                    "Eligible archived records are reported, not deleted: that needs the owner's "
+                    + "request.");
+            }
+
+            return Ok;
+        });
+    }
+
     public static int ListOperations(bool aiOnly)
     {
         IReadOnlyList<UseCaseDescriptor> descriptors =

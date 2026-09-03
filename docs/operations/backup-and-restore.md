@@ -105,5 +105,14 @@ success right up until a reader clicks something.
 
 Backups carry the retention schedule too — a backup is a complete copy of everything, including
 whatever was deleted from the primary store since (ADR-0009, SB-27). `Backup:Retention` records how
-long they are meant to be kept; **deleting them on that schedule is not yet automated**, and until
-it is, that is an operator's job.
+long they are meant to be kept, and a backup past that window is deleted the next time
+
+```bash
+dotnet run --project src/hosts/DevBuddy.Cli -- retention
+```
+
+runs. That command also purges audit events past their window and evidence no revision references
+past its grace period — every copy this build can currently reach. It runs nothing on its own; put
+it on whatever cron or task scheduler the deployment already has, on whatever cadence fits. See
+`docs/security/release-readiness.md` for the copies it does not yet reach — exports, application
+logs, and a deleted project — and why.

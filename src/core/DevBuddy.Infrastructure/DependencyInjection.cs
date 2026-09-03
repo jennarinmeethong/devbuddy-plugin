@@ -37,13 +37,19 @@ public static class DependencyInjection
         Action<EvidenceStoreOptions>? configureEvidence = null,
         Action<AnalysisOptions>? configureAnalysis = null,
         Action<OutboundAccessOptions>? configureOutbound = null,
-        Action<BackupOptions>? configureBackup = null)
+        Action<BackupOptions>? configureBackup = null,
+        Action<RetentionOptions>? configureRetention = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
         if (configureBackup is not null)
         {
             services.Configure(configureBackup);
+        }
+
+        if (configureRetention is not null)
+        {
+            services.Configure(configureRetention);
         }
 
         if (configureAnalysis is not null)
@@ -75,11 +81,18 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<BackupService>();
         services.AddScoped<IAdministrativeOperations, AdministrativeOperations>();
+        services.AddScoped<IRetentionEnforcer, RetentionService>();
 
         // The real scanner and redactor share one rule set, so nothing can be reported as
         // sensitive and released anyway (SB-17).
         services.AddSingleton<IRedactor, SecretRedactor>();
         services.AddSingleton<ISecretScanner, SecretScanner>();
+
+        // A second, narrower scanner for customer data, production data, and personal
+        // information (SB-18). Denied only on the AI channel, and only until a project owner
+        // approves a bounded scope — the pipeline applies that exception, not this pair.
+        services.AddSingleton<IPersonalDataRedactor, PersonalDataRedactor>();
+        services.AddSingleton<IPersonalDataScanner, PersonalDataScanner>();
 
         // Wrapped rather than checked inside, so the concurrency ceiling cannot be forgotten by a
         // second implementation of the port (SB-21).

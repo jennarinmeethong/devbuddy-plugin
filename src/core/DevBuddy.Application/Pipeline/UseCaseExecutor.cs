@@ -24,6 +24,8 @@ public sealed class UseCaseExecutor
     private readonly IAuditSink _auditSink;
     private readonly IRedactor _redactor;
     private readonly ISecretScanner _scanner;
+    private readonly IPersonalDataScanner _personalDataScanner;
+    private readonly IPersonalDataRedactor _personalDataRedactor;
     private readonly IClock _clock;
 
     public UseCaseExecutor(
@@ -31,12 +33,16 @@ public sealed class UseCaseExecutor
         IAuditSink auditSink,
         IRedactor redactor,
         ISecretScanner scanner,
+        IPersonalDataScanner personalDataScanner,
+        IPersonalDataRedactor personalDataRedactor,
         IClock clock)
     {
         _authorization = Guard.NotNull(authorization, nameof(authorization));
         _auditSink = Guard.NotNull(auditSink, nameof(auditSink));
         _redactor = Guard.NotNull(redactor, nameof(redactor));
         _scanner = Guard.NotNull(scanner, nameof(scanner));
+        _personalDataScanner = Guard.NotNull(personalDataScanner, nameof(personalDataScanner));
+        _personalDataRedactor = Guard.NotNull(personalDataRedactor, nameof(personalDataRedactor));
         _clock = Guard.NotNull(clock, nameof(clock));
     }
 
@@ -105,9 +111,21 @@ public sealed class UseCaseExecutor
         // 5. Scan anything that would be written down. Refused, not redacted: storing something
         //    other than what the author wrote, without telling them, is worse than saying no
         //    (SB-17, retention half).
+        //
+        //    Secrets are checked unconditionally. Personal data is checked only on the AI
+        //    channel, and only when the project has no approved bounded scope: a person working
+        //    on their own project data is doing ordinary work, which the AI Data Policy has
+        //    nothing to say about (SB-18).
         if (request is IScannableRequest scannable)
         {
-            IReadOnlyList<string> findings = await FindSecretsAsync(scannable, cancellationToken);
+            List<string> findings = [.. await FindSecretsAsync(scannable, cancellationToken)];
+
+            bool checkPersonalData = caller.Channel == AccessChannel.Ai && decision.BoundedDataScope is null;
+
+            if (checkPersonalData)
+            {
+                findings.AddRange(await FindPersonalDataAsync(scannable, cancellationToken));
+            }
 
             if (findings.Count > 0)
             {
@@ -157,9 +175,17 @@ public sealed class UseCaseExecutor
         }
 
         // 7. Redact outbound free text before it leaves the boundary (SB-17, egress half).
+        //    On the AI channel, with no bounded scope approved for the project, personal data is
+        //    redacted from the same response in the same pass (SB-18): a caller who may read the
+        //    record at all still does not receive raw customer, production, or personal data
+        //    through it without that separate approval.
         if (response is IRedactableResponse<TResponse> redactable)
         {
-            response = redactable.Redact(_redactor);
+            IRedactor effective = caller.Channel == AccessChannel.Ai && decision.BoundedDataScope is null
+                ? new CompositeRedactor(_redactor, _personalDataRedactor)
+                : _redactor;
+
+            response = redactable.Redact(effective);
         }
 
         // 8. Audit the access that actually happened, with whatever metadata the use case
@@ -209,6 +235,31 @@ public sealed class UseCaseExecutor
 
             findings.AddRange(result.Findings.Select(
                 finding => $"{finding.RuleName} at line {finding.LineNumber}"));
+        }
+
+        return findings;
+    }
+
+    /// <summary>
+    /// The same shape as <see cref="FindSecretsAsync"/>, for personal data, with findings tagged
+    /// so an audit reader can tell the two controls apart without the matched text ever appearing.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> FindPersonalDataAsync(
+        IScannableRequest scannable, CancellationToken cancellationToken)
+    {
+        List<string> findings = [];
+
+        foreach (string content in scannable.ContentForScanning)
+        {
+            if (string.IsNullOrEmpty(content))
+            {
+                continue;
+            }
+
+            PersonalDataScanResult result = await _personalDataScanner.ScanAsync(content, cancellationToken);
+
+            findings.AddRange(result.Findings.Select(
+                finding => $"personal-data:{finding.RuleName} at line {finding.LineNumber}"));
         }
 
         return findings;
@@ -265,4 +316,18 @@ public sealed class UseCaseExecutor
 
         return _auditSink.WriteAsync(entry, cancellationToken);
     }
+}
+
+/// <summary>
+/// Applies a secret redactor and a personal-data redactor in one pass, so a response type's
+/// <c>Redact(IRedactor)</c> method never has to know that a second control exists.
+/// <para>
+/// Secrets go first. A value that is a secret and happens to also look like a labelled personal
+/// field is redacted once either way, but running secrets first means the marker it leaves behind
+/// cannot be mistaken for personal data by the second pass.
+/// </para>
+/// </summary>
+internal sealed class CompositeRedactor(IRedactor secrets, IPersonalDataRedactor personalData) : IRedactor
+{
+    public string Redact(string text) => personalData.Redact(secrets.Redact(text));
 }

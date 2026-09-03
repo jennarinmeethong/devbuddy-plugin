@@ -67,6 +67,8 @@ internal sealed class FakePorts :
     ICodeAnalyzer,
     ISecretScanner,
     IRedactor,
+    IPersonalDataScanner,
+    IPersonalDataRedactor,
     IProjectDirectory,
     IAccessDirectory,
     IAuditReader,
@@ -111,6 +113,22 @@ internal sealed class FakePorts :
     {
         Touch();
         return text.Replace("SECRET", "[REDACTED]", StringComparison.Ordinal);
+    }
+
+    /// <summary>The personal-data counterpart, on the same literal-marker convention as SECRET.</summary>
+    string IPersonalDataRedactor.Redact(string text)
+    {
+        Touch();
+        return text.Replace("PII", "[REDACTED]", StringComparison.Ordinal);
+    }
+
+    Task<PersonalDataScanResult> IPersonalDataScanner.ScanAsync(
+        string content, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult(content.Contains("PII", StringComparison.Ordinal)
+            ? new PersonalDataScanResult([new PersonalDataFinding("literal", 1, 3)])
+            : PersonalDataScanResult.Clean);
     }
 
     public Task<KnowledgeRecord?> FindRecordAsync(
@@ -439,6 +457,12 @@ internal sealed class FakeAuthorizationService : IAuthorizationService
 {
     public bool Allow { get; set; } = true;
 
+    /// <summary>
+    /// Set to simulate a project whose owner has separately approved a bounded data-sharing
+    /// scope. Null, the default, is the deny-by-default case SB-18 tests exercise.
+    /// </summary>
+    public string? BoundedDataScope { get; set; }
+
     public List<AuthorizationRequest> Requests { get; } = [];
 
     public Task<AuthorizationDecision> AuthorizeAsync(
@@ -447,7 +471,7 @@ internal sealed class FakeAuthorizationService : IAuthorizationService
         Requests.Add(request);
 
         return Task.FromResult(Allow
-            ? AuthorizationDecision.Allow()
+            ? AuthorizationDecision.Allow("Permitted.", BoundedDataScope)
             : AuthorizationDecision.Deny("The caller is not a member of this project."));
     }
 }

@@ -29,6 +29,8 @@ internal sealed class NullPorts :
     ICodeAnalyzer,
     ISecretScanner,
     IRedactor,
+    IPersonalDataScanner,
+    IPersonalDataRedactor,
     IProjectDirectory,
     IAccessDirectory,
     IAuditReader,
@@ -115,6 +117,10 @@ internal sealed class NullPorts :
         throw new NotSupportedException();
 
     public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    Task<PersonalDataScanResult> IPersonalDataScanner.ScanAsync(
+        string content, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task<IReadOnlyList<Project>> ListProjectsForUserAsync(
@@ -227,6 +233,8 @@ internal sealed class NullPorts :
         services.AddSingleton<ICodeAnalyzer>(ports);
         services.AddSingleton<ISecretScanner>(ports);
         services.AddSingleton<IRedactor>(ports);
+        services.AddSingleton<IPersonalDataScanner>(ports);
+        services.AddSingleton<IPersonalDataRedactor>(ports);
         services.AddSingleton<IProjectDirectory>(ports);
         services.AddSingleton<IAccessDirectory>(ports);
         services.AddSingleton<IAuditReader>(ports);

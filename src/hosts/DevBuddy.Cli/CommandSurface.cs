@@ -43,6 +43,7 @@ internal static class CommandSurface
         root.Add(Export());
         root.Add(Backup());
         root.Add(Restore());
+        root.Add(Retention());
         root.Add(Sync());
         root.Add(Reindex());
 
@@ -232,6 +233,23 @@ internal static class CommandSurface
 
         command.SetAction((result, cancellationToken) =>
             Runner.RestoreAsync(result.GetRequiredValue(reference), cancellationToken));
+
+        return command;
+    }
+
+    /// <summary>
+    /// Applies the retention schedule: outside the pipeline for the same reason <c>restore</c> is.
+    /// A sweep spans every workspace and project, so there is no single caller to authorise it
+    /// against. Run it on whatever schedule the operator's own cron or task scheduler provides —
+    /// this system starts no scheduler of its own (SB-27).
+    /// </summary>
+    private static Command Retention()
+    {
+        Command command = new(
+            "retention",
+            "Applies the retention schedule: deletes what has aged out, reports what has not.");
+
+        command.SetAction((_, cancellationToken) => Runner.RetentionAsync(cancellationToken));
 
         return command;
     }

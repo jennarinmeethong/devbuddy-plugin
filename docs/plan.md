@@ -827,7 +827,8 @@ Known gaps, carried forward:
 - **`linux/arm64` images are not built.** The Dockerfiles have nothing architecture-specific in
   them, but until a multi-platform build runs, the row would be a guess.
 - **Backup retention is recorded and not enforced.** `Backup:Retention` says how long backups are
-  meant to be kept; deleting them on that schedule is an operator's job until SB-27 lands.
+  meant to be kept; deleting them on that schedule is an operator's job until SB-27 lands. Closed
+  in Phase 11: `dotnet run -- retention` now enforces it, on the operator's own schedule.
 - **Npgsql logs a missing `libgssapi_krb5.so.2`** on every chiseled container. Harmless, and
   recorded in the release matrix because it reads like a failure.
 
@@ -872,6 +873,50 @@ residual risk. Anything untested is stated as untested.
 
 **Exit criteria:** the matrix has no silent gaps; every remaining risk is named and accepted
 explicitly by the project owner before real project data is connected.
+
+**Status: COMPLETE (2026-09-03).** SB-18 and SB-27 were the two rows still `NOT IMPLEMENTED`
+entering this phase; SB-18 now reaches `TESTED` and SB-27 reaches `IMPLEMENTED`, taking the matrix
+to 31 `TESTED`, 2 `IMPLEMENTED`, and zero `NOT IMPLEMENTED`. `docs/security/release-readiness.md`
+is the note the exit criteria calls for. 405 .NET tests exist; 364 pass in this environment and
+41 are blocked by an unrelated host issue, detailed below.
+
+What landed:
+
+- **SB-18, the customer, production, and personal-data policy.** A second scanner and redactor,
+  built the same way SB-17's are — one rule set shared by both, so nothing reported as sensitive
+  is released anyway — covering a US SSN, a Luhn-checked payment card number, and labelled fields
+  such as a date of birth or a passport number. The pipeline applies it only on the AI channel,
+  and only when the project's AI access policy carries no approved bounded scope: `BoundedDataScope`
+  now travels on the authorization decision, read once when the AI policy is checked rather than
+  queried a second time. A bounded scope excuses personal data and nothing else — a secret is
+  still refused inside one, per `info.md`. `PersonalDataPolicyTests` proves the gating against
+  fakes; `PersonalDataChannelTests` proves the same end to end against real PostgreSQL, including
+  that the human channel is never subject to the control at all.
+- **SB-27, retention enforcement, for the copies this build can reach.** `dotnet run -- retention`,
+  a new console command outside the pipeline for the same reason `restore` is: a sweep spans every
+  workspace and project, and there is no single caller to authorise it against. One pass deletes
+  audit events past a 24-month window, deletes evidence no revision references once a 90-day grace
+  period passes (from both the database row and the object store), and deletes a backup directory
+  once it is older than `Backup:Retention` — closing the exact gap the Phase 10 section above
+  named as recorded but not enforced. An archived record past its window is reported eligible, not
+  deleted, matching the schedule's "on owner request." `RetentionEnforcementTests` proves all four
+  behaviours against real PostgreSQL and the real filesystem.
+- **Three rows of the retention schedule remain unimplemented, named rather than hidden.** Exports
+  carry no stored artefact yet — `ExportAsync` returns a manifest and writes nothing to disk — so
+  there is nothing to purge until that changes. Application log retention is a container log-driver
+  setting (`docker/compose.yaml` now bounds it by size), not application code a test can assert on.
+  A deleted-project sweep has no trigger, because no operation in this build deletes a project at
+  all. `docs/security/release-readiness.md` asks the project owner to accept these three explicitly.
+
+**A pre-existing environment issue, not a defect in this phase's code:** the DevBuddy.Infrastructure.Tests
+assembly's own copy of `Docker.DotNet.Handler.Abstractions.dll` is blocked by this machine's
+Application Control policy, failing the 41 tests in that project that use Testcontainers (evidence
+store and persistence tests unrelated to SB-18 or SB-27). The identical Testcontainers usage in
+DevBuddy.Security.Tests and DevBuddy.Api.Tests runs reliably in the same environment, which is why
+this phase's Postgres-backed verification (`PersonalDataChannelTests`, `RetentionEnforcementTests`)
+was written there instead. Deleting and rebuilding that one assembly's `bin`/`obj` did not clear
+it. This is a host security policy, not a code path this project controls, and it was not
+introduced by this phase — the same 41 tests fail identically against the pre-Phase-11 code.
 
 ---
 

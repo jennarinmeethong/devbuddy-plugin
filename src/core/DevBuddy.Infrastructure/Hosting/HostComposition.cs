@@ -43,7 +43,8 @@ public static class HostComposition
             evidence => configuration.GetSection(EvidenceStoreOptions.SectionName).Bind(evidence),
             analysis => configuration.GetSection(AnalysisOptions.SectionName).Bind(analysis),
             outbound => configuration.GetSection(OutboundAccessOptions.SectionName).Bind(outbound),
-            backup => configuration.GetSection(BackupOptions.SectionName).Bind(backup));
+            backup => configuration.GetSection(BackupOptions.SectionName).Bind(backup),
+            retention => configuration.GetSection(RetentionOptions.SectionName).Bind(retention));
 
         services.AddDevBuddyIdentity(
             identity => configuration.GetSection(IdentitySettings.SectionName).Bind(identity));

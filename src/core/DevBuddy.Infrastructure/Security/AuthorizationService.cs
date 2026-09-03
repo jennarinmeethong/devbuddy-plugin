@@ -150,7 +150,7 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
         // No row means never configured, which means denied. A project nobody has thought about
         // is not a project anyone opened to AI.
         return policy is { IsEnabled: true }
-            ? AuthorizationDecision.Allow()
+            ? AuthorizationDecision.Allow("Permitted.", policy.BoundedDataScope)
             : AuthorizationDecision.Deny("External AI access is not enabled for this project.");
     }
 }

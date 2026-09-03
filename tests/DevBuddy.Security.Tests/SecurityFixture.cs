@@ -36,6 +36,10 @@ public sealed class SecurityFixture : IAsyncLifetime
 
     private ServiceProvider? _services;
 
+    /// <summary>Where this fixture's backups land, for tests that plant a synthetic one.</summary>
+    public string BackupRoot { get; } =
+        Path.Combine(Path.GetTempPath(), "devbuddy-security-backups-" + Guid.NewGuid().ToString("N"));
+
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
@@ -50,7 +54,8 @@ public sealed class SecurityFixture : IAsyncLifetime
                 // about object storage, which Phase 3 already covers against real MinIO.
                 evidence.Provider = EvidenceStoreProvider.FileSystem;
                 evidence.RootPath = Path.Combine(Path.GetTempPath(), "devbuddy-security-" + Guid.NewGuid().ToString("N"));
-            });
+            },
+            configureBackup: backup => backup.RootPath = BackupRoot);
 
         services.AddDevBuddyIdentity(identity =>
         {
@@ -146,7 +151,8 @@ public sealed class SecurityFixture : IAsyncLifetime
         await directory.UpdateMembershipAsync(membership, TestToken.None);
     }
 
-    public async Task EnableAiAccessAsync(ProjectScope scope, UserId enabledBy)
+    public async Task EnableAiAccessAsync(
+        ProjectScope scope, UserId enabledBy, string? boundedDataScope = null)
     {
         using Session session = OpenSession(scope.WorkspaceId);
         IAccessDirectory directory = session.Resolve<IAccessDirectory>();
@@ -154,7 +160,7 @@ public sealed class SecurityFixture : IAsyncLifetime
         Domain.Access.ProjectAiAccessPolicy policy =
             await directory.GetAiAccessPolicyAsync(scope, TestToken.None);
 
-        policy.Enable(enabledBy, World.Now);
+        policy.Enable(enabledBy, World.Now, boundedDataScope);
         await directory.SaveAiAccessPolicyAsync(policy, TestToken.None);
     }
 
@@ -221,6 +227,8 @@ public sealed class Session(IServiceScope scope) : IDisposable
                 Resolve<IAuditSink>(),
                 Resolve<IRedactor>(),
                 Resolve<ISecretScanner>(),
+                Resolve<IPersonalDataScanner>(),
+                Resolve<IPersonalDataRedactor>(),
                 Resolve<IClock>())
             .ExecuteAsync(useCase, request, caller, TestToken.None);
 

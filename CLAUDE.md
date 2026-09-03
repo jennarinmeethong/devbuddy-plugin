@@ -13,7 +13,7 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 10 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
+Phases 0 to 11 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
 `UseCaseExecutor` pipeline and the first 41 of what is now 49 operations; Phase 3 PostgreSQL, full-text search, and MinIO;
 Phase 4 identity, authorization, and tenant isolation; Phase 5 the lifecycle and audit history;
 Phase 6 read-only analysis, the real secret scanner and redactor, the path and URL guards, and
@@ -21,15 +21,36 @@ source synchronisation from a mounted working copy; Phase 7 the three hosts — 
 MCP server over stdio and authenticated HTTP, and the console; Phase 8 the provisioning operations
 and the React administration UI in `web/admin`; Phase 9 machine tokens and the Claude and Codex
 plugin packages; Phase 10 the container images, the Compose stack, backup and restore, and the
-supply-chain checks. 369 .NET tests and 23 web tests pass. Thirty of 33 controls are `TESTED`.
+supply-chain checks; Phase 11 the personal-data policy and retention enforcement. 405 .NET tests
+and 23 web tests exist; 364 .NET tests pass in this environment (see the Infrastructure.Tests note
+below) and all 23 web tests pass. 31 of 33 controls are `TESTED`, 2 are `IMPLEMENTED` but not
+fully proven, and none are `NOT IMPLEMENTED`.
 
 **Source synchronisation reads a working copy, not the GitHub API.** Pull requests, issues, and
 review threads are not available, and `analyze_change_impact` on a commit stored in a pack file
 reports that rather than returning an empty answer.
 
-**Phase 11 (security verification and release readiness) is next.** Two controls are still
-unimplemented: SB-18 (customer, production and personal data denied by default) and SB-27
-(retention applied to every copy, not only the primary database).
+**SB-18, the personal-data policy, is denied by default on the AI channel and nowhere else.**
+Customer, production, and personal data are blocked from a draft and redacted from a read whenever
+the caller is on the AI channel and the project's AI access policy carries no approved bounded
+scope. A human is never subject to it — SB-18 is an AI data policy, not a general content
+restriction — and a secret is still refused even inside an approved scope, per `info.md`.
+
+**SB-27, retention, is enforced for audit events, evidence, and backups; not yet for everything
+`docs/plan.md`'s schedule names.** `dotnet run -- retention` is a console command, outside the
+pipeline for the same reason `restore` is, run on whatever schedule the operator's own cron
+provides. Exports (no stored artefact exists yet to purge), application log retention (a
+container log-driver setting, not application code), and a deleted-project sweep (no operation
+deletes a project at all in v1) are named residual risk in
+`docs/security/release-readiness.md`, not silently skipped.
+
+**`DevBuddy.Infrastructure.Tests`'s Testcontainers-dependent tests are blocked on this machine by
+an Application Control policy** on that project's own copy of `Docker.DotNet.Handler.Abstractions.dll`
+— 41 of 145 tests in that assembly, all pre-existing and unrelated to Phase 11. The identical
+Testcontainers usage in `DevBuddy.Security.Tests` and `DevBuddy.Api.Tests` runs reliably in the
+same environment, which is why Phase 11's own Postgres-backed verification lives there instead of
+in Infrastructure.Tests. This is a host security policy, not a defect this project's code
+introduced or can work around from inside a test.
 
 **Restore is a console command, not an operation.** Every operation is authorised against a
 membership, and a restore from total loss runs against a database with no memberships in it, so

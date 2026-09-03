@@ -16,6 +16,9 @@ internal interface IEvidenceBlobStore
         ProjectScope scope, string storageKey, Stream content, string mediaType, CancellationToken cancellationToken);
 
     Task<Stream> OpenReadAsync(ProjectScope scope, string storageKey, CancellationToken cancellationToken);
+
+    /// <summary>Removes the bytes. Missing already counts as removed (SB-27).</summary>
+    Task DeleteAsync(ProjectScope scope, string storageKey, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -71,6 +74,11 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
 
         return response.ResponseStream;
     }
+
+    public async Task DeleteAsync(
+        ProjectScope scope, string storageKey, CancellationToken cancellationToken) =>
+        await _s3.DeleteObjectAsync(
+            _options.BucketFor(scope.WorkspaceId), storageKey, cancellationToken);
 
     private async Task EnsureBucketAsync(string bucket, CancellationToken cancellationToken)
     {
@@ -129,6 +137,18 @@ internal sealed class FileSystemEvidenceBlobStore : IEvidenceBlobStore
         }
 
         return Task.FromResult<Stream>(File.OpenRead(path));
+    }
+
+    public Task DeleteAsync(ProjectScope scope, string storageKey, CancellationToken cancellationToken)
+    {
+        string path = PathFor(scope, storageKey);
+
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
