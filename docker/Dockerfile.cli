@@ -1,0 +1,26 @@
+# The console: migrations, the one-time bootstrap, and every operation from a terminal.
+#
+# Run it against the same database as the servers. In the Compose stack it runs migrations once and
+# exits, which is what the servers wait on.
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY global.json Directory.Build.props Directory.Packages.props DevBuddy.slnx ./
+COPY src/ src/
+COPY tests/ tests/
+RUN dotnet restore src/hosts/DevBuddy.Cli/DevBuddy.Cli.csproj
+
+RUN dotnet publish src/hosts/DevBuddy.Cli/DevBuddy.Cli.csproj \
+    -c Release \
+    -o /app \
+    --no-restore \
+    /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled AS runtime
+WORKDIR /app
+COPY --from=build /app .
+
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "DevBuddy.Cli.dll"]

@@ -113,9 +113,6 @@ internal sealed class UseCaseRegistry
         Add(new BackupSystemUseCase(ports), administrative);
         Add(new CheckSystemHealthUseCase(ports), administrative);
 
-        Add(new RestoreSystemUseCase(ports),
-            new RestoreSystemRequest(TestData.Workspace, "backup-1"));
-
         Add(new GrantMembershipUseCase(ports, ports),
             new GrantMembershipRequest(TestData.Workspace, TestData.Reviewer, Role.Contributor));
 

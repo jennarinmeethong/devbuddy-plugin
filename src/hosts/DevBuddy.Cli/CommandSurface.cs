@@ -212,22 +212,26 @@ internal static class CommandSurface
         return command;
     }
 
+    /// <summary>
+    /// Restores from a backup.
+    /// <para>
+    /// A command rather than an operation, and the reason is structural: every operation is
+    /// authorised against a membership, and a restore from total loss runs against a database with
+    /// no memberships in it. There is no caller to authorise, so the pipeline correctly refuses —
+    /// which makes a restore operation one that can never succeed. It sits beside migrate and
+    /// bootstrap, outside the pipeline, for exactly the same reason they do.
+    /// </para>
+    /// </summary>
     private static Command Restore()
     {
         Option<string> reference =
             new("--reference") { Description = "The backup reference to restore.", Required = true };
 
-        Command command = new("restore", "Restores from a backup reference.");
-        command.Add(Workspace);
+        Command command = new("restore", "Restores from a backup, into an empty installation.");
         command.Add(reference);
 
-        command.SetAction((result, cancellationToken) => Runner.InvokeAsync(
-            UseCaseCatalog.RestoreSystem.Name,
-            Body(
-                ("workspaceId", result.GetRequiredValue(Workspace)),
-                ("backupReference", result.GetRequiredValue(reference))),
-            result.GetValue(Actor),
-            cancellationToken));
+        command.SetAction((result, cancellationToken) =>
+            Runner.RestoreAsync(result.GetRequiredValue(reference), cancellationToken));
 
         return command;
     }

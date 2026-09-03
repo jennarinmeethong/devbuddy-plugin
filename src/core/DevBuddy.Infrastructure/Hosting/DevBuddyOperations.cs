@@ -75,7 +75,6 @@ public static class DevBuddyOperations
 
         services.AddScoped<ExportProjectUseCase>();
         services.AddScoped<BackupSystemUseCase>();
-        services.AddScoped<RestoreSystemUseCase>();
         services.AddScoped<CheckSystemHealthUseCase>();
 
         services.AddScoped<GrantMembershipUseCase>();
@@ -143,7 +142,6 @@ public static class DevBuddyOperations
 
             Bind(services.GetRequiredService<ExportProjectUseCase>(), executor),
             Bind(services.GetRequiredService<BackupSystemUseCase>(), executor),
-            Bind(services.GetRequiredService<RestoreSystemUseCase>(), executor),
             Bind(services.GetRequiredService<CheckSystemHealthUseCase>(), executor),
 
             Bind(services.GetRequiredService<ListMembershipsUseCase>(), executor),

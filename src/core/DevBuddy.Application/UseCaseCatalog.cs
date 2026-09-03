@@ -149,9 +149,11 @@ public static class UseCaseCatalog
         "backup_system", PermissionKind.AdministerSystem, AiExposure.Denied,
         AuditAction.BackupCreated, redactsOutput: false);
 
-    public static UseCaseDescriptor RestoreSystem { get; } = new(
-        "restore_system", PermissionKind.AdministerSystem, AiExposure.Denied,
-        AuditAction.BackupRestored, redactsOutput: false);
+    // There is no restore_system operation, and that is a finding rather than an omission. Every
+    // operation is authorised against a membership; a restore from total loss runs against a
+    // database with no memberships in it, so the caller does not exist yet and the pipeline
+    // correctly refuses. Restore is a console command, outside the pipeline, for the same
+    // structural reason as migrate and the one-time bootstrap.
 
     public static UseCaseDescriptor CheckSystemHealth { get; } = new(
         "check_system_health", PermissionKind.AdministerSystem, AiExposure.Denied,
@@ -234,7 +236,7 @@ public static class UseCaseCatalog
         ReviseDraft, SubmitForApproval, ApproveRecord, RequestCorrection, PublishRecord, ArchiveRecord,
         SyncSources, ValidateProvenance, DetectDuplicates, DetectStaleness, Reindex,
         DetectSecrets, RedactSensitiveData,
-        ExportProject, BackupSystem, RestoreSystem, CheckSystemHealth,
+        ExportProject, BackupSystem, CheckSystemHealth,
         GrantMembership, RevokeMembership, EnableProjectAiAccess, DisableProjectAiAccess,
         ReadAuditHistory, ListMemberships,
         CreateProject, CreateWorkItem, CreateUserAccount, ListWorkItems, ListRecords,

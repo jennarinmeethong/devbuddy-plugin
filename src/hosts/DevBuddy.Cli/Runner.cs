@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using DevBuddy.Application;
+using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
@@ -89,6 +90,33 @@ internal static class Runner
             // Printed because the identifier is what every later command needs as --actor, and
             // because it is not a secret: the password is, and that is not echoed anywhere.
             Console.WriteLine($"actor      {result.AdministratorId!.Value.Value}");
+            return Ok;
+        });
+    }
+
+    /// <summary>
+    /// Restores a backup, outside the pipeline.
+    /// <para>
+    /// No actor, because there is nobody to be: a restore from total loss runs against a database
+    /// with no accounts in it. The safety here is not authorisation but the restore's own refusal
+    /// to write into an installation that already has data.
+    /// </para>
+    /// </summary>
+    public static async Task<int> RestoreAsync(string reference, CancellationToken cancellationToken)
+    {
+        return await WithScopeAsync(async scope =>
+        {
+            RestoreOutcome outcome = await scope.ServiceProvider
+                .GetRequiredService<IAdministrativeOperations>()
+                .RestoreAsync(reference, cancellationToken);
+
+            if (!outcome.Succeeded)
+            {
+                Console.Error.WriteLine(outcome.Detail);
+                return Refused;
+            }
+
+            Console.WriteLine(outcome.Detail);
             return Ok;
         });
     }

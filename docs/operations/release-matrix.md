@@ -1,101 +1,97 @@
-# Release Matrix
+# Release matrix
 
-**Status: PLANNED. Nothing in this file has been built or verified yet.** Publishing is Phase 10.
-This file exists now because the tier decision was confirmed on 2026-09-01 (see
-[ADR-0008](../adr/0008-packaging-and-release-matrix.md)), and because the shape of the matrix
-constrains how the hosts are written.
+What is built, what has actually been run, and what is not claimed at all.
 
-`info.md` requires an explicit runtime identifier and verification matrix, with unsupported
-combinations documented rather than a universal-compatibility claim. Three tiers, stated plainly.
+The point of this file is that the third column is honest. A matrix listing eight platforms as
+"supported" because eight `dotnet publish` commands exited zero would be a list of guesses, and the
+one somebody deploys to would be the one nobody tried.
 
----
+## Self-contained executables
 
-## Native self-contained artifacts
+Published with `--self-contained true`, per runtime identifier. **Self-contained does not mean
+single-file and does not mean Native AOT**; neither is claimed and neither is built.
 
-Applies to `DevBuddy.Cli`, `DevBuddy.Api`, and `DevBuddy.McpServer`.
-
-### Tier 1 — Verified
-
-Built **and** smoke-tested in CI on every release. The smoke test starts the artifact, checks it
-reports its version, and for the API and MCP server checks the health endpoint responds.
-
-| RID | Build | Smoke test | Notes |
+| RID | Built | Run | How it was run |
 |---|---|---|---|
-| `linux-x64` | planned | planned | Primary deployment target. |
-| `linux-arm64` | planned | planned | |
-| `win-x64` | planned | planned | Primary development target. |
-| `osx-arm64` | planned | planned | |
+| `win-x64` | yes | **yes** | Natively, on the machine this was developed on. |
+| `linux-x64` | yes | **yes** | `ubuntu:24.04`, in a container. |
+| `linux-arm64` | yes | **yes** | `ubuntu:24.04` under `linux/arm64` emulation. Emulated, not hardware. |
+| `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
+| `osx-arm64` | yes | no | No macOS available. Published as-is. |
+| `osx-x64` | yes | no | No macOS available. Published as-is. |
+| `win-arm64` | yes | no | No Windows on ARM available. Published as-is. |
+| `linux-musl-arm64` | yes | no | Not run; the x64 musl build was, so the dependency list is believed to carry over. |
 
-### Tier 2 — Built, unverified
+"Run" means the executable started and answered — `DevBuddy.Cli operations --ai` returned the
+eighteen AI-exposed operation names. It does not mean the full test suite ran on that platform.
+The suite runs on `ubuntu-latest` and `windows-latest` in CI; everything else in this table is a
+smoke test or a build.
 
-Published as-is. **Labelled unverified in every release note.** No automated verification runs
-against these, and no support is implied.
+Anything not listed is **not published and not supported**. That is not a gap to fill on request:
+each row is a thing somebody has to keep working.
 
-| RID | Build | Smoke test | Notes |
-|---|---|---|---|
-| `win-arm64` | planned | none | |
-| `osx-x64` | planned | none | |
-| `linux-musl-x64` | planned | none | Alpine and other musl distributions. |
-| `linux-musl-arm64` | planned | none | |
+## Native dependencies
 
-### Tier 3 — Not published
+Self-contained ships the .NET runtime. It does not ship the operating system's C library, its C++
+runtime, or ICU, and this is where "self-contained" misleads people.
 
-Everything else, including every remaining RID in the .NET 10 supported-OS list. Out of scope for
-v1 and **not claimed as supported**. Recheck the list at each release:
-<https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md>
+| Platform | Needs | If it is missing |
+|---|---|---|
+| Linux (glibc) | `libicu` | Fails at startup: *"Couldn't find a valid ICU package installed on the system."* Observed on a bare `ubuntu:24.04`. |
+| Linux (musl) | `libstdc++`, `libgcc`, `icu-libs` | Fails at startup with missing shared libraries and unresolved symbols. Observed on a bare `alpine:3`. |
+| Windows | nothing beyond the OS | — |
+| macOS | nothing beyond the OS | Not verified. |
 
----
-
-## What self-contained does and does not mean
-
-Stated because `info.md` requires it stated:
-
-- Self-contained **includes** the .NET runtime in the artifact.
-- Self-contained does **not** mean a single-file executable. We do not publish single-file.
-- Self-contained does **not** mean Native AOT. We do not use Native AOT.
-- Self-contained does **not** remove native OS dependencies. See below.
-
-## Native OS dependencies
-
-| Platform | Requirement |
-|---|---|
-| Linux (glibc) | ICU, unless invariant globalization is enabled. OpenSSL for TLS. |
-| Linux (musl) | musl-compatible ICU and OpenSSL packages. |
-| Windows | None beyond a supported Windows version. |
-| macOS | None beyond a supported macOS version. |
-
-`InvariantGlobalization` is **false** repository-wide. Culture-correct comparison and formatting
-matter for a system holding multilingual knowledge records, so ICU is a real requirement, not an
-accident of defaults.
-
----
+Setting `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` removes the ICU requirement and removes
+culture-aware behaviour with it. It is a legitimate choice for a container that only ever speaks
+one language, and it is a choice — not a default, and not something to set to make an error go
+away.
 
 ## Container images
 
-A **separate** matrix, as `info.md` requires. Images do not inherit the native tiers above.
+A separate matrix, deliberately. A container image and a native executable fail in different ways
+and are verified differently.
 
-| Platform | Images | Base |
-|---|---|---|
-| `linux/amd64` | api, mcp, cli | Chiseled ASP.NET 10 / runtime 10 |
-| `linux/arm64` | api, mcp, cli | Chiseled ASP.NET 10 / runtime 10 |
+| Image | Base | Platforms | Verified |
+|---|---|---|---|
+| `devbuddy-api` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64` | Built and run: healthy in the Compose stack, serving sign-in and operations. |
+| `devbuddy-mcp` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64` | Built and run: refuses an unauthenticated call with 401. |
+| `devbuddy-migrate` (console) | `mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled` | `linux/amd64` | Built and run: applied migrations, bootstrapped, and performed a restore. |
 
-Windows and macOS container images are not published.
+`linux/arm64` images are **not built and not claimed**. The Dockerfiles have nothing
+architecture-specific in them and a multi-platform build is a CI change rather than a code one, but
+until that build runs the row would be a guess.
 
-All images run as a non-root user, mount no Docker socket, and receive secrets through environment
-or a secret store rather than image layers. See controls SB-30 to SB-32.
+Chiseled means no shell, no package manager, and no busybox: if something gets code execution in
+one of these containers, there is nothing in it to execute. It also means the container health
+check cannot be `curl`, which is why the API implements `--health-check` as a mode of itself.
 
----
+### One known noise
 
-## Release checklist
+Npgsql probes for Kerberos support at startup and the chiseled image has no `libgssapi_krb5.so.2`,
+so every container logs:
 
-Nothing on this list has been executed yet.
+```
+Cannot load library libgssapi_krb5.so.2
+Error: libgssapi_krb5.so.2: cannot open shared object file: No such file or directory
+```
 
-1. Recheck the .NET 10 supported-OS list; adjust tiers if it changed.
-2. Build every Tier 1 and Tier 2 RID.
-3. Run the smoke test on Tier 1 only.
-4. Build and push both container platforms; record image digests.
-5. Generate the SBOM and attach it.
-6. Run the destroy-and-restore drill (SB-33).
-7. Copy every row from `docs/security/verification-matrix.md` that is not `TESTED` into the release
-   notes, verbatim.
-8. Label Tier 2 artifacts unverified in the release notes.
+It is harmless — the connection proceeds, migrations apply, everything works — and it is recorded
+here because it reads like a failure and is not. Adding the library would mean a larger base image
+for no functional gain.
+
+## Verifying a release
+
+Before publishing anything, and recorded per release:
+
+1. `dotnet test DevBuddy.slnx -c Release` on Linux, with Docker available, so the integration and
+   drill tests actually run.
+2. `dotnet publish` for every row in the first table. A row that fails to build comes out of the
+   table; it does not get a footnote.
+3. Run the smoke test on every row whose "Run" column says yes. If a platform cannot be run this
+   time, its "Run" column changes to no for that release.
+4. `docker compose -f docker/compose.yaml up -d` from clean, to healthy.
+5. The destroy-and-restore drill in `docs/operations/backup-and-restore.md`, by hand, once.
+6. SBOM and vulnerability scan attached to the release (CI produces both).
+
+Release notes state, verbatim, which rows were unverified.

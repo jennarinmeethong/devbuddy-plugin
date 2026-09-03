@@ -8,27 +8,24 @@ using Microsoft.Extensions.Options;
 
 namespace DevBuddy.Infrastructure.Administration;
 
-/// <summary>
-/// Export and health.
-/// <para>
-/// Backup and restore are not implemented here and deliberately throw rather than returning a
-/// plausible-looking manifest. They need a database dump, an object-store copy, and a restore
-/// drill, which is Phase 10 work; a method that quietly returned success would put a row in the
-/// verification matrix that nothing backs.
-/// </para>
-/// </summary>
+/// <summary>Export, backup, restore, and health.</summary>
 internal sealed class AdministrativeOperations : IAdministrativeOperations
 {
     private readonly DevBuddyDbContext _db;
     private readonly IClock _clock;
     private readonly EvidenceStoreOptions _evidence;
+    private readonly BackupService _backups;
 
     public AdministrativeOperations(
-        DevBuddyDbContext db, IClock clock, IOptions<EvidenceStoreOptions> evidence)
+        DevBuddyDbContext db,
+        IClock clock,
+        IOptions<EvidenceStoreOptions> evidence,
+        BackupService backups)
     {
         _db = Guard.NotNull(db, nameof(db));
         _clock = Guard.NotNull(clock, nameof(clock));
         _evidence = Guard.NotNull(evidence, nameof(evidence)).Value;
+        _backups = Guard.NotNull(backups, nameof(backups));
     }
 
     /// <summary>
@@ -64,14 +61,13 @@ internal sealed class AdministrativeOperations : IAdministrativeOperations
             ExpiresAt: now.AddDays(30));
     }
 
+    /// <summary>Rows and artefacts together. A backup of only the database is not a backup.</summary>
     public Task<BackupManifest> BackupAsync(CancellationToken cancellationToken) =>
-        throw new NotSupportedException(
-            "Backup is Phase 10. It needs a database dump, an object-store copy, and a restore "
-            + "drill; returning a manifest for none of that would be worse than refusing.");
+        _backups.BackupAsync(cancellationToken);
 
+    /// <summary>Into an empty installation, or refused. See <see cref="BackupService"/>.</summary>
     public Task<RestoreOutcome> RestoreAsync(string backupReference, CancellationToken cancellationToken) =>
-        throw new NotSupportedException(
-            "Restore is Phase 10, and is only meaningful once Backup exists.");
+        _backups.RestoreAsync(backupReference, cancellationToken);
 
     /// <summary>
     /// Reports which components answered. Names them and nothing else: a health endpoint is one

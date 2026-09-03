@@ -42,7 +42,6 @@ export type OperationName =
   | "redact_sensitive_data"
   | "export_project"
   | "backup_system"
-  | "restore_system"
   | "check_system_health"
   | "grant_membership"
   | "revoke_membership"
@@ -698,17 +697,6 @@ export type BackupSystemResult = {
   createdAt: string;
 };
 
-export type RestoreSystemArguments = {
-  backupReference: string;
-  workspaceId: string;
-};
-
-export type RestoreSystemResult = {
-  reference: string;
-  succeeded: boolean;
-  detail: string;
-};
-
 export type CheckSystemHealthArguments = {
   workspaceId: string;
 };
@@ -965,7 +953,6 @@ export interface Operations {
   "redact_sensitive_data": { arguments: RedactSensitiveDataArguments; result: RedactSensitiveDataResult };
   "export_project": { arguments: ExportProjectArguments; result: ExportProjectResult };
   "backup_system": { arguments: BackupSystemArguments; result: BackupSystemResult };
-  "restore_system": { arguments: RestoreSystemArguments; result: RestoreSystemResult };
   "check_system_health": { arguments: CheckSystemHealthArguments; result: CheckSystemHealthResult };
   "grant_membership": { arguments: GrantMembershipArguments; result: GrantMembershipResult };
   "revoke_membership": { arguments: RevokeMembershipArguments; result: RevokeMembershipResult };
@@ -1018,7 +1005,6 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "redact_sensitive_data": { permission: "ScanContent", availableToAi: false },
   "export_project": { permission: "AdministerSystem", availableToAi: false },
   "backup_system": { permission: "AdministerSystem", availableToAi: false },
-  "restore_system": { permission: "AdministerSystem", availableToAi: false },
   "check_system_health": { permission: "AdministerSystem", availableToAi: false },
   "grant_membership": { permission: "ManageAccess", availableToAi: false },
   "revoke_membership": { permission: "ManageAccess", availableToAi: false },

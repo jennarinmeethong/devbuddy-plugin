@@ -1,3 +1,4 @@
+using DevBuddy.Infrastructure.Administration;
 using DevBuddy.Infrastructure.Analysis;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
@@ -41,7 +42,8 @@ public static class HostComposition
             connectionString,
             evidence => configuration.GetSection(EvidenceStoreOptions.SectionName).Bind(evidence),
             analysis => configuration.GetSection(AnalysisOptions.SectionName).Bind(analysis),
-            outbound => configuration.GetSection(OutboundAccessOptions.SectionName).Bind(outbound));
+            outbound => configuration.GetSection(OutboundAccessOptions.SectionName).Bind(outbound),
+            backup => configuration.GetSection(BackupOptions.SectionName).Bind(backup));
 
         services.AddDevBuddyIdentity(
             identity => configuration.GetSection(IdentitySettings.SectionName).Bind(identity));

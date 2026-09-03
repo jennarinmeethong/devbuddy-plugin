@@ -765,6 +765,72 @@ Both are in `docs/operations/plugin-hosts.md`.
 destroy-and-restore drill recovers all records and evidence; the release matrix lists only
 combinations that were actually built and verified.
 
+**Status: COMPLETE (2026-09-03).** All three exit criteria are met, each by doing the thing rather
+than describing it. Six controls reach `TESTED` — SB-21, SB-28, SB-30, SB-31, SB-32 and SB-33 —
+taking the total to 30 of 33, and Phase 11 scenarios 6 and 7 are now exercised. 369 .NET tests and
+23 web tests pass, 0 warnings, formatting clean.
+
+What landed:
+
+- **Three container images**, on chiseled bases: no shell, no package manager, no busybox. If
+  something gets code execution in one of these there is nothing in it to execute — which is also
+  why the API implements `--health-check` as a mode of itself, because there is no curl to run.
+- **A Compose stack** whose absences are the design. The database and the object store publish no
+  ports at all; what is published is bound to loopback, because this expects a reverse proxy in
+  front of it; nothing mounts the Docker socket; nothing runs as root; the application containers
+  are read-only with every capability dropped; the working copy is mounted read-only.
+- **Backup and restore, both halves.** Rows *and* artefacts — a backup of only the database is the
+  mistake this is shaped to avoid, because a restore that returns the rows and leaves the bytes
+  behind looks like a success until a reader clicks an attachment. Logical rather than
+  `pg_dump`, because running an external program from product code would put process APIs into an
+  assembly a build-breaking test scans to keep them out (SB-04). Sessions are deliberately not
+  restored; passwords and machine tokens are.
+- **The drill, twice.** `RestoreDrillTests` destroys a database — a different one, migrated from
+  nothing, because deleting rows leaves everything a migration created — restores, and checks the
+  record, its approval hash, the account, the audit entry, and the evidence bytes read back out of
+  MinIO. Then the same procedure by hand against the Compose stack.
+- **The limits that were missing.** A global per-caller request ceiling, a process-wide cap on
+  concurrent analyses enforced by a decorator around the port, and a request body ceiling.
+- **Supply chain in CI.** `dotnet list package --vulnerable --include-transitive` on every push and
+  weekly — weekly because a vulnerability is published against a dependency that has not changed —
+  CycloneDX SBOMs per shipped host, and an image check that fails if any runs as root.
+- **A release matrix that only claims what was run.** Eight RIDs build; four were actually started
+  and answered, one of those under emulation, and the table says which is which. The native
+  dependencies are listed because "self-contained" misleads people: a bare `ubuntu:24.04` fails at
+  startup without `libicu`, and a bare `alpine:3` without `libstdc++`, `libgcc` and `icu-libs`.
+  Both observed, not assumed.
+
+Standing the stack up found three real defects that no test had, which is the argument for this
+phase being work rather than paperwork:
+
+- **The MCP server's HTTP transport had never once started.** `MapMcp` was called without
+  `WithHttpTransport`, so every start in HTTP mode threw at startup. Phase 7 shipped "two
+  transports" and only stdio had ever run, because stdio is what the plugins use.
+- **The backup volume arrived owned by root** and the first backup failed with permission denied.
+  A chiseled image has no shell, so the mount point is created and chowned in the build stage and
+  copied in — Docker seeds a fresh named volume from the mount point's ownership.
+- **`restore_system` could never have succeeded.** Every operation is authorised against a
+  membership, and a restore from total loss runs against a database with no memberships in it: the
+  caller does not exist yet, so the pipeline refuses. It refuses a populated database too, by
+  design. That leaves no state in which it could work, so it is gone from the catalogue and
+  restore is a console command, outside the pipeline, like migrate and the bootstrap. A test
+  asserts no restore operation exists, so it cannot come back without somebody meeting the reason
+  it went.
+
+Known gaps, carried forward:
+
+- **SB-29 is `IMPLEMENTED`, not `TESTED`.** SBOMs are generated but no release has carried one, and
+  nothing is signed or attested. It moves when there is a release.
+- **The image half of SB-32 is by construction rather than by scan.** No `COPY` brings a secret in
+  and no `ENV` sets one, but no image scanner runs, so a secret introduced another way would not be
+  caught.
+- **`linux/arm64` images are not built.** The Dockerfiles have nothing architecture-specific in
+  them, but until a multi-platform build runs, the row would be a guess.
+- **Backup retention is recorded and not enforced.** `Backup:Retention` says how long backups are
+  meant to be kept; deleting them on that schedule is an operator's job until SB-27 lands.
+- **Npgsql logs a missing `libgssapi_krb5.so.2`** on every chiseled container. Harmless, and
+  recorded in the release matrix because it reads like a failure.
+
 ---
 
 ## Phase 11 — Security verification and release readiness

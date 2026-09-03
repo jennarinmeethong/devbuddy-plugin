@@ -62,6 +62,11 @@ if (useStdio)
 }
 else
 {
+    // Registering the transport is not optional and was missing until Phase 10 stood the stack up:
+    // MapMcp below throws without it, so every start of this host in HTTP mode crashed. Nothing
+    // caught it because nothing had ever run this branch — the stdio path is what the plugins use.
+    builder.Services.AddMcpServer().WithHttpTransport();
+
     // The HTTP transport shares the API tokens and therefore the API identity. There is no
     // separate MCP credential to get wrong.
     builder.Services

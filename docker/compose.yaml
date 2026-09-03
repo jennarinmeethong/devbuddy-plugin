@@ -1,0 +1,176 @@
+# The self-hosted stack: PostgreSQL, MinIO, the API, and the MCP server.
+#
+# What is deliberately absent is as much of the design as what is here.
+#
+#   - PostgreSQL and MinIO publish no host ports. They are reachable on the internal network and
+#     from nowhere else. An operator who needs a psql session runs it in the network, not through
+#     a port mapped to every interface on the host.
+#   - Nothing mounts the Docker socket. A container that can talk to the daemon is root on the
+#     host, and no part of this system has any reason to.
+#   - No service runs as root. The application images ship with a non-root account and use it; the
+#     database is told which one; the object store already uses its own and is left alone, because
+#     overriding it leaves the image unable to write to a fresh volume.
+#   - There is no TLS here. This stack is meant to sit behind a reverse proxy that terminates it,
+#     and pretending otherwise with a self-signed certificate would teach the wrong shape. See
+#     docs/operations/deployment.md.
+#
+# Secrets come from the environment. `docker/.env.example` lists them; copy it to `docker/.env`,
+# fill it in, and keep that file out of the repository — .gitignore already refuses it.
+#
+#   docker compose -f docker/compose.yaml up -d
+
+name: devbuddy
+
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    user: postgres
+    environment:
+      POSTGRES_DB: devbuddy
+      POSTGRES_USER: devbuddy
+      POSTGRES_PASSWORD: ${DEVBUDDY_DB_PASSWORD:?set DEVBUDDY_DB_PASSWORD in docker/.env}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devbuddy -d devbuddy"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  evidence:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+
+    # No user override. The image already runs as a non-root account and its entrypoint takes
+    # ownership of the data directory; pinning a uid here left it unable to write to a fresh
+    # volume, which fails as "drive may be faulty" and is not that.
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${DEVBUDDY_EVIDENCE_ACCESS_KEY:?set DEVBUDDY_EVIDENCE_ACCESS_KEY in docker/.env}
+      MINIO_ROOT_PASSWORD: ${DEVBUDDY_EVIDENCE_SECRET_KEY:?set DEVBUDDY_EVIDENCE_SECRET_KEY in docker/.env}
+    volumes:
+      - evidence:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  # Runs once, applies migrations, exits. The servers wait for it to complete, so a deployment
+  # cannot race a schema change.
+  migrate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cli
+    restart: "no"
+    command: ["migrate"]
+    environment:
+      DEVBUDDY_ConnectionStrings__DevBuddy: >-
+        Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
+      DEVBUDDY_Evidence__Provider: ObjectStorage
+      DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
+      DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
+      DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
+      DEVBUDDY_Backup__RootPath: /srv/backups
+    volumes:
+      # The console is how a restore is performed — it runs outside the pipeline, because a restore
+      # from total loss has no accounts to authorise against — so it needs the backups and the
+      # object store the artefacts go back into.
+      - backups:/srv/backups
+    depends_on:
+      database:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    ports:
+      # The only thing reachable from the host. Bound to loopback: put a reverse proxy in front of
+      # it and let that hold the certificate.
+      - "127.0.0.1:8080:8080"
+    environment:
+      DEVBUDDY_ConnectionStrings__DevBuddy: >-
+        Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
+      DEVBUDDY_Identity__SigningKey: ${DEVBUDDY_SIGNING_KEY:?set DEVBUDDY_SIGNING_KEY in docker/.env}
+      DEVBUDDY_Evidence__Provider: ObjectStorage
+      DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
+      DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
+      DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
+      DEVBUDDY_Analysis__RootPath: /srv/projects
+      DEVBUDDY_Backup__RootPath: /srv/backups
+    volumes:
+      # Read-only. Analysis reads a working copy and never writes to it, and the mount says so as
+      # well as the code (SB-04).
+      - ${DEVBUDDY_PROJECTS_PATH:-./projects}:/srv/projects:ro
+      - backups:/srv/backups
+    depends_on:
+      database:
+        condition: service_healthy
+      evidence:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # No curl in a chiseled image, which is the point of one. The runtime can reach itself.
+      test: ["CMD", "dotnet", "DevBuddy.Api.dll", "--health-check"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    networks: [internal]
+
+  mcp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mcp
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    ports:
+      - "127.0.0.1:8081:8080"
+    environment:
+      DEVBUDDY_ConnectionStrings__DevBuddy: >-
+        Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
+      DEVBUDDY_Identity__SigningKey: ${DEVBUDDY_SIGNING_KEY}
+      DEVBUDDY_Evidence__Provider: ObjectStorage
+      DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
+      DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
+      DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
+      DEVBUDDY_Analysis__RootPath: /srv/projects
+    volumes:
+      - ${DEVBUDDY_PROJECTS_PATH:-./projects}:/srv/projects:ro
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
+volumes:
+  # Named, so `docker compose down` without -v keeps them and a container replacement is not a
+  # data loss event. The restore drill proves that.
+  database:
+  evidence:
+  backups:
+
+networks:
+  internal:
+    driver: bridge

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using DevBuddy.Api;
@@ -11,6 +12,14 @@ using Microsoft.IdentityModel.Tokens;
 // The HTTP surface. Auth endpoints, one route per operation through the dispatcher, an evidence
 // stream, and health. Everything except sign-in goes through the same pipeline the MCP server and
 // the console use.
+
+// A chiseled runtime image has no curl and no shell, which is the point of one, so the container
+// health check runs this executable instead: ask the running server, report by exit code, and
+// start nothing.
+if (args.Contains("--health-check", StringComparer.Ordinal))
+{
+    return await HealthProbe.RunAsync(args);
+}
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +65,8 @@ builder.Services.AddOpenApi();
 // address, which only the operator knows.
 int authPermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 10);
 int authWindowSeconds = builder.Configuration.GetValue("RateLimiting:AuthWindowSeconds", 60);
+int requestPermitLimit = builder.Configuration.GetValue("RateLimiting:RequestPermitLimit", 600);
+int requestWindowSeconds = builder.Configuration.GetValue("RateLimiting:RequestWindowSeconds", 60);
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -69,7 +80,31 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = authPermitLimit,
             QueueLimit = 0,
         }));
+
+    // And a ceiling on everything else, generous enough that nobody working notices it and low
+    // enough that a loop cannot flatten the database (SB-21). Also per caller: signed in, by
+    // account, so one person's runaway script does not slow everybody down; signed out, by
+    // address, which is all there is to go on.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? context.Connection.RemoteIpAddress?.ToString()
+                ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromSeconds(requestWindowSeconds),
+                PermitLimit = requestPermitLimit,
+                QueueLimit = 0,
+            }));
 });
+
+// A ceiling on the body, so an oversized upload is refused at the edge rather than after it has
+// been buffered. The evidence store has its own limit for what it will keep; this one is about
+// what the process will hold (SB-21).
+long maxRequestBytes = builder.Configuration.GetValue("Limits:MaxRequestBytes", 32L * 1024 * 1024);
+
+builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(
+    options => options.Limits.MaxRequestBodySize = maxRequestBytes);
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
 {
@@ -100,3 +135,4 @@ app.MapMe();
 app.MapOperations();
 
 await app.RunAsync();
+return 0;

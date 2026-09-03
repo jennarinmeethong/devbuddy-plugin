@@ -35,6 +35,22 @@ public sealed class AnalysisOptions
     /// <summary>How long one analysis may run before it is cancelled (SB-22).</summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// How many analyses may run at once, across the whole process.
+    /// <para>
+    /// The other limits bound one run; this one bounds twenty starting together, which is
+    /// trivially reachable by an assistant looping over projects and is the most expensive thing
+    /// this system does (SB-21).
+    /// </para>
+    /// </summary>
+    public int MaxConcurrentAnalyses { get; set; } = 4;
+
+    /// <summary>
+    /// How long a caller waits for a slot before being told the system is busy. Short, because a
+    /// caller waiting indefinitely cannot tell a busy system from a broken one.
+    /// </summary>
+    public TimeSpan QueueTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
     /// <summary>Directories never walked. Build output and dependency caches are noise.</summary>
     public IList<string> IgnoredDirectories { get; } =
         ["bin", "obj", "node_modules", ".vs", ".idea", "dist", "target", "__pycache__"];

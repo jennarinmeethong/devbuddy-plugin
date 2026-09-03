@@ -1,0 +1,46 @@
+# The HTTP API.
+#
+# Chiseled base: no shell, no package manager, no busybox. If something gets code execution inside
+# this container there is nothing in it to execute. That is also why the build stage is separate —
+# the SDK never ships.
+#
+# Built from the repository root:
+#   docker build -f docker/Dockerfile.api -t devbuddy-api .
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Restore before the source is copied, so a source change does not re-download the world.
+COPY global.json Directory.Build.props Directory.Packages.props DevBuddy.slnx ./
+COPY src/ src/
+COPY tests/ tests/
+RUN dotnet restore src/hosts/DevBuddy.Api/DevBuddy.Api.csproj
+
+RUN dotnet publish src/hosts/DevBuddy.Api/DevBuddy.Api.csproj \
+    -c Release \
+    -o /app \
+    --no-restore \
+    /p:UseAppHost=false
+
+# An empty directory to copy into the runtime image, so the backup mount point exists and belongs
+# to the application user before a volume is attached to it. A chiseled image has no shell, so
+# there is no RUN mkdir over there — and this has to happen in the image rather than at run time,
+# because Docker seeds a fresh named volume from the mount point's contents and ownership. Without
+# it the volume arrives owned by root and the first backup fails with "permission denied".
+RUN mkdir -p /seed/backups
+
+# Chiseled, non-root by construction: the image ships with an "app" user and runs as it.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS runtime
+WORKDIR /app
+COPY --from=build /app .
+COPY --from=build --chown=$APP_UID:$APP_UID /seed/backups /srv/backups
+
+# Stated rather than inherited. A base image that changed its default would otherwise change ours.
+USER $APP_UID
+
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_gcServer=1
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "DevBuddy.Api.dll"]

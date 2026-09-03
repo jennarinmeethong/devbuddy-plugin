@@ -42,3 +42,6 @@ secrets.json
 # OS
 Thumbs.db
 .DS_Store
+
+# Compose secrets. The example beside it is committed; this is not.
+docker/.env

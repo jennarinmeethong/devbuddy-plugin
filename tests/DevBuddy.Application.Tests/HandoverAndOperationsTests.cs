@@ -227,7 +227,7 @@ public sealed class HandoverAndOperationsTests
     }
 
     [Fact]
-    public async Task backup_restore_and_health_run_as_administrative_operations()
+    public async Task backup_and_health_run_as_administrative_operations()
     {
         var harness = new Harness();
         var request = new AdministrativeRequest(TestData.Workspace);
@@ -235,27 +235,27 @@ public sealed class HandoverAndOperationsTests
         BackupManifest backup = await harness.SucceedAsync(new BackupSystemUseCase(harness.Ports), request);
         Assert.Equal("backup-1", backup.Reference);
 
-        RestoreOutcome restore = await harness.SucceedAsync(
-            new RestoreSystemUseCase(harness.Ports),
-            new RestoreSystemRequest(TestData.Workspace, backup.Reference));
-        Assert.True(restore.Succeeded);
-
         HealthReport health = await harness.SucceedAsync(new CheckSystemHealthUseCase(harness.Ports), request);
         Assert.True(health.IsHealthy);
         Assert.All(health.Components, component =>
             Assert.DoesNotContain("password", component.Detail, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// There is no restore operation, and that is deliberate.
+    /// <para>
+    /// Every operation is authorised against a membership, and a restore from total loss runs
+    /// against a database with no memberships in it: the caller does not exist yet, so the
+    /// pipeline refuses and the operation could never succeed. Restore is a console command
+    /// instead. This test is what stops somebody adding it back without noticing why it went.
+    /// </para>
+    /// </summary>
     [Fact]
-    public async Task a_restore_needs_a_backup_reference()
+    public void restore_is_not_an_operation()
     {
-        var harness = new Harness();
-
-        UseCaseResult<RestoreOutcome> result = await harness.RunAsync(
-            new RestoreSystemUseCase(harness.Ports),
-            new RestoreSystemRequest(TestData.Workspace, "  "));
-
-        Assert.Equal(ExecutionOutcome.Invalid, result.Outcome);
+        Assert.DoesNotContain(
+            UseCaseCatalog.All,
+            descriptor => descriptor.Name.Contains("restore", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

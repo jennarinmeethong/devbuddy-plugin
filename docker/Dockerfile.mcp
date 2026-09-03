@@ -1,0 +1,32 @@
+# The MCP server, over authenticated HTTP.
+#
+# The stdio transport is for a locally launched plugin and is not what this image is for: a plugin
+# runs the server as a child process on the machine the assistant is on. This is the remote
+# transport, behind the same bearer tokens as the API.
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY global.json Directory.Build.props Directory.Packages.props DevBuddy.slnx ./
+COPY src/ src/
+COPY tests/ tests/
+RUN dotnet restore src/hosts/DevBuddy.McpServer/DevBuddy.McpServer.csproj
+
+RUN dotnet publish src/hosts/DevBuddy.McpServer/DevBuddy.McpServer.csproj \
+    -c Release \
+    -o /app \
+    --no-restore \
+    /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS runtime
+WORKDIR /app
+COPY --from=build /app .
+
+USER $APP_UID
+
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_gcServer=1
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "DevBuddy.McpServer.dll"]

@@ -56,7 +56,7 @@ public sealed class UseCaseCatalogTests
             "download_evidence",
             "approve_record", "publish_record", "request_correction", "archive_record",
             "sync_sources", "reindex", "detect_secrets", "redact_sensitive_data",
-            "backup_system", "restore_system", "read_audit_history",
+            "backup_system", "read_audit_history",
             "grant_membership", "revoke_membership",
             "enable_project_ai_access", "disable_project_ai_access",
         ];

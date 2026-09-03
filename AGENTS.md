@@ -12,7 +12,8 @@ Two documents govern the work and are read before changing anything:
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 9 are complete; Phase 10 (packaging, hosting, supply chain) is next.
+  criteria. Phases 0 to 10 are complete; Phase 11 (security verification and release
+  readiness) is next.
 
 ## Project Structure & Module Organization
 
@@ -27,6 +28,7 @@ src/hosts/DevBuddy.McpServer      MCP server — AI-facing, allow-listed tools o
 src/hosts/DevBuddy.Cli            console host
 web/admin                         React administration UI, built and tested with Bun
 plugins/claude, plugins/codex     thin packages over the same MCP server
+docker/                           three Dockerfiles and the Compose stack
 tests/                            one test project per source project, plus Security.Tests
 docs/adr/                         architecture decision records
 docs/security/                    threat model, control baseline, verification matrix
@@ -130,8 +132,25 @@ dotnet dotnet-ef migrations add <Name> --project src/core/DevBuddy.Infrastructur
 Migrations are generated code. Do not hand-edit them to satisfy a style analyzer; the folder
 declares `generated_code = true` for exactly that reason.
 
-There is no web toolchain yet. Do not add `npm` commands until Phase 8 commits their
-configuration.
+### Running the stack
+
+```bash
+cp docker/.env.example docker/.env      # fill in the four secrets
+docker compose -f docker/compose.yaml up -d
+docker compose -f docker/compose.yaml run --rm migrate bootstrap --workspace-name ... --email ... --password ...
+```
+
+`docker/.env` is refused by `.gitignore` and a test asserts that it still is. Nothing is baked into
+an image; every secret arrives as an environment variable.
+
+`DeploymentTests` reads the Compose file and the Dockerfiles as configuration rather than trusting
+them as documentation: no host ports on the database or object store, loopback bindings on what is
+published, no Docker socket, a non-root `USER` in every image, no secret assigned a literal. A
+published database port works perfectly until somebody finds it, which is why it is a test.
+
+Restore is a **console command**, not an operation. A restore from total loss runs against a
+database with no memberships, so there is no caller to authorise and the pipeline correctly
+refuses; a test asserts no restore operation exists.
 
 ## Coding Style & Naming Conventions
 

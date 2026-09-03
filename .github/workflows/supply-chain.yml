@@ -1,0 +1,136 @@
+name: Supply chain
+
+# Dependencies and what is in a build, checked on every change and on a schedule.
+#
+# The schedule is the point of the second half. A vulnerability is published against a dependency
+# that has not changed, so a check that only runs when somebody edits the repository is a check
+# that reports it whenever somebody next happens to edit the repository.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    # Weekly, Monday morning UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  vulnerabilities:
+    name: Vulnerable dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore DevBuddy.slnx
+
+      # Transitive included: a vulnerability three levels down ships just as surely as a direct
+      # one, and central package management pins those too.
+      - name: Scan for vulnerable packages
+        run: |
+          dotnet list DevBuddy.slnx package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+
+          # `dotnet list` exits zero whatever it finds, so the gate is the text. Without this the
+          # job is a report nobody reads rather than a check that fails.
+          if grep -qiE "has the following vulnerable packages" vulnerable.txt; then
+            echo "::error::Vulnerable packages found. See the log."
+            exit 1
+          fi
+
+      - name: Scan the web client
+        working-directory: web/admin
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun install --frozen-lockfile
+          bun audit || echo "::warning::bun audit reported findings; see the log."
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerable-packages
+          path: vulnerable.txt
+          if-no-files-found: ignore
+
+  sbom:
+    name: SBOM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore DevBuddy.slnx
+
+      # CycloneDX, because it is the format the tooling around this actually reads. One document
+      # per shipped host: what is in the API image is not what is in the console.
+      - name: Install the SBOM tool
+        run: dotnet tool install --global CycloneDX
+
+      - name: Generate
+        run: |
+          for project in Api McpServer Cli; do
+            dotnet CycloneDX "src/hosts/DevBuddy.$project/DevBuddy.$project.csproj" \
+              --output sbom \
+              --filename "devbuddy-$project.cdx.json" \
+              --json
+          done
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/*.json
+
+  containers:
+    name: Container images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Built, not pushed. The point here is that the Dockerfiles still build; publishing images is
+      # a release step and needs a registry and credentials this workflow deliberately has neither
+      # of.
+      - name: Build the images
+        run: |
+          for image in api mcp cli; do
+            docker build -f "docker/Dockerfile.$image" -t "devbuddy-$image:ci" .
+          done
+
+      - name: Check they run as a non-root user
+        run: |
+          for image in api mcp cli; do
+            user=$(docker image inspect "devbuddy-$image:ci" --format '{{.Config.User}}')
+
+            if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
+              echo "::error::devbuddy-$image runs as '$user'."
+              exit 1
+            fi
+
+            echo "devbuddy-$image runs as $user"
+          done

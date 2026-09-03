@@ -55,27 +55,11 @@ public sealed class BackupSystemUseCase(IAdministrativeOperations operations)
         _operations.BackupAsync(cancellationToken);
 }
 
-public sealed record RestoreSystemRequest(WorkspaceId WorkspaceId, string BackupReference)
-    : WorkspaceRequest(WorkspaceId)
-{
-    public override string ResourceReference => BackupReference;
-
-    public override IReadOnlyList<string> Validate() =>
-        string.IsNullOrWhiteSpace(BackupReference) ? ["A backup reference is required."] : [];
-}
-
-/// <summary>Restores from a backup, or runs the drill that proves a restore would work.</summary>
-public sealed class RestoreSystemUseCase(IAdministrativeOperations operations)
-    : UseCase<RestoreSystemRequest, RestoreOutcome>
-{
-    private readonly IAdministrativeOperations _operations = Guard.NotNull(operations, nameof(operations));
-
-    public override UseCaseDescriptor Descriptor => UseCaseCatalog.RestoreSystem;
-
-    protected internal override Task<RestoreOutcome> HandleAsync(
-        RestoreSystemRequest request, CallerContext caller, CancellationToken cancellationToken) =>
-        _operations.RestoreAsync(request.BackupReference, cancellationToken);
-}
+// Restore has no use case, and that is a finding rather than an omission. Every operation is
+// authorised against a membership; a restore from total loss runs against a database with no
+// memberships in it, so the caller does not exist yet and the pipeline correctly refuses. Restore
+// is a console command, outside the pipeline, for the same structural reason as migrate and the
+// one-time bootstrap. See docs/operations/backup-and-restore.md.
 
 /// <summary>
 /// Reports component health. Names components and whether they answered, never connection

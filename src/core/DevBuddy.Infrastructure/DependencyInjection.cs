@@ -36,9 +36,15 @@ public static class DependencyInjection
         string connectionString,
         Action<EvidenceStoreOptions>? configureEvidence = null,
         Action<AnalysisOptions>? configureAnalysis = null,
-        Action<OutboundAccessOptions>? configureOutbound = null)
+        Action<OutboundAccessOptions>? configureOutbound = null,
+        Action<BackupOptions>? configureBackup = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        if (configureBackup is not null)
+        {
+            services.Configure(configureBackup);
+        }
 
         if (configureAnalysis is not null)
         {
@@ -67,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<IAuditReader>(provider => provider.GetRequiredService<AuditStore>());
 
         services.AddSingleton<IClock, SystemClock>();
+        services.AddScoped<BackupService>();
         services.AddScoped<IAdministrativeOperations, AdministrativeOperations>();
 
         // The real scanner and redactor share one rule set, so nothing can be reported as
@@ -74,7 +81,13 @@ public static class DependencyInjection
         services.AddSingleton<IRedactor, SecretRedactor>();
         services.AddSingleton<ISecretScanner, SecretScanner>();
 
-        services.AddScoped<ICodeAnalyzer, FileSystemCodeAnalyzer>();
+        // Wrapped rather than checked inside, so the concurrency ceiling cannot be forgotten by a
+        // second implementation of the port (SB-21).
+        services.AddScoped<FileSystemCodeAnalyzer>();
+        services.AddSingleton<AnalysisSlots>();
+        services.AddScoped<ICodeAnalyzer>(provider => new ConcurrentAnalysisLimit(
+            provider.GetRequiredService<FileSystemCodeAnalyzer>(),
+            provider.GetRequiredService<AnalysisSlots>()));
         services.AddScoped<IKnowledgeQualityChecks, KnowledgeQualityChecks>();
 
         // Reads the mounted working copy: git metadata and loose objects, as files. A provider

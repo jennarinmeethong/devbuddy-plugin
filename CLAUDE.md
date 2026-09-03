@@ -13,20 +13,32 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 9 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
-`UseCaseExecutor` pipeline and 41 use cases; Phase 3 PostgreSQL, full-text search, and MinIO;
+Phases 0 to 10 are **complete**. Phase 1 delivered `DevBuddy.Domain`; Phase 2 the
+`UseCaseExecutor` pipeline and the first 41 of what is now 49 operations; Phase 3 PostgreSQL, full-text search, and MinIO;
 Phase 4 identity, authorization, and tenant isolation; Phase 5 the lifecycle and audit history;
 Phase 6 read-only analysis, the real secret scanner and redactor, the path and URL guards, and
 source synchronisation from a mounted working copy; Phase 7 the three hosts — the HTTP API, the
 MCP server over stdio and authenticated HTTP, and the console; Phase 8 the provisioning operations
 and the React administration UI in `web/admin`; Phase 9 machine tokens and the Claude and Codex
-plugin packages. 367 .NET tests and 23 web tests pass. Twenty-four of 33 controls are `TESTED`.
+plugin packages; Phase 10 the container images, the Compose stack, backup and restore, and the
+supply-chain checks. 369 .NET tests and 23 web tests pass. Thirty of 33 controls are `TESTED`.
 
 **Source synchronisation reads a working copy, not the GitHub API.** Pull requests, issues, and
 review threads are not available, and `analyze_change_impact` on a commit stored in a pack file
 reports that rather than returning an empty answer.
 
-**Phase 10 (packaging, hosting, supply chain) is next.** There is no container toolchain.
+**Phase 11 (security verification and release readiness) is next.** Two controls are still
+unimplemented: SB-18 (customer, production and personal data denied by default) and SB-27
+(retention applied to every copy, not only the primary database).
+
+**Restore is a console command, not an operation.** Every operation is authorised against a
+membership, and a restore from total loss runs against a database with no memberships in it, so
+`restore_system` could never have succeeded and is gone. A test asserts no restore operation
+exists. Backup is still an operation, because that one has a caller.
+
+**A backup carries rows and artefacts.** It is logical rather than `pg_dump`, because running an
+external program from product code would break the no-execution guard. Sessions are not restored;
+passwords and machine tokens are.
 
 **Identity over MCP stdio is a machine token in `DEVBUDDY_TOKEN`.** `DEVBUDDY_ACTOR` is gone: it
 let anybody who could start the process start it as anybody, and a test fails if either plugin
@@ -73,8 +85,15 @@ cd web/admin && bun install && bun run build && bun test
 by hand; regenerate it with the command in `AGENTS.md` after changing any operation or its
 request or response record, or the drift test fails.
 
-There is no container toolchain yet. Do not suggest `docker compose` commands until Phase 10
-commits their configuration.
+The stack runs from `docker/compose.yaml`:
+
+```powershell
+docker compose -f docker/compose.yaml up -d
+```
+
+Images are chiseled: no shell, no package manager. That is why the API's container health check is
+`dotnet DevBuddy.Api.dll --health-check` rather than curl, and why a `RUN` in a runtime stage is
+impossible.
 
 ## Architecture in one paragraph
 
