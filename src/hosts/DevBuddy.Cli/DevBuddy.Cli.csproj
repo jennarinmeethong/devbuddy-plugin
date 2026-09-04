@@ -18,4 +18,10 @@
     <ProjectReference Include="..\..\core\DevBuddy.Infrastructure\DevBuddy.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The command surface is internal: the console's public shape is its command line, not a
+         type. The tests reach in to parse through the same configuration the console uses. -->
+    <InternalsVisibleTo Include="DevBuddy.Application.Tests" />
+  </ItemGroup>
+
 </Project>

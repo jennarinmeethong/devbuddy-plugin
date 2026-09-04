@@ -11,4 +11,6 @@ using DevBuddy.Cli;
 // which creates the first membership there is.
 
 RootCommand root = CommandSurface.Build();
-return await root.Parse(args).InvokeAsync();
+
+// Response files are off; see CommandSurface.Parsing for why.
+return await root.Parse(args, CommandSurface.Parsing).InvokeAsync();

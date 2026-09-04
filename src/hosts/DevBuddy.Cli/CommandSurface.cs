@@ -25,6 +25,24 @@ internal static class CommandSurface
     private static readonly Option<Guid> Project =
         new("--project") { Description = "Project identifier.", Required = true };
 
+    /// <summary>
+    /// How the console parses a command line, with response files switched off.
+    /// <para>
+    /// System.CommandLine treats any token beginning with <c>@</c> as a file to read further
+    /// arguments from, which quietly turns a password like <c>@Aa123456</c> into "read arguments
+    /// from a file named Aa123456" and reports "Response file not found" — a message naming
+    /// neither the option nor the reason. A value beginning with <c>@</c> is a perfectly ordinary
+    /// password, nothing here takes arguments from a file, and the one case that does not fail is
+    /// a working directory holding a file of that name, whose contents would then be parsed as
+    /// arguments.
+    /// </para>
+    /// <para>
+    /// Exposed rather than applied at the call site so a test can parse through the same
+    /// configuration the console uses.
+    /// </para>
+    /// </summary>
+    public static ParserConfiguration Parsing { get; } = new() { ResponseFileTokenReplacer = null };
+
     public static RootCommand Build()
     {
         RootCommand root = new(
