@@ -53,8 +53,8 @@ restriction — and a secret is still refused even inside an approved scope, per
 is, run on whatever schedule the operator's own cron provides. `export_project` now writes an
 actual copy — records, work items, and evidence bytes — instead of only a manifest, so there is
 something for the sweep to purge. A deleted project is purged immediately by `delete_project`
-itself rather than by a lagging sweep. Application log retention remains a container log-driver
-setting outside this codebase, sized in `docker/compose.yaml`, not tested here.
+itself rather than by a lagging sweep. Application log retention is enforced here too, by the
+same sweep, since the file sink landed.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports
@@ -101,10 +101,17 @@ and attests all of it with GitHub's keyless OIDC identity — no signing key to 
 release as a draft, because the checklist it cannot run (hand-run smoke tests, the restore drill)
 is the half a person has to record. SB-29 stays `IMPLEMENTED` until a tag is actually cut.
 
-**Application log retention is the operator's, and `docs/operations/logging.md` is the runbook.**
-Three options with their trade-offs, how to measure the real volume first, and the part that
-matters more than the window: with no SMTP configured, `EmailOptions.Provider` stays `Log` and
-setup and recovery tokens are written into the API container's log on purpose.
+**Application log retention is enforced and tested.** `Logging:File:Path` (set by
+`docker/compose.yaml`) turns on a Serilog daily file, and `dotnet run -- retention` deletes files
+past `Logging:File:RetentionDays` — the same sweep that handles audit events, evidence, backups,
+and exports, and the last of the ten schedule rows to leave "operator responsibility". Off unless
+the path is set, because the containers run read-only and a default that wrote files would break
+every plain `docker run`. **`Serilog.AspNetCore` must not be used**: same framework-reference trap
+as the OpenTelemetry ASP.NET instrumentation, and `Serilog.Extensions.Hosting` is what
+Infrastructure takes instead. `docs/operations/logging.md` has the three options and what each
+costs, plus the part that matters more than the window: with no SMTP configured,
+`EmailOptions.Provider` stays `Log` and setup and recovery tokens are written into the log on
+purpose.
 
 **Restore is a console command, not an operation.** Every operation is authorised against a
 membership, and a restore from total loss runs against a database with no memberships in it, so

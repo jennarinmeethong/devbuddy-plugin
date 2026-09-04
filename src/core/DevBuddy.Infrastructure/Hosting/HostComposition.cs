@@ -3,6 +3,7 @@ using DevBuddy.Infrastructure.Analysis;
 using DevBuddy.Infrastructure.Email;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
+using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Scanning;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,7 +49,8 @@ public static class HostComposition
             retention => configuration.GetSection(RetentionOptions.SectionName).Bind(retention),
             export => configuration.GetSection(ExportOptions.SectionName).Bind(export),
             email => configuration.GetSection(EmailOptions.SectionName).Bind(email),
-            github => configuration.GetSection(GitHubOptions.SectionName).Bind(github));
+            github => configuration.GetSection(GitHubOptions.SectionName).Bind(github),
+            logFile => configuration.GetSection(LogFileOptions.SectionName).Bind(logFile));
 
         services.AddDevBuddyIdentity(
             identity => configuration.GetSection(IdentitySettings.SectionName).Bind(identity));

@@ -85,7 +85,16 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
   </ItemGroup>
 
-  <!-- Added by the phase that first needs them, so the dependency surface stays honest:
-       Later    Serilog, if structured file logging is ever wanted in-process -->
+  <ItemGroup Label="Logging">
+    <!-- Serilog.Extensions.Hosting, deliberately, and never Serilog.AspNetCore: that package
+         carries a Microsoft.AspNetCore.App framework reference, which propagates through
+         Infrastructure to the console, whose image is built on the smaller runtime base. The same
+         trap the OpenTelemetry ASP.NET Core instrumentation fell into. -->
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <!-- Added by the phase that first needs them, so the dependency surface stays honest. -->
 
 </Project>

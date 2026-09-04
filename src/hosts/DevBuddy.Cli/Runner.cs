@@ -8,6 +8,7 @@ using DevBuddy.Application.Security;
 using DevBuddy.Domain.Common;
 using DevBuddy.Infrastructure.Administration;
 using DevBuddy.Infrastructure.Hosting;
+using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -138,6 +139,7 @@ internal static class Runner
             Console.WriteLine($"orphaned evidence deleted    {report.OrphanedEvidenceDeleted}");
             Console.WriteLine($"backups deleted              {report.BackupsDeleted}");
             Console.WriteLine($"exports deleted              {report.ExportsDeleted}");
+            Console.WriteLine($"log files deleted            {report.LogFilesDeleted}");
             Console.WriteLine($"archived records eligible    {report.ArchivedRecordsEligibleForDeletion}");
 
             if (report.ArchivedRecordsEligibleForDeletion > 0)
@@ -254,6 +256,10 @@ internal static class Runner
         try
         {
             services.AddDevBuddy(configuration, "The console");
+
+            // Off unless Logging:File:Path is set. This is the host that runs the retention sweep,
+            // so it needs the options even when it is not the one writing the files.
+            services.AddDevBuddyFileLogging(configuration);
         }
         catch (InvalidOperationException failure)
         {

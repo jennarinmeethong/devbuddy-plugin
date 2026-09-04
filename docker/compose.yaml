@@ -87,6 +87,13 @@ services:
       DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
       DEVBUDDY_Backup__RootPath: /srv/backups
       DEVBUDDY_Export__RootPath: /srv/exports
+      # The application writes and sweeps its own log files, which is what turns the ninety-day row
+      # of the retention schedule into a tested behaviour rather than a log-driver size to pick by
+      # hand. Clear the path and this reverts to standard output only; docs/operations/logging.md
+      # sets out that trade. `dotnet run -- retention` does the deleting, on the operator's own
+      # schedule, exactly as it does for backups and exports.
+      DEVBUDDY_Logging__File__Path: ${DEVBUDDY_LOG_PATH:-/srv/logs/devbuddy.log}
+      DEVBUDDY_Logging__File__RetentionDays: ${DEVBUDDY_LOG_RETENTION_DAYS:-90}
     volumes:
       # The console is how a restore is performed — it runs outside the pipeline, because a restore
       # from total loss has no accounts to authorise against — so it needs the backups and the
@@ -94,6 +101,9 @@ services:
       # so `dotnet ... -- retention` can purge both from wherever an operator's cron runs it.
       - backups:/srv/backups
       - exports:/srv/exports
+
+      # And the logs, because this is the container `retention` runs in.
+      - logs:/srv/logs
     depends_on:
       database:
         condition: service_healthy
@@ -125,6 +135,13 @@ services:
       DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
       DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
       DEVBUDDY_Analysis__RootPath: /srv/projects
+      # The application writes and sweeps its own log files, which is what turns the ninety-day row
+      # of the retention schedule into a tested behaviour rather than a log-driver size to pick by
+      # hand. Clear the path and this reverts to standard output only; docs/operations/logging.md
+      # sets out that trade. `dotnet run -- retention` does the deleting, on the operator's own
+      # schedule, exactly as it does for backups and exports.
+      DEVBUDDY_Logging__File__Path: ${DEVBUDDY_LOG_PATH:-/srv/logs/devbuddy.log}
+      DEVBUDDY_Logging__File__RetentionDays: ${DEVBUDDY_LOG_RETENTION_DAYS:-90}
       DEVBUDDY_Backup__RootPath: /srv/backups
       DEVBUDDY_Export__RootPath: /srv/exports
 
@@ -148,8 +165,14 @@ services:
       # Read-only. Analysis reads a working copy and never writes to it, and the mount says so as
       # well as the code (SB-04).
       - ${DEVBUDDY_PROJECTS_PATH:-./projects}:/srv/projects:ro
+
+      # The one writable path these read-only containers have besides /tmp.
+      - logs:/srv/logs
       - backups:/srv/backups
       - exports:/srv/exports
+
+      # And the logs, because this is the container `retention` runs in.
+      - logs:/srv/logs
     depends_on:
       database:
         condition: service_healthy
@@ -190,8 +213,18 @@ services:
       DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
       DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
       DEVBUDDY_Analysis__RootPath: /srv/projects
+      # The application writes and sweeps its own log files, which is what turns the ninety-day row
+      # of the retention schedule into a tested behaviour rather than a log-driver size to pick by
+      # hand. Clear the path and this reverts to standard output only; docs/operations/logging.md
+      # sets out that trade. `dotnet run -- retention` does the deleting, on the operator's own
+      # schedule, exactly as it does for backups and exports.
+      DEVBUDDY_Logging__File__Path: ${DEVBUDDY_LOG_PATH:-/srv/logs/devbuddy.log}
+      DEVBUDDY_Logging__File__RetentionDays: ${DEVBUDDY_LOG_RETENTION_DAYS:-90}
     volumes:
       - ${DEVBUDDY_PROJECTS_PATH:-./projects}:/srv/projects:ro
+
+      # The one writable path these read-only containers have besides /tmp.
+      - logs:/srv/logs
     depends_on:
       database:
         condition: service_healthy
@@ -206,6 +239,11 @@ volumes:
   evidence:
   backups:
   exports:
+
+  # The application's own log files, when Logging:File:Path is set below. A separate volume rather
+  # than a directory in an existing one: it is the only writable path these read-only containers
+  # have besides /tmp, and the retention sweep deletes from it.
+  logs:
 
 networks:
   internal:

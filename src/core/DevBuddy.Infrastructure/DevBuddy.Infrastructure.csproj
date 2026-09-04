@@ -34,6 +34,9 @@
          console — and the console's image is built on the smaller runtime base, so it stopped
          starting entirely. The two web hosts add that instrumentation themselves; see the
          callbacks on AddDevBuddyTelemetry. -->
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
   </ItemGroup>

@@ -31,6 +31,12 @@ builder.Configuration.AddEnvironmentVariables("DEVBUDDY_");
 
 builder.Services.AddDevBuddy(builder.Configuration, "The MCP server");
 
+// Off unless Logging:File:Path is set. Under stdio the console half of it goes to standard error,
+// for the same reason the framework logger below does: stdout is the protocol.
+builder.Services.AddDevBuddyFileLogging(
+    builder.Configuration,
+    logToStandardError: args.Contains("--stdio", StringComparer.Ordinal));
+
 // Off unless Telemetry:Endpoint names a collector. The AI channel is the surface where knowing
 // what was asked for, and what was refused, matters most.
 builder.Services.AddDevBuddyTelemetry(

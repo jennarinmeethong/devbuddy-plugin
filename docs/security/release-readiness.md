@@ -36,14 +36,17 @@ log retention sat outside this codebase. The first two are closed:
   no lagging state for a sweep to catch, so the sweep this control once lacked a trigger for is
   unneeded rather than missing. Audit history survives the project it describes.
 
-**Still residual, and still not a defect:** application log retention is a collector or
-log-driver setting, not application code a test can assert a 90-day window against. The base stack
-bounds it by size (`docker/compose.yaml`); the observability overlay added since offers a real
-90-day window through Loki, but only if an operator runs it and turns log export on. Either way
-the choice is theirs, so it is named here rather than silently dropped.
-`docs/operations/logging.md` is the runbook — how to measure the real volume, the three options
-with their trade-offs, and the two things that are in the logs regardless of how long they are
-kept.
+**Closed since:** application log retention is now application code with a test against it. The
+hosts write a daily file when `Logging:File:Path` is set — `docker/compose.yaml` sets it — and
+`dotnet run -- retention` deletes files past `Logging:File:RetentionDays`, the same sweep that
+already handled audit events, evidence, backups, and exports. That is the last of the ten rows of
+the Phase 11 schedule to move from "operator responsibility" to a passing test.
+
+What remains is a choice rather than a gap, and it stays on the list below for that reason: an
+operator can clear the path (reverting to the size-bounded log driver), point logs at the
+observability overlay's Loki instead, or run nothing on a schedule to perform the sweep. A window
+nothing sweeps is a window in name only. `docs/operations/logging.md` sets out the three options
+and what each costs.
 
 ## Added since Phase 11: a telemetry egress, and the rule that bounds it
 
@@ -118,14 +121,14 @@ All eight scenarios are now fully exercised.
 
 Per `info.md`, this is the explicit sign-off point. The project owner should accept, in writing:
 
-1. Application log retention is an operator responsibility (log-driver or aggregator
-   configuration), not a tested application behaviour. Pick an option from
-   `docs/operations/logging.md` and record which — and note that with no SMTP configured, setup
-   and recovery tokens are written to those logs by design. A 90-day window is now *available*
-   without assembling anything: `docker/compose.observability.yaml` ships Loki with
-   `retention_period: 2160h`. It is not the default — the base stack still rotates by size, and
-   log export is off until SMTP is configured — so this remains a decision to record rather than
-   one already made.
+1. Application log retention is now enforced and tested — the shipped stack writes daily files
+   and `dotnet run -- retention` deletes them past ninety days — but three things about it are the
+   operator's, and none of them is visible from inside the code. Whether anything actually runs
+   `retention` on a schedule; whether the path stays set, since clearing it reverts to the
+   size-bounded log driver; and, the one that matters most, that **with no SMTP configured, setup
+   and recovery tokens are written to those logs by design**. A retention window is not a control
+   over who can read the file while it exists. Record which option from
+   `docs/operations/logging.md` is in force and who can read the volume.
 2. No release has yet been signed or carries an attached SBOM (SB-29). `.github/workflows/release.yml`
    builds, pushes, signs, and attests everything on a `v*` tag and leaves the release as a draft
    for a person to publish; until a tag is actually cut, this row stays `IMPLEMENTED`.

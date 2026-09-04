@@ -6,6 +6,7 @@ using DevBuddy.Infrastructure.Analysis;
 using DevBuddy.Infrastructure.Email;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
+using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.Infrastructure.Persistence.Repositories;
 using DevBuddy.Infrastructure.Persistence.Search;
@@ -43,7 +44,8 @@ public static class DependencyInjection
         Action<RetentionOptions>? configureRetention = null,
         Action<ExportOptions>? configureExport = null,
         Action<EmailOptions>? configureEmail = null,
-        Action<GitHubOptions>? configureGitHub = null)
+        Action<GitHubOptions>? configureGitHub = null,
+        Action<LogFileOptions>? configureLogFile = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -71,6 +73,13 @@ public static class DependencyInjection
         {
             services.Configure(configureEmail);
         }
+
+        // Registered whether or not file logging is switched on, because the retention sweep needs
+        // to know the window and the path even in the host that is not the one writing the files.
+        // An unconfigured path simply means it finds nothing to sweep.
+        LogFileOptions logFile = new();
+        configureLogFile?.Invoke(logFile);
+        services.AddSingleton(logFile);
 
         if (configureAnalysis is not null)
         {

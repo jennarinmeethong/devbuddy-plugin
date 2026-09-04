@@ -129,6 +129,37 @@ public sealed class RetentionEnforcementTests(SecurityFixture fixture)
     }
 
     [Fact]
+    public async Task a_rolled_log_file_past_its_window_is_deleted_and_a_recent_one_survives()
+    {
+        // The row of the schedule that used to sit outside this codebase entirely: application log
+        // retention was a container log-driver setting, bounded by size rather than by the ninety
+        // days the schedule names, and nothing here could assert on it. It can now.
+        World world = await _fixture.CreateWorldAsync();
+        using Session session = _fixture.OpenSession(world.Workspace);
+
+        string directory = Path.GetDirectoryName(_fixture.LogFile)!;
+        Directory.CreateDirectory(directory);
+
+        string oldLog = Path.Combine(directory, "devbuddy20150101.log");
+        string recentLog = Path.Combine(directory, $"devbuddy{DateTimeOffset.UtcNow:yyyyMMdd}.log");
+
+        // No date in the name: this is the file Serilog is writing to before its first roll, and
+        // deleting the live log would be a poor way to enforce a retention policy.
+        string liveLog = _fixture.LogFile;
+
+        File.WriteAllText(oldLog, "old");
+        File.WriteAllText(recentLog, "recent");
+        File.WriteAllText(liveLog, "live");
+
+        RetentionReport report = await session.Resolve<IRetentionEnforcer>().ApplyAsync(CancellationToken.None);
+
+        Assert.Equal(1, report.LogFilesDeleted);
+        Assert.False(File.Exists(oldLog));
+        Assert.True(File.Exists(recentLog));
+        Assert.True(File.Exists(liveLog));
+    }
+
+    [Fact]
     public async Task an_export_past_its_window_is_deleted_and_a_recent_one_survives()
     {
         World world = await _fixture.CreateWorldAsync();

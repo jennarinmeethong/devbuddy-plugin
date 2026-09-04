@@ -44,6 +44,12 @@ public sealed class SecurityFixture : IAsyncLifetime
     public string ExportRoot { get; } =
         Path.Combine(Path.GetTempPath(), "devbuddy-security-exports-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>The log file this fixture's retention sweep looks at, for the log-window test.</summary>
+    public string LogFile { get; } = Path.Combine(
+        Path.GetTempPath(),
+        "devbuddy-security-logs-" + Guid.NewGuid().ToString("N"),
+        "devbuddy.log");
+
     /// <summary>Every message the real pipeline tried to send, for tests that check delivery.</summary>
     public TestEmailSender Emails { get; } = new();
 
@@ -63,7 +69,12 @@ public sealed class SecurityFixture : IAsyncLifetime
                 evidence.RootPath = Path.Combine(Path.GetTempPath(), "devbuddy-security-" + Guid.NewGuid().ToString("N"));
             },
             configureBackup: backup => backup.RootPath = BackupRoot,
-            configureExport: export => export.RootPath = ExportRoot);
+            configureExport: export => export.RootPath = ExportRoot,
+
+            // A path, so the sweep has somewhere to look. Nothing here writes through Serilog —
+            // this fixture composes Infrastructure, not a host — so the files the test plants are
+            // the only ones in that directory, which is what makes the assertion exact.
+            configureLogFile: logFile => logFile.Path = LogFile);
 
         // Replaces the real IEmailSender registration above (last registration wins): the fixture
         // proves the pipeline actually calls the port, not what a specific transport does with

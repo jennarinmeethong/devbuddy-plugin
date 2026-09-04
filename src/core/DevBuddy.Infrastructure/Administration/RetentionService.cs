@@ -1,7 +1,9 @@
+using System.Globalization;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Infrastructure.Evidence;
+using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -34,6 +36,7 @@ internal sealed class RetentionService : IRetentionEnforcer
     private readonly RetentionOptions _retention;
     private readonly BackupOptions _backup;
     private readonly ExportOptions _export;
+    private readonly LogFileOptions _logs;
 
     public RetentionService(
         DevBuddyDbContext db,
@@ -41,7 +44,8 @@ internal sealed class RetentionService : IRetentionEnforcer
         IClock clock,
         IOptions<RetentionOptions> retention,
         IOptions<BackupOptions> backup,
-        IOptions<ExportOptions> export)
+        IOptions<ExportOptions> export,
+        LogFileOptions logs)
     {
         _db = Guard.NotNull(db, nameof(db));
         _blobs = Guard.NotNull(blobs, nameof(blobs));
@@ -49,6 +53,7 @@ internal sealed class RetentionService : IRetentionEnforcer
         _retention = Guard.NotNull(retention, nameof(retention)).Value;
         _backup = Guard.NotNull(backup, nameof(backup)).Value;
         _export = Guard.NotNull(export, nameof(export)).Value;
+        _logs = Guard.NotNull(logs, nameof(logs));
     }
 
     public async Task<RetentionReport> ApplyAsync(CancellationToken cancellationToken)
@@ -59,10 +64,16 @@ internal sealed class RetentionService : IRetentionEnforcer
         int evidenceDeleted = await PurgeOrphanedEvidenceAsync(now, cancellationToken);
         int backupsDeleted = PurgeTimestampedDirectories(_backup.RootPath, "backup", _backup.Retention, now);
         int exportsDeleted = PurgeExports(now);
+        int logFilesDeleted = PurgeLogFiles(now);
         int archivedEligible = await CountArchivedRecordsEligibleAsync(now, cancellationToken);
 
         return new RetentionReport(
-            auditEventsDeleted, evidenceDeleted, backupsDeleted, exportsDeleted, archivedEligible);
+            auditEventsDeleted,
+            evidenceDeleted,
+            backupsDeleted,
+            exportsDeleted,
+            logFilesDeleted,
+            archivedEligible);
     }
 
     /// <summary>Deleted outright. The schedule gives audit events no exception and no report step.</summary>
@@ -144,6 +155,78 @@ internal sealed class RetentionService : IRetentionEnforcer
         }
 
         return deleted;
+    }
+
+    /// <summary>
+    /// Deletes rolled log files past the window, when the application is writing its own.
+    /// <para>
+    /// Serilog drops them too as it rolls, which covers a service that keeps running. This covers
+    /// one that was stopped for a month, and — the reason it exists rather than being left to the
+    /// sink — it is the half a test can drive without waiting a day for a roll.
+    /// </para>
+    /// <para>
+    /// The date comes out of the file name, which Serilog writes as the roll date, rather than
+    /// from a filesystem timestamp: copying a directory resets those, and a restored backup would
+    /// otherwise look like a fresh set of logs.
+    /// </para>
+    /// </summary>
+    private int PurgeLogFiles(DateTimeOffset now)
+    {
+        if (!_logs.IsConfigured)
+        {
+            return 0;
+        }
+
+        string full = Path.GetFullPath(_logs.Path);
+        string? directory = Path.GetDirectoryName(full);
+
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+        {
+            return 0;
+        }
+
+        string stem = Path.GetFileNameWithoutExtension(full);
+        string extension = Path.GetExtension(full);
+        DateTimeOffset cutoff = now - TimeSpan.FromDays(_logs.RetentionDays);
+        int deleted = 0;
+
+        foreach (string file in Directory.GetFiles(directory, stem + "*" + extension))
+        {
+            string name = Path.GetFileNameWithoutExtension(file);
+
+            if (RolledOn(name, stem) is { } rolledOn && rolledOn < cutoff)
+            {
+                File.Delete(file);
+                deleted++;
+            }
+        }
+
+        return deleted;
+    }
+
+    /// <summary>
+    /// The date Serilog appended when it rolled: <c>devbuddy.log</c> becomes
+    /// <c>devbuddy20260904.log</c>. A name that does not carry one is left alone — the live file
+    /// before its first roll looks exactly like that, and deleting the log being written to would
+    /// be a poor way to enforce a retention policy.
+    /// </summary>
+    private static DateTimeOffset? RolledOn(string fileName, string stem)
+    {
+        if (!fileName.StartsWith(stem, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        string suffix = fileName[stem.Length..];
+
+        return DateTimeOffset.TryParseExact(
+            suffix,
+            "yyyyMMdd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out DateTimeOffset rolledOn)
+            ? rolledOn
+            : null;
     }
 
     /// <summary>

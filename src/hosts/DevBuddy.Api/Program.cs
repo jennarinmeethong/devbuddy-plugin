@@ -34,6 +34,11 @@ builder.Configuration.AddEnvironmentVariables("DEVBUDDY_");
 
 builder.Services.AddDevBuddy(builder.Configuration, "The API");
 
+// Off unless Logging:File:Path is set, in which case Serilog takes over the pipeline and keeps a
+// daily file for the window in Logging:File:RetentionDays. See docs/operations/logging.md for why
+// this is a choice rather than a default.
+builder.Services.AddDevBuddyFileLogging(builder.Configuration);
+
 // Off unless Telemetry:Endpoint names a collector. See TelemetryOptions for what is exported and
 // what is deliberately kept out of it.
 //
