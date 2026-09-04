@@ -81,33 +81,72 @@ public sealed class PathGuard
         || resolved.StartsWith(_root + Path.DirectorySeparatorChar, PathComparison);
 
     /// <summary>
-    /// Follows symlinks and trims a trailing separator. A link inside the root that points out of
-    /// it is the case a string comparison alone would miss.
+    /// Follows symlinks and trims a trailing separator.
+    /// <para>
+    /// Every component is resolved, not only the last one. Checking the leaf alone missed the
+    /// case that matters: a link named <c>escape</c> pointing out of the root lets
+    /// <c>escape/secret.txt</c> through, because that file is not itself a link and
+    /// <see cref="File.ResolveLinkTarget(string, bool)"/> returns null for it. The string then
+    /// still begins with the root and the comparison passes. Only Linux showed it — Windows needs
+    /// developer mode to create a link at all, so the test that covers this took its fallback
+    /// branch on the machine this was written on.
+    /// </para>
+    /// <para>
+    /// <see cref="Path.GetFullPath(string)"/> runs first and collapses <c>..</c> lexically rather
+    /// than through the filesystem. That differs from what the kernel would do when a link is
+    /// involved, and it differs in the restrictive direction: a traversal that a link would have
+    /// carried outside the root is flattened back into it before any file is opened.
+    /// </para>
     /// </summary>
     private static string Normalise(string path)
     {
-        string resolved = path;
+        string full = Path.GetFullPath(path);
+        string? pathRoot = Path.GetPathRoot(full);
 
-        try
+        if (string.IsNullOrEmpty(pathRoot))
         {
-            FileSystemInfo? target = File.Exists(path) || Directory.Exists(path)
-                ? File.ResolveLinkTarget(path, returnFinalTarget: true)
-                    ?? Directory.ResolveLinkTarget(path, returnFinalTarget: true)
-                : null;
+            return Trim(full);
+        }
 
-            if (target is not null)
+        string[] segments = full[pathRoot.Length..].Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+
+        string resolved = pathRoot;
+
+        foreach (string segment in segments)
+        {
+            resolved = Path.Combine(resolved, segment);
+
+            try
             {
-                resolved = Path.GetFullPath(target.FullName);
+                // Directory first: a link to a directory answers true to Directory.Exists, and it
+                // is the form an escaping link almost always takes.
+                FileSystemInfo? target = Directory.Exists(resolved)
+                    ? Directory.ResolveLinkTarget(resolved, returnFinalTarget: true)
+                    : File.Exists(resolved)
+                        ? File.ResolveLinkTarget(resolved, returnFinalTarget: true)
+                        : null;
+
+                if (target is not null)
+                {
+                    // Absolute already for a final target, but a relative link is resolved against
+                    // the directory holding it, so this settles either form.
+                    resolved = Path.GetFullPath(target.FullName);
+                }
+            }
+            catch (IOException)
+            {
+                // A broken or circular link resolves to nothing useful. The unresolved path is
+                // then compared as-is, which can only be more restrictive, never less.
             }
         }
-        catch (IOException)
-        {
-            // A broken or circular link resolves to nothing useful. The unresolved path is then
-            // compared as-is, which can only be more restrictive, never less.
-        }
 
-        return resolved.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return Trim(resolved);
     }
+
+    private static string Trim(string path) =>
+        path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
     /// <summary>
     /// Windows paths are case-insensitive and Linux paths are not. Comparing case-insensitively

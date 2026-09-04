@@ -101,6 +101,79 @@ public sealed class PathGuardTests : IDisposable
     }
 
     [Fact]
+    public void a_file_reached_through_a_symlinked_parent_directory_is_refused()
+    {
+        // The case the leaf-only check missed, and the one an attacker actually gets: the file is
+        // not a link, its parent is. Only Linux exercises this — Windows takes the fallback below
+        // without developer mode, which is why it survived a green suite on the machine this was
+        // written on and failed the first time CI ran it.
+        string outsideDirectory =
+            Path.Combine(Path.GetTempPath(), "devbuddy-outside-" + Guid.NewGuid().ToString("N"));
+
+        Directory.CreateDirectory(outsideDirectory);
+        File.WriteAllText(Path.Combine(outsideDirectory, "secret.txt"), "not yours");
+
+        string link = Path.Combine(_root, "escape");
+
+        try
+        {
+            Directory.CreateSymbolicLink(link, outsideDirectory);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            _output.WriteLine(
+                "Symbolic links cannot be created here, so the linked-parent variant was not "
+                + "exercised. CI runs this on Linux, where it is.");
+
+            Directory.Delete(outsideDirectory, recursive: true);
+            return;
+        }
+
+        try
+        {
+            var guard = new PathGuard(_root);
+
+            // Every component is resolved, so the link is followed even though the last segment
+            // names an ordinary file sitting behind it.
+            Assert.Throws<UnauthorizedAccessException>(() => guard.Resolve("escape/secret.txt"));
+            Assert.False(guard.IsInside(Path.Combine(link, "secret.txt")));
+
+            // And a directory deeper still, so this is not a one-level-of-nesting fix.
+            string nested = Path.Combine(outsideDirectory, "deeper");
+            Directory.CreateDirectory(nested);
+            File.WriteAllText(Path.Combine(nested, "also-secret.txt"), "nor this");
+
+            Assert.Throws<UnauthorizedAccessException>(
+                () => guard.Resolve("escape/deeper/also-secret.txt"));
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(outsideDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void a_path_inside_the_root_still_resolves_when_every_component_is_checked()
+    {
+        // The other half of the fix: resolving each component must not start refusing ordinary
+        // paths. A guard that denies everything would pass every test above.
+        string directory = Path.Combine(_root, "src", "nested");
+        Directory.CreateDirectory(directory);
+
+        string file = Path.Combine(directory, "ok.txt");
+        File.WriteAllText(file, "fine");
+
+        var guard = new PathGuard(_root);
+
+        Assert.True(guard.IsInside(file));
+        Assert.Equal(file, guard.Resolve(Path.Combine("src", "nested", "ok.txt")));
+
+        // Including one that does not exist yet, which is what a write path looks like.
+        Assert.True(guard.IsInside(Path.Combine(directory, "not-created-yet.txt")));
+    }
+
+    [Fact]
     public void a_symlink_pointing_out_of_the_root_is_refused()
     {
         string outsideDirectory =
