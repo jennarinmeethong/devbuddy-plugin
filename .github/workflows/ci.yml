@@ -46,10 +46,19 @@ jobs:
 
       # Windows runners cannot start Linux containers, so PostgreSQL and MinIO are unavailable.
       # The integration tests are excluded rather than skipped, and this comment is the record of
-      # what Windows does not cover: everything in DevBuddy.Infrastructure.Tests.
+      # what Windows does not cover: DevBuddy.Api.Tests, DevBuddy.Infrastructure.Tests, and
+      # DevBuddy.Security.Tests, which is every project holding a Testcontainers fixture.
+      #
+      # That list is checked by DockerDependentTestsTests rather than maintained by hand. It used
+      # to name Infrastructure.Tests alone, true when written and false from Phase 4 onwards, and
+      # the Windows job failed on every push until the first one anybody looked at.
+      #
+      # What still runs here is the point of having a Windows job at all: the domain, the
+      # application pipeline, and the MCP host, on the platform whose path and culture handling
+      # differs. Linux runs everything.
       - name: Test (excluding container integration tests)
         if: runner.os == 'Windows'
-        run: dotnet test DevBuddy.slnx -c Release --no-build --filter "FullyQualifiedName!~DevBuddy.Infrastructure.Tests" --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test DevBuddy.slnx -c Release --no-build --filter "FullyQualifiedName!~DevBuddy.Api.Tests & FullyQualifiedName!~DevBuddy.Infrastructure.Tests & FullyQualifiedName!~DevBuddy.Security.Tests" --logger "trx;LogFileName=test-results.trx"
 
       - name: Upload test results
         if: always()
