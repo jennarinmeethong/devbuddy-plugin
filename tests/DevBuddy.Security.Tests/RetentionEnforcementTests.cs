@@ -143,20 +143,21 @@ public sealed class RetentionEnforcementTests(SecurityFixture fixture)
         string oldLog = Path.Combine(directory, "devbuddy20150101.log");
         string recentLog = Path.Combine(directory, $"devbuddy{DateTimeOffset.UtcNow:yyyyMMdd}.log");
 
-        // No date in the name: this is the file Serilog is writing to before its first roll, and
-        // deleting the live log would be a poor way to enforce a retention policy.
-        string liveLog = _fixture.LogFile;
+        // No date in the name, which means Serilog did not write it: a daily-rolling sink dates
+        // every file it creates, today's included. Checked here because the sweep must not treat
+        // whatever else is in that directory as its own to delete.
+        string foreignFile = _fixture.LogFile;
 
         File.WriteAllText(oldLog, "old");
         File.WriteAllText(recentLog, "recent");
-        File.WriteAllText(liveLog, "live");
+        File.WriteAllText(foreignFile, "not serilog's");
 
         RetentionReport report = await session.Resolve<IRetentionEnforcer>().ApplyAsync(CancellationToken.None);
 
         Assert.Equal(1, report.LogFilesDeleted);
         Assert.False(File.Exists(oldLog));
         Assert.True(File.Exists(recentLog));
-        Assert.True(File.Exists(liveLog));
+        Assert.True(File.Exists(foreignFile));
     }
 
     [Fact]

@@ -138,8 +138,9 @@ responsibility" to a passing test
 
 The sweep reads the date out of the file name, which Serilog writes as the roll date, rather than
 from a filesystem timestamp: copying a directory resets those, and a restored backup would
-otherwise look like a fresh set of logs. A file with no date in its name is the one being written
-to right now and is left alone.
+otherwise look like a fresh set of logs. Every file the sink creates carries a date, today's
+included — today's is simply never ninety days old — so anything in that directory *without* one
+was put there by something else and is left alone.
 
 **What it costs**, stated plainly because this file used to list it third for these reasons: a
 dependency, and file handling inside an image built not to need any. The read-only root filesystem

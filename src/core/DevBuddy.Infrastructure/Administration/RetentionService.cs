@@ -205,10 +205,15 @@ internal sealed class RetentionService : IRetentionEnforcer
     }
 
     /// <summary>
-    /// The date Serilog appended when it rolled: <c>devbuddy.log</c> becomes
-    /// <c>devbuddy20260904.log</c>. A name that does not carry one is left alone — the live file
-    /// before its first roll looks exactly like that, and deleting the log being written to would
-    /// be a poor way to enforce a retention policy.
+    /// The date Serilog writes into the name: a configured <c>devbuddy.log</c> is created as
+    /// <c>devbuddy20260905.log</c> and gets a new name each day. Every file it produces carries a
+    /// date, today's included, so the window alone decides what goes — and today's file is never
+    /// ninety days old.
+    /// <para>
+    /// A name without a date is therefore not Serilog's. It is left alone rather than guessed at:
+    /// something else put it in that directory, and a retention sweep is not the place to decide
+    /// what someone else's file is for.
+    /// </para>
     /// </summary>
     private static DateTimeOffset? RolledOn(string fileName, string stem)
     {
