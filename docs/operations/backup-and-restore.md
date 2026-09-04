@@ -77,10 +77,9 @@ docker volume rm devbuddy_database
 docker compose -f docker/compose.yaml up -d database
 docker compose -f docker/compose.yaml run --rm migrate
 
-# 4. Restore.
-docker compose -f docker/compose.yaml run --rm migrate \
-  run restore_system --actor <your-id> \
-  --arguments '{"workspaceId":"<workspace-id>","backupReference":"<reference>"}'
+# 4. Restore. A console command, not an operation: an empty database holds no membership
+#    to authorise a caller against, so there is no actor to pass.
+docker compose -f docker/compose.yaml run --rm migrate restore --reference <reference>
 
 # 5. Start everything and check.
 docker compose -f docker/compose.yaml up -d
