@@ -6,7 +6,7 @@ import type { ReactElement } from "react";
 import { SessionProvider } from "../src/api/session";
 import { App } from "../src/App";
 import { forgetTokens } from "../src/api/client";
-import { fakeServer, PROJECT, RECORD, WORKSPACE } from "./server";
+import { fakeServer, OTHER_USER, PROJECT, RECORD, TEAM, USER, WORKSPACE } from "./server";
 import type { FakeServer } from "./server";
 
 /**
@@ -156,9 +156,156 @@ describe("workspace, project, and membership administration", () => {
     signedIn();
     render(mount(`/w/${WORKSPACE}/members`));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+    const revokes = await screen.findAllByRole("button", { name: "Revoke" });
+    fireEvent.click(revokes[0]!);
 
     await waitFor(() => expect(server.called("revoke_membership")).toBeDefined());
+  });
+
+  test("a project is deleted only after its name is typed back", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+
+    const confirm = screen.getByRole("button", { name: "Delete for good" });
+
+    // Armed but inert: a confirmation somebody can click through is not a confirmation, and this
+    // one takes records, their history, and the evidence behind them with no undo.
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+
+    fireEvent.change(screen.getByLabelText("Type Alpha to confirm deletion"), {
+      target: { value: "Alpha" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete for good" }));
+
+    await waitFor(() => expect(server.called("delete_project")).toBeDefined());
+
+    expect(server.called("delete_project")!.body).toEqual({
+      scope: { workspaceId: WORKSPACE, projectId: PROJECT },
+    });
+  });
+});
+
+describe("team administration", () => {
+  test("teams are listed and one can be created", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/teams`));
+
+    expect(await screen.findByRole("button", { name: "Platform" })).toBeDefined();
+    expect(server.called("list_teams")).toBeDefined();
+
+    fireEvent.change(screen.getByPlaceholderText("Platform"), { target: { value: "Payments" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(server.called("create_team")).toBeDefined());
+    expect(server.called("create_team")!.body).toEqual({ workspaceId: WORKSPACE, name: "Payments" });
+  });
+
+  test("a team can be renamed", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/teams`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Rename" }));
+
+    fireEvent.change(screen.getByLabelText("New name for Platform"), {
+      target: { value: "Platform Engineering" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(server.called("rename_team")).toBeDefined());
+
+    expect(server.called("rename_team")!.body).toEqual({
+      workspaceId: WORKSPACE,
+      teamId: TEAM,
+      name: "Platform Engineering",
+    });
+  });
+
+  test("a team is deleted only after confirming", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/teams`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+    expect(server.called("delete_team")).toBeUndefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(server.called("delete_team")).toBeDefined());
+  });
+
+  test("somebody is added to a team by picking them, never by typing an identifier", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/teams`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Members" }));
+
+    // Already on the team, so listed as a member rather than offered as a candidate.
+    expect(await screen.findByText(USER)).toBeDefined();
+
+    const picker = await screen.findByRole("combobox", { name: "Add somebody to Platform" });
+    fireEvent.change(picker, { target: { value: OTHER_USER } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(server.called("add_team_member")).toBeDefined());
+
+    expect(server.called("add_team_member")!.body).toEqual({
+      workspaceId: WORKSPACE,
+      teamId: TEAM,
+      userId: OTHER_USER,
+    });
+  });
+
+  test("somebody can be removed from a team", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/teams`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Members" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(server.called("remove_team_member")).toBeDefined());
+  });
+});
+
+describe("standing up another workspace", () => {
+  test("the workspaces you can reach are listed and a new one can be created", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/workspaces`));
+
+    expect(await screen.findByRole("link", { name: "Acme" })).toBeDefined();
+
+    fireEvent.change(screen.getByPlaceholderText("Northwind"), { target: { value: "Northwind" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create workspace" }));
+
+    await waitFor(() => expect(server.called("create_workspace")).toBeDefined());
+
+    // Sponsored by the workspace being viewed, which is what the permission is held on. An
+    // installation-wide role would not need to name one, and this system has none.
+    expect(server.called("create_workspace")!.body).toEqual({
+      sponsorWorkspaceId: WORKSPACE,
+      name: "Northwind",
+      firstProjectName: null,
+    });
+  });
+
+  test("a first project comes along when one is named", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/workspaces`));
+
+    fireEvent.change(await screen.findByPlaceholderText("Northwind"), {
+      target: { value: "Northwind" },
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Payments platform"), {
+      target: { value: "Payments" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create workspace" }));
+
+    await waitFor(() => expect(server.called("create_workspace")).toBeDefined());
+    expect(server.called("create_workspace")!.body).toMatchObject({ firstProjectName: "Payments" });
   });
 });
 
@@ -305,6 +452,10 @@ describe("role-driven navigation", () => {
     expect(within(nav).queryByRole("link", { name: "Members" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Audit" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Health" })).toBeNull();
+
+    // Nor team administration, nor standing up a workspace of their own.
+    expect(within(nav).queryByRole("link", { name: "Teams" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Workspaces" })).toBeNull();
 
     // Plugin access is offered, and to a viewer as much as to anybody. A token carries its
     // owner's permissions and no more, so being able to mint one grants nothing.

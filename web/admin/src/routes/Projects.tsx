@@ -67,13 +67,22 @@ export function Projects() {
                   )}
                 </td>
                 <td className="px-2 py-2 text-right">
-                  {canManageAi ? (
-                    <AiAccessButton
-                      workspaceId={workspaceId!}
-                      projectId={project.projectId}
-                      enabled={project.aiAccessEnabled}
-                    />
-                  ) : null}
+                  <span className="inline-flex items-center gap-2">
+                    {canManageAi ? (
+                      <AiAccessButton
+                        workspaceId={workspaceId!}
+                        projectId={project.projectId}
+                        enabled={project.aiAccessEnabled}
+                      />
+                    ) : null}
+                    {canCreate ? (
+                      <DeleteProjectButton
+                        workspaceId={workspaceId!}
+                        projectId={project.projectId}
+                        name={project.name}
+                      />
+                    ) : null}
+                  </span>
                 </td>
               </tr>
             ))}
@@ -117,6 +126,81 @@ export function Projects() {
         </Panel>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Deleting a project takes its records, their whole revision history, and the evidence bytes
+ * behind them, immediately and with no undo. So it asks for the name to be typed: a confirmation
+ * dialogue teaches somebody to click through it, and typing the name is the one confirmation that
+ * cannot be given by accident.
+ */
+function DeleteProjectButton({
+  workspaceId,
+  projectId,
+  name,
+}: {
+  workspaceId: string;
+  projectId: string;
+  name: string;
+}) {
+  const queries = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const [typed, setTyped] = useState("");
+
+  const remove = useMutation({
+    mutationFn: () => invoke("delete_project", { scope: { workspaceId, projectId } }),
+    onSuccess: async () => {
+      setConfirming(false);
+      setTyped("");
+      await queries.invalidateQueries({ queryKey: ["projects", workspaceId] });
+    },
+  });
+
+  if (!confirming) {
+    return (
+      <Button variant="danger" onClick={() => setConfirming(true)}>
+        Delete
+      </Button>
+    );
+  }
+
+  return (
+    <span className="inline-flex flex-col items-end gap-1">
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          remove.mutate();
+        }}
+      >
+        <Input
+          required
+          aria-label={`Type ${name} to confirm deletion`}
+          placeholder={name}
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
+          className="w-40"
+        />
+        <Button type="submit" variant="danger" disabled={typed !== name || remove.isPending}>
+          Delete for good
+        </Button>
+        <Button
+          onClick={() => {
+            setConfirming(false);
+            setTyped("");
+          }}
+        >
+          Cancel
+        </Button>
+      </form>
+
+      <span className="text-xs text-[var(--color-muted)]">
+        Records, history, and evidence go with it. Audit history stays.
+      </span>
+
+      {remove.isError ? <Failure error={remove.error} /> : null}
+    </span>
   );
 }
 

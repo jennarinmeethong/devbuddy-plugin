@@ -5,6 +5,8 @@ import { SignIn } from "./routes/SignIn";
 import { SetPassword } from "./routes/SetPassword";
 import { Workspaces } from "./routes/Workspaces";
 import { Members } from "./routes/Members";
+import { Teams } from "./routes/Teams";
+import { WorkspaceProvisioning } from "./routes/WorkspaceProvisioning";
 import { Projects } from "./routes/Projects";
 import { WorkItems } from "./routes/WorkItems";
 import { Records } from "./routes/Records";
@@ -50,6 +52,8 @@ export function App() {
       <Route path="/w/:workspaceId" element={<Layout />}>
         <Route index element={<Projects />} />
         <Route path="members" element={<Members />} />
+        <Route path="teams" element={<Teams />} />
+        <Route path="workspaces" element={<WorkspaceProvisioning />} />
         <Route path="audit" element={<Audit />} />
         <Route path="health" element={<Health />} />
         <Route path="plugin-access" element={<PluginAccess />} />

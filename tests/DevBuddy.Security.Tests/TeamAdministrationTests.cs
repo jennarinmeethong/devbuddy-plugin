@@ -51,7 +51,7 @@ public sealed class TeamAdministrationTests(SecurityFixture fixture)
             session, new ListTeamMembersUseCase(directory),
             new ListTeamMembersRequest(world.Workspace, created.TeamId), caller);
 
-        Assert.Equal(member, Assert.Single(members.MemberIds));
+        Assert.Equal(member, Assert.Single(members.Members).UserId);
 
         await SucceedAsync(
             session, new RemoveTeamMemberUseCase(directory),
@@ -61,7 +61,7 @@ public sealed class TeamAdministrationTests(SecurityFixture fixture)
             session, new ListTeamMembersUseCase(directory),
             new ListTeamMembersRequest(world.Workspace, created.TeamId), caller);
 
-        Assert.Empty(afterRemoval.MemberIds);
+        Assert.Empty(afterRemoval.Members);
 
         await SucceedAsync(
             session, new DeleteTeamUseCase(directory),

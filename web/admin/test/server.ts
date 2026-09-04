@@ -21,6 +21,9 @@ export const RECORD = "33333333-3333-3333-3333-333333333333";
 export const WORK_ITEM = "44444444-4444-4444-4444-444444444444";
 export const MEMBERSHIP = "55555555-5555-5555-5555-555555555555";
 export const USER = "66666666-6666-6666-6666-666666666666";
+export const TEAM = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+export const OTHER_USER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+export const NEW_WORKSPACE = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 
 const ALL_PERMISSIONS = [
   "ReadKnowledge",
@@ -39,6 +42,8 @@ const ALL_PERMISSIONS = [
   "ManageAccess",
   "ReadAudit",
   "AdministerSystem",
+  "ManageTeams",
+  "ProvisionWorkspace",
 ];
 
 const CONTENT_HASH = "a".repeat(64);
@@ -80,6 +85,15 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
       ],
     },
     create_project: { projectId: PROJECT, name: "Gamma" },
+    delete_project: { projectId: PROJECT },
+    create_workspace: { workspaceId: NEW_WORKSPACE, projectId: null, name: "Northwind" },
+    list_teams: { teams: [{ teamId: TEAM, name: "Platform" }] },
+    create_team: { teamId: TEAM, name: "Platform" },
+    rename_team: { teamId: TEAM, name: "Platform Engineering" },
+    delete_team: { teamId: TEAM },
+    list_team_members: { members: [{ userId: USER }] },
+    add_team_member: { teamId: TEAM, userId: OTHER_USER },
+    remove_team_member: { teamId: TEAM, userId: USER },
     enable_project_ai_access: { isEnabled: true, enabledBy: USER, enabledAt: "2026-09-02T10:00:00+00:00" },
     disable_project_ai_access: { isEnabled: false, enabledBy: null, enabledAt: null },
     list_memberships: {
@@ -88,6 +102,14 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
           membershipId: MEMBERSHIP,
           userId: USER,
           role: "Reviewer",
+          scopedToProject: null,
+          isActive: true,
+          grantedAt: "2026-09-01T09:00:00+00:00",
+        },
+        {
+          membershipId: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+          userId: OTHER_USER,
+          role: "Contributor",
           scopedToProject: null,
           isActive: true,
           grantedAt: "2026-09-01T09:00:00+00:00",

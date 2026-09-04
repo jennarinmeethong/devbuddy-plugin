@@ -11,9 +11,10 @@ const ROLES = ["Viewer", "Contributor", "Reviewer", "Administrator"] as const;
 /**
  * Membership administration: who is in this workspace, and bringing somebody new in.
  *
- * Creating an account hands back a one-time setup token, shown once and never stored here. There
- * is no mail transport yet, so an administrator carries it out of band; that is a gap and it is
- * labelled as one on the screen rather than left for somebody to discover.
+ * Creating an account hands back a one-time setup token, shown once and never stored here. The
+ * server also emails it when the deployment has SMTP configured, and this screen cannot tell
+ * whether it did — so it shows the token either way rather than claiming a delivery it cannot
+ * confirm.
  */
 export function Members() {
   const { workspaceId } = useParams();
@@ -166,8 +167,8 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
             {create.data.setupToken}
           </code>
           <p className="text-xs text-[var(--color-muted)]">
-            Expires <When value={create.data.setupTokenExpiresAt} />. There is no mail transport
-            yet, so it has to be delivered out of band.
+            Expires <When value={create.data.setupTokenExpiresAt} />. It is also emailed to that
+            address when the deployment has SMTP configured; when it does not, this is the copy.
           </p>
         </div>
       ) : null}

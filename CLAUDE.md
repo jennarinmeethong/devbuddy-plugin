@@ -22,9 +22,16 @@ working copy; Phase 7 the three hosts — the HTTP API, the MCP server over stdi
 HTTP, and the console; Phase 8 the provisioning operations and the React administration UI in
 `web/admin`; Phase 9 machine tokens and the Claude and Codex plugin packages; Phase 10 the
 container images, the Compose stack, backup and restore, and the supply-chain checks; Phase 11 the
-personal-data policy and retention enforcement. 433 .NET tests and 23 web tests exist, and all of
+personal-data policy and retention enforcement. 433 .NET tests and 31 web tests exist, and all of
 them pass in this environment. 32 of 33 controls are `TESTED`; SB-29 is `IMPLEMENTED` and moves to
 `TESTED` when a release actually ships one.
+
+**Every operation a person needs is reachable from `web/admin`.** Team administration is the
+`Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the
+permission, so a viewer is offered neither), and deleting a project is on the project list —
+behind typing the project's name back, because it takes records, their history, and the evidence
+bytes with it and there is no undo. Adding somebody to a team picks them from the workspace's own
+members rather than asking for an identifier to be typed.
 
 **Source synchronisation can now read the GitHub API, opt-in.** `GitHubOptions.Mode` defaults to
 `WorkingCopy` — the mounted-checkout reader Phase 6 shipped, unchanged. Setting it to `GitHubApi`

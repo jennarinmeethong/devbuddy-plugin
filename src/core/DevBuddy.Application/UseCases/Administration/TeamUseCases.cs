@@ -150,7 +150,14 @@ public sealed record ListTeamMembersRequest(WorkspaceId WorkspaceId, TeamId Team
     public override string ResourceReference => TeamId.ToString();
 }
 
-public sealed record ListTeamMembersResponse(IReadOnlyList<UserId> MemberIds);
+/// <summary>
+/// One person in a team. A record rather than a bare identifier, matching how memberships are
+/// listed — and because a bare list of identifiers describes itself to a generated client as an
+/// array of nothing in particular, which every caller then has to cast.
+/// </summary>
+public sealed record TeamMemberSummary(UserId UserId);
+
+public sealed record ListTeamMembersResponse(IReadOnlyList<TeamMemberSummary> Members);
 
 public sealed class ListTeamMembersUseCase(ITeamDirectory directory)
     : UseCase<ListTeamMembersRequest, ListTeamMembersResponse>
@@ -164,7 +171,7 @@ public sealed class ListTeamMembersUseCase(ITeamDirectory directory)
     {
         await RequireTeamAsync(_directory, request.TeamId, request.WorkspaceId, cancellationToken);
         IReadOnlyList<UserId> members = await _directory.ListTeamMembersAsync(request.TeamId, cancellationToken);
-        return new ListTeamMembersResponse(members);
+        return new ListTeamMembersResponse([.. members.Select(member => new TeamMemberSummary(member))]);
     }
 
     internal static async Task<Team> RequireTeamAsync(

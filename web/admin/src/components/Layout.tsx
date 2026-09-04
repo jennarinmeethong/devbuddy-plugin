@@ -35,6 +35,21 @@ export function Layout() {
       visible: grants(access, "ManageAccess"),
     },
     {
+      to: `/w/${workspaceId}/teams`,
+      label: "Teams",
+      end: false,
+      visible: grants(access, "ManageTeams"),
+    },
+    {
+      to: `/w/${workspaceId}/workspaces`,
+      label: "Workspaces",
+      end: false,
+
+      // Held on this workspace, and it is what lets somebody stand up another one sponsored by it.
+      // There is no installation-wide role behind this and the screen says so.
+      visible: grants(access, "ProvisionWorkspace"),
+    },
+    {
       to: `/w/${workspaceId}/audit`,
       label: "Audit",
       end: false,

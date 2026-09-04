@@ -965,7 +965,9 @@ export type ListTeamMembersArguments = {
 };
 
 export type ListTeamMembersResult = {
-  memberIds: unknown[];
+  members: Array<{
+      userId: string;
+    }>;
 };
 
 export type AddTeamMemberArguments = {

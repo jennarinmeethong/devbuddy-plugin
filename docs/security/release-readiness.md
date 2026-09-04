@@ -54,6 +54,12 @@ tests, and none of them widens the AI-exposed surface or changes an existing con
   administers, authorised through the ordinary pipeline against that sponsor workspace — not a new
   installation-wide role. `IInstallationBootstrapper` is untouched: it still makes the first
   workspace once, on an empty database, and still refuses afterwards.
+- **Screens for all three**, so `info.md`'s "workspace/team/project and membership administration"
+  is met from a browser and not only over HTTP: a `Teams` screen, a `Workspaces` screen, and
+  project deletion behind typing the project's name back. Both new navigation entries are gated on
+  the permission, and the viewer-navigation test asserts neither is offered without it. The gating
+  is a courtesy, never a control — the server refuses regardless, which is what the .NET tests
+  prove.
 - **Setup and recovery token delivery.** `IEmailSender` (`EmailOptions.Provider`: `Log` by default,
   `Smtp` via MailKit when configured) replaces the ad hoc "hand it to whoever is looking" paths.
   The `Log` fallback fixes a real bug found while building this: the previous code logged a

@@ -927,7 +927,7 @@ risks against SB-27 (retention) pending further work, and CLAUDE.md separately n
 functional v1 gaps that were true but not security-control failures: only one workspace could
 ever be created, teams had no operations, a setup or recovery token had no real delivery channel,
 and source synchronisation could not read pull requests, issues, or review threads. All are closed.
-405 .NET tests grew to 433; all of them pass, alongside all 23 web tests. The matrix reaches 32
+405 .NET tests grew to 433 and 23 web tests to 31; all of them pass. The matrix reaches 32
 `TESTED` of 33, with SB-29 the sole `IMPLEMENTED` row, unchanged, because it needs an actual
 release to prove.
 
@@ -966,6 +966,15 @@ What landed:
   than answering them as empty. Off by default, and inert until an operator both sets a token and
   adds `api.github.com` to `OutboundAccess:AllowedHosts` — proven by a test asserting the request
   never reaches the transport when that host is absent.
+- **The administration UI for all of it.** The three new human-facing capabilities were reachable
+  over HTTP but had no screen, which left `info.md`'s "workspace/team/project and membership
+  administration" half-met: a person could not do from a browser what the API now allowed. Closed
+  with a `Teams` screen (create, rename, delete, and staff a team, picking people from the
+  workspace's own members rather than asking for an identifier), a `Workspaces` screen (the
+  workspaces you can reach, and standing up another sponsored by this one), and project deletion
+  on the project list behind typing the project's name back — a confirmation somebody can click
+  through is not a confirmation when there is no undo. Both new nav entries are gated on their
+  permission, so a viewer is offered neither, and a test asserts that.
 
 Two bugs were found and fixed along the way, neither previously covered by a test: `RenameTeamUseCase`
 first attempt threw an EF Core identity-conflict, because updating a row read with `AsNoTracking`
