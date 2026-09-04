@@ -1,0 +1,319 @@
+name: Release
+
+# Cutting a release: the executables, the images, the SBOMs, and — the part SB-29 is actually
+# about — signed provenance for all of it.
+#
+# Triggered by a tag rather than by a branch, because a release is a decision somebody makes on
+# purpose. Nothing here runs on an ordinary push, and nothing here publishes anything until the
+# test suite and the drills in docs/operations/release-matrix.md have passed on the same commit.
+#
+# Signing is keyless. GitHub's OIDC identity signs through Sigstore, so there is no private key in
+# a secret for somebody to steal, rotate, or lose — the thing being attested to is "this workflow,
+# on this commit, in this repository produced this artifact", which is the claim that is actually
+# worth making.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, for a re-run after a failure part-way through."
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  REGISTRY: ghcr.io
+
+jobs:
+  # Nothing is published before this passes. A release that ships and then discovers its own test
+  # failures has already done the damage a gate exists to prevent.
+  verify:
+    name: Build, test, and format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore DevBuddy.slnx
+
+      - name: Build
+        run: dotnet build DevBuddy.slnx -c Release --no-restore
+
+      # On Linux, with a Docker engine, so Testcontainers runs the integration tests, the security
+      # scenarios, and the destroy-and-restore drill rather than skipping them.
+      - name: Test
+        run: dotnet test DevBuddy.slnx -c Release --no-build
+
+      - name: Verify formatting
+        run: dotnet format DevBuddy.slnx --verify-no-changes --severity warn
+
+      - name: Build and test the web client
+        working-directory: web/admin
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun install --frozen-lockfile
+          bun run build
+          bun test
+
+  # Every RID docs/operations/release-matrix.md lists as built. The matrix is the source of truth
+  # for what ships; a RID missing here is one that document says is not published.
+  executables:
+    name: Publish ${{ matrix.rid }}
+    needs: verify
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        rid:
+          - win-x64
+          - win-arm64
+          - linux-x64
+          - linux-arm64
+          - linux-musl-x64
+          - linux-musl-arm64
+          - osx-x64
+          - osx-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Self-contained, and that is all it is: not single-file, not Native AOT. Neither is claimed
+      # in the release matrix and neither is built here.
+      - name: Publish
+        run: |
+          for host in Api McpServer Cli; do
+            dotnet publish "src/hosts/DevBuddy.$host/DevBuddy.$host.csproj" \
+              -c Release \
+              -r "${{ matrix.rid }}" \
+              --self-contained true \
+              -o "publish/${{ matrix.rid }}/$host"
+          done
+
+      - name: Archive
+        run: |
+          mkdir -p dist
+          tar -czf "dist/devbuddy-${{ matrix.rid }}.tar.gz" -C "publish/${{ matrix.rid }}" .
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: executables-${{ matrix.rid }}
+          path: dist/*.tar.gz
+
+  sbom:
+    name: SBOM
+    needs: verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore DevBuddy.slnx
+
+      - name: Install the SBOM tool
+        run: dotnet tool install --global CycloneDX
+
+      # One document per shipped host, for the same reason the supply-chain workflow does it that
+      # way: what is in the API image is not what is in the console.
+      - name: Generate
+        run: |
+          for project in Api McpServer Cli; do
+            dotnet CycloneDX "src/hosts/DevBuddy.$project/DevBuddy.$project.csproj" \
+              --output sbom \
+              --filename "devbuddy-$project.cdx.json" \
+              --json
+          done
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/*.json
+
+  images:
+    name: Push and attest ${{ matrix.image }}
+    needs: [verify, sbom]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: docker/Dockerfile.api
+            sbom: devbuddy-Api.cdx.json
+          - image: mcp
+            dockerfile: docker/Dockerfile.mcp
+            sbom: devbuddy-McpServer.cdx.json
+          - image: cli
+            dockerfile: docker/Dockerfile.cli
+            sbom: devbuddy-Cli.cdx.json
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect the SBOMs
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: sbom
+
+      - name: Sign in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Name and tag
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/devbuddy-${{ matrix.image }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # The image runs as somebody other than root, checked here as well as in the supply-chain
+      # workflow: this is the copy that gates a release rather than a branch (SB-31).
+      #
+      # Pulled back first, on purpose. Buildx pushes straight to the registry without leaving
+      # anything in the local image store, so inspecting before pulling would inspect nothing —
+      # and pulling means what gets checked is what was actually published, not a local build that
+      # was meant to be identical.
+      - name: Check it runs as a non-root user
+        run: |
+          reference=$(echo '${{ steps.meta.outputs.tags }}' | head -n1)
+          docker pull "$reference"
+          user=$(docker image inspect "$reference" --format '{{.Config.User}}')
+
+          if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
+            echo "::error::devbuddy-${{ matrix.image }} runs as '$user'."
+            exit 1
+          fi
+
+          echo "devbuddy-${{ matrix.image }} runs as $user"
+
+      # What SB-29 asks for: somebody who pulls this image can verify where it came from without
+      # having to trust whoever told them. `gh attestation verify` checks it against this
+      # repository and this workflow.
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}/devbuddy-${{ matrix.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      # Attached to the image it describes rather than to a tarball holding all three hosts, so
+      # "which dependencies are in the thing I am running" has one unambiguous answer.
+      - name: Attest the SBOM
+        uses: actions/attest-sbom@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}/devbuddy-${{ matrix.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: sbom/${{ matrix.sbom }}
+          push-to-registry: true
+
+  publish:
+    name: Attest and publish the release
+    needs: [executables, sbom, images]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect the executables
+        uses: actions/download-artifact@v4
+        with:
+          pattern: executables-*
+          path: dist
+          merge-multiple: true
+
+      - name: Collect the SBOMs
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: sbom
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum *.tar.gz > SHA256SUMS
+
+      # Provenance only, for these. Each archive holds all three hosts, so there is no single SBOM
+      # that describes one of them — the per-host documents are attached to the per-host images in
+      # the job above, and ship beside these as files.
+      - name: Attest the executables
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: dist/*.tar.gz
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+            sbom/*.json
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          # Left as a draft on purpose. docs/operations/release-matrix.md asks for smoke tests on
+          # platforms no runner has and a destroy-and-restore drill performed by hand; a release
+          # that published itself would be claiming those happened. A person records what was
+          # actually verified in the notes and then presses publish.
+          draft: true

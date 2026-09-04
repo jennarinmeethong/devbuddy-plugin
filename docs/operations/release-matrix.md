@@ -80,12 +80,30 @@ It is harmless — the connection proceeds, migrations apply, everything works �
 here because it reads like a failure and is not. Adding the library would mean a larger base image
 for no functional gain.
 
+## Cutting a release
+
+`.github/workflows/release.yml` runs on a `v*` tag. It gates on the full suite, the format check,
+and the web build before it publishes anything; then it builds every RID in the first table, pushes
+the three images to GHCR, generates one SBOM per host, and signs all of it with GitHub's keyless
+OIDC identity — provenance for the archives and the images, and each host's SBOM attached to its
+own image.
+
+It leaves the GitHub release as a **draft**. That is deliberate: the checklist below asks for smoke
+tests on platforms no runner has and a drill performed by hand, and a workflow that published
+itself would be claiming those happened.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## Verifying a release
 
-Before publishing anything, and recorded per release:
+Before publishing the draft, and recorded per release:
 
 1. `dotnet test DevBuddy.slnx -c Release` on Linux, with Docker available, so the integration and
-   drill tests actually run.
+   drill tests actually run. (The workflow does this too; doing it locally is what lets you read
+   the failures.)
 2. `dotnet publish` for every row in the first table. A row that fails to build comes out of the
    table; it does not get a footnote.
 3. Run the smoke test on every row whose "Run" column says yes. If a platform cannot be run this
@@ -93,5 +111,14 @@ Before publishing anything, and recorded per release:
 4. `docker compose -f docker/compose.yaml up -d` from clean, to healthy.
 5. The destroy-and-restore drill in `docs/operations/backup-and-restore.md`, by hand, once.
 6. SBOM and vulnerability scan attached to the release (CI produces both).
+7. The signatures verify from outside the workflow that made them:
+
+   ```bash
+   gh attestation verify oci://ghcr.io/<owner>/<repo>/devbuddy-api:1.0.0 --owner <owner>
+   gh attestation verify devbuddy-linux-x64.tar.gz --owner <owner>
+   ```
+
+   A release whose attestations do not verify is not a release; that is the whole point of SB-29,
+   and checking it here is what stops "signed" from meaning "a signing step exited zero".
 
 Release notes state, verbatim, which rows were unverified.

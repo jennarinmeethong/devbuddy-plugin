@@ -81,6 +81,18 @@ behaviour this system always had — fixed, not just kept, since the equivalent 
 port existed logged a warning claiming the token was written to the log without actually including
 it. Setting `Provider` to `Smtp` (MailKit) delivers it for real, to the account's own address.
 
+**A release is a `v*` tag, and the workflow signs what it publishes.**
+`.github/workflows/release.yml` gates on the full suite, then builds every RID in
+`docs/operations/release-matrix.md`, pushes the three images to GHCR, generates one SBOM per host,
+and attests all of it with GitHub's keyless OIDC identity — no signing key to hold. It leaves the
+release as a draft, because the checklist it cannot run (hand-run smoke tests, the restore drill)
+is the half a person has to record. SB-29 stays `IMPLEMENTED` until a tag is actually cut.
+
+**Application log retention is the operator's, and `docs/operations/logging.md` is the runbook.**
+Three options with their trade-offs, how to measure the real volume first, and the part that
+matters more than the window: with no SMTP configured, `EmailOptions.Provider` stays `Log` and
+setup and recovery tokens are written into the API container's log on purpose.
+
 **Restore is a console command, not an operation.** Every operation is authorised against a
 membership, and a restore from total loss runs against a database with no memberships in it, so
 `restore_system` could never have succeeded and is gone. A test asserts no restore operation

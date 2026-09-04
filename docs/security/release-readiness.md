@@ -38,8 +38,10 @@ log retention sat outside this codebase. The first two are closed:
 
 **Still residual, and still not a defect:** application log retention is a container log-driver
 setting (`docker/compose.yaml` bounds it by size), not application code a test can assert a
-90-day window against. This was never going to move into this codebase; it is an operator
-responsibility, named here so it stays visible rather than silently dropped.
+90-day window against. It is an operator responsibility, named here so it stays visible rather
+than silently dropped; `docs/operations/logging.md` is the runbook — how to measure the real
+volume, the three options with their trade-offs, and the two things that are in the logs
+regardless of how long they are kept.
 
 ## Also closed since Phase 11, none of them a security-control change
 
@@ -92,8 +94,12 @@ All eight scenarios are now fully exercised.
 Per `info.md`, this is the explicit sign-off point. The project owner should accept, in writing:
 
 1. Application log retention is an operator responsibility (log-driver or aggregator
-   configuration), not a tested application behaviour.
-2. No release has yet been signed or carries an attached SBOM (SB-29).
+   configuration), not a tested application behaviour. Pick an option from
+   `docs/operations/logging.md` and record which — and note that with no SMTP configured, setup
+   and recovery tokens are written to those logs by design.
+2. No release has yet been signed or carries an attached SBOM (SB-29). `.github/workflows/release.yml`
+   builds, pushes, signs, and attests everything on a `v*` tag and leaves the release as a draft
+   for a person to publish; until a tag is actually cut, this row stays `IMPLEMENTED`.
 
 Neither blocks the controls that are `TESTED` today, including the personal-data policy (SB-18),
 retention (SB-27), and the AI-channel and tenant-isolation controls that gate access to whatever
