@@ -160,9 +160,11 @@ internal sealed class RetentionService : IRetentionEnforcer
     /// <summary>
     /// Deletes rolled log files past the window, when the application is writing its own.
     /// <para>
-    /// Serilog drops them too as it rolls, which covers a service that keeps running. This covers
-    /// one that was stopped for a month, and — the reason it exists rather than being left to the
-    /// sink — it is the half a test can drive without waiting a day for a roll.
+    /// Serilog drops them too, when it opens its own file. In the shipped stack that usually
+    /// happens first — the container running this sweep writes to the same directory — so this
+    /// commonly reports zero and that is not a fault. It covers a directory nothing is currently
+    /// writing to, and it is the half a test can drive without waiting a day for a roll, which is
+    /// the reason it exists rather than being left entirely to the sink.
     /// </para>
     /// <para>
     /// The date comes out of the file name, which Serilog writes as the roll date, rather than

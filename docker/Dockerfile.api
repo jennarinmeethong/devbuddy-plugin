@@ -22,18 +22,21 @@ RUN dotnet publish src/hosts/DevBuddy.Api/DevBuddy.Api.csproj \
     --no-restore \
     /p:UseAppHost=false
 
-# An empty directory to copy into the runtime image, so the backup mount point exists and belongs
-# to the application user before a volume is attached to it. A chiseled image has no shell, so
-# there is no RUN mkdir over there — and this has to happen in the image rather than at run time,
-# because Docker seeds a fresh named volume from the mount point's contents and ownership. Without
-# it the volume arrives owned by root and the first backup fails with "permission denied".
-RUN mkdir -p /seed/backups
+# Empty directories to copy into the runtime image, so every mount point exists and belongs to the
+# application user before a volume is attached to it. A chiseled image has no shell, so there is no
+# RUN mkdir over there — and this has to happen in the image rather than at run time, because
+# Docker seeds a fresh named volume from the mount point's contents and ownership. Without it the
+# volume arrives owned by root and the first write fails with "permission denied", which is how the
+# backup volume failed the first time the stack ran.
+RUN mkdir -p /seed/empty
 
 # Chiseled, non-root by construction: the image ships with an "app" user and runs as it.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS runtime
 WORKDIR /app
 COPY --from=build /app .
-COPY --from=build --chown=$APP_UID:$APP_UID /seed/backups /srv/backups
+COPY --from=build --chown=$APP_UID:$APP_UID /seed/empty /srv/backups
+COPY --from=build --chown=$APP_UID:$APP_UID /seed/empty /srv/exports
+COPY --from=build --chown=$APP_UID:$APP_UID /seed/empty /srv/logs
 
 # Stated rather than inherited. A base image that changed its default would otherwise change ours.
 USER $APP_UID

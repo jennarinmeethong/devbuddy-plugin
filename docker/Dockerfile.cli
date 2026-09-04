@@ -17,9 +17,22 @@ RUN dotnet publish src/hosts/DevBuddy.Cli/DevBuddy.Cli.csproj \
     --no-restore \
     /p:UseAppHost=false
 
+# Empty directories to copy into the runtime image, so every mount point exists and belongs to the
+# application user before a volume is attached to it. A chiseled image has no shell, so there is no
+# RUN mkdir over there — and this has to happen in the image rather than at run time, because
+# Docker seeds a fresh named volume from the mount point's contents and ownership. Without it the
+# volume arrives owned by root and the first write fails with "permission denied", which is how the
+# backup volume failed the first time the stack ran.
+RUN mkdir -p /seed/empty
+
 FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled AS runtime
 WORKDIR /app
 COPY --from=build /app .
+
+# This is the container `backup`, `restore` and `retention` run in, so it writes to all three.
+COPY --from=build --chown=$APP_UID:$APP_UID /seed/empty /srv/backups
+COPY --from=build --chown=$APP_UID:$APP_UID /seed/empty /srv/exports
+COPY --from=build --chown=$APP_UID:$APP_UID /seed/empty /srv/logs
 
 USER $APP_UID
 

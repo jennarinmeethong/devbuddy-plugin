@@ -129,12 +129,17 @@ DEVBUDDY_LOG_PATH=/srv/logs/devbuddy.log
 DEVBUDDY_LOG_RETENTION_DAYS=90
 ```
 
-The window is enforced twice, deliberately. Serilog drops files past the limit as it rolls, which
-covers a service that keeps running. `dotnet run -- retention` sweeps the same directory, which
-covers one that has been stopped for a month — and it is the half a test can drive without waiting
-a day for a roll, so this is the mechanism that moves the schedule's log row from "operator
-responsibility" to a passing test
-(`RetentionEnforcementTests.a_rolled_log_file_past_its_window_is_deleted_and_a_recent_one_survives`).
+The window is enforced twice, deliberately. Serilog drops files past the limit when it opens its
+own, and `dotnet run -- retention` sweeps the same directory.
+
+**Expect the sweep to report zero, and do not read that as broken.** In the shipped stack the
+`retention` command runs in a container that is itself configured to write to that directory, so
+its own logger cleans up on startup a moment before the sweep looks — observed doing exactly that
+when this was run against the stack. The sweep is what covers a directory nothing is currently
+writing to, and it is the half a test can drive without waiting a day for a roll, which is what
+moves the schedule's log row from "operator responsibility" to a passing test
+(`RetentionEnforcementTests.a_rolled_log_file_past_its_window_is_deleted_and_a_recent_one_survives`,
+which runs without a Serilog sink present so only the sweep can be doing the work).
 
 The sweep reads the date out of the file name, which Serilog writes as the roll date, rather than
 from a filesystem timestamp: copying a directory resets those, and a restored backup would
