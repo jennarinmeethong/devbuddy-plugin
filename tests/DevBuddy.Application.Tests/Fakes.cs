@@ -238,6 +238,14 @@ internal sealed class FakePorts :
             TestData.Now, capturedBy));
     }
 
+    public Task<EvidenceObject> RecordScanResultAsync(
+        EvidenceObject evidence, RedactionState state, CancellationToken cancellationToken)
+    {
+        Touch();
+        evidence.RecordScanResult(state, TestData.Now);
+        return Task.FromResult(evidence);
+    }
+
     public Task<SourceSnapshot> FetchSnapshotAsync(
         SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken)
     {

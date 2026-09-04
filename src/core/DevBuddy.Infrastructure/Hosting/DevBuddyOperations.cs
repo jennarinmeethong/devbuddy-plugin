@@ -3,6 +3,7 @@ using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.UseCases.Administration;
 using DevBuddy.Application.UseCases.Analysis;
+using DevBuddy.Application.UseCases.Evidence;
 using DevBuddy.Application.UseCases.Handover;
 using DevBuddy.Application.UseCases.Lifecycle;
 using DevBuddy.Application.UseCases.Reading;
@@ -42,6 +43,8 @@ public static class DevBuddyOperations
         services.AddScoped<ViewRecordHistoryUseCase>();
         services.AddScoped<CompareSnapshotsUseCase>();
         services.AddScoped<DownloadEvidenceUseCase>();
+        services.AddScoped<CaptureEvidenceUseCase>();
+        services.AddScoped<ListEvidenceUseCase>();
 
         services.AddScoped<AnalyzeProjectUseCase>();
         services.AddScoped<AnalyzeCodeUseCase>();
@@ -118,6 +121,12 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<ListProjectsUseCase>(), executor),
             Bind(services.GetRequiredService<ViewRecordHistoryUseCase>(), executor),
             Bind(services.GetRequiredService<CompareSnapshotsUseCase>(), executor),
+
+            // list_evidence is bound; capture and download are not, and that is the same decision
+            // in both directions. Bytes do not belong in a JSON envelope — base64 inflates a file
+            // by a third and puts it through the serialiser — so those two have streaming
+            // endpoints that call the executor directly. Listing what exists is ordinary JSON.
+            Bind(services.GetRequiredService<ListEvidenceUseCase>(), executor),
 
             Bind(services.GetRequiredService<AnalyzeProjectUseCase>(), executor),
             Bind(services.GetRequiredService<AnalyzeCodeUseCase>(), executor),

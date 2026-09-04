@@ -5,6 +5,7 @@ using DevBuddy.Application.Security;
 using DevBuddy.Application.UseCases;
 using DevBuddy.Application.UseCases.Administration;
 using DevBuddy.Application.UseCases.Analysis;
+using DevBuddy.Application.UseCases.Evidence;
 using DevBuddy.Application.UseCases.Handover;
 using DevBuddy.Application.UseCases.Lifecycle;
 using DevBuddy.Application.UseCases.Reading;
@@ -53,6 +54,12 @@ internal sealed class UseCaseRegistry
 
         Add(new DownloadEvidenceUseCase(ports),
             new DownloadEvidenceRequest(TestData.Scope, EvidenceObjectId.New()));
+
+        Add(new CaptureEvidenceUseCase(ports),
+            new CaptureEvidenceRequest(
+                TestData.Scope, "text/plain", "A test log", "nothing sensitive here"u8.ToArray()));
+
+        Add(new ListEvidenceUseCase(ports), new ListEvidenceRequest(TestData.Scope));
 
         var analysisRequest = new AnalysisRequest(TestData.Scope, TestData.Repository);
         Add(new AnalyzeProjectUseCase(ports), analysisRequest);

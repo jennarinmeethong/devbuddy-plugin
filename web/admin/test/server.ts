@@ -15,6 +15,12 @@ export interface Call {
   body: unknown;
 }
 
+/** One file the client posted to the evidence route, which is not an operation. */
+export interface Upload {
+  description: string;
+  fileName: string;
+}
+
 export const WORKSPACE = "11111111-1111-1111-1111-111111111111";
 export const PROJECT = "22222222-2222-2222-2222-222222222222";
 export const RECORD = "33333333-3333-3333-3333-333333333333";
@@ -24,6 +30,8 @@ export const USER = "66666666-6666-6666-6666-666666666666";
 export const TEAM = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 export const OTHER_USER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 export const NEW_WORKSPACE = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+export const EVIDENCE = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+export const UNSCANNED_EVIDENCE = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
 
 const ALL_PERMISSIONS = [
   "ReadKnowledge",
@@ -50,6 +58,7 @@ const CONTENT_HASH = "a".repeat(64);
 
 export interface FakeServer {
   calls: Call[];
+  uploads: Upload[];
   called(operation: OperationName): Call | undefined;
   restore(): void;
 }
@@ -64,6 +73,7 @@ export interface FakeServer {
 export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer {
   const calls: Call[] = [];
   const original = globalThis.fetch;
+  const uploads: Upload[] = [];
 
   const records = [
     {
@@ -135,6 +145,30 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
       ],
     },
     create_work_item: { workItemId: WORK_ITEM, key: "DEV-9" },
+    list_evidence: {
+      evidence: [
+        {
+          evidenceId: EVIDENCE,
+          mediaType: "text/plain",
+          sizeBytes: 2048,
+          capturedAt: "2026-09-01T09:00:00+00:00",
+          capturedBy: USER,
+          redactionState: "Clean",
+          isReleasable: true,
+        },
+        {
+          // Not cleared, so the screen must not offer it. Stored evidence begins NotScanned and
+          // the server refuses to release anything in that state.
+          evidenceId: UNSCANNED_EVIDENCE,
+          mediaType: "application/octet-stream",
+          sizeBytes: 500,
+          capturedAt: "2026-09-01T10:00:00+00:00",
+          capturedBy: USER,
+          redactionState: "NotScanned",
+          isReleasable: false,
+        },
+      ],
+    },
     list_records: { records },
     get_record: {
       recordId: RECORD,
@@ -273,6 +307,24 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
       });
     }
 
+    // Evidence moves bytes, so it has routes of its own rather than an operation. The client
+    // must not put a JSON content type on the upload, and this is where that would show up.
+    if (path.includes("/evidence")) {
+      if ((init?.method ?? "GET").toUpperCase() === "POST") {
+        const body = init?.body as FormData;
+        const file = body.get("file") as File;
+
+        uploads.push({
+          description: String(body.get("description") ?? ""),
+          fileName: file?.name ?? "",
+        });
+
+        return json({ evidenceId: EVIDENCE, sizeBytes: 12, redactionState: "Clean" });
+      }
+
+      return new Response(new Blob(["the artefact"]), { status: 200 });
+    }
+
     if (path.startsWith("/operations/")) {
       const operation = path.slice("/operations/".length) as OperationName;
       calls.push({ operation, body: init?.body ? JSON.parse(String(init.body)) : null });
@@ -289,6 +341,7 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
 
   return {
     calls,
+    uploads,
     called: (operation) => calls.find((call) => call.operation === operation),
     restore: () => {
       globalThis.fetch = original;

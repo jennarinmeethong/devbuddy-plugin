@@ -925,6 +925,37 @@ code path this project controlled.
 
 ---
 
+## The evidence store had no write side
+
+**Status: CLOSED (2026-09-05).** Found while writing the restore drill's own instructions, by
+checking whether a step could actually be performed rather than assuming it could.
+
+`IEvidenceStore.StoreAsync` was called by no operation, no endpoint and no screen — only by tests.
+Everything around it was complete: `download_evidence` streamed bytes after an authorization
+check, backup and restore carried them, `export_project` copied them, retention swept orphans, and
+the tenant isolation suite covered attachments. All of it operated on evidence that test code had
+seeded directly, which is exactly why nine phases went by without anyone noticing that a real
+installation could never have had an artefact to download.
+
+`capture_evidence` and `list_evidence` close it. Three decisions worth keeping:
+
+- **The scan happens before the store is touched.** The request carries an array rather than a
+  stream so the pipeline's own scanner sees the content on the way in, which is what lets a file
+  holding a credential be refused with nothing written — the same shape SB-17 already had for
+  drafts, rather than a store-then-delete that a crash could interrupt.
+- **`RecordScanResultAsync` moved onto the port.** The implementation had existed since Phase 3
+  with nothing able to call it. Stored evidence begins `NotScanned` and the download refuses to
+  release anything in that state, so a capture that skipped it would have written bytes nobody
+  could ever read back.
+- **Capture and download have routes of their own; listing is dispatched.** Base64 in a JSON
+  envelope inflates a file by a third and puts it through the serialiser. Naming what a project
+  holds is ordinary JSON and goes through the manifest like everything else.
+
+Human-only in both directions, and the AI-channel test pins it: a channel that could push bytes
+into the evidence store would be a way around SB-17 rather than a use of it.
+
+---
+
 ## Closing the v1 gaps named at the end of Phase 11
 
 **Status: COMPLETE (2026-09-03).** The Phase 11 release-readiness note accepted three residual

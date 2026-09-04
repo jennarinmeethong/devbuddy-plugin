@@ -8,6 +8,7 @@ import { Members } from "./routes/Members";
 import { Teams } from "./routes/Teams";
 import { WorkspaceProvisioning } from "./routes/WorkspaceProvisioning";
 import { Projects } from "./routes/Projects";
+import { Evidence } from "./routes/Evidence";
 import { WorkItems } from "./routes/WorkItems";
 import { Records } from "./routes/Records";
 import { RecordDetail } from "./routes/RecordDetail";
@@ -58,6 +59,7 @@ export function App() {
         <Route path="health" element={<Health />} />
         <Route path="plugin-access" element={<PluginAccess />} />
         <Route path="p/:projectId" element={<WorkItems />} />
+        <Route path="p/:projectId/evidence" element={<Evidence />} />
         <Route path="p/:projectId/records" element={<Records />} />
         <Route path="p/:projectId/records/:recordId" element={<RecordDetail />} />
       </Route>

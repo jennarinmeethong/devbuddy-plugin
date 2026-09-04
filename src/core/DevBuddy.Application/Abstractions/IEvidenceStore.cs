@@ -28,4 +28,16 @@ public interface IEvidenceStore
         string mediaType,
         UserId capturedBy,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records what the scanner concluded, which is what makes stored bytes releasable.
+    /// <para>
+    /// Stored evidence begins <see cref="RedactionState.NotScanned"/> and
+    /// the download use case refuses to release it in that state, so without this
+    /// the store could be written to and never read from. The implementation has existed since
+    /// Phase 3; it was missing from this port, which is why nothing could call it.
+    /// </para>
+    /// </summary>
+    Task<EvidenceObject> RecordScanResultAsync(
+        EvidenceObject evidence, RedactionState state, CancellationToken cancellationToken);
 }

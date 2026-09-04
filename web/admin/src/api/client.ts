@@ -118,7 +118,13 @@ async function readProblem(response: Response): Promise<ApiError> {
 
 async function send(path: string, init: RequestInit, authenticated: boolean): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set("content-type", "application/json");
+
+  // Not for a file upload: multipart needs a boundary parameter that only the browser can
+  // generate, and overwriting the header with a bare application/json makes the request
+  // unparseable at the other end.
+  if (!(init.body instanceof FormData)) {
+    headers.set("content-type", "application/json");
+  }
 
   if (authenticated && accessToken) {
     headers.set("authorization", `Bearer ${accessToken}`);
@@ -260,6 +266,57 @@ export async function invoke<N extends OperationName>(
   }
 
   return (await response.json()) as Operations[N]["result"];
+}
+
+/**
+ * Attaches a file to a project.
+ *
+ * Its own route rather than an operation, because bytes do not belong in a JSON envelope — the
+ * server makes the same split. It still runs through the same pipeline, so a file carrying a
+ * credential comes back as a 422 naming the rule that matched, exactly as a draft would.
+ */
+export async function captureEvidence(
+  scope: { workspaceId: string; projectId: string },
+  file: File,
+  description: string,
+): Promise<{ evidenceId: string; sizeBytes: number; redactionState: string }> {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("description", description);
+
+  const response = await authenticated(
+    `/workspaces/${scope.workspaceId}/projects/${scope.projectId}/evidence`,
+    { method: "POST", body },
+  );
+
+  if (!response.ok) {
+    throw await readProblem(response);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Reads one artefact back.
+ *
+ * Fetched with the access token rather than linked to directly: there is no such thing as a
+ * shareable evidence URL here, which is what keeps attachments inside the same isolation the
+ * records are (SB-12).
+ */
+export async function downloadEvidence(
+  scope: { workspaceId: string; projectId: string },
+  evidenceId: string,
+): Promise<Blob> {
+  const response = await authenticated(
+    `/workspaces/${scope.workspaceId}/projects/${scope.projectId}/evidence/${evidenceId}`,
+    { method: "GET" },
+  );
+
+  if (!response.ok) {
+    throw await readProblem(response);
+  }
+
+  return await response.blob();
 }
 
 export interface HealthReport {

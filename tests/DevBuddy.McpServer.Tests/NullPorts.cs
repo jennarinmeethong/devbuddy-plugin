@@ -101,6 +101,10 @@ internal sealed class NullPorts :
         CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<EvidenceObject> RecordScanResultAsync(
+        EvidenceObject evidence, RedactionState state, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<SourceSnapshot> FetchSnapshotAsync(
         SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken) =>
         throw new NotSupportedException();

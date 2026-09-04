@@ -116,6 +116,13 @@ Built from `db831a6`, the commit CI passed on Linux and Windows. Tag `v1.0.0`, r
 | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | **Not run.** Built and published as-is. No macOS and no Windows on ARM available; the musl arm64 build was not run, and the x64 musl one that was is the only reason its dependency list is believed to carry over. |
 | Destroy-and-restore drill | **Not yet performed for this release.** |
 
+Two defects were found after this tag was cut and before the drill was run, both by trying to use
+the thing rather than by reading it. A password beginning with `@` was parsed as a response file,
+which broke `bootstrap` — the first command any new installation runs. And the evidence store had
+no write side at all, so the drill's "download an attachment after the restore" step could not be
+performed by anyone. Both are fixed on `main`; this tag predates them and should be re-cut before
+the release is published.
+
 The last row is why the release is still a draft. SB-29 stays `IMPLEMENTED` until it is published.
 
 ## Verifying a release

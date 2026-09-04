@@ -56,4 +56,13 @@ public enum AuditAction
     TeamMemberRemoved = 37,
     WorkspaceCreated = 38,
     ExportDownloaded = 39,
+
+    /// <summary>
+    /// An artefact was attached to a project. Recorded because evidence is the material most
+    /// likely to carry something nobody meant to store, so who put it there matters (SB-19).
+    /// </summary>
+    EvidenceCaptured = 40,
+
+    /// <summary>What a project holds was listed. A read of metadata, not of bytes.</summary>
+    EvidenceListed = 41,
 }

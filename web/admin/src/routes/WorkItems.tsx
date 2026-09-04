@@ -37,9 +37,14 @@ export function WorkItems() {
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Work</h1>
-        <Link className="text-sm underline" to="records">
-          Knowledge records
-        </Link>
+        <div className="flex gap-4">
+          <Link className="text-sm underline" to="records">
+            Knowledge records
+          </Link>
+          <Link className="text-sm underline" to="evidence">
+            Evidence
+          </Link>
+        </div>
       </div>
 
       <Panel title="Work items">

@@ -54,6 +54,27 @@ public static class UseCaseCatalog
         "download_evidence", PermissionKind.ReadKnowledge, AiExposure.Denied,
         AuditAction.EvidenceDownloaded, redactsOutput: false);
 
+    /// <summary>
+    /// Attaches an artefact to a project.
+    /// <para>
+    /// Human-only, for the same reason the download is: raw material is what the scanner is most
+    /// likely to miss something in, and a channel that could push bytes into the evidence store
+    /// would be a way around SB-17 rather than a use of it.
+    /// </para>
+    /// <para>
+    /// The pipeline scans the content before this runs, so a file carrying a credential is
+    /// Blocked with nothing written — the same shape a draft carrying one gets.
+    /// </para>
+    /// </summary>
+    public static UseCaseDescriptor CaptureEvidence { get; } = new(
+        "capture_evidence", PermissionKind.CreateDraft, AiExposure.Denied,
+        AuditAction.EvidenceCaptured, redactsOutput: false);
+
+    /// <summary>What is attached to a project, without the bytes.</summary>
+    public static UseCaseDescriptor ListEvidence { get; } = new(
+        "list_evidence", PermissionKind.ReadKnowledge, AiExposure.Denied,
+        AuditAction.EvidenceListed, redactsOutput: false);
+
     // Analysis. Read-only, and never executes anything in the repository under study (SB-04).
     public static UseCaseDescriptor AnalyzeProject { get; } = Analysis("analyze_project");
 
@@ -271,7 +292,7 @@ public static class UseCaseCatalog
     public static IReadOnlyList<UseCaseDescriptor> All { get; } =
     [
         SearchKnowledge, GetRecord, GetWorkItem, ListProjects, ViewRecordHistory, CompareSnapshots,
-        DownloadEvidence,
+        DownloadEvidence, CaptureEvidence, ListEvidence,
         AnalyzeProject, AnalyzeCode, AnalyzeDocuments, AnalyzeArchitecture, AnalyzeGitHistory,
         AnalyzeWorkItems, AnalyzeTestEvidence, AnalyzeChangeImpact,
         GenerateHandover, FindOpenQuestions, FindMissingEvidence,

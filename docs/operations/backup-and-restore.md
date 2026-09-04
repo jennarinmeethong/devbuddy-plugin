@@ -85,9 +85,13 @@ docker compose -f docker/compose.yaml run --rm migrate restore --reference <refe
 docker compose -f docker/compose.yaml up -d
 ```
 
-Then confirm, and confirm the part people forget: open a record that has evidence attached and
-download the attachment. A restore that returned the rows and left the bytes behind looks like a
-success right up until a reader clicks something.
+Then confirm, and confirm the part people forget: open the project's Evidence screen and download
+an artefact. A restore that returned the rows and left the bytes behind looks like a success right
+up until a reader clicks something.
+
+Attach one *before* taking the backup, or there will be nothing to check. Until `capture_evidence`
+shipped there was no way to do that at all — the store had a read side and no write side — so a
+drill run against an older build could only ever have exercised five of the six rows below.
 
 ## What to check after a restore
 

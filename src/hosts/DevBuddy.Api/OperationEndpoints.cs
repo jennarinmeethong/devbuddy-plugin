@@ -6,12 +6,14 @@ using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
 using DevBuddy.Application.UseCases;
+using DevBuddy.Application.UseCases.Evidence;
 using DevBuddy.Application.UseCases.Reading;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Infrastructure.Hosting;
 using DevBuddy.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc;
 
 namespace DevBuddy.Api;
 
@@ -51,6 +53,14 @@ internal static class OperationEndpoints
             .RequireAuthorization()
             .WithName("DownloadEvidence")
             .WithSummary("Streams one stored artefact after an authorization check.");
+
+        routes.MapPost(
+            "/workspaces/{workspaceId:guid}/projects/{projectId:guid}/evidence",
+            CaptureEvidenceAsync)
+            .RequireAuthorization()
+            .WithName("CaptureEvidence")
+            .WithSummary("Stores one artefact, after scanning it and before writing anything.")
+            .DisableAntiforgery();
     }
 
     /// <summary>
@@ -142,6 +152,61 @@ internal static class OperationEndpoints
 
         EvidenceDownloadResponse evidence = result.Value!;
         return Results.Stream(evidence.Content, evidence.MediaType);
+    }
+
+    /// <summary>
+    /// Takes one uploaded file into the evidence store.
+    /// <para>
+    /// A route of its own rather than an entry in the operation manifest, for the same reason the
+    /// download has one: bytes do not belong in a JSON envelope. It still runs through the same
+    /// executor, so the scope check, the secret scan, and the audit entry all happen exactly as
+    /// they would for any other operation — the transport is what differs, never the pipeline.
+    /// </para>
+    /// <para>
+    /// The body is read into memory before anything is stored, which is what lets a file carrying
+    /// a credential be refused with nothing retained. Kestrel's own MaxRequestBodySize
+    /// (Limits:MaxRequestBytes) bounds that, and the evidence store applies its own ceiling after.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> CaptureEvidenceAsync(
+        Guid workspaceId,
+        Guid projectId,
+        IFormFile file,
+        [FromForm] string description,
+        HttpContext context,
+        CaptureEvidenceUseCase useCase,
+        UseCaseExecutor executor,
+        MutableTenantContext tenant,
+        CancellationToken cancellationToken)
+    {
+        var scope = new ProjectScope(new WorkspaceId(workspaceId), new ProjectId(projectId));
+        tenant.EnterWorkspace(scope.WorkspaceId);
+
+        using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer, cancellationToken);
+
+        UseCaseResult<CaptureEvidenceResponse> result = await executor.ExecuteAsync(
+            useCase,
+            new CaptureEvidenceRequest(
+                scope,
+                string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                description,
+                buffer.ToArray()),
+            CallerFor(context),
+            cancellationToken);
+
+        // Serialised through the shared conventions so the identifier and the enum come back in
+        // the same shapes every other operation uses, rather than in whatever the default would be.
+        JsonElement? payload = result.IsSuccess
+            ? JsonSerializer.SerializeToElement(result.Value, JsonConventions.Options)
+            : null;
+
+        return Render(new DispatchResult(
+            UseCaseCatalog.CaptureEvidence.Name,
+            result.Outcome,
+            payload,
+            result.Reason,
+            result.ValidationErrors));
     }
 
     /// <summary>

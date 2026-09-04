@@ -15,6 +15,7 @@ export type OperationName =
   | "list_projects"
   | "view_record_history"
   | "compare_snapshots"
+  | "list_evidence"
   | "analyze_project"
   | "analyze_code"
   | "analyze_documents"
@@ -223,6 +224,25 @@ export type CompareSnapshotsResult = {
       subject: string;
       before: string;
       after: string;
+    }>;
+};
+
+export type ListEvidenceArguments = {
+  scope: {
+    workspaceId: string;
+    projectId: string;
+  };
+};
+
+export type ListEvidenceResult = {
+  evidence: Array<{
+      evidenceId: string;
+      mediaType: string;
+      sizeBytes: number;
+      capturedAt: string;
+      capturedBy: string;
+      redactionState: "NotScanned" | "Clean" | "Redacted" | "Blocked";
+      isReleasable: boolean;
     }>;
 };
 
@@ -790,7 +810,7 @@ export type ReadAuditHistoryResult = {
       workspaceId: string | null;
       projectId: string | null;
       actorId: string;
-      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded";
+      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded" | "EvidenceCaptured" | "EvidenceListed";
       outcome: "Succeeded" | "Denied" | "Failed";
       resourceReference: string;
       occurredAt: string;
@@ -1037,6 +1057,7 @@ export interface Operations {
   "list_projects": { arguments: ListProjectsArguments; result: ListProjectsResult };
   "view_record_history": { arguments: ViewRecordHistoryArguments; result: ViewRecordHistoryResult };
   "compare_snapshots": { arguments: CompareSnapshotsArguments; result: CompareSnapshotsResult };
+  "list_evidence": { arguments: ListEvidenceArguments; result: ListEvidenceResult };
   "analyze_project": { arguments: AnalyzeProjectArguments; result: AnalyzeProjectResult };
   "analyze_code": { arguments: AnalyzeCodeArguments; result: AnalyzeCodeResult };
   "analyze_documents": { arguments: AnalyzeDocumentsArguments; result: AnalyzeDocumentsResult };
@@ -1098,6 +1119,7 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "list_projects": { permission: "ReadKnowledge", availableToAi: true },
   "view_record_history": { permission: "ReadKnowledge", availableToAi: true },
   "compare_snapshots": { permission: "ReadKnowledge", availableToAi: true },
+  "list_evidence": { permission: "ReadKnowledge", availableToAi: false },
   "analyze_project": { permission: "AnalyzeProject", availableToAi: true },
   "analyze_code": { permission: "AnalyzeProject", availableToAi: true },
   "analyze_documents": { permission: "AnalyzeProject", availableToAi: true },

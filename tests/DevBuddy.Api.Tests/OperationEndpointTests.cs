@@ -46,13 +46,20 @@ public sealed class OperationEndpointTests(ApiFixture fixture)
 
         string[] names = [.. operations.EnumerateArray().Select(entry => entry.GetProperty("name").GetString()!)];
 
-        // Everything the catalogue holds except the one that streams bytes: it has a route of
-        // its own, and listing it here would invite a caller to POST to a route that cannot
-        // serve it.
+        // Everything the catalogue holds except the two that move bytes: each has a route of its
+        // own, and listing them here would invite a caller to POST a JSON body to a route that
+        // cannot serve it. list_evidence is dispatchable, because naming what a project holds is
+        // ordinary JSON.
+        string[] streaming =
+        [
+            UseCaseCatalog.DownloadEvidence.Name,
+            UseCaseCatalog.CaptureEvidence.Name,
+        ];
+
         string[] dispatchable =
         [
             .. UseCaseCatalog.All
-                .Where(descriptor => descriptor.Name != UseCaseCatalog.DownloadEvidence.Name)
+                .Where(descriptor => !streaming.Contains(descriptor.Name, StringComparer.Ordinal))
                 .Select(descriptor => descriptor.Name)
         ];
 

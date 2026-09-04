@@ -480,3 +480,69 @@ describe("role-driven navigation", () => {
     expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
   });
 });
+
+describe("evidence", () => {
+  test("what a project holds is listed, and a contributor can attach a file", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/evidence`));
+
+    await screen.findByRole("heading", { name: "Attached to this project" });
+
+    // What the server sent, rendered.
+    expect(screen.getByText("text/plain")).toBeDefined();
+    expect(screen.getByText("2 KB")).toBeDefined();
+
+    const file = new File(["a build log"], "build.log", { type: "text/plain" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+
+    fireEvent.change(screen.getByPlaceholderText("The build log for release 1.4"), {
+      target: { value: "The build log" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Attach" }));
+    });
+
+    // Posted to the evidence route rather than through an operation, carrying both parts.
+    await waitFor(() => expect(server.uploads.length).toBe(1));
+    expect(server.uploads[0].fileName).toBe("build.log");
+    expect(server.uploads[0].description).toBe("The build log");
+  });
+
+  test("a viewer sees what is attached and is not offered the form", async () => {
+    server.restore();
+    server = fakeServer(["ReadKnowledge"]);
+
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/evidence`));
+
+    await screen.findByRole("heading", { name: "Attached to this project" });
+
+    // Reading is offered; attaching is not. The server refuses it either way, which is proved in
+    // DevBuddy.Security.Tests against real PostgreSQL rather than here.
+    expect(screen.getAllByRole("button", { name: "Download" }).length).toBe(2);
+    expect(screen.queryByRole("heading", { name: "Attach an artefact" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Attach" })).toBeNull();
+  });
+
+  test("an artefact that has not been cleared cannot be downloaded", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/evidence`));
+
+    await screen.findByRole("heading", { name: "Attached to this project" });
+
+    // Two rows: one cleared, one still NotScanned. The server refuses to release the second, and
+    // the screen must not invite a click that is going to be refused.
+    const buttons = screen.getAllByRole("button", { name: "Download" });
+
+    expect(buttons.length).toBe(2);
+    expect(buttons[0].hasAttribute("disabled")).toBe(false);
+    expect(buttons[1].hasAttribute("disabled")).toBe(true);
+
+    expect(screen.getByText("Clean")).toBeDefined();
+    expect(screen.getByText("NotScanned")).toBeDefined();
+  });
+});

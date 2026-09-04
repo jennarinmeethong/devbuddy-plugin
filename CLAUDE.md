@@ -69,6 +69,20 @@ reference propagates to the console, whose image uses the smaller `runtime` base
 container then fails to start at all. The two web hosts add it themselves through the
 `configureTracing`/`configureMetrics` callbacks.
 
+**Evidence can now be attached, not only read.** `capture_evidence` and `list_evidence` close a
+gap nobody had noticed: `download_evidence` existed, backup and restore carried the bytes,
+retention swept them and the isolation tests covered them, but no operation, endpoint or screen
+ever called `IEvidenceStore.StoreAsync` — only tests did — so a real installation could never have
+had anything to download. Capture is human-only and runs through the pipeline, so a file carrying
+a credential is Blocked with **nothing written**, the same shape a draft gets (SB-17): the scan
+happens before the store is touched, which is why the request carries an array rather than a
+stream. `RecordScanResultAsync` moved onto `IEvidenceStore` — the implementation had existed since
+Phase 3 with no way to call it — because stored evidence begins `NotScanned` and the download
+refuses to release anything in that state. Capture and download have **streaming routes of their
+own** rather than dispatcher entries, because base64 in a JSON envelope inflates a file by a third;
+`list_evidence` is ordinary JSON and is dispatched normally. The `Evidence` screen under a project
+is where a person does it.
+
 **A project can be deleted.** `delete_project` (Administrator, workspace- or project-scoped) removes
 its work items, records with their full revision history, evidence rows and bytes, source
 repositories, and project-scoped memberships, immediately. Audit history survives the project it
