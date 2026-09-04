@@ -5,9 +5,12 @@ using DevBuddy.Api;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Infrastructure.Hosting;
 using DevBuddy.Infrastructure.Identity;
+using DevBuddy.Infrastructure.Observability;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 
 // The HTTP surface. Auth endpoints, one route per operation through the dispatcher, an evidence
 // stream, and health. Everything except sign-in goes through the same pipeline the MCP server and
@@ -30,6 +33,20 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables("DEVBUDDY_");
 
 builder.Services.AddDevBuddy(builder.Configuration, "The API");
+
+// Off unless Telemetry:Endpoint names a collector. See TelemetryOptions for what is exported and
+// what is deliberately kept out of it.
+//
+// The ASP.NET Core pieces are added here rather than in Infrastructure: that package carries a
+// framework reference the console must not inherit. The rate limiter's own meter comes with them,
+// and its dimensions are the policy and the route template — never the caller (SB-21).
+builder.Services.AddDevBuddyTelemetry(
+    builder.Configuration,
+    "devbuddy-api",
+    tracing => tracing.AddAspNetCoreInstrumentation(),
+    metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddMeter("Microsoft.AspNetCore.RateLimiting"));
 
 IdentitySettings identitySettings = HostComposition.ReadIdentitySettings(builder.Configuration);
 

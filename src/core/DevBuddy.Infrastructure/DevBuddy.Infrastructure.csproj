@@ -25,6 +25,15 @@
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <!-- OpenTelemetry.Instrumentation.AspNetCore is deliberately not here. It carries a framework
+         reference to Microsoft.AspNetCore.App, which would propagate through this project to the
+         console — and the console's image is built on the smaller runtime base, so it stopped
+         starting entirely. The two web hosts add that instrumentation themselves; see the
+         callbacks on AddDevBuddyTelemetry. -->
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
   </ItemGroup>

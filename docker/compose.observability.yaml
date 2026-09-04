@@ -1,0 +1,105 @@
+# Observability, as an overlay rather than part of the stack.
+#
+#   docker compose -f docker/compose.yaml -f docker/compose.observability.yaml up -d
+#
+# Four extra services and a collector is a real cost — memory, disk, and four more things that can
+# need attention at three in the morning. A single-operator installation should not pay it just to
+# start the product, so compose.yaml stays as it was and this file is the opt-in. Turning it on is
+# also what makes the retention schedule's 90 days for application logs real rather than
+# approximated by the size of a json-file (docs/operations/logging.md).
+#
+# Nothing here is published to the host except Grafana, on loopback, for the same reason the API is.
+
+name: devbuddy
+
+services:
+  # Pointing the two servers at the collector is the whole of the application-side change. With no
+  # endpoint configured they export nothing and register no instrumentation at all.
+  api:
+    environment:
+      DEVBUDDY_Telemetry__Endpoint: http://otel-collector:4317
+      DEVBUDDY_Telemetry__ServiceName: devbuddy-api
+
+      # Off unless SMTP is configured. With Email:Provider left at Log, setup and recovery tokens
+      # are written to the log on purpose — shipping those logs to Loki would copy single-use
+      # credentials into a system more people can read. Set DEVBUDDY_EMAIL_PROVIDER=Smtp first.
+      DEVBUDDY_Telemetry__ExportLogs: ${DEVBUDDY_TELEMETRY_EXPORT_LOGS:-false}
+
+  mcp:
+    environment:
+      DEVBUDDY_Telemetry__Endpoint: http://otel-collector:4317
+      DEVBUDDY_Telemetry__ServiceName: devbuddy-mcp
+      DEVBUDDY_Telemetry__ExportLogs: ${DEVBUDDY_TELEMETRY_EXPORT_LOGS:-false}
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.140.0
+    restart: unless-stopped
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otel/config.yaml:ro
+    depends_on:
+      - loki
+      - tempo
+    networks: [internal]
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      # Metrics are aggregates and cheap to keep; ninety days matches what the retention schedule
+      # asks of logs, so a question about last quarter has the same answer in both.
+      - "--storage.tsdb.retention.time=90d"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus:/prometheus
+    networks: [internal]
+
+  loki:
+    image: grafana/loki:3.5.10
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/config.yaml"]
+    user: "10001:10001"
+    volumes:
+      - ./observability/loki.yaml:/etc/loki/config.yaml:ro
+      - loki:/loki
+    networks: [internal]
+
+  tempo:
+    image: grafana/tempo:2.9.1
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    user: "10001:10001"
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo:/var/tempo
+    networks: [internal]
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    restart: unless-stopped
+    ports:
+      # Loopback, like the API. Put a reverse proxy in front of it if it needs to be reachable, and
+      # change the admin password before you do.
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${DEVBUDDY_GRAFANA_PASSWORD:?set DEVBUDDY_GRAFANA_PASSWORD in docker/.env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks: [internal]
+
+volumes:
+  prometheus:
+  loki:
+  tempo:
+  grafana:

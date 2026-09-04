@@ -43,6 +43,18 @@ image unable to write to a fresh volume.
 **The application containers are read-only** with all capabilities dropped and
 `no-new-privileges`, with a `tmpfs` for the one directory a .NET process needs to write to.
 
+**It collects no traces or metrics on its own.** `Telemetry:Endpoint` is unset, so the
+instrumentation registers nothing. Adding a second file turns it on together with somewhere to
+send it:
+
+```bash
+docker compose -f docker/compose.yaml -f docker/compose.observability.yaml up -d
+```
+
+That publishes Grafana on loopback and needs `DEVBUDDY_GRAFANA_PASSWORD` set; nothing else in the
+overlay is published. `docs/operations/observability.md` covers what it collects and, more to the
+point here, what it refuses to.
+
 ## Secrets
 
 Four, all from the environment, none baked into an image:

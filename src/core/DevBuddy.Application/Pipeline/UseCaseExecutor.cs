@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Observability;
 using DevBuddy.Application.Security;
 using DevBuddy.Domain.Auditing;
 using DevBuddy.Domain.Common;
@@ -46,6 +48,15 @@ public sealed class UseCaseExecutor
         _clock = Guard.NotNull(clock, nameof(clock));
     }
 
+    /// <summary>
+    /// Runs one use case, and records that it ran.
+    /// <para>
+    /// The measuring wraps the pipeline rather than threading through it, because the pipeline
+    /// returns from nine places and a counter incremented at each of them is a counter that will
+    /// eventually miss one. What reaches telemetry is the operation name, the outcome, and the
+    /// channel — see <see cref="DevBuddyTelemetry"/> for why it is not more than that.
+    /// </para>
+    /// </summary>
     public async Task<UseCaseResult<TResponse>> ExecuteAsync<TRequest, TResponse>(
         UseCase<TRequest, TResponse> useCase,
         TRequest request,
@@ -57,7 +68,49 @@ public sealed class UseCaseExecutor
         Guard.NotNull(caller, nameof(caller));
 
         UseCaseDescriptor descriptor = useCase.Descriptor;
+        string channel = caller.Channel.ToString();
 
+        using Activity? activity = DevBuddyTelemetry.Operations.StartActivity(descriptor.Name);
+        activity?.SetTag("devbuddy.operation", descriptor.Name);
+        activity?.SetTag("devbuddy.channel", channel);
+
+        long started = Stopwatch.GetTimestamp();
+
+        try
+        {
+            UseCaseResult<TResponse> result =
+                await RunAsync(useCase, request, caller, descriptor, cancellationToken);
+
+            // Recorded as an outcome, and deliberately not as an error status: a denial or a
+            // rejection is a correct answer. Marking one as a failed span would make every
+            // dashboard treat the controls working as an incident.
+            activity?.SetTag("devbuddy.outcome", result.Outcome.ToString());
+
+            DevBuddyTelemetry.RecordOperation(
+                descriptor.Name, result.Outcome.ToString(), channel, Stopwatch.GetElapsedTime(started));
+
+            return result;
+        }
+        catch (Exception failure)
+        {
+            activity?.SetTag("devbuddy.outcome", "Faulted");
+            activity?.SetStatus(ActivityStatusCode.Error, failure.GetType().Name);
+
+            DevBuddyTelemetry.RecordOperation(
+                descriptor.Name, "Faulted", channel, Stopwatch.GetElapsedTime(started));
+
+            throw;
+        }
+    }
+
+    private async Task<UseCaseResult<TResponse>> RunAsync<TRequest, TResponse>(
+        UseCase<TRequest, TResponse> useCase,
+        TRequest request,
+        CallerContext caller,
+        UseCaseDescriptor descriptor,
+        CancellationToken cancellationToken)
+        where TRequest : IUseCaseRequest
+    {
         // 1. Validate. Nothing was authorised and nothing was read, so this is not audited:
         //    a malformed request is a host logging concern, not a data-access event.
         if (request is null)
@@ -233,6 +286,11 @@ public sealed class UseCaseExecutor
 
             SecretScanResult result = await _scanner.ScanAsync(content, cancellationToken);
 
+            foreach (SecretFinding finding in result.Findings)
+            {
+                DevBuddyTelemetry.RecordBlockedContent("secret", finding.RuleName);
+            }
+
             findings.AddRange(result.Findings.Select(
                 finding => $"{finding.RuleName} at line {finding.LineNumber}"));
         }
@@ -257,6 +315,11 @@ public sealed class UseCaseExecutor
             }
 
             PersonalDataScanResult result = await _personalDataScanner.ScanAsync(content, cancellationToken);
+
+            foreach (PersonalDataFinding finding in result.Findings)
+            {
+                DevBuddyTelemetry.RecordBlockedContent("personal-data", finding.RuleName);
+            }
 
             findings.AddRange(result.Findings.Select(
                 finding => $"personal-data:{finding.RuleName} at line {finding.LineNumber}"));

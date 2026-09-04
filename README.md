@@ -37,6 +37,7 @@ operations. Do not connect real project data until the remaining controls are ve
 | [docs/operations/plugin-hosts.md](docs/operations/plugin-hosts.md) | Installing the plugins, and what the tool boundary does not cover. |
 | [docs/operations/deployment.md](docs/operations/deployment.md) | Running the stack, its secrets, and its limits. |
 | [docs/operations/backup-and-restore.md](docs/operations/backup-and-restore.md) | What a backup holds, and the drill. |
+| [docs/operations/observability.md](docs/operations/observability.md) | The optional traces/metrics/logs overlay, and what it refuses to collect. |
 | [docs/operations/release-matrix.md](docs/operations/release-matrix.md) | Which platforms were built, and which were actually run. |
 | [docs/adr/](docs/adr/) | Architecture decision records. |
 | [AGENTS.md](AGENTS.md) | Contributor guide: structure, commands, style, testing, security expectations. |

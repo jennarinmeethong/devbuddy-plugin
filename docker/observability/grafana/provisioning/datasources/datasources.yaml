@@ -1,0 +1,24 @@
+# Provisioned rather than clicked, so a Grafana container replacement is not an afternoon of
+# setting it up again.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: devbuddy-prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Loki
+    type: loki
+    uid: devbuddy-loki
+    access: proxy
+    url: http://loki:3100
+
+  - name: Tempo
+    type: tempo
+    uid: devbuddy-tempo
+    access: proxy
+    url: http://tempo:3200

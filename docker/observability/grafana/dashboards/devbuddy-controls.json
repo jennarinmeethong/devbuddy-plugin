@@ -1,0 +1,183 @@
+{
+  "uid": "devbuddy-controls",
+  "title": "DevBuddy — controls",
+  "description": "What the security controls are actually doing. Every panel here answers a question the verification matrix could only answer with a test before: how often a control fires in production, not whether it fires in CI.",
+  "tags": ["devbuddy"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Operations by outcome",
+      "description": "A denial is a correct answer, not an error. This is the shape of normal: mostly Succeeded, with a steady floor of Denied wherever people and assistants ask for things they may not have.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (devbuddy_outcome) (rate(devbuddy_operations_total[5m]))",
+          "legendFormat": "{{devbuddy_outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Operations by channel",
+      "description": "How much of the load is an assistant rather than a person. A jump in the Ai series with no matching human activity is worth understanding.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (devbuddy_channel) (rate(devbuddy_operations_total[5m]))",
+          "legendFormat": "{{devbuddy_channel}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Refusals by operation (Denied and Blocked)",
+      "description": "Which operations are being refused. A single operation climbing here is either a misconfigured permission or somebody probing; both are worth a look, and neither shows up in an error rate.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (devbuddy_operation) (rate(devbuddy_operations_total{devbuddy_outcome=~\"Denied|Blocked\"}[5m]))",
+          "legendFormat": "{{devbuddy_operation}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Content refused before it was stored (SB-17, SB-18)",
+      "description": "The scanner catching something, by the rule that caught it. The matched text is never a label — the rule name is the whole vocabulary. A rule firing repeatedly usually means a person pasting credentials into a draft, which is worth a conversation rather than an alert.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (devbuddy_control, devbuddy_rule) (increase(devbuddy_content_blocked_total[1h]))",
+          "legendFormat": "{{devbuddy_control}} — {{devbuddy_rule}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "fillOpacity": 30, "stacking": { "mode": "normal" } } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Operation latency, 95th percentile",
+      "description": "Per operation, so a slow analysis does not hide behind a fast search.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, devbuddy_operation) (rate(devbuddy_operation_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "{{devbuddy_operation}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Analysis latency against its ceiling (SB-22)",
+      "description": "The 95th percentile of one analysis. Analysis:Timeout defaults to 60s and a run that reaches it returns an incomplete answer rather than throwing — so this line approaching that number is the warning, not the incident.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, devbuddy_analysis_kind) (rate(devbuddy_analysis_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "{{devbuddy_analysis_kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 30000 },
+              { "color": "red", "value": 60000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Analyses refused at the concurrency ceiling (SB-21)",
+      "description": "Anything above zero means callers are being turned away because Analysis:MaxConcurrentAnalyses was already full. Sustained, it is either a ceiling set too low for the load or an assistant looping over projects.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (devbuddy_analysis_kind) (rate(devbuddy_analysis_rejected_total[5m]))",
+          "legendFormat": "{{devbuddy_analysis_kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 30 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Requests turned away by the rate limiter (SB-21)",
+      "description": "From ASP.NET Core's own meter. The auth policy firing is somebody spraying sign-ins; the global limiter firing is one caller running hot, and it is partitioned per account so it does not lock anybody else out.",
+      "datasource": { "type": "prometheus", "uid": "devbuddy-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (aspnetcore_rate_limiting_result) (rate(aspnetcore_rate_limiting_requests_total{aspnetcore_rate_limiting_result!=\"acquired\"}[5m]))",
+          "legendFormat": "{{aspnetcore_rate_limiting_result}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 30 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    }
+  ]
+}

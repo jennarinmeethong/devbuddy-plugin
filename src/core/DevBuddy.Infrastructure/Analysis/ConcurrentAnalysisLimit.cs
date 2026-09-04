@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Observability;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using Microsoft.Extensions.Options;
@@ -73,9 +75,13 @@ internal sealed class ConcurrentAnalysisLimit : ICodeAnalyzer
             // Refused rather than queued indefinitely. A caller waiting forever behind a queue is
             // a caller who cannot tell a busy system from a broken one, and an assistant that got
             // no answer will simply ask again.
+            DevBuddyTelemetry.RecordAnalysisRejected(kind.ToString());
+
             throw new AnalysisBusyException(
                 "Too many analyses are already running. Try again shortly.");
         }
+
+        long started = Stopwatch.GetTimestamp();
 
         try
         {
@@ -84,6 +90,7 @@ internal sealed class ConcurrentAnalysisLimit : ICodeAnalyzer
         finally
         {
             _slots.Release();
+            DevBuddyTelemetry.RecordAnalysis(kind.ToString(), Stopwatch.GetElapsedTime(started));
         }
     }
 }

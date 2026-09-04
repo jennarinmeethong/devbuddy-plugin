@@ -111,8 +111,13 @@ These are the concrete picks that satisfy `info.md`; each gets an ADR in `docs/a
   Content-addressed by SHA-256.
 - **Frontend:** Vite + React + TypeScript + Tailwind + shadcn/ui + TanStack Query + React Router.
 - **Testing:** xUnit + Testcontainers (PostgreSQL) + `WebApplicationFactory`.
-- **Observability:** Serilog structured logging + OpenTelemetry traces/metrics; audit is a
-  separate, append-only store — not application logs.
+- **Observability:** OpenTelemetry traces/metrics, exported over OTLP and off unless an endpoint
+  is configured; `docker/compose.observability.yaml` is an optional overlay with a collector,
+  Prometheus, Loki, Tempo, and Grafana. Serilog was not taken up: the hosts log to standard output
+  through the default provider and the container's log driver owns the file handling, which is
+  what a chiseled image with no writable root wants. Audit remains a separate, append-only store —
+  not application logs, and not telemetry. See `docs/operations/observability.md` for the tagging
+  rule that keeps span and metric tags to a fixed vocabulary.
 - **CI:** GitHub Actions — build, test, architecture tests, security tests, container build, SBOM.
 
 ---

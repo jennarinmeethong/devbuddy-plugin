@@ -1,0 +1,11 @@
+# Scrapes the collector, and nothing else. The application exposes no metrics endpoint of its own
+# — it pushes OTLP — so there is exactly one target here.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8889"]

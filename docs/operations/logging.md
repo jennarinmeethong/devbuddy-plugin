@@ -66,10 +66,30 @@ x-logging: &app-logging
 Re-measure when traffic changes materially. This is the option that stays a guess if nobody ever
 looks at it again.
 
-## Option 2 — A log aggregator with time-based retention
+## Option 2 — A log aggregator with time-based retention — **this one now ships**
 
-The only option that actually implements "90 days". Point the driver at a collector and let the
-collector hold the policy. With Loki, for example:
+The only option that actually implements "90 days", and since the OpenTelemetry work it is no
+longer something to assemble yourself. `docker/compose.observability.yaml` is an optional overlay
+carrying a collector, Prometheus, Loki, Tempo, and Grafana, with Loki's retention set to the 90
+days the schedule names:
+
+```bash
+docker compose -f docker/compose.yaml -f docker/compose.observability.yaml up -d
+```
+
+See `docs/operations/observability.md` for what it collects, what it deliberately does not, and
+the retention window per signal.
+
+Two things to know before choosing it for logs specifically.
+
+**Log export is off by default even with the overlay running.** `Telemetry:ExportLogs` defaults to
+false, and the reason is the first item in the next section: with no SMTP configured, setup and
+recovery tokens are written into the application log on purpose. Shipping that log to a system
+more people can read copies single-use credentials into it. Configure SMTP first, then set
+`DEVBUDDY_TELEMETRY_EXPORT_LOGS=true`.
+
+**This routes logs through the application, not through the Docker log driver.** The alternative —
+the `loki` log driver — is still available and needs no application change:
 
 ```yaml
 x-logging: &app-logging
@@ -80,21 +100,11 @@ x-logging: &app-logging
     loki-max-backoff: "1s"
 ```
 
-and in Loki's own configuration:
-
-```yaml
-limits_config:
-  retention_period: 2160h   # 90 days
-compactor:
-  retention_enabled: true
-```
-
-The driver is a plugin (`docker plugin install grafana/loki-docker-driver:latest --alias loki
---grant-all-permissions`), which is one more thing to install and keep working — weigh that
-against actually being able to answer the 60-day question.
-
-This is also the path that arrives anyway if the OpenTelemetry work in `docs/plan.md`'s technology
-choices is picked up: traces and metrics need a backend, and the same one usually takes logs.
+It is a plugin (`docker plugin install grafana/loki-docker-driver:latest --alias loki
+--grant-all-permissions`), so it is one more thing to install and keep working, and it captures
+container stdout wholesale — including any log line written before the application's own logging
+is configured. Prefer it if you want retention to cover crash output and startup failures too;
+prefer `ExportLogs` if you want the same resource attributes on logs as on traces and metrics.
 
 ## Option 3 — Make the application own it
 
@@ -137,4 +147,9 @@ a place where sensitive material can appear, not as a place it has been filtered
 
 Whichever option is chosen, note it in `docs/security/release-readiness.md` under "Before real
 project data is connected". That section exists so the residual risks are accepted explicitly
-rather than discovered later, and this is one of the two remaining items on it.
+rather than discovered later.
+
+The item stays on that list even now that option 2 ships, and the distinction is worth keeping
+straight: the overlay makes a 90-day window *available*, it does not make it *true* by default.
+Running the base stack alone still gives size-bounded rotation. What closes this is an operator
+choosing, and recording, which of the three is in force.

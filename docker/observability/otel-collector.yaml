@@ -1,0 +1,61 @@
+# The one thing the application talks to. Everything downstream is the collector's problem, which
+# is the point: swapping Prometheus for something else is a change to this file, not to the
+# application or to how it is configured.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batching is what keeps a busy API from opening an export per request.
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+  # A ceiling on the collector's own memory, so the thing watching the system cannot be what takes
+  # it down.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+
+exporters:
+  # Scraped by Prometheus rather than pushed to it: pull is the model Prometheus is built around,
+  # and it means a Prometheus restart loses nothing that the collector still holds.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Loki 3 speaks OTLP directly, so no plugin and no sidecar. This is what makes time-based log
+  # retention available without installing a Docker logging driver on the host.
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/loki]
+
+  telemetry:
+    logs:
+      level: warn

@@ -36,12 +36,37 @@ log retention sat outside this codebase. The first two are closed:
   no lagging state for a sweep to catch, so the sweep this control once lacked a trigger for is
   unneeded rather than missing. Audit history survives the project it describes.
 
-**Still residual, and still not a defect:** application log retention is a container log-driver
-setting (`docker/compose.yaml` bounds it by size), not application code a test can assert a
-90-day window against. It is an operator responsibility, named here so it stays visible rather
-than silently dropped; `docs/operations/logging.md` is the runbook — how to measure the real
-volume, the three options with their trade-offs, and the two things that are in the logs
-regardless of how long they are kept.
+**Still residual, and still not a defect:** application log retention is a collector or
+log-driver setting, not application code a test can assert a 90-day window against. The base stack
+bounds it by size (`docker/compose.yaml`); the observability overlay added since offers a real
+90-day window through Loki, but only if an operator runs it and turns log export on. Either way
+the choice is theirs, so it is named here rather than silently dropped.
+`docs/operations/logging.md` is the runbook — how to measure the real volume, the three options
+with their trade-offs, and the two things that are in the logs regardless of how long they are
+kept.
+
+## Added since Phase 11: a telemetry egress, and the rule that bounds it
+
+Worth naming here rather than only in the operations docs, because it is a new path by which data
+can leave the boundary — the first one this system has that is not the audit store or an API
+response.
+
+`Telemetry:Endpoint` is empty by default and nothing is registered when it is, so an installation
+that wants none of this exports nothing and pays nothing. When an operator does configure it, what
+leaves is bounded by a rule stated in `DevBuddyTelemetry` and enforced by six tests: a tag may
+carry an operation name, an outcome, a channel, or a scanner rule name — a fixed vocabulary this
+codebase defines — and never a workspace, project, record, or user identifier, a denial reason, or
+anything a caller supplied.
+
+Three consequences follow from that rule rather than from oversight: database instrumentation is
+absent (statement text exceeds the vocabulary even parameterised), URL path and query are stripped
+from every span while the route template survives, and log export is a separate opt-in that stays
+false while `EmailOptions.Provider` is `Log`.
+
+This does not change any control's status. It was verified against the running stack as well as in
+tests: with a workspace, project, and actor created and traffic driven through Succeeded, Denied,
+and Blocked, no exported series or span carried any of those identifiers, and a blocked secret
+appeared only as its rule's name.
 
 ## Also closed since Phase 11, none of them a security-control change
 
@@ -96,7 +121,11 @@ Per `info.md`, this is the explicit sign-off point. The project owner should acc
 1. Application log retention is an operator responsibility (log-driver or aggregator
    configuration), not a tested application behaviour. Pick an option from
    `docs/operations/logging.md` and record which — and note that with no SMTP configured, setup
-   and recovery tokens are written to those logs by design.
+   and recovery tokens are written to those logs by design. A 90-day window is now *available*
+   without assembling anything: `docker/compose.observability.yaml` ships Loki with
+   `retention_period: 2160h`. It is not the default — the base stack still rotates by size, and
+   log export is off until SMTP is configured — so this remains a decision to record rather than
+   one already made.
 2. No release has yet been signed or carries an attached SBOM (SB-29). `.github/workflows/release.yml`
    builds, pushes, signs, and attests everything on a `v*` tag and leaves the release as a draft
    for a person to publish; until a tag is actually cut, this row stays `IMPLEMENTED`.

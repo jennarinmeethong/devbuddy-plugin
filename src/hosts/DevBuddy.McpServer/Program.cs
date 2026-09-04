@@ -6,11 +6,14 @@ using DevBuddy.Application.Security;
 using DevBuddy.Domain.Common;
 using DevBuddy.Infrastructure.Hosting;
 using DevBuddy.Infrastructure.Identity;
+using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.McpServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using ModelContextProtocol.Protocol;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 
 // The MCP server. Two transports, one tool surface.
 //
@@ -27,6 +30,14 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables("DEVBUDDY_");
 
 builder.Services.AddDevBuddy(builder.Configuration, "The MCP server");
+
+// Off unless Telemetry:Endpoint names a collector. The AI channel is the surface where knowing
+// what was asked for, and what was refused, matters most.
+builder.Services.AddDevBuddyTelemetry(
+    builder.Configuration,
+    "devbuddy-mcp",
+    tracing => tracing.AddAspNetCoreInstrumentation(),
+    metrics => metrics.AddAspNetCoreInstrumentation());
 
 // The HTTP transport reads the caller from the request principal, so the accessor has to exist.
 // Under stdio there is no HTTP context and the caller presents a machine token instead.

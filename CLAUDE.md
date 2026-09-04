@@ -56,6 +56,19 @@ something for the sweep to purge. A deleted project is purged immediately by `de
 itself rather than by a lagging sweep. Application log retention remains a container log-driver
 setting outside this codebase, sized in `docker/compose.yaml`, not tested here.
 
+**Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
+empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports
+OTLP traces and metrics; `docker/compose.observability.yaml` is an optional overlay carrying a
+collector, Prometheus, Loki, Tempo, and Grafana with a provisioned security-controls dashboard.
+Log export is a *separate* opt-in that stays false while `EmailOptions.Provider` is `Log`, because
+setup and recovery tokens are in those logs by design. The tagging rule — operation name, outcome,
+channel, scanner rule name, and nothing else, ever — is stated in `DevBuddyTelemetry` and enforced
+by tests; it is why database instrumentation is absent and why URL paths are scrubbed from spans.
+**`OpenTelemetry.Instrumentation.AspNetCore` must not go in Infrastructure**: its framework
+reference propagates to the console, whose image uses the smaller `runtime` base, and the
+container then fails to start at all. The two web hosts add it themselves through the
+`configureTracing`/`configureMetrics` callbacks.
+
 **A project can be deleted.** `delete_project` (Administrator, workspace- or project-scoped) removes
 its work items, records with their full revision history, evidence rows and bytes, source
 repositories, and project-scoped memberships, immediately. Audit history survives the project it
