@@ -97,6 +97,27 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
+## What was verified for v1.0.0
+
+Recorded because the checklist below asks for it per release, and because a table that says "yes"
+without saying when is the guess this file exists to avoid.
+
+Built from `db831a6`, the commit CI passed on Linux and Windows. Tag `v1.0.0`, run 33904769593.
+
+| Check | Result |
+|---|---|
+| Attestations verify from outside the workflow | **Yes.** All three images and the `linux-x64` archive. Provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.0.0`, and source commit `db831a6`; the archive's attested digest matches the file and `SHA256SUMS`. A deliberately wrong `--owner` fails, so a passing check is worth something. |
+| SBOM attached per image | **Yes.** CycloneDX, verified, and distinct per host — 36, 38 and 56 components for the API, the MCP server and the console, which is the point of one document per image rather than one per archive. |
+| `win-x64` smoke test | **Yes.** Natively on the development machine. Eighteen AI-exposed operations, exit 0. |
+| `linux-x64` smoke test | **Yes.** `ubuntu:24.04` with `libicu74`. Eighteen operations, exit 0. |
+| `linux-arm64` smoke test | **Yes.** `ubuntu:24.04` under `linux/arm64` emulation, `uname -m` reporting `aarch64`. Emulated, not hardware. |
+| `linux-musl-x64` smoke test | **Yes.** `alpine:3` with `libstdc++`, `libgcc` and `icu-libs`. |
+| Compose from clean to healthy | **Yes.** Built from source, all services up, `migrate` exited 0, `/health` 200, `/operations` and the MCP transport both 401 unauthenticated, and neither 5432 nor 9000 reachable from the host (SB-30, confirmed against the running stack rather than only against the file). |
+| `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | **Not run.** Built and published as-is. No macOS and no Windows on ARM available; the musl arm64 build was not run, and the x64 musl one that was is the only reason its dependency list is believed to carry over. |
+| Destroy-and-restore drill | **Not yet performed for this release.** |
+
+The last row is why the release is still a draft. SB-29 stays `IMPLEMENTED` until it is published.
+
 ## Verifying a release
 
 Before publishing the draft, and recorded per release:
