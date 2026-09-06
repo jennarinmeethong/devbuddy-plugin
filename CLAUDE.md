@@ -23,8 +23,8 @@ HTTP, and the console; Phase 8 the provisioning operations and the React adminis
 `web/admin`; Phase 9 machine tokens and the Claude and Codex plugin packages; Phase 10 the
 container images, the Compose stack, backup and restore, and the supply-chain checks; Phase 11 the
 personal-data policy and retention enforcement. 433 .NET tests and 31 web tests exist, and all of
-them pass in this environment. 32 of 33 controls are `TESTED`; SB-29 is `IMPLEMENTED` and moves to
-`TESTED` when a release actually ships one.
+them pass in this environment. All 33 controls are `TESTED`: SB-29, the last one, closed when
+`v1.0.0` was published, signed, and verified from outside the workflow that built it.
 
 **Every operation a person needs is reachable from `web/admin`.** Team administration is the
 `Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the
@@ -113,7 +113,8 @@ it. Setting `Provider` to `Smtp` (MailKit) delivers it for real, to the account'
 `docs/operations/release-matrix.md`, pushes the three images to GHCR, generates one SBOM per host,
 and attests all of it with GitHub's keyless OIDC identity — no signing key to hold. It leaves the
 release as a draft, because the checklist it cannot run (hand-run smoke tests, the restore drill)
-is the half a person has to record. SB-29 stays `IMPLEMENTED` until a tag is actually cut.
+is the half a person has to record. `v1.0.0` is published, so SB-29 is `TESTED`; what was re-run
+for that tag and what was carried over is recorded in `docs/operations/release-matrix.md`.
 
 **Application log retention is enforced and tested.** `Logging:File:Path` (set by
 `docker/compose.yaml`) turns on a Serilog daily file, and `dotnet run -- retention` deletes files

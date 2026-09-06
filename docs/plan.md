@@ -824,8 +824,10 @@ phase being work rather than paperwork:
 
 Known gaps, carried forward:
 
-- **SB-29 is `IMPLEMENTED`, not `TESTED`.** SBOMs are generated but no release has carried one, and
-  nothing is signed or attested. It moves when there is a release.
+- **SB-29 was `IMPLEMENTED`, not `TESTED`, when this phase closed.** SBOMs were generated but no
+  release had carried one, and nothing was signed. It moved on 2026-09-06, when `v1.0.0` was
+  published with an SBOM per image and keyless OIDC attestations, verified from outside the
+  workflow that made them.
 - **The image half of SB-32 is by construction rather than by scan.** No `COPY` brings a secret in
   and no `ENV` sets one, but no image scanner runs, so a secret introduced another way would not be
   caught.
@@ -965,7 +967,7 @@ ever be created, teams had no operations, a setup or recovery token had no real 
 and source synchronisation could not read pull requests, issues, or review threads. All are closed.
 405 .NET tests grew to 433 and 23 web tests to 31; all of them pass. The matrix reaches 32
 `TESTED` of 33, with SB-29 the sole `IMPLEMENTED` row, unchanged, because it needs an actual
-release to prove.
+release to prove — which it got on 2026-09-06, taking the matrix to 33 of 33.
 
 What landed:
 

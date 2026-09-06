@@ -3,28 +3,28 @@
 Phase 11 exit criteria, from `docs/plan.md`: the verification matrix has no silent gaps, and every
 remaining risk is named and accepted explicitly by the project owner before real project data is
 connected. This note is that naming. `docs/security/verification-matrix.md` is the per-control
-source of truth; this note does not repeat its 33 rows, only the one that is not `TESTED` and the
-eight Phase 11 scenarios.
+source of truth; this note does not repeat its 33 rows, only the ones whose status moved last and
+the eight Phase 11 scenarios.
 
 ## Status
 
-**32 of 33 controls are `TESTED`. 1 is `IMPLEMENTED` but not fully proven, by name below. 0 are
-`NOT IMPLEMENTED`.**
+**All 33 controls are `TESTED`. 0 are `IMPLEMENTED`, 0 are `NOT IMPLEMENTED`.**
 
-## The one control not at `TESTED`
+## SB-29 — closed by the first published release
 
-### SB-29 — SBOM and verifiable artifact origin
+`v1.0.0` is published: run 34045844221, built from `9a8ebf0`. Three images in GHCR, each with its
+own CycloneDX SBOM, every archive signed with GitHub's keyless OIDC identity, and the whole of it
+verified **after publication and from outside the workflow that made it** — provenance naming this
+repository, `.github/workflows/release.yml`, `refs/tags/v1.0.0` and `9a8ebf0`; the `linux-x64`
+archive matching its attested digest byte for byte and matching `SHA256SUMS`; a deliberately wrong
+`--owner` refused, so that a pass means something.
 
-Changed since Phase 10, but not to `TESTED`, and the distance left is one step. Tag `v1.0.0` was
-cut from `6a60a48` and the workflow ran: the three images are in GHCR, each carries its own
-CycloneDX SBOM, and the archives and images are signed with GitHub's keyless OIDC identity. The
-attestations verify from outside the workflow that made them, checked against a negative control
-so that a pass means something, and `docs/operations/release-matrix.md` records the platform smoke
-tests and the destroy-and-restore drill performed by hand.
+That is the last row. **All 33 controls are `TESTED`.**
 
-**The release is still a draft.** Until a person publishes it, none of the above is obtainable by
-anyone consuming this software, which is why the row stays `IMPLEMENTED` rather than moving on the
-strength of a workflow having succeeded. It moves to `TESTED` when the draft is published.
+An earlier draft of this same version was withdrawn rather than published, and the reason is worth
+keeping: its source archive carried the Compose file from before the MinIO key, so an operator
+deploying from the tag rather than from `main` would have met the same 500 the restore drill had
+just found. The binaries were fine. A release is not only its binaries.
 
 ## SB-27 — closed since Phase 11
 
@@ -136,17 +136,15 @@ Per `info.md`, this is the explicit sign-off point. The project owner should acc
    and recovery tokens are written to those logs by design**. A retention window is not a control
    over who can read the file while it exists. Record which option from
    `docs/operations/logging.md` is in force and who can read the volume.
-2. The `v1.0.0` release is signed, carries an SBOM per image, and its attestations verify from
-   outside the workflow — but it is **still a draft** (SB-29), so none of that is obtainable by
-   anyone consuming this software until a person publishes it, and the row stays `IMPLEMENTED`
-   until then. Two things about that draft belong in the acceptance rather than in a release note.
-   Four platforms — `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` — were built and
-   published without ever being run, because no macOS and no Windows on ARM is available here, and
-   `linux/arm64` container images are not built at all. And the draft was built from `6a60a48`,
-   while the MinIO encryption key the restore drill found missing landed afterwards in
-   `docker/compose.yaml`: the binaries and images are unaffected — that commit touched no product
-   code — but an operator taking the Compose file out of the `v1.0.0` source archive rather than
-   from `main` gets the one whose object store refuses every evidence upload.
+2. `v1.0.0` is published, signed, and carries an SBOM per image, and SB-29 is `TESTED` on the
+   strength of a verification performed after publication rather than of a workflow having
+   succeeded. What is left is what the release notes state verbatim and this acceptance should
+   name too: four platforms — `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` — were
+   built and published **without ever being run**, because no macOS and no Windows on ARM is
+   available here, and `linux/arm64` container images are not built at all. If somebody deploys on
+   one of those, they are the first to run it. The rest of the release checklist was carried over
+   from `6a60a48` rather than re-run, which is sound only because the commits between it and
+   `9a8ebf0` changed no product code — a claim that stops being true for the next release.
 
 Neither blocks the controls that are `TESTED` today, including the personal-data policy (SB-18),
 retention (SB-27), and the AI-channel and tenant-isolation controls that gate access to whatever
