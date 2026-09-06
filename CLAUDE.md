@@ -13,18 +13,21 @@ repository.
 
 ## Where the project is
 
-Phases 0 to 11 are **complete**, and the v1 gaps named at the end of Phase 11 are closed. Phase 1
-delivered `DevBuddy.Domain`; Phase 2 the `UseCaseExecutor` pipeline and the first 41 of what is now
-58 operations; Phase 3 PostgreSQL, full-text search, and MinIO; Phase 4 identity, authorization,
-and tenant isolation; Phase 5 the lifecycle and audit history; Phase 6 read-only analysis, the real
-secret scanner and redactor, the path and URL guards, and source synchronisation from a mounted
-working copy; Phase 7 the three hosts — the HTTP API, the MCP server over stdio and authenticated
-HTTP, and the console; Phase 8 the provisioning operations and the React administration UI in
-`web/admin`; Phase 9 machine tokens and the Claude and Codex plugin packages; Phase 10 the
-container images, the Compose stack, backup and restore, and the supply-chain checks; Phase 11 the
-personal-data policy and retention enforcement. 433 .NET tests and 31 web tests exist, and all of
-them pass in this environment. All 33 controls are `TESTED`: SB-29, the last one, closed when
-`v1.0.0` was published, signed, and verified from outside the workflow that built it.
+**v1 is released.** Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are
+closed, and `v1.0.0` is published from `9a8ebf0` — signed, an SBOM per image, and the attestations
+verified from outside the workflow that built them. Phase 1 delivered `DevBuddy.Domain`; Phase 2
+the `UseCaseExecutor` pipeline and the first 41 of what is now 58 operations; Phase 3 PostgreSQL,
+full-text search, and MinIO; Phase 4 identity, authorization, and tenant isolation; Phase 5 the
+lifecycle and audit history; Phase 6 read-only analysis, the real secret scanner and redactor, the
+path and URL guards, and source synchronisation from a mounted working copy; Phase 7 the three
+hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and the console; Phase 8
+the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
+and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
+and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
+enforcement. 433 .NET tests and 31 web tests exist, and all of them pass in this environment. All
+33 controls are `TESTED`; SB-29, the last one, closed on that publication. What v1 does **not**
+claim — four platforms built but never run, no `linux/arm64` image, and the operator-side facts
+about application logs — is listed under *v1 is released* in `docs/plan.md`.
 
 **Every operation a person needs is reachable from `web/admin`.** Team administration is the
 `Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the

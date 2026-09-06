@@ -925,6 +925,21 @@ Infrastructure.Tests. By the time the gap-closing work below finished, the block
 own and the full DevBuddy.Infrastructure.Tests suite passed again — a host security policy, never a
 code path this project controlled.
 
+**Phase 11 is closed, and with it v1 (2026-09-06).** The status above is what was true on
+2026-09-03 and is kept that way; this paragraph is what closed the distance between it and the
+exit criteria. All three residual retention rows named above are gone rather than accepted:
+`export_project` writes an actual copy, `delete_project` purges a project immediately, and
+application log retention is application code with a test against it — the sections below record
+each. SB-29, the last row that was `IMPLEMENTED` rather than `TESTED`, moved when `v1.0.0` was
+published, signed, and verified from outside the workflow that built it.
+
+**The matrix reads 33 `TESTED`, 0 `IMPLEMENTED`, 0 `NOT IMPLEMENTED`, and all eight scenarios are
+exercised.** The exit criteria are met: there are no silent gaps, and what remains is named in
+`docs/security/release-readiness.md` for the project owner to accept — four platforms built and
+published without ever being run, no `linux/arm64` image, and the operator-side facts about
+application logs, chiefly that with no SMTP configured setup and recovery tokens are written to
+them by design.
+
 ---
 
 ## The evidence store had no write side
@@ -1026,6 +1041,44 @@ records SB-27 at `TESTED`.
 
 ---
 
+## v1 is released
+
+**Status: COMPLETE (2026-09-06).** Phases 0 to 11 are closed, the gaps named after Phase 11 are
+closed, and `v1.0.0` is published: built from `9a8ebf0` by `.github/workflows/release.yml`, run
+34045844221. Three images in GHCR with an SBOM each, every archive signed with GitHub's keyless
+OIDC identity, and the attestations verified after publication from outside the workflow that made
+them — against a negative control, so that a pass means something. That was the last thing SB-29
+needed, and the matrix now reads **33 `TESTED` of 33**.
+
+What "complete" is being claimed to mean, so a later owner can check it rather than trust it:
+
+- **Every operation a person needs is reachable from `web/admin`**, and the AI surface is a
+  deliberate allow-list of eighteen operations over the same use cases, denied by default per
+  project.
+- **433 .NET tests and 31 web tests pass**, including the eight security scenarios `info.md`
+  requires, each mapped to a row in the verification matrix.
+- **A release is reproducible from a tag and verifiable by somebody who does not trust this
+  repository**, which is the only version of "signed" worth having.
+- **The restore drill has been performed by hand**, not asserted: an artefact came back byte for
+  byte after the database volume was destroyed.
+
+What is **not** claimed, stated here rather than left to be discovered:
+
+- Four platforms — `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` — were built and
+  published **without ever being run**. No macOS and no Windows on ARM was available. Whoever
+  deploys on one of them is the first to run it.
+- `linux/arm64` container images are not built and not claimed.
+- Retention windows are enforced by `dotnet run -- retention`, which runs on whatever schedule the
+  operator provides. Nothing inside this system guarantees it runs at all.
+- With no SMTP configured, setup and recovery tokens are written to the application log **by
+  design**. A retention window is not a control over who can read that file while it exists.
+
+The last two are the operator's, and `docs/security/release-readiness.md` asks the project owner to
+accept them in writing before real project data is connected. That acceptance, not this section, is
+the gate on using this system for real work.
+
+---
+
 ## Critical files this plan creates first
 
 | File | Why it matters |
@@ -1097,5 +1150,10 @@ each gets an ADR in `docs/adr/`.
 
 ## Remaining open items
 
-None blocking. Anything discovered during a phase is raised before that phase's exit criteria are
-claimed, and recorded as an ADR rather than decided silently in code.
+None blocking, and none belonging to v1: it is released, and what it does not claim is listed under
+*v1 is released* above. Anything discovered during a phase was raised before that phase's exit
+criteria were claimed, and recorded as an ADR rather than decided silently in code. The same
+standard applies to whatever follows this release — including the two things a next version would
+have to decide rather than inherit: whether `linux/arm64` images and the four unrun platforms are
+worth the cost of keeping working, and what a v2 does about the embeddings and vector search this
+plan deliberately kept out of v1.

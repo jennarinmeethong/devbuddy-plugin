@@ -147,3 +147,25 @@ design questions it raised. These are confirmed requirements, not proposals.
 - Work-item source of truth: the product owns the work item and its derived knowledge records.
   Import GitHub issues, pull requests, and commits read-only as linked references and snapshots.
   Do not write back to GitHub; source synchronisation is one-way in the first release.
+
+## Confirmed Decisions — 2026-09-06
+
+The project owner settled how the first release ships. These are confirmed requirements, not
+proposals.
+
+- Publish `v1.0.0` rather than hold it. The draft is published only after its attestations are
+  verified from outside the workflow that made them, and the release notes state verbatim which
+  rows were not verified.
+- Re-cut a tag rather than publish one whose source archive is wrong, even when the binaries are
+  sound. The draft built from `6a60a48` carried `docker/compose.yaml` from before the MinIO
+  encryption key, so anybody deploying from the tag rather than from `main` would have hit a 500 on
+  every evidence upload. It was withdrawn and re-cut at `9a8ebf0`. A release is not only its
+  binaries.
+- Phase 11 is closed and v1 is complete on that publication, with the matrix at 33 `TESTED` of 33.
+
+**Open against the 2026-09-01 release-matrix decision, for the owner to accept or schedule.** That
+decision named `osx-arm64` in the verified tier and container images covering `linux/arm64`. The
+shipped release meets neither: `osx-arm64` was built and published without ever being run, because
+no macOS was available, and no `linux/arm64` image is built at all. Both are recorded as not
+claimed in `docs/operations/release-matrix.md` and stated verbatim in the release notes, but the
+decision above still says otherwise, and one of the two has to move.
