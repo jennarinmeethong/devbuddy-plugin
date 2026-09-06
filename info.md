@@ -138,9 +138,14 @@ design questions it raised. These are confirmed requirements, not proposals.
 - MCP transport: ship both stdio (for locally launched Claude and Codex plugins) and authenticated
   HTTP (for self-hosted or remote use) in the first release, sharing one tool allow-list and one
   authorization pipeline.
-- Release matrix: publish three explicit tiers — verified (`linux-x64`, `linux-arm64`, `win-x64`,
-  `osx-arm64`), built but unverified (`win-arm64`, `osx-x64`, musl variants), and not published.
-  Container images cover `linux/amd64` and `linux/arm64` as a separate matrix.
+- Release matrix (**amended 2026-09-07**; the tiers below are what v1.0.0 actually shipped, and
+  what the original decision named is in the amendment note at the end of this file): publish three
+  explicit tiers — verified (`linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`), built but
+  unverified (`osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64`), and not published.
+  Verified means smoke-tested by hand and recorded per release in
+  `docs/operations/release-matrix.md`, not smoke-tested in CI: CI runs the full suite on
+  `ubuntu-latest` and `windows-latest` and nothing else. Container images cover `linux/amd64` as a
+  separate matrix; `linux/arm64` is not built and not claimed.
 - Retention: adopt the default retention schedule in `docs/plan.md` Phase 11, covering records,
   evidence, audit events, application logs, exports, backups, and caches. Record the lag before
   deleted data ages out of backups as a stated residual risk rather than omitting it.
@@ -163,9 +168,28 @@ proposals.
   binaries.
 - Phase 11 is closed and v1 is complete on that publication, with the matrix at 33 `TESTED` of 33.
 
-**Open against the 2026-09-01 release-matrix decision, for the owner to accept or schedule.** That
-decision named `osx-arm64` in the verified tier and container images covering `linux/arm64`. The
-shipped release meets neither: `osx-arm64` was built and published without ever being run, because
-no macOS was available, and no `linux/arm64` image is built at all. Both are recorded as not
-claimed in `docs/operations/release-matrix.md` and stated verbatim in the release notes, but the
-decision above still says otherwise, and one of the two has to move.
+## Amendment — 2026-09-07
+
+The release-matrix decision of 2026-09-01 is amended above, to the tiers `v1.0.0` actually shipped.
+The original read: verified (`linux-x64`, `linux-arm64`, `win-x64`, `osx-arm64`), built but
+unverified (`win-arm64`, `osx-x64`, musl variants), and container images covering `linux/amd64`
+**and `linux/arm64`**.
+
+Two parts of it were never met, and amending the decision is the project owner's choice between
+the two ways of resolving that — the other being to hold the release until they were.
+
+- **`osx-arm64` was in the verified tier and has never been run.** No macOS is available to this
+  project. It moves to built-but-unverified, alongside `osx-x64` and `win-arm64`.
+- **`linux/arm64` container images are not built.** The Dockerfiles have nothing
+  architecture-specific in them, so this is a CI change rather than a code one, but until that
+  build runs the row would be a guess. The container matrix is `linux/amd64` only.
+
+One part moved the other way: `linux-musl-x64` was in the built-but-unverified tier and has been
+run on `alpine:3` each release, so it joins the verified tier. `linux-musl-arm64` has not, and
+stays where it is.
+
+The wording changed too. The original said the verified tier is "smoke-tested in CI"; it never was.
+CI runs the full suite on `ubuntu-latest` and `windows-latest`, and the smoke tests are performed by
+hand and recorded per release in `docs/operations/release-matrix.md`. That file, the release notes
+for `v1.0.0`, `docs/plan.md` and ADR-0008 all now say the same thing, which is the point of
+amending this rather than leaving one document disagreeing with four.

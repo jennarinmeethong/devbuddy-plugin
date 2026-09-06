@@ -742,20 +742,22 @@ Both are in `docs/operations/plugin-hosts.md`.
 **Goal:** self-contained artifacts and Docker images on user-controlled infrastructure.
 
 - Self-contained publish for the console and server workloads, with an explicit **RID and
-  verification matrix** in `docs/operations/release-matrix.md`. Short and honest, three tiers:
+  verification matrix** in `docs/operations/release-matrix.md`. Short and honest, three tiers
+  (**amended 2026-09-07**, to what `v1.0.0` shipped; the amendment note is in `info.md`):
 
   | Tier | RIDs | Meaning |
   |---|---|---|
-  | Verified | `linux-x64`, `linux-arm64`, `win-x64`, `osx-arm64` | Built **and** smoke-tested in CI each release. |
-  | Built, unverified | `win-arm64`, `osx-x64`, `linux-musl-x64`, `linux-musl-arm64` | Published as-is; no automated verification. Stated as unverified in release notes. |
+  | Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64` | Built **and** smoke-tested by hand, recorded per release. CI runs the full suite on `ubuntu-latest` and `windows-latest` only. |
+  | Built, unverified | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | Published as-is; never run. Stated as unverified in the release notes. |
   | Not published | everything else | Out of scope for v1; not claimed as supported. |
 
   Native OS dependencies are documented explicitly (ICU and OpenSSL on Linux unless invariant
   globalization is enabled). Self-contained does **not** imply single-file or Native AOT, and no
   universal-compatibility claim is made. Recheck against the .NET 10 supported-OS list at release.
 - Docker images for API, MCP, and CLI; `compose.yaml` with PostgreSQL and MinIO.
-  **Container-platform matrix is separate** from the native matrix: `linux/amd64` and `linux/arm64`
-  only, on chiseled ASP.NET base images.
+  **Container-platform matrix is separate** from the native matrix: `linux/amd64` only
+  (**amended 2026-09-07**; `linux/arm64` was in this line and is not built), on chiseled ASP.NET
+  base images.
 - Hardening: non-root containers, no Docker socket mount, database not published to the host
   network, TLS termination documented, secrets via environment/secret store — never baked into images.
 - Persistence: named volumes for database and evidence; a documented and *tested* restore path
@@ -1140,9 +1142,10 @@ each gets an ADR in `docs/adr/`.
    filesystem adapter stays behind the same `IEvidenceStore` port for tests and single-host installs.
 2. **MCP transport (Phase 7)** — **both** ship in the first release: stdio for the local Claude and
    Codex plugins, authenticated HTTP for self-hosted/remote. One tool allow-list covers both.
-3. **RID matrix (Phase 10)** — three tiers: verified (`linux-x64`, `linux-arm64`, `win-x64`,
-   `osx-arm64`), built-but-unverified (`win-arm64`, `osx-x64`, musl variants), and not published.
-   Containers are a separate matrix: `linux/amd64` and `linux/arm64`.
+3. **RID matrix (Phase 10)** — three tiers, **amended 2026-09-07** to what `v1.0.0` shipped:
+   verified (`linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`), built-but-unverified
+   (`osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64`), and not published. Containers are a
+   separate matrix: `linux/amd64` only. The amendment note is in `info.md`.
 4. **Retention (Phase 11)** — the defaults table in Phase 11 applies, covering records, evidence,
    audit, logs, exports, backups, and caches, with the backup-lag residual risk stated explicitly.
 5. **Work-item source of truth (Phase 6)** — **DevBuddy owns the work item.** GitHub is imported
