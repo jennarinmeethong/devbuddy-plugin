@@ -20,12 +20,14 @@ namespace DevBuddy.Infrastructure.Administration;
 /// <see cref="ExportService"/> writes an actual copy instead of only a manifest.
 /// </para>
 /// <para>
-/// Two rows in the schedule are still not implemented here, on purpose rather than by omission.
-/// Draft staleness is already the Phase 6 quality check's job (<c>DetectStaleness</c>), not a
-/// deletion. A deleted-project purge is unnecessary rather than missing: deleting a project
+/// Two rows in the schedule are handled elsewhere rather than here, on purpose rather than by
+/// omission. Draft staleness is already the Phase 6 quality check's job (<c>DetectStaleness</c>),
+/// not a deletion. A deleted-project purge is unnecessary rather than missing: deleting a project
 /// (<c>DeleteProjectUseCase</c>) already removes everything scoped to it immediately, so there is
-/// no lagging state for a sweep to catch up on. Application log retention is a container
-/// log-driver setting, outside this codebase entirely. See the release-readiness note.
+/// no lagging state for a sweep to catch up on. Application log retention was a container
+/// log-driver setting outside this codebase when this comment was first written, and is not any
+/// more: <see cref="PurgeLogFiles"/> enforces it here whenever <c>Logging:File:Path</c> is set.
+/// See the release-readiness note.
 /// </para>
 /// </summary>
 internal sealed class RetentionService : IRetentionEnforcer

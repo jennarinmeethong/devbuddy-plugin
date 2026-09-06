@@ -15,9 +15,16 @@ eight Phase 11 scenarios.
 
 ### SB-29 — SBOM and verifiable artifact origin
 
-Unchanged from Phase 10: SBOMs are generated per host and uploaded as build artifacts, but no
-release has carried one, and nothing is signed or attested. Moves to `TESTED` when a release
-actually ships one.
+Changed since Phase 10, but not to `TESTED`, and the distance left is one step. Tag `v1.0.0` was
+cut from `6a60a48` and the workflow ran: the three images are in GHCR, each carries its own
+CycloneDX SBOM, and the archives and images are signed with GitHub's keyless OIDC identity. The
+attestations verify from outside the workflow that made them, checked against a negative control
+so that a pass means something, and `docs/operations/release-matrix.md` records the platform smoke
+tests and the destroy-and-restore drill performed by hand.
+
+**The release is still a draft.** Until a person publishes it, none of the above is obtainable by
+anyone consuming this software, which is why the row stays `IMPLEMENTED` rather than moving on the
+strength of a workflow having succeeded. It moves to `TESTED` when the draft is published.
 
 ## SB-27 — closed since Phase 11
 
@@ -129,9 +136,17 @@ Per `info.md`, this is the explicit sign-off point. The project owner should acc
    and recovery tokens are written to those logs by design**. A retention window is not a control
    over who can read the file while it exists. Record which option from
    `docs/operations/logging.md` is in force and who can read the volume.
-2. No release has yet been signed or carries an attached SBOM (SB-29). `.github/workflows/release.yml`
-   builds, pushes, signs, and attests everything on a `v*` tag and leaves the release as a draft
-   for a person to publish; until a tag is actually cut, this row stays `IMPLEMENTED`.
+2. The `v1.0.0` release is signed, carries an SBOM per image, and its attestations verify from
+   outside the workflow — but it is **still a draft** (SB-29), so none of that is obtainable by
+   anyone consuming this software until a person publishes it, and the row stays `IMPLEMENTED`
+   until then. Two things about that draft belong in the acceptance rather than in a release note.
+   Four platforms — `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` — were built and
+   published without ever being run, because no macOS and no Windows on ARM is available here, and
+   `linux/arm64` container images are not built at all. And the draft was built from `6a60a48`,
+   while the MinIO encryption key the restore drill found missing landed afterwards in
+   `docker/compose.yaml`: the binaries and images are unaffected — that commit touched no product
+   code — but an operator taking the Compose file out of the `v1.0.0` source archive rather than
+   from `main` gets the one whose object store refuses every evidence upload.
 
 Neither blocks the controls that are `TESTED` today, including the personal-data policy (SB-18),
 retention (SB-27), and the AI-channel and tenant-isolation controls that gate access to whatever
