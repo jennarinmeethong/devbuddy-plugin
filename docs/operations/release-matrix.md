@@ -102,26 +102,26 @@ git push origin v1.0.0
 Recorded because the checklist below asks for it per release, and because a table that says "yes"
 without saying when is the guess this file exists to avoid.
 
-Built from `db831a6`, the commit CI passed on Linux and Windows. Tag `v1.0.0`, run 33904769593.
+Built from `6a60a48`, the commit CI passed on Linux and Windows. Tag `v1.0.0`, run 34041250645.
+
+An earlier tag was cut and withdrawn. Its draft release was deleted rather than published, because
+using the system found three defects that reading it had not: a symlink escape past the path guard
+that only Linux exposed, a password beginning with `@` parsed as a response file — which broke the
+first command any new installation runs — and an evidence store with a read side and no write
+side, so the drill step below could not be performed by anybody. All three are fixed in this one.
 
 | Check | Result |
-|---|---|
-| Attestations verify from outside the workflow | **Yes.** All three images and the `linux-x64` archive. Provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.0.0`, and source commit `db831a6`; the archive's attested digest matches the file and `SHA256SUMS`. A deliberately wrong `--owner` fails, so a passing check is worth something. |
-| SBOM attached per image | **Yes.** CycloneDX, verified, and distinct per host — 36, 38 and 56 components for the API, the MCP server and the console, which is the point of one document per image rather than one per archive. |
+| --- | --- |
+| Attestations verify from outside the workflow | **Yes.** All three images and the `linux-x64` archive. Provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.0.0`, and source commit `6a60a48`; the archive's attested digest matches the file byte for byte and matches `SHA256SUMS`. Checked against a negative control — a deliberately wrong `--owner` is refused — so a passing check means something. |
+| SBOM attached per image | **Yes.** CycloneDX, verified, and distinct per host: 36, 38 and 56 components for the API, the MCP server and the console. That they differ is the point of one document per image rather than one per archive. |
 | `win-x64` smoke test | **Yes.** Natively on the development machine. Eighteen AI-exposed operations, exit 0. |
 | `linux-x64` smoke test | **Yes.** `ubuntu:24.04` with `libicu74`. Eighteen operations, exit 0. |
 | `linux-arm64` smoke test | **Yes.** `ubuntu:24.04` under `linux/arm64` emulation, `uname -m` reporting `aarch64`. Emulated, not hardware. |
 | `linux-musl-x64` smoke test | **Yes.** `alpine:3` with `libstdc++`, `libgcc` and `icu-libs`. |
-| Compose from clean to healthy | **Yes.** Built from source, all services up, `migrate` exited 0, `/health` 200, `/operations` and the MCP transport both 401 unauthenticated, and neither 5432 nor 9000 reachable from the host (SB-30, confirmed against the running stack rather than only against the file). |
+| The new operations stay off the AI surface | **Yes**, in the shipped binaries rather than only in tests: `capture_evidence` does not appear in `operations --ai` on any platform smoke-tested, and neither does `publish_record`. |
+| Compose from clean to healthy | **Yes.** Built from source: all services up, `migrate` exited 0, `/health` 200, and `/operations`, the evidence upload route and the MCP transport all 401 unauthenticated — against a control showing an unmapped path answers 404, so those 401s mean the routes exist rather than that everything is refused. Neither 5432 nor 9000 is reachable from the host (SB-30, confirmed against the running stack rather than against the file). The log volume came back owned by the application user with a rolled file in it. |
 | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | **Not run.** Built and published as-is. No macOS and no Windows on ARM available; the musl arm64 build was not run, and the x64 musl one that was is the only reason its dependency list is believed to carry over. |
 | Destroy-and-restore drill | **Not yet performed for this release.** |
-
-Two defects were found after this tag was cut and before the drill was run, both by trying to use
-the thing rather than by reading it. A password beginning with `@` was parsed as a response file,
-which broke `bootstrap` — the first command any new installation runs. And the evidence store had
-no write side at all, so the drill's "download an attachment after the restore" step could not be
-performed by anyone. Both are fixed on `main`; this tag predates them and should be re-cut before
-the release is published.
 
 The last row is why the release is still a draft. SB-29 stays `IMPLEMENTED` until it is published.
 
