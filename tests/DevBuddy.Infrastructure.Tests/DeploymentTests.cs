@@ -132,6 +132,24 @@ public sealed partial class DeploymentTests
     }
 
     [Fact]
+    public void the_object_store_has_a_key_to_encrypt_with()
+    {
+        // EvidenceStoreOptions.UseServerSideEncryption defaults to true, so the application asks
+        // for AES256 on every object it stores, and MinIO refuses that write outright when it has
+        // no key: "Server side encryption specified but KMS is not configured".
+        //
+        // The shipped stack ran without one. Nobody noticed for nine phases because there was no
+        // way to upload evidence at all; the first attempt after capture_evidence shipped failed
+        // with a 500. The unit tests could not have caught it — they turn encryption off for their
+        // own container and say so — so the check belongs here, against the file that was wrong.
+        string[] block = BlockFor(ComposeLines(), "evidence:");
+
+        Assert.Contains(
+            block,
+            line => line.TrimStart().StartsWith("MINIO_KMS_SECRET_KEY:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void the_example_environment_file_names_every_variable_the_stack_requires()
     {
         string compose = File.ReadAllText(Path.Combine(DockerDirectory().FullName, "compose.yaml"));

@@ -61,6 +61,17 @@ services:
     environment:
       MINIO_ROOT_USER: ${DEVBUDDY_EVIDENCE_ACCESS_KEY:?set DEVBUDDY_EVIDENCE_ACCESS_KEY in docker/.env}
       MINIO_ROOT_PASSWORD: ${DEVBUDDY_EVIDENCE_SECRET_KEY:?set DEVBUDDY_EVIDENCE_SECRET_KEY in docker/.env}
+
+      # The application asks for server-side encryption on every object it stores
+      # (Evidence:UseServerSideEncryption, on by default), and MinIO refuses that outright unless
+      # it has a key to encrypt with: "Server side encryption specified but KMS is not configured".
+      # Without this line every evidence upload fails with a 500, which is what happened the first
+      # time anyone attached a file — the capability to do so is newer than this stack.
+      #
+      # MinIO's built-in KMS, which is what it offers for a single node. A larger installation runs
+      # KES and points MINIO_KMS_KES_* at it instead; that is a change to this file, not to the
+      # application, because the application only ever asks for AES256 and lets the store arrange it.
+      MINIO_KMS_SECRET_KEY: ${DEVBUDDY_EVIDENCE_KMS_KEY:?set DEVBUDDY_EVIDENCE_KMS_KEY in docker/.env}
     volumes:
       - evidence:/data
     healthcheck:

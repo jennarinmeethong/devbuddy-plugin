@@ -215,8 +215,13 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
             AccessKey = MinioFixture.AccessKey,
             SecretKey = MinioFixture.SecretKey,
 
-            // MinIO in the test container has no KMS configured, so server-side encryption is
-            // off here. It stays on by default for a real deployment.
+            // This container has no KMS, so encryption is off for these tests. Note what that
+            // does and does not prove: it exercises the store, not the shipped configuration.
+            // The claim that used to sit here — that it "stays on by default for a real
+            // deployment" — was true of the default and false of the deployment, because
+            // docker/compose.yaml ran MinIO without a KMS key too. Every evidence upload against
+            // the shipped stack failed with a 500 until that was fixed, and DeploymentTests now
+            // checks the compose file rather than leaving it to a comment.
             UseServerSideEncryption = false,
         };
 

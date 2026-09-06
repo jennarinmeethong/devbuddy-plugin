@@ -121,9 +121,26 @@ side, so the drill step below could not be performed by anybody. All three are f
 | The new operations stay off the AI surface | **Yes**, in the shipped binaries rather than only in tests: `capture_evidence` does not appear in `operations --ai` on any platform smoke-tested, and neither does `publish_record`. |
 | Compose from clean to healthy | **Yes.** Built from source: all services up, `migrate` exited 0, `/health` 200, and `/operations`, the evidence upload route and the MCP transport all 401 unauthenticated — against a control showing an unmapped path answers 404, so those 401s mean the routes exist rather than that everything is refused. Neither 5432 nor 9000 is reachable from the host (SB-30, confirmed against the running stack rather than against the file). The log volume came back owned by the application user with a rolled file in it. |
 | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | **Not run.** Built and published as-is. No macOS and no Windows on ARM available; the musl arm64 build was not run, and the x64 musl one that was is the only reason its dependency list is believed to carry over. |
-| Destroy-and-restore drill | **Not yet performed for this release.** |
+| Destroy-and-restore drill | **Yes, by hand, 2026-09-06.** A published record with an approval bound to its content hash, two attached artefacts, twelve audit entries, an account and a machine token; backed up, the backup copied off the volume, the database volume destroyed, migrated empty, restored, and every one of the six rows in `backup-and-restore.md` checked. The artefact came back **byte for byte** — the same SHA-256 as the file that went in, not merely a row saying bytes exist. Sessions were not restored, as designed. Restoring a second time was refused with "This installation already has data". |
 
-The last row is why the release is still a draft. SB-29 stays `IMPLEMENTED` until it is published.
+The drill found a defect that stopped it part-way, described below. SB-29 stays `IMPLEMENTED` until the release is published.
+
+### What the drill found
+
+The evidence upload failed with a 500 against the shipped stack:
+`Server side encryption specified but KMS is not configured`.
+
+`EvidenceStoreOptions.UseServerSideEncryption` defaults to true, so the application asks for AES256
+on every object, and MinIO refuses that write outright when it has no key. `docker/compose.yaml`
+ran MinIO without one. Nothing had noticed because until `capture_evidence` shipped there was no
+way to upload evidence at all, and the unit tests turn encryption off for their own container —
+with a comment claiming it "stays on by default for a real deployment", which was true of the
+default and false of the deployment.
+
+Fixed by giving the bundled MinIO a key (`MINIO_KMS_SECRET_KEY`, from `docker/.env`) rather than by
+turning encryption off, so artefacts are still encrypted at rest. `DeploymentTests` now checks the
+compose file for it, and the misleading comment is gone. The drill was then re-run from an empty
+stack and completed.
 
 ## Verifying a release
 
