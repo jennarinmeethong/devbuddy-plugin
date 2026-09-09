@@ -97,6 +97,14 @@ exec --approve-for-me` is the documented way, and an interactive session prompts
 it every call comes back `requires approval, but approval policy is never`, which reads like a
 server refusal and is not one.
 
+### More than one deployment on one machine
+
+Both packages read their four values from the environment they are launched in, so the environment
+is what separates one deployment from another — not the folder that happens to be open.
+`docs/operations/workspace-layout.md` sets out the arrangement, and `templates/devbuddy-root/` is
+the copyable form of it. It also covers the junction tree analysis needs, which is the part that
+otherwise fails silently.
+
 ### Running either non-interactively
 
 Claude Code needs the tools named before it will call them in print mode:

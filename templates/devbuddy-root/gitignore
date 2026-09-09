@@ -1,0 +1,3 @@
+# Insurance. This root is not a repository today, but if anyone ever runs `git init` here, the
+# token in .devbuddy/deployment.env must not become committable by accident.
+.devbuddy/
