@@ -55,12 +55,17 @@ foreach ($name in $envValues.Keys)
     Set-Item -Path ("Env:" + $name) -Value $envValues[$name]
 }
 
-# Computed rather than read, so it cannot drift out of step with what setup.ps1 built. The Claude
-# package's .mcp.json does not forward this variable, so it reaches the server by ordinary
-# environment inheritance from this session.
-$env:DEVBUDDY_Analysis__RootPath = (Join-Path $devbuddyHome 'projects')
+# Computed rather than read, so it cannot drift out of step with what setup.ps1 built.
+#
+# Set under both names on purpose. The plugin configurations expand the short one, the same way
+# they expand DEVBUDDY_TOKEN; the console reads the framework-shaped one directly, and `dotnet run
+# -- retention` and the other console commands are launched from this session too.
+$analysisRoot = Join-Path $devbuddyHome 'projects'
 
-$projectDir = Join-Path $env:DEVBUDDY_Analysis__RootPath $projectId
+$env:DEVBUDDY_ANALYSIS_ROOT_PATH = $analysisRoot
+$env:DEVBUDDY_Analysis__RootPath = $analysisRoot
+
+$projectDir = Join-Path $analysisRoot $projectId
 
 if (-not (Test-Path -LiteralPath $projectDir))
 {

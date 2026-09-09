@@ -145,6 +145,46 @@ public sealed partial class PluginPackageTests
             StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Both packages configure all four settings the server needs.
+    /// <para>
+    /// The Claude package named three and left <c>DEVBUDDY_Analysis__RootPath</c> to ordinary
+    /// environment inheritance, which worked and was invisible until it did not: the server fell
+    /// back to a path relative to its own working directory and every <c>analyze_*</c> call
+    /// answered that there was nothing to analyse. A missing setting that degrades into a plausible
+    /// empty answer is worse than one that fails, so the package declares it and this asserts it.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void both_packages_configure_every_setting_the_server_needs()
+    {
+        string[] settings =
+        [
+            "DEVBUDDY_ConnectionStrings__DevBuddy",
+            "DEVBUDDY_Identity__SigningKey",
+            "DEVBUDDY_TOKEN",
+            "DEVBUDDY_Analysis__RootPath",
+        ];
+
+        (string Package, string Path)[] configurations =
+        [
+            ("claude", Path.Combine(PackageRoot("claude").FullName, ".mcp.json")),
+            ("codex", Path.Combine(PackageRoot("codex").FullName, "config.toml")),
+        ];
+
+        foreach ((string package, string path) in configurations)
+        {
+            string configuration = File.ReadAllText(path);
+
+            foreach (string setting in settings)
+            {
+                Assert.True(
+                    configuration.Contains(setting, StringComparison.Ordinal),
+                    $"The {package} package does not configure {setting}.");
+            }
+        }
+    }
+
     [Fact]
     public void the_claude_manifest_is_valid_and_names_the_plugin()
     {

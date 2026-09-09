@@ -6,7 +6,8 @@
       "env": {
         "DEVBUDDY_ConnectionStrings__DevBuddy": "${DEVBUDDY_CONNECTION_STRING}",
         "DEVBUDDY_Identity__SigningKey": "${DEVBUDDY_SIGNING_KEY}",
-        "DEVBUDDY_TOKEN": "${DEVBUDDY_TOKEN}"
+        "DEVBUDDY_TOKEN": "${DEVBUDDY_TOKEN}",
+        "DEVBUDDY_Analysis__RootPath": "${DEVBUDDY_ANALYSIS_ROOT_PATH}"
       }
     }
   }

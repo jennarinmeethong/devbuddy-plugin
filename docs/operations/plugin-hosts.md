@@ -83,9 +83,25 @@ somebody tidying up.
 ### Claude Code
 
 Point Claude Code at `plugins/claude/`, and set the four variables in the environment the plugin
-configuration expands from. `DEVBUDDY_MCP_ASSEMBLY` should be the full path to
-`DevBuddy.McpServer.dll`; `DEVBUDDY_MCP_COMMAND` defaults to `dotnet` and exists so a self-contained
-publish can be used instead once Phase 10 produces one.
+configuration expands from. `.mcp.json` expands them under shorter names than the settings they
+fill:
+
+| Set this | Fills |
+|---|---|
+| `DEVBUDDY_CONNECTION_STRING` | `DEVBUDDY_ConnectionStrings__DevBuddy` |
+| `DEVBUDDY_SIGNING_KEY` | `DEVBUDDY_Identity__SigningKey` |
+| `DEVBUDDY_TOKEN` | `DEVBUDDY_TOKEN` |
+| `DEVBUDDY_ANALYSIS_ROOT_PATH` | `DEVBUDDY_Analysis__RootPath` |
+
+`DEVBUDDY_MCP_ASSEMBLY` should be the full path to `DevBuddy.McpServer.dll`;
+`DEVBUDDY_MCP_COMMAND` defaults to `dotnet` and exists so a self-contained publish can be used
+instead once Phase 10 produces one.
+
+> The analysis root was the one the package did not declare until this was written, leaving it to
+> ordinary environment inheritance. That worked, and hid the failure it caused when it was not set
+> at all: the server fell back to a path relative to its own working directory, and every
+> `analyze_*` call answered that there was nothing to analyse rather than that it was misconfigured.
+> A test now asserts both packages name all four.
 
 ### Codex
 

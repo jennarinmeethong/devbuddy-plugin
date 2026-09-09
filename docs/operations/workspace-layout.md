@@ -94,13 +94,11 @@ into the current session, and the server inherits them when the host launches it
 | `DEVBUDDY_CONNECTION_STRING` | `deployment.env` | Expanded into `DEVBUDDY_ConnectionStrings__DevBuddy` by the Claude package. |
 | `DEVBUDDY_SIGNING_KEY` | `deployment.env` | Expanded into `DEVBUDDY_Identity__SigningKey`. At least 32 characters, or the host refuses to start. |
 | `DEVBUDDY_TOKEN` | `deployment.env` | Your machine token. Without it the server starts, lists its tools, and refuses every call. |
-| `DEVBUDDY_Analysis__RootPath` | computed by `enter.ps1` | Not read from the file, so it cannot drift out of step with the junctions `setup.ps1` built. |
+| `DEVBUDDY_ANALYSIS_ROOT_PATH` | computed by `enter.ps1` | Not read from the file, so it cannot drift out of step with the junctions `setup.ps1` built. |
 
-> The Claude package's `.mcp.json` names the first three in its `env` block and does not name
-> `DEVBUDDY_Analysis__RootPath`; the Codex `config.toml` names all four. It reaches the server by
-> ordinary environment inheritance from the session `enter.ps1` was dot-sourced in, which is why
-> this arrangement works today. Setting it in the shell is not optional on the Claude side — it is
-> the only route it has.
+`enter.ps1` sets the analysis root under `DEVBUDDY_Analysis__RootPath` as well. The plugin
+configurations expand the short name; the console reads the framework-shaped one directly, and
+`dotnet run -- retention` is launched from the same session.
 
 ## What the scripts refuse
 
