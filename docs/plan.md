@@ -1081,6 +1081,114 @@ the gate on using this system for real work.
 
 ---
 
+## Phase 12 — Post-v1: operational closure and the two deferred decisions
+
+**Status: DRAFT (2026-09-07). Proposed, not approved, and not recorded in `info.md`.** Phases 0 to
+11 were approved as a sequence before any of them started. This one is written after v1 shipped,
+so it does not inherit that approval, and nothing in it should be built until the project owner
+confirms it the same way. Two of its three tracks carry decisions the owner has to *make* rather
+than inherit, which is precisely why they were kept out of v1.
+
+**Goal:** take back from the operator what code can hold, settle what happens to the platforms v1
+published without ever running, and decide the two capabilities `info.md` deferred — without
+moving any of the 33 `TESTED` rows backwards.
+
+### 12A — The acceptance that gates real project data
+
+No code. `docs/security/release-readiness.md` asks the project owner to accept two things in
+writing before real project data is connected, and `info.md` records no such acceptance today. The
+gate is therefore open in fact and closed only on paper, which is the one state this project set
+out not to be in.
+
+- **The operator-side facts about application logs.** Retention is enforced and tested, but three
+  things about it are outside this code: whether anything runs `dotnet run -- retention` on a
+  schedule at all, whether `Logging:File:Path` stays set (clearing it reverts to the size-bounded
+  log driver), and — the one that matters most — that with no SMTP configured, setup and recovery
+  tokens are written to those logs **by design**. A retention window is not a control over who can
+  read the file while it exists. The acceptance should name which option from
+  `docs/operations/logging.md` is in force and who can read the volume.
+- **What `v1.0.0` published without running.** Four platforms — `osx-arm64`, `osx-x64`,
+  `win-arm64`, `linux-musl-arm64` — were built and shipped and have never been started, and no
+  `linux/arm64` container image is built at all.
+
+**Exit criteria:** a dated, owner-confirmed entry in `info.md` naming both, in the same form as the
+2026-09-06 and 2026-09-07 entries. Until that entry exists, the other two tracks are optional and
+this one is not.
+
+### 12B — Operational closure
+
+Packaging, CI, and console paths only. Nothing here adds an operation, changes the AI surface, or
+touches a security control, which is what makes it separable from 12C and safe to do first.
+
+- **A retention runner that ships with the stack.** `docker/compose.yaml` has `migrate`, `api`,
+  `mcp`, `database` and `evidence` and no scheduler, so today the sweep runs only if an operator
+  builds one. The constraint that shapes the answer: the images are chiseled — no shell, no cron —
+  so a sidecar running `cron` would need a shell-bearing image built for the purpose. The
+  alternative is a scheduling mode on the console itself (`retention --every`), which keeps it in
+  the one image that already carries the code. Either way it must stay **outside** the pipeline for
+  the reason it was put there: a sweep spans every workspace and project and has no caller to
+  authorise it against, exactly like `restore`. A scheduler that acquired a caller would be the
+  installation-wide superuser this system does not have.
+- **`linux/arm64` container images.** A multi-platform build, not a code change — the Dockerfiles
+  contain nothing architecture-specific. The row in `docs/operations/release-matrix.md` moves only
+  when an arm64 image has actually been *started*, not when one has been built, which is the same
+  standard the native matrix already holds.
+- **The four unrun platforms.** A decision, not work: acquire the hardware and verify them, or stop
+  publishing them. Shipping an artefact nobody has ever run is defensible once, stated plainly in
+  the release notes as `v1.0.0` did. It is harder to defend the second time.
+- **The next release re-runs its checklist in full.** `v1.0.0` carried its smoke tests over from
+  `6a60a48`, which was sound only because the commits between it and `9a8ebf0` changed no product
+  code. That will not be true of the next tag. `docs/operations/release-matrix.md` records per
+  release what was re-run and what was carried; a release that carries everything is not a verified
+  release.
+- **A decision on the `Log` email provider.** Three options, and the choice belongs to the owner
+  because none of them is free: leave it as it is (documented, accepted in 12A), require an
+  explicit opt-in before a token is ever written to a log, or refuse to start outside development
+  without a delivery channel. The third closes the risk properly and breaks a plain `docker run`
+  for a first-time operator, which is why it is a decision rather than an obvious fix.
+
+**Exit criteria:** the shipped stack schedules the retention sweep and a test proves the schedule
+invokes the same sweep the console command does; `linux/arm64` is either published *and started*,
+or explicitly not claimed with the reason recorded in ADR-0008; and the release-matrix tiers for
+the next release describe only what was run for that release.
+
+### 12C — The two deferred capabilities
+
+Both require an ADR and the project owner's separate approval before any code, per the AI Data
+Policy in `info.md`. Neither is a continuation of v1: each opens a boundary v1 does not have.
+
+- **Embeddings and vector search.** `info.md` defers these until an embedding model or provider is
+  selected and separately approved, and requires any vector index to be a **derived** search index,
+  never a source of truth. What an ADR has to settle beyond the provider: embedding text is
+  **egress** — a third path out of the boundary, alongside the AI channel and the telemetry
+  exporter — so SB-17 and SB-18 have to apply to it before text leaves, and the verification matrix
+  gains its own rows rather than being read as covered by existing ones. And because the retention
+  schedule already calls embeddings and caches derived and rebuildable, a permission change must
+  invalidate the index the way it invalidates a cache: an index that outlives a revoked membership
+  is a cross-tenant leak wearing a different shape.
+- **`knowledge-ai-worker`.** Autonomous background work — scheduled source analysis, embedding
+  generation, stale-record detection, recurring reports. The design problem to solve before the
+  features is the one that removed `restore_system` and kept `retention` out of the pipeline: **a
+  background job has no caller to authorise it against.** Either the worker holds a machine token
+  with a real membership and is bounded by it exactly like any other caller, or it runs outside the
+  pipeline like `retention` and may therefore touch nothing a person's permissions would gate.
+  Anything between those two reintroduces the installation-wide superuser this system has
+  deliberately never had. Human approval before any output is published stays, per `info.md`, as do
+  authentication, cost, permissions, and provenance.
+
+Three things stay out, restated here so a later owner does not read their absence as an oversight:
+a web chat (ruled out in Phase 8 — AI questions stay in Claude and Codex), organisation login or
+enterprise SSO (`info.md`), and writing back to GitHub (source synchronisation is one-way by a
+confirmed decision, not by omission). Sandboxed repository execution stays out too: SB-04 permits
+it only as a separately authorised, isolated feature, and neither v1 nor this proposal asks for one.
+
+**Exit criteria:** an ADR per capability, confirmed in `info.md`, before a line of either is
+written. No implementation exit criteria are proposed here on purpose — the shape of that work
+depends on decisions nobody has made yet, and inventing criteria for it would be exactly the
+paper-ahead-of-evidence this plan exists to avoid.
+
+---
+
 ## Critical files this plan creates first
 
 | File | Why it matters |
@@ -1160,3 +1268,7 @@ standard applies to whatever follows this release — including the two things a
 have to decide rather than inherit: whether `linux/arm64` images and the four unrun platforms are
 worth the cost of keeping working, and what a v2 does about the embeddings and vector search this
 plan deliberately kept out of v1.
+
+Both of those, and the acceptance that gates real project data, are now drafted as **Phase 12**
+above. That section is a proposal: it is not approved, it is not in `info.md`, and no work in it
+has started.
