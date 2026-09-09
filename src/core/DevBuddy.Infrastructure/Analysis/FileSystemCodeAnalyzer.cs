@@ -77,9 +77,15 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
 
         if (!_options.IsAnalysable(scope, repositoryId))
         {
+            // Two different causes, and telling them apart is the whole value of the message. One
+            // project without a directory is ordinary; no root configured at all means every
+            // project answers this, and an operator reading "nothing is mounted" about a checkout
+            // they can see on disk has nowhere to go from there.
             return new AnalysisReport(
                 kind,
-                "No working copy is mounted for this project, so there is nothing to read.",
+                _options.IsConfigured
+                    ? "No working copy is mounted for this project, so there is nothing to read."
+                    : "Analysis:RootPath is not configured for this installation, so no project has a working copy to read.",
                 []);
         }
 

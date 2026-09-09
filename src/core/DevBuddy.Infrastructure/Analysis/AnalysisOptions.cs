@@ -55,18 +55,37 @@ public sealed class AnalysisOptions
     public IList<string> IgnoredDirectories { get; } =
         ["bin", "obj", "node_modules", ".vs", ".idea", "dist", "target", "__pycache__"];
 
+    /// <summary>
+    /// Whether an analysis root has been configured at all.
+    /// <para>
+    /// A blank value is not the same as an unset one. An unset setting leaves the default above in
+    /// place; a setting present and empty overrides it, which is what a plugin configuration
+    /// expanding an environment variable nobody exported produces. Both plugin packages name this
+    /// setting, so both can deliver a blank one, and <see cref="Path.GetFullPath(string)"/> throws
+    /// on an empty path rather than returning anything a caller could act on.
+    /// </para>
+    /// </summary>
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(RootPath);
+
     /// <summary>The directory a project is analysed from.</summary>
     public string RootFor(ProjectScope scope) =>
-        Path.Combine(Path.GetFullPath(RootPath), scope.ProjectId.Value.ToString());
+        IsConfigured
+            ? Path.Combine(Path.GetFullPath(RootPath), scope.ProjectId.Value.ToString())
+            : throw new InvalidOperationException(
+                "Analysis:RootPath is not configured, so no project maps to a directory.");
 
     public string RootFor(ProjectScope scope, SourceRepositoryId? repositoryId) =>
         repositoryId is { } repository
             ? Path.Combine(RootFor(scope), repository.Value.ToString())
             : RootFor(scope);
 
-    /// <summary>True when the directory a scope maps to exists and can be walked.</summary>
+    /// <summary>
+    /// True when the directory a scope maps to exists and can be walked. False, rather than a
+    /// throw, when no root is configured: an unanalysable project is an answer this system gives
+    /// routinely, and a missing setting is not a more interesting failure than a missing directory.
+    /// </summary>
     public bool IsAnalysable(ProjectScope scope, SourceRepositoryId? repositoryId = null) =>
-        Directory.Exists(RootFor(scope, repositoryId));
+        IsConfigured && Directory.Exists(RootFor(scope, repositoryId));
 
     internal PathGuardFactory GuardFor(ProjectScope scope, SourceRepositoryId? repositoryId) =>
         new(RootFor(scope, repositoryId));

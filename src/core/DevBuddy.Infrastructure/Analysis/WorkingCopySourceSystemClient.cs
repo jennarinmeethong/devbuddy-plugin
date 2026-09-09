@@ -234,8 +234,11 @@ internal sealed class WorkingCopySourceSystemClient : ISourceSystemClient
         if (!_options.IsAnalysable(scope, repositoryId))
         {
             throw new InvalidOperationException(
-                "No working copy is mounted for this repository, so there is nothing to read. "
-                + "Mount it read-only under the analysis root.");
+                _options.IsConfigured
+                    ? "No working copy is mounted for this repository, so there is nothing to read. "
+                      + "Mount it read-only under the analysis root."
+                    : "Analysis:RootPath is not configured for this installation, so no repository "
+                      + "has a working copy to read.");
         }
 
         PathGuard guard = _options.GuardFor(scope, repositoryId).Create();

@@ -56,13 +56,18 @@ foreach ($name in $envValues.Keys)
 }
 
 # Computed rather than read, so it cannot drift out of step with what setup.ps1 built.
-#
-# Set under both names on purpose. The plugin configurations expand the short one, the same way
-# they expand DEVBUDDY_TOKEN; the console reads the framework-shaped one directly, and `dotnet run
-# -- retention` and the other console commands are launched from this session too.
 $analysisRoot = Join-Path $devbuddyHome 'projects'
 
 $env:DEVBUDDY_ANALYSIS_ROOT_PATH = $analysisRoot
+
+# Every setting under its framework-shaped name as well.
+#
+# The plugin configurations expand the short names into these, so a session entered for the
+# assistant is already carrying them. The console is not launched through a plugin configuration
+# and reads these names directly, so without this `dotnet run -- retention` from an entered session
+# would report no connection string configured while the assistant beside it worked.
+$env:DEVBUDDY_ConnectionStrings__DevBuddy = $env:DEVBUDDY_CONNECTION_STRING
+$env:DEVBUDDY_Identity__SigningKey = $env:DEVBUDDY_SIGNING_KEY
 $env:DEVBUDDY_Analysis__RootPath = $analysisRoot
 
 $projectDir = Join-Path $analysisRoot $projectId
@@ -77,5 +82,8 @@ if ([string]::IsNullOrWhiteSpace($env:DEVBUDDY_TOKEN))
     Write-Warning "DEVBUDDY_TOKEN is empty. The server will start and list its tools, and every call will be refused for lack of an identity."
 }
 
+$count = @($project.repositories).Count
+$noun = if ($count -eq 1) { 'repository' } else { 'repositories' }
+
 # The token is deliberately not printed, here or anywhere else.
-Write-Host "DevBuddy: $deployment, project $projectId, $($project.repositories.Count) repositories."
+Write-Host "DevBuddy: $deployment, project $projectId, $count $noun."

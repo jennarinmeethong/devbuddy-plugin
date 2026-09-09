@@ -96,9 +96,13 @@ into the current session, and the server inherits them when the host launches it
 | `DEVBUDDY_TOKEN` | `deployment.env` | Your machine token. Without it the server starts, lists its tools, and refuses every call. |
 | `DEVBUDDY_ANALYSIS_ROOT_PATH` | computed by `enter.ps1` | Not read from the file, so it cannot drift out of step with the junctions `setup.ps1` built. |
 
-`enter.ps1` sets the analysis root under `DEVBUDDY_Analysis__RootPath` as well. The plugin
-configurations expand the short name; the console reads the framework-shaped one directly, and
-`dotnet run -- retention` is launched from the same session.
+`enter.ps1` also sets every one of them under its framework-shaped name —
+`DEVBUDDY_ConnectionStrings__DevBuddy`, `DEVBUDDY_Identity__SigningKey`,
+`DEVBUDDY_Analysis__RootPath`. The plugin configurations produce those names by expanding the
+short ones, so the assistant does not need it; the console does. It is not launched through a
+plugin configuration and reads the framework-shaped names directly, so without this
+`dotnet run -- retention` from an entered session would report no connection string configured
+while the assistant beside it worked.
 
 ## What the scripts refuse
 
