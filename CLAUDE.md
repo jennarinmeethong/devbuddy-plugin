@@ -9,7 +9,9 @@ repository.
   contributor guide and applies here in full.
 - `info.md` — decisions confirmed by the project owner. Treat as binding. When the owner confirms
   something new, add it there.
-- `docs/plan.md` — the phased plan, Phase 0 to Phase 11, each with exit criteria.
+- `docs/plan.md` — the phased plan, Phase 0 to Phase 11, each with exit criteria. Phase 12 is
+  drafted at the end of that file as a **proposal**: post-v1 work, not approved, not in `info.md`,
+  and not started.
 
 ## Where the project is
 
@@ -24,7 +26,10 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 433 .NET tests and 31 web tests exist, and all of them pass in this environment. All
+enforcement. 469 .NET tests and 34 web tests exist, and all of them pass in this environment —
+count them rather than trusting this sentence, which was left at the release figure of 433 and 31
+while both grew. `docs/plan.md` keeps the per-phase figures, and the ones under *v1 is released*
+are what passed at `v1.0.0`; they are a record and are not updated. All
 33 controls are `TESTED`; SB-29, the last one, closed on that publication. What v1 does **not**
 claim — four platforms built but never run, no `linux/arm64` image, and the operator-side facts
 about application logs — is listed under *v1 is released* in `docs/plan.md`.

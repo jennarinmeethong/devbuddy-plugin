@@ -29,12 +29,14 @@ operations. Do not connect real project data until the remaining controls are ve
 
 | Document | What it is |
 |---|---|
+| [คู่มือภาษาไทย — DevBuddy Handbook](docs/manual/devbuddy-guide.th.html) | Detailed offline HTML manual: cream claymorphism theme, installation, all MCP tools, administration, operations, and development. |
 | [info.md](info.md) | Decisions confirmed by the project owner. Binding. |
 | [docs/plan.md](docs/plan.md) | The phased implementation plan, Phase 0 to Phase 11, with exit criteria. |
 | [docs/security/threat-model.md](docs/security/threat-model.md) | Assets, trust boundaries, adversaries, threats. |
 | [docs/security/security-baseline.md](docs/security/security-baseline.md) | The 33 controls and how each will be proved. |
 | [docs/security/verification-matrix.md](docs/security/verification-matrix.md) | What has actually been tested. The only place a control counts as proven. |
 | [docs/operations/plugin-hosts.md](docs/operations/plugin-hosts.md) | Installing the plugins, and what the tool boundary does not cover. |
+| [docs/operations/workspace-layout.md](docs/operations/workspace-layout.md) | Arranging checkouts on a machine that works against more than one deployment. |
 | [docs/operations/deployment.md](docs/operations/deployment.md) | Running the stack, its secrets, and its limits. |
 | [docs/operations/backup-and-restore.md](docs/operations/backup-and-restore.md) | What a backup holds, and the drill. |
 | [docs/operations/observability.md](docs/operations/observability.md) | The optional traces/metrics/logs overlay, and what it refuses to collect. |

@@ -1,5 +1,23 @@
 # Project Decisions
 
+## Confirmed Documentation Request — 2026-09-09
+
+- Create a detailed Thai HTML manual covering the DevBuddy plugin, its shared system,
+  installation, workflows, tools, administration, operations, and development.
+- Use a cream main colour and a claymorphism theme for the manual.
+
+## Confirmed Workspace Layout — 2026-09-09
+
+- Support working against more than one self-hosted deployment from one machine, by settings that
+  are separated per root folder rather than shared for the whole user account.
+- Keep those settings in a `.devbuddy` folder beside the checkouts, never inside a repository, so
+  they are not committed, do not travel with a clone, and cannot be edited by a pull request.
+- Ship the arrangement as a template in `templates/devbuddy-root/` with the reasoning in
+  `docs/operations/workspace-layout.md`. It is an operator convention: no product code reads it,
+  and it grants nothing the server would not already allow.
+- Model several checkouts belonging to one piece of work as one project holding several source
+  repositories, not as several projects.
+
 This file records decisions and requirements confirmed by the project owner.
 
 ## Confirmed
