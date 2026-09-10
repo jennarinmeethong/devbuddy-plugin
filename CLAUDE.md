@@ -10,8 +10,9 @@ repository.
 - `info.md` — decisions confirmed by the project owner. Treat as binding. When the owner confirms
   something new, add it there.
 - `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
-  approved as of 2026-09-10: 12A and 12B are complete, 12C is not started and needs ADR-0012 and
-  ADR-0013 confirmed in `info.md` before any of it is written.
+  approved as of 2026-09-10: 12A and 12B are complete, and 12C's gate is met — ADR-0012 and
+  ADR-0013 are confirmed — with no implementation written and the embedding provider still
+  unselected.
 
 ## Where the project is
 
@@ -118,14 +119,20 @@ architecture**, because a manifest list can hold one image that drops root and o
 stay in the built-but-unverified tier with every release's notes saying they were never started.
 Confirmed as a decision, not left as a gap. Nobody may describe them as supported.
 
-**Phase 12C is not started, and its two ADRs are proposals.** ADR-0012 (embeddings and vector
-search) and ADR-0013 (the `knowledge-ai-worker`) are written and unapproved. Do not write code for
-either until `info.md` confirms them: `info.md` requires separate approval for an embedding
-provider and for background processing. The two things those ADRs settle and that any future work
-inherits: **embedding text is egress**, so SB-17 and SB-18 apply before text leaves and the
-verification matrix gains its own rows; and **a background worker either holds a machine token with
-a real membership or touches nothing a person's permissions would gate**, with nothing permitted in
-between.
+**Phase 12C's ADRs are confirmed and its code is not written.** ADR-0012 (embeddings and vector
+search) and ADR-0013 (the `knowledge-ai-worker`) were confirmed in `info.md` on 2026-09-10, so
+their constraints are binding: **embedding text is egress**, so SB-17 and SB-18 apply before text
+leaves and the verification matrix gains rows of its own rather than being read as covered; and **a
+background worker either holds a machine token with a real membership or touches nothing a person's
+permissions would gate**, with nothing permitted in between.
+
+**Confirming an ADR is not authorisation to implement it, and the two halves differ.** Embeddings
+carry a second gate that is still open: `info.md` requires an embedding provider to be selected and
+separately approved, and ADR-0012 leaves the provider blank on purpose because a self-hosted model
+and a hosted API differ on whether text leaves the boundary at all. **Write no embedding code until
+that is answered.** The worker's authorization skeleton — the two shapes, the workspace-bound token,
+the budget refusal — is buildable against ADR-0013 as confirmed; embedding generation as a worker
+feature waits with the provider.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports

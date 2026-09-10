@@ -1115,7 +1115,8 @@ watching three cross-workspace cases fail.
 
 ## Phase 12 — Post-v1: operational closure and the two deferred decisions
 
-**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C is not started.** Phases 0 to 11 were
+**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and no code is
+written.** Phases 0 to 11 were
 approved as a sequence before any of them started; this one was written after v1 shipped and did
 not inherit that approval, so it was held as a draft until the project owner confirmed it the same
 way. That entry is *Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10*
@@ -1123,9 +1124,9 @@ in `info.md`, and it settles the four decisions this phase left open: option 2 f
 logs, an opt-in before a token is written to one, `linux/arm64` built, and the four unrun platforms
 kept in the built-but-unverified tier.
 
-12C remains not started, and that is the plan working rather than the plan slipping: its own exit
-criterion is an ADR per capability confirmed in `info.md` first. Both ADRs now exist as
-**proposals** — ADR-0012 and ADR-0013 — and neither is approved.
+12C's exit criterion — an ADR per capability confirmed in `info.md` — is met: ADR-0012 and
+ADR-0013 were confirmed on 2026-09-10. No implementation exists, and embeddings carry a second gate
+that is still open: the provider is not selected, which `info.md` requires separately.
 
 **Goal:** take back from the operator what code can hold, settle what happens to the platforms v1
 published without ever running, and decide the two capabilities `info.md` deferred — without
@@ -1274,7 +1275,8 @@ written. No implementation exit criteria are proposed here on purpose — the sh
 depends on decisions nobody has made yet, and inventing criteria for it would be exactly the
 paper-ahead-of-evidence this plan exists to avoid.
 
-**Half met, and deliberately stopped there.** Both ADRs are written and both are `Proposed`:
+**Met, 2026-09-10.** Both ADRs are written and both are confirmed in `info.md`, which is what
+this criterion asked for and the whole of what it asked for:
 
 - **ADR-0012, embeddings and vector search.** Settles what Phase 12C said it had to — embedding
   text is egress, so SB-17 and SB-18 apply before text leaves and the verification matrix gains its
@@ -1290,10 +1292,21 @@ paper-ahead-of-evidence this plan exists to avoid.
   permissions would gate. A worker outside the pipeline that reads project content would be the
   installation-wide superuser this system has never had, running unattended.
 
-**No code exists for either, and none should until `info.md` confirms them.** `info.md` requires
-separate approval for an embedding provider and for background processing, and permission to use
-Claude and Codex does not carry either. Writing the ADRs first is the point: the alternative is
-deciding the authorization model of a background job while already halfway through building one.
+**No code exists for either, and the two capabilities are not equally unblocked.** Confirming an
+ADR fixes the constraints an implementation must satisfy; it is not authorisation to implement.
+
+- **Embeddings remain blocked on a second gate.** `info.md` requires an embedding provider to be
+  selected and separately approved, and that has not happened — ADR-0012 leaves the provider blank
+  on purpose, because a self-hosted model and a hosted API differ on the one question the document
+  is about: whether text leaves the boundary at all. No embedding code until that is answered. A
+  third egress path will also need its own acceptance alongside the 2026-09-10 one, which covers
+  the system as it stands.
+- **The worker's authorization skeleton has no second gate.** The two permitted shapes, the machine
+  token bounded by a real membership, and the budget refusal can be built against ADR-0013 as
+  confirmed. Embedding generation as a worker feature waits with the provider.
+
+Writing the ADRs before any of it was the point: the alternative is deciding the authorization
+model of a background job while already halfway through building one.
 
 ---
 
@@ -1383,7 +1396,8 @@ sweep is scheduled by the stack, `linux/arm64` images are built and started, tok
 written to a log unless an operator asks, and the four unrun platforms keep shipping with the
 release notes saying so.
 
-What is left is 12C, and it is left on purpose. ADR-0012 and ADR-0013 exist as **proposals** and
-neither is approved, so no line of either capability is written. Anything a v2 does about
-embeddings or a background worker starts from those two documents and from a confirmation in
-`info.md`, not from this list.
+What is left is 12C's implementation, and the two halves of it are not in the same state. ADR-0012
+and ADR-0013 are confirmed, so the constraints are settled and anything a v2 builds starts from
+those documents. The worker's authorization skeleton is buildable now. Embeddings are not: the
+provider is unselected and `info.md` requires that choice to be approved on its own, so a third
+egress path stays a design and not a feature until somebody makes it.

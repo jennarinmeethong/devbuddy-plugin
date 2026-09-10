@@ -1,6 +1,8 @@
 # ADR-0012: Embeddings and vector search
 
-- Status: **Proposed** — not approved, not confirmed in `info.md`, and no code exists
+- Status: **Accepted** 2026-09-10 (`info.md`) — the constraints below are binding.
+  **No code may be written yet:** the provider is not selected, and `info.md` requires that
+  selection to be separately approved. That gate is still open.
 - Date: 2026-09-10
 - Phase: 12C
 

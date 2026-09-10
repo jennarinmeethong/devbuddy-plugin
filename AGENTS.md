@@ -14,8 +14,9 @@ Two documents govern the work and are read before changing anything:
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 12) with per-phase exit
   criteria. Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are closed
   (see `docs/plan.md`'s "Closing the v1 gaps" section and `CLAUDE.md`), and Phase 12 was approved
-  on 2026-09-10: 12A and 12B are done, 12C is **not started** and needs ADR-0012 and ADR-0013
-  confirmed in `info.md` before a line of either is written.
+  on 2026-09-10: 12A and 12B are done, and 12C's gate is met — ADR-0012 and ADR-0013 are
+  confirmed — with no implementation written. **Embeddings stay blocked on a second gate**: the
+  provider is unselected and `info.md` requires that choice to be separately approved.
 
 ## Project Structure & Module Organization
 

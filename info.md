@@ -1,5 +1,63 @@
 # Project Decisions
 
+## Confirmed Phase 12C ADRs — 2026-09-10
+
+The project owner confirms **ADR-0012** (embeddings and vector search) and **ADR-0013** (the
+`knowledge-ai-worker`). Both move from Proposed to Accepted. This closes the exit criterion
+`docs/plan.md` Phase 12C states: an ADR per capability, confirmed here, before a line of either is
+written.
+
+What is confirmed is the **design constraints in those documents**, and they are binding in the
+same way every other entry in this file is.
+
+From ADR-0012:
+
+- **Embedding text is egress.** It is a third path out of the trust boundary, beside the AI channel
+  and the telemetry exporter, and the only one that leaves a copy in somebody else's system by
+  design. SB-17 and SB-18 apply **before** text leaves, in the same pipeline they already run in: a
+  secret is refused rather than embedded, and customer, production and personal data is refused
+  unless the project's AI access policy carries an approved bounded scope. A secret stays refused
+  inside an approved scope.
+- **The verification matrix gains its own rows.** SB-17 and SB-18 are `TESTED` against the AI
+  channel and a draft, not against an embedding call. Reading the existing rows as covering this is
+  forbidden.
+- **The index is derived and never the source of truth**, and a permission change invalidates it the
+  way it invalidates a cache. An index outliving a revoked membership is a cross-tenant leak in a
+  different shape. Isolation is enforced in the query, not by filtering results afterwards.
+- **PostgreSQL holds the vectors** (`pgvector`), not a second datastore. Full-text search stays, and
+  an installation with no provider configured behaves exactly as v1 does.
+
+From ADR-0013:
+
+- **Two shapes are permitted and nothing between them.** Either the worker holds a machine token
+  bound to a user and a workspace and is bounded by that membership through the ordinary pipeline,
+  or it runs outside the pipeline like `retention` and may touch **nothing a person's permissions
+  would gate**. A worker outside the pipeline that reads project content would be the
+  installation-wide superuser this system has deliberately never had, running unattended.
+- **Human approval before publication is unchanged.** A worker in the first shape may create a
+  draft. It may not approve one, and it holds no reviewer permission unless somebody granted its
+  membership one.
+- **A bounded budget and a refusal when it is exhausted are part of the design**, not an operational
+  afterthought: an LLM or embedding API means per-call spend on a loop nobody is watching.
+
+### Two things this confirmation does **not** do
+
+- **It does not select an embedding provider, and no embedding code may be written until one is
+  selected and separately approved.** ADR-0012 leaves the provider blank on purpose, because a
+  self-hosted model and a hosted API differ on the exact question that ADR is about — whether text
+  leaves the boundary at all. The AI Data Policy in this file requires that separate approval, and
+  it is still outstanding. Confirming the ADR approves the constraints the work must satisfy; it
+  does not authorise the work.
+- **It does not connect real project data to anything new.** The acceptance of 2026-09-10 gates that
+  for the system as it stands; a third egress path is a new fact and needs its own acceptance once
+  the provider is known.
+
+`knowledge-ai-worker` has no such second gate: ADR-0013 names no external dependency of its own
+beyond the LLM or embedding API a worker would call, and calling one is what the provider approval
+above covers. Work may begin on the worker's authorization skeleton — the two shapes, the token,
+the budget refusal — without it. Embedding generation as a worker feature waits on the provider.
+
+
 ## Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10
 
 `docs/plan.md` Phase 12 was written after v1 shipped and so did not inherit the approval phases 0

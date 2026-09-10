@@ -1,6 +1,7 @@
 # ADR-0013: The knowledge AI worker, and what authorises it
 
-- Status: **Proposed** — not approved, not confirmed in `info.md`, and no code exists
+- Status: **Accepted** 2026-09-10 (`info.md`) — the two permitted shapes are binding.
+  Embedding generation as a worker feature additionally waits on ADR-0012's provider gate.
 - Date: 2026-09-10
 - Phase: 12C
 
