@@ -60,9 +60,12 @@ and are verified differently.
 
 | Image | Base | Platforms | Verified |
 |---|---|---|---|
-| `devbuddy-api` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: healthy in the Compose stack serving sign-in and operations on amd64; on arm64, `/health` 200 and `/operations` 401 unauthenticated. |
-| `devbuddy-mcp` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: refuses an unauthenticated call with 401. |
+| `devbuddy-api` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: healthy in the Compose stack serving sign-in and operations on amd64; on arm64, `/health` 200, `/operations` 401 unauthenticated, and the UI 200 at the root. |
+| `devbuddy-mcp` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: refuses an unauthenticated call with 401, against a control showing an unmapped path answers 404. |
 | `devbuddy-migrate` (console) | `mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: applied migrations, bootstrapped, and performed a restore on amd64; on arm64, applied all six migrations and listed the eighteen AI-exposed operations. |
+
+Both architectures were checked against the **published** `1.1.0` images pulled by digest, not only
+against a local build. First shipped in `v1.1.0`.
 
 **`linux/arm64` is built and started, as of 2026-09-10.** This table said "not built and not
 claimed" through v1, and ADR-0008 and the 2026-09-07 amendment to `info.md` said the same; the
@@ -118,6 +121,36 @@ itself would be claiming those happened.
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
+## What was verified for v1.1.0
+
+Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **draft, not published**, 2026-09-10.
+
+Nothing is carried over. The 2026-09-10 decision closed that licence, and this release changed the
+console, the fallback email sender, all three Dockerfiles and the Compose stack, so there was
+nothing it could honestly have carried anyway.
+
+| Check | When | Result |
+| --- | --- | --- |
+| All 14 workflow jobs | Re-run | **Yes.** The full suite, the format check and the web build gated it; eight RIDs published; three images pushed and attested. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes.** All three images and the `linux-x64` archive. Provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.1.0` and source commit `4253a5b`. Checked against a negative control — a deliberately wrong `--owner` is refused for both an image and an archive — so a pass means something. |
+| `SHA256SUMS` matches the published archive | Re-run | **Yes.** `devbuddy-linux-x64.tar.gz` downloaded from the draft release hashes to `a183cd57…`, matching both `SHA256SUMS` and the attested digest. |
+| SBOM attached per image | Re-run | **Yes.** CycloneDX, still distinct per host: 36, 38 and 56 components for the API, the MCP server and the console. |
+| Both architectures in every manifest | Re-run | **Yes.** `docker buildx imagetools inspect` reports `linux/amd64` and `linux/arm64` for all three images, plus the two buildx attestation manifests. This is the first release to carry arm64 at all. |
+| `linux/arm64` images **started** | Re-run, against the published images | **Yes.** Pulled by digest: the console reports `arm64`, user `1654`, and applied all six migrations against `postgres:17-alpine`; the API answered `/health` 200, `/operations` 401 and the UI 200 at the root; the MCP server refused `POST /` with 401 against a control showing an unmapped path answers 404. Under emulation, not hardware. |
+| `win-x64` smoke test | Re-run | **Yes.** Natively on the development machine, from the published archive. Eighteen AI-exposed operations, exit 0. The new `retention --every` flag is present in the shipped binary and `--every 24` is refused with the reason rather than read as twenty-four days. |
+| `linux-x64` smoke test | Re-run | **Yes.** `ubuntu:24.04` with `libicu74`, `uname -m` reporting `x86_64`, from the published archive. Eighteen operations. |
+| The new capability stays off the AI surface | Re-run | **Yes**, in the shipped binaries on both platforms: neither `capture_evidence` nor `publish_record` appears in `operations --ai`, and nothing Phase 12 added is an operation at all. |
+| Compose from clean to healthy | **Against `4253a5b`, before the tag** | **Yes**, and it is the same commit rather than an earlier one. All five services up, `api` healthy, `migrate` exited 0, and the new `retention` service up with its first pass logged. The log volume came back owned by the application user with a rolled file in it. Compose builds from source, so this exercised the Dockerfiles rather than the published images. |
+| Tokens stay out of the log | **Against `4253a5b`, before the tag** | **Yes**, both directions against the running stack. A real recovery request answered 202 and the API logged only that the message could not be delivered, with no token in stdout or in the file on the volume; with `DEVBUDDY_EMAIL_ALLOW_TOKENS_IN_LOG=true` the same request wrote the token to both. |
+| `linux-arm64` and `linux-musl-x64` smoke tests | **Not run for this tag** | The native archives, as distinct from the container images. `linux-arm64` was run for `v1.0.0` and the arm64 *images* were started here, which is not the same artefact. |
+| Destroy-and-restore drill | **Not run for this tag** | Last performed by hand for `v1.0.0` on 2026-09-06. Phase 12 did not touch backup, restore, or the evidence store, and that is a reason to expect it to pass rather than a substitute for running it. |
+| `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | — | **Not run, again.** Built and published as-is, per the 2026-09-10 decision to keep shipping them. No macOS and no Windows on ARM available. The release notes must say this verbatim. |
+
+**The draft is not publishable as it stands.** Three rows above say "not run", and the checklist
+below asks for them. The two that matter are the destroy-and-restore drill and the two native
+archive smoke tests; until those are done the honest options are to run them or to state them in
+the notes as unverified for this release, the way the four unrun RIDs are stated.
 
 ## What was verified for v1.0.0
 
