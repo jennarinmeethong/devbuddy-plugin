@@ -51,8 +51,9 @@ The last two are Phase 12C, confirmed in `info.md` on 2026-09-10. Both were writ
 implementation deliberately — the alternative is deciding the authorization model of a background
 job while already halfway through building one.
 
-**Accepted is not the same as unblocked, for ADR-0012.** `info.md` requires an embedding provider
-to be selected and separately approved, that selection has not been made, and the ADR leaves it
-blank on purpose because a self-hosted model and a hosted API differ on the one question the
-document is about. Accepting the ADR fixed the constraints any implementation must satisfy; it did
-not authorise the implementation. ADR-0013's authorization skeleton has no such second gate.
+**ADR-0012 was amended the day it was accepted.** The provider it deliberately left blank is
+settled as a port with two modes, off by default — a self-hosted model, or a hosted API. Building
+both adapters is unblocked; **switching the hosted one on in a deployment is a separate decision
+each time**, needing the vendor named, an `OutboundAccess:AllowedHosts` entry, and an acceptance of
+its own, because that mode is a path out of the boundary the 2026-09-10 acceptance does not cover.
+ADR-0013 has no such gate and its authorization skeleton is built.

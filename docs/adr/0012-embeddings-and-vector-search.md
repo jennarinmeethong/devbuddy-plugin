@@ -1,8 +1,9 @@
 # ADR-0012: Embeddings and vector search
 
-- Status: **Accepted** 2026-09-10 (`info.md`) — the constraints below are binding.
-  **No code may be written yet:** the provider is not selected, and `info.md` requires that
-  selection to be separately approved. That gate is still open.
+- Status: **Accepted** 2026-09-10 (`info.md`), amended the same day: the provider is a port
+  with two modes, off by default. The mechanism is approved; **enabling the hosted mode in a
+  deployment is a separate decision each time** and needs the vendor named, an
+  `OutboundAccess:AllowedHosts` entry, and its own acceptance.
 - Date: 2026-09-10
 - Phase: 12C
 
@@ -61,11 +62,30 @@ Therefore:
    Backup and restore must carry or rebuild the index; rebuilding is acceptable and re-incurs the
    egress, which is a cost worth stating rather than discovering.
 
-**Left blank on purpose: the provider.** A self-hosted embedding model and a hosted API differ on
-exactly the question this ADR is about — whether text leaves the boundary at all. A self-hosted
-model makes point 1 much cheaper and adds a model to operate; a hosted API is the reverse. The
-project owner names it, and if the answer is a self-hosted model then most of this ADR gets easier
-rather than different.
+**The provider is a port with two modes, chosen per deployment and off by default.** Confirmed by
+the project owner on 2026-09-10, after this ADR had deliberately left it blank. Not a hedge — it is
+the shape this codebase already uses for every question of the same kind: `EmailOptions.Provider`
+(`Log` | `Smtp`), `EvidenceStoreOptions.Provider` (`FileSystem` | `ObjectStorage`), and
+`GitHubOptions.Mode` (`WorkingCopy` | `GitHubApi`). An installation with no provider configured
+registers nothing and behaves exactly as v1 does, which is the same posture telemetry and SMTP
+take.
+
+The two modes are **not** equivalent, and the difference is the whole subject of this document:
+
+- **A self-hosted model, in the stack.** No text leaves the boundary, so there is no third egress
+  path. Point 1 still applies in full — a secret must not be embedded even into a local index,
+  because the index is a data copy the retention schedule and SB-27 already cover — but the
+  outbound allow-list, the vendor question, and the acceptance below are all moot. The cost is a
+  model and the hardware to run it.
+- **A hosted embedding API.** The third egress path exists. Enabling this mode in a real
+  deployment is a **separate decision each time**, and needs three things that no code change can
+  supply: the vendor named, its host added to `OutboundAccess:AllowedHosts` (the empty-allow-list
+  default of SB-03 is not weakened by an adapter existing), and an acceptance in `info.md`
+  alongside the 2026-09-10 one, which covers the system as it stands and not a new path out of it.
+
+So the mechanism is approved and the hosted mode is not pre-authorised. That is the same
+arrangement `GitHubOptions.Mode = GitHubApi` already lives under: the adapter ships, and turning it
+on takes a token and a deliberate allow-list entry.
 
 ## Consequences
 

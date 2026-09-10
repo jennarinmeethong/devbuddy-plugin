@@ -40,22 +40,53 @@ From ADR-0013:
 - **A bounded budget and a refusal when it is exhausted are part of the design**, not an operational
   afterthought: an LLM or embedding API means per-call spend on a loop nobody is watching.
 
-### Two things this confirmation does **not** do
+### The embedding provider: a port with two modes, off by default
 
-- **It does not select an embedding provider, and no embedding code may be written until one is
-  selected and separately approved.** ADR-0012 leaves the provider blank on purpose, because a
-  self-hosted model and a hosted API differ on the exact question that ADR is about — whether text
-  leaves the boundary at all. The AI Data Policy in this file requires that separate approval, and
-  it is still outstanding. Confirming the ADR approves the constraints the work must satisfy; it
-  does not authorise the work.
-- **It does not connect real project data to anything new.** The acceptance of 2026-09-10 gates that
-  for the system as it stands; a third egress path is a new fact and needs its own acceptance once
-  the provider is known.
+Also confirmed 2026-09-10, answering the one thing ADR-0012 deliberately left blank. Support
+**both** a self-hosted model and a hosted embedding API behind one port, chosen by configuration,
+registering nothing when neither is configured. This is the arrangement this system already uses
+for every question of the same kind — `EmailOptions.Provider`, `EvidenceStoreOptions.Provider`,
+`GitHubOptions.Mode` — and an installation that configures no provider must behave exactly as v1
+does.
 
-`knowledge-ai-worker` has no such second gate: ADR-0013 names no external dependency of its own
-beyond the LLM or embedding API a worker would call, and calling one is what the provider approval
-above covers. Work may begin on the worker's authorization skeleton — the two shapes, the token,
-the budget refusal — without it. Embedding generation as a worker feature waits on the provider.
+The two modes are not equivalent and must not be documented as though they were:
+
+- **A self-hosted model in the stack sends no text out of the boundary.** There is no third egress
+  path in that mode. A secret must still never be embedded, because the index is a data copy that
+  SB-27 and the retention schedule already cover.
+- **A hosted API is a third egress path.** Enabling that mode in a deployment is a **separate
+  decision each time** and requires the vendor named, its host added to
+  `OutboundAccess:AllowedHosts`, and an acceptance recorded here beside the 2026-09-10 one. The
+  empty-allow-list default is not weakened by the adapter existing, exactly as it was not weakened
+  by the GitHub API client existing.
+
+So the mechanism is approved and the hosted mode is not pre-authorised. Building the port and both
+adapters is unblocked; turning the hosted one on in a real deployment is not, and no default may
+turn it on.
+
+### What this confirmation still does not do
+
+- **It does not connect real project data to a hosted provider.** The acceptance of 2026-09-10
+  covers the system as it stands. A path out of the boundary that did not exist then needs its own.
+- **It does not relax anything for the self-hosted mode either.** SB-17 refuses a secret before it
+  is embedded, SB-18 applies on the AI channel, the index is derived and never the source of truth,
+  and a permission change invalidates it the way it invalidates a cache.
+
+### The worker's authorization skeleton is begun
+
+Also confirmed 2026-09-10: work may start on the `knowledge-ai-worker`'s authorization skeleton,
+which has no second gate. What exists now is the shape and nothing that calls a model:
+`DevBuddy.Application/Workers/` holds the two permitted job types, a caller that can only be
+produced by resolving a real machine token, and a budget that refuses rather than throttles when
+it is spent. `WorkerAuthorizationTests` enforces the boundary by allow-list and is mutation-checked
+against a job that deliberately reaches too far.
+
+One decision was taken while building it and is recorded because it is not obvious: **a worker
+always runs on the AI channel, and cannot ask for another.** `AccessChannel.InternalSystem` skips
+the per-project AI access policy and the SB-18 redaction, both of which the executor applies on
+the strength of the channel alone, so a worker on that channel could read a project whose AI
+access nobody enabled and hand the contents to a model — through an authorization service
+answering every question correctly, because the membership behind it is real.
 
 
 ## Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10

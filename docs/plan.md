@@ -1115,8 +1115,8 @@ watching three cross-workspace cases fail.
 
 ## Phase 12 — Post-v1: operational closure and the two deferred decisions
 
-**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and no code is
-written.** Phases 0 to 11 were
+**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and its authorization
+skeleton is built.** Phases 0 to 11 were
 approved as a sequence before any of them started; this one was written after v1 shipped and did
 not inherit that approval, so it was held as a draft until the project owner confirmed it the same
 way. That entry is *Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10*
@@ -1295,15 +1295,22 @@ this criterion asked for and the whole of what it asked for:
 **No code exists for either, and the two capabilities are not equally unblocked.** Confirming an
 ADR fixes the constraints an implementation must satisfy; it is not authorisation to implement.
 
-- **Embeddings remain blocked on a second gate.** `info.md` requires an embedding provider to be
-  selected and separately approved, and that has not happened — ADR-0012 leaves the provider blank
-  on purpose, because a self-hosted model and a hosted API differ on the one question the document
-  is about: whether text leaves the boundary at all. No embedding code until that is answered. A
-  third egress path will also need its own acceptance alongside the 2026-09-10 one, which covers
-  the system as it stands.
-- **The worker's authorization skeleton has no second gate.** The two permitted shapes, the machine
-  token bounded by a real membership, and the budget refusal can be built against ADR-0013 as
-  confirmed. Embedding generation as a worker feature waits with the provider.
+- **The embedding provider is settled as a port with two modes, off by default** — a self-hosted
+  model or a hosted API, the same shape `EmailOptions.Provider` and `GitHubOptions.Mode` already
+  use. Building the port and both adapters is unblocked. **Enabling the hosted mode in a
+  deployment is not**, and is a separate decision each time: the vendor named, an
+  `OutboundAccess:AllowedHosts` entry, and an acceptance beside the 2026-09-10 one, because a path
+  out of the boundary that did not exist then needs its own. The self-hosted mode sends no text
+  out and therefore has no third egress path, though a secret still may not be embedded into a
+  local index either — that index is a data copy SB-27 already covers.
+- **The worker's authorization skeleton is begun.** `DevBuddy.Application/Workers/` holds the two
+  permitted job types, a `WorkerCaller` obtainable only by resolving a real machine token, and a
+  budget that refuses rather than throttles. Nothing in it calls a model.
+  `WorkerAuthorizationTests` is eighteen cases enforcing the boundary by allow-list, mutation-
+  checked against a job that deliberately reaches too far. One decision came out of building it:
+  **a worker always runs on the AI channel and cannot ask for another**, because
+  `AccessChannel.InternalSystem` skips the per-project AI policy and the SB-18 redaction, so a
+  worker on it could read a project whose AI access nobody enabled and feed it to a model.
 
 Writing the ADRs before any of it was the point: the alternative is deciding the authorization
 model of a background job while already halfway through building one.
@@ -1396,8 +1403,8 @@ sweep is scheduled by the stack, `linux/arm64` images are built and started, tok
 written to a log unless an operator asks, and the four unrun platforms keep shipping with the
 release notes saying so.
 
-What is left is 12C's implementation, and the two halves of it are not in the same state. ADR-0012
-and ADR-0013 are confirmed, so the constraints are settled and anything a v2 builds starts from
-those documents. The worker's authorization skeleton is buildable now. Embeddings are not: the
-provider is unselected and `info.md` requires that choice to be approved on its own, so a third
-egress path stays a design and not a feature until somebody makes it.
+What is left is 12C's features, not its foundations. Both ADRs are confirmed, the embedding
+provider is settled as a port with two modes off by default, and the worker's authorization
+skeleton is built and tested. What nobody has written is a job that does anything, an embedding
+adapter, or a vector index — and the hosted embedding mode may not be switched on in a deployment
+without the vendor named, an outbound allow-list entry, and an acceptance of its own.

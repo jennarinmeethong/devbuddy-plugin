@@ -11,8 +11,8 @@ repository.
   something new, add it there.
 - `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
   approved as of 2026-09-10: 12A and 12B are complete, and 12C's gate is met — ADR-0012 and
-  ADR-0013 are confirmed — with no implementation written and the embedding provider still
-  unselected.
+  ADR-0013 are confirmed, the embedding provider is settled as a port with two modes off by
+  default, and the worker's authorization skeleton is built. No job, adapter or index exists yet.
 
 ## Where the project is
 
@@ -27,7 +27,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 539 .NET tests and 36 web tests exist, and all of them pass in this environment —
+enforcement. 557 .NET tests and 36 web tests exist, and all of them pass in this environment —
 count them rather than trusting this sentence, which has been stale twice already: it sat at the
 release figure of 433 and 31 while both grew, and at 495 and 36 through Phase 12. `docs/plan.md`
 keeps the per-phase figures, and the ones under *v1 is released* are what passed at `v1.0.0`; they
@@ -126,13 +126,28 @@ leaves and the verification matrix gains rows of its own rather than being read 
 background worker either holds a machine token with a real membership or touches nothing a person's
 permissions would gate**, with nothing permitted in between.
 
-**Confirming an ADR is not authorisation to implement it, and the two halves differ.** Embeddings
-carry a second gate that is still open: `info.md` requires an embedding provider to be selected and
-separately approved, and ADR-0012 leaves the provider blank on purpose because a self-hosted model
-and a hosted API differ on whether text leaves the boundary at all. **Write no embedding code until
-that is answered.** The worker's authorization skeleton — the two shapes, the workspace-bound token,
-the budget refusal — is buildable against ADR-0013 as confirmed; embedding generation as a worker
-feature waits with the provider.
+**The embedding provider is a port with two modes, off by default** — a self-hosted model or a
+hosted API, the same shape `EmailOptions.Provider`, `EvidenceStoreOptions.Provider` and
+`GitHubOptions.Mode` already use. Building the port and both adapters is unblocked. **Enabling the
+hosted mode in a deployment is not**: it needs the vendor named, its host in
+`OutboundAccess:AllowedHosts`, and an acceptance of its own, because it is a path out of the
+boundary the 2026-09-10 acceptance does not cover. No default may turn it on. The self-hosted mode
+has no egress, and a secret still may not be embedded into a local index — that index is a data
+copy SB-27 covers.
+
+**The worker's authorization skeleton exists; nothing in it calls a model.**
+`DevBuddy.Application/Workers/` holds the two job types ADR-0013 permits and no third,
+`WorkerCaller` (obtainable only by resolving a real machine token — private constructor, one
+factory), and `WorkerBudget` (refuses rather than throttles, all-or-nothing spends, zero is a
+legitimate off switch). `WorkerAuthorizationTests` enforces the installation shape's reach by
+**allow-list** and is mutation-checked against a job that deliberately reaches too far.
+
+**A worker always runs on the AI channel and cannot ask for another.** This is the sharp bit and it
+is easy to get wrong: `AccessChannel.InternalSystem` skips the per-project AI access policy and the
+SB-18 personal-data redaction, both applied by the executor on the strength of the channel alone.
+A worker on that channel could read a project whose AI access nobody enabled and hand the contents
+to a model, through an authorization service answering every question correctly, because the
+membership behind it is real. `WorkerCaller.FromMachineToken` therefore takes no channel parameter.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports
