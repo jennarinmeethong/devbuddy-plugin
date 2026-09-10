@@ -33,11 +33,18 @@ public sealed class TelemetryOptions
     /// <summary>
     /// Whether application logs are shipped over OTLP alongside traces and metrics.
     /// <para>
-    /// Defaults to off, and the reason is not performance. With no SMTP configured, account setup
-    /// and recovery tokens are written to the log on purpose (see <c>LogEmailSender</c>) — turning
-    /// this on without turning SMTP on first copies those single-use credentials into whatever
-    /// collects them. Configure <c>Email:Provider = Smtp</c> first, or accept that consequence
-    /// knowingly.
+    /// Defaults to off, and the reason is not performance: shipping logs to a collector is a third
+    /// path out of the boundary, beside the AI channel and the trace exporter, and one an
+    /// installation should cross on purpose.
+    /// </para>
+    /// <para>
+    /// It used to be off for a sharper reason — with no SMTP configured, setup and recovery tokens
+    /// were written to the log unconditionally, so turning this on copied single-use credentials
+    /// into whatever collected them. Phase 12B closed that at the source:
+    /// <c>Email:AllowTokensInLog</c> is false, so nothing writes a token to a log unless an
+    /// operator asked for it. An operator who does ask should leave this off, or accept that the
+    /// tokens travel with the logs. <c>docker/compose.observability.yaml</c> turns this on, which
+    /// is option 2 in <c>docs/operations/logging.md</c>.
     /// </para>
     /// </summary>
     public bool ExportLogs { get; set; }

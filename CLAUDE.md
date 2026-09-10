@@ -9,13 +9,13 @@ repository.
   contributor guide and applies here in full.
 - `info.md` — decisions confirmed by the project owner. Treat as binding. When the owner confirms
   something new, add it there.
-- `docs/plan.md` — the phased plan, Phase 0 to Phase 11, each with exit criteria. Phase 12 is
-  drafted at the end of that file as a **proposal**: post-v1 work, not approved, not in `info.md`,
-  and not started.
+- `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
+  approved as of 2026-09-10: 12A and 12B are complete, 12C is not started and needs ADR-0012 and
+  ADR-0013 confirmed in `info.md` before any of it is written.
 
 ## Where the project is
 
-**v1 is released.** Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are
+**v1 is released, and Phase 12 followed it.** Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are
 closed, and `v1.0.0` is published from `9a8ebf0` — signed, an SBOM per image, and the attestations
 verified from outside the workflow that built them. Phase 1 delivered `DevBuddy.Domain`; Phase 2
 the `UseCaseExecutor` pipeline and the first 41 of what is now 58 operations; Phase 3 PostgreSQL,
@@ -26,13 +26,19 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 495 .NET tests and 36 web tests exist, and all of them pass in this environment —
-count them rather than trusting this sentence, which was left at the release figure of 433 and 31
-while both grew. `docs/plan.md` keeps the per-phase figures, and the ones under *v1 is released*
-are what passed at `v1.0.0`; they are a record and are not updated. All
-33 controls are `TESTED`; SB-29, the last one, closed on that publication. What v1 does **not**
-claim — four platforms built but never run, no `linux/arm64` image, and the operator-side facts
-about application logs — is listed under *v1 is released* in `docs/plan.md`.
+enforcement. 539 .NET tests and 36 web tests exist, and all of them pass in this environment —
+count them rather than trusting this sentence, which has been stale twice already: it sat at the
+release figure of 433 and 31 while both grew, and at 495 and 36 through Phase 12. `docs/plan.md`
+keeps the per-phase figures, and the ones under *v1 is released* are what passed at `v1.0.0`; they
+are a record and are not updated. All 33 controls are `TESTED`; SB-29, the last one, closed on that
+publication.
+
+What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
+operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images
+are built and started, and the log facts are decided rather than deferred — the sweep is scheduled
+and tokens are no longer written to a log by default. The four unrun platforms remain, now as an
+accepted decision rather than a gap. `docs/security/release-readiness.md` is the current statement
+of what is accepted and by whom.
 
 **Every operation a person needs is reachable from `web/admin`.** Team administration is the
 `Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the
@@ -76,6 +82,50 @@ actual copy — records, work items, and evidence bytes — instead of only a ma
 something for the sweep to purge. A deleted project is purged immediately by `delete_project`
 itself rather than by a lagging sweep. Application log retention is enforced here too, by the
 same sweep, since the file sink landed.
+
+**The stack schedules its own retention sweep (Phase 12B).** `docker/compose.yaml` runs a
+`retention` service on `retention --every 24h` in the console image. A scheduling mode on the
+console rather than a `cron` sidecar, because the images are chiseled and a sidecar would put a
+shell back into a stack that has nothing in it to execute. It stays **outside** the pipeline for
+the reason the sweep was put there: a pass spans every workspace and project and has no caller to
+authorise it against, so the loop acquires no actor, no membership and no tenant context. First
+pass is immediate, a failed pass is reported and the loop continues, and a scope is created per
+pass rather than held for the process. `--every 24` is refused rather than read as twenty-four
+days.
+
+**A token is never written to a log unless an operator asked (Phase 12B).**
+`Email:AllowTokensInLog` is false, so with `EmailOptions.Provider` on its default of `Log` the
+fallback sender records that a message could not be delivered, to whom, and how to fix that, and
+writes the token nowhere. v1 wrote them unconditionally and `release-readiness.md` carried that as
+an accepted risk. Consequence to know: **inviting somebody still works with no mail server**
+(`create_user_account` returns the setup token in its own response), and **self-service recovery
+deliberately does not** until SMTP or the opt-in is set. Refusing to start without a delivery
+channel was the alternative and was rejected — it breaks a plain `docker run`.
+
+**Application logs: option 2 of `docs/operations/logging.md` is the option in force**, confirmed
+2026-09-10. Logs go to Loki through the observability overlay and its ninety days is the retention
+of record; `Telemetry:ExportLogs` still defaults to false in code (log export is a third egress
+path) but the overlay sets it true, which it could not do while tokens were in those logs.
+
+**`linux/arm64` container images are built and started.** The Dockerfiles cross-compile —
+`--platform=$BUILDPLATFORM` on the SDK stage, `-a $TARGETARCH` for the output — so an arm64 image
+costs a release minutes rather than the hours emulating a compiler would. Nothing RUNs in a runtime
+stage, which is what makes that possible. All three were started under emulation, recorded as
+emulated rather than as hardware. The release workflow checks the non-root user **per
+architecture**, because a manifest list can hold one image that drops root and one that does not.
+
+**The four unrun RIDs keep shipping.** `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64`
+stay in the built-but-unverified tier with every release's notes saying they were never started.
+Confirmed as a decision, not left as a gap. Nobody may describe them as supported.
+
+**Phase 12C is not started, and its two ADRs are proposals.** ADR-0012 (embeddings and vector
+search) and ADR-0013 (the `knowledge-ai-worker`) are written and unapproved. Do not write code for
+either until `info.md` confirms them: `info.md` requires separate approval for an embedding
+provider and for background processing. The two things those ADRs settle and that any future work
+inherits: **embedding text is egress**, so SB-17 and SB-18 apply before text leaves and the
+verification matrix gains its own rows; and **a background worker either holds a machine token with
+a real membership or touches nothing a person's permissions would gate**, with nothing permitted in
+between.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports

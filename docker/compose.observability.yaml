@@ -20,16 +20,22 @@ services:
       DEVBUDDY_Telemetry__Endpoint: http://otel-collector:4317
       DEVBUDDY_Telemetry__ServiceName: devbuddy-api
 
-      # Off unless SMTP is configured. With Email:Provider left at Log, setup and recovery tokens
-      # are written to the log on purpose — shipping those logs to Loki would copy single-use
-      # credentials into a system more people can read. Set DEVBUDDY_EMAIL_PROVIDER=Smtp first.
-      DEVBUDDY_Telemetry__ExportLogs: ${DEVBUDDY_TELEMETRY_EXPORT_LOGS:-false}
+      # On, since Phase 12B. This is option 2 in docs/operations/logging.md and it is the option
+      # in force for this deployment (info.md, 2026-09-10): Loki holds the ninety days the
+      # retention schedule names for application logs, searchable beside traces and metrics and
+      # readable without shell access to a volume.
+      #
+      # What used to keep it off was that setup and recovery tokens were written into those logs
+      # by design, so shipping them here copied single-use credentials into a system more people
+      # can read. Email:AllowTokensInLog is false by default now, so nothing writes them unless
+      # an operator asks; an operator who does ask should set this back to false.
+      DEVBUDDY_Telemetry__ExportLogs: ${DEVBUDDY_TELEMETRY_EXPORT_LOGS:-true}
 
   mcp:
     environment:
       DEVBUDDY_Telemetry__Endpoint: http://otel-collector:4317
       DEVBUDDY_Telemetry__ServiceName: devbuddy-mcp
-      DEVBUDDY_Telemetry__ExportLogs: ${DEVBUDDY_TELEMETRY_EXPORT_LOGS:-false}
+      DEVBUDDY_Telemetry__ExportLogs: ${DEVBUDDY_TELEMETRY_EXPORT_LOGS:-true}
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.140.0

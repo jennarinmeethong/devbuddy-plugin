@@ -200,6 +200,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # For the arm64 half of the manifest. Nothing in these Dockerfiles RUNs on the target
+      # platform — the SDK stage is pinned to the builder's own architecture and cross-compiles
+      # with `-a $TARGETARCH` — so emulation is not on the build path. It is here for the base
+      # image handling and so a future RUN in a runtime stage fails loudly rather than silently
+      # producing an amd64-only manifest.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -220,6 +228,13 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
+
+          # Both architectures under one tag. `linux/arm64` was in the original release-matrix
+          # decision, was not built for v1.0.0, and the decision was amended rather than the
+          # build added — honest, and it left every arm64 host without an image. Phase 12B
+          # builds it. The row in docs/operations/release-matrix.md still moves to verified only
+          # when somebody has *started* one, which is the same standard the native matrix holds.
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
@@ -230,18 +245,23 @@ jobs:
       # anything in the local image store, so inspecting before pulling would inspect nothing —
       # and pulling means what gets checked is what was actually published, not a local build that
       # was meant to be identical.
+      # Per architecture, not per tag. A manifest list can hold one image that drops root and one
+      # that does not, and `docker pull` without --platform would only ever check the runner's own.
       - name: Check it runs as a non-root user
         run: |
           reference=$(echo '${{ steps.meta.outputs.tags }}' | head -n1)
-          docker pull "$reference"
-          user=$(docker image inspect "$reference" --format '{{.Config.User}}')
 
-          if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
-            echo "::error::devbuddy-${{ matrix.image }} runs as '$user'."
-            exit 1
-          fi
+          for platform in linux/amd64 linux/arm64; do
+            docker pull --platform "$platform" "$reference"
+            user=$(docker image inspect "$reference" --format '{{.Config.User}}')
 
-          echo "devbuddy-${{ matrix.image }} runs as $user"
+            if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
+              echo "::error::devbuddy-${{ matrix.image }} on $platform runs as '$user'."
+              exit 1
+            fi
+
+            echo "devbuddy-${{ matrix.image }} on $platform runs as $user"
+          done
 
       # What SB-29 asks for: somebody who pulls this image can verify where it came from without
       # having to trust whoever told them. `gh attestation verify` checks it against this

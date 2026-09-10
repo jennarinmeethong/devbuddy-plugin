@@ -41,11 +41,17 @@ it. Sampled at `Telemetry:TraceSampleRatio` (default `0.1`).
 `devbuddy_content_blocked_total`, `devbuddy_analysis_duration`, `devbuddy_analysis_rejected_total`,
 plus .NET runtime, HttpClient, and — in the API — the rate limiter's own meter.
 
-**Logs are not exported unless `Telemetry:ExportLogs` is set true**, and it defaults to false on
-purpose. With `EmailOptions.Provider` on its own default of `Log`, setup and recovery tokens are
-written into the application log deliberately, so an operator can complete an account by hand.
-Shipping that log to a system more people can read copies single-use credentials into it.
-Configure SMTP first, then turn this on; `logging.md` has the settings.
+**Logs are exported when this overlay is running.** `Telemetry:ExportLogs` still defaults to false
+in the application — shipping logs out of the boundary is a third egress path beside the AI channel
+and the trace exporter — but `compose.observability.yaml` sets it true, because option 2 of
+`logging.md` is the option in force for this deployment (`info.md`, 2026-09-10) and Loki's ninety
+days is the retention of record for application logs.
+
+It used to default to false here for a sharper reason than caution: with no SMTP configured, setup
+and recovery tokens were written into the application log unconditionally, so shipping those logs
+copied single-use credentials into a system more people can read. `Email:AllowTokensInLog` is false
+now, so nothing writes a token to a log unless an operator asks. An operator who does ask should
+set `DEVBUDDY_TELEMETRY_EXPORT_LOGS=false` with it.
 
 ## What is deliberately not collected
 

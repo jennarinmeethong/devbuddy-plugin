@@ -7,17 +7,24 @@
 # Built from the repository root:
 #   docker build -f docker/Dockerfile.api -t devbuddy-api .
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Multi-platform, and cross-compiled rather than emulated. `--platform=$BUILDPLATFORM` pins the SDK
+# stage to the machine doing the building, and `-a $TARGETARCH` tells .NET what to produce, so a
+# linux/arm64 image is compiled at native speed on an amd64 runner instead of running the whole
+# compiler under QEMU. Only the runtime stage is the target architecture, and nothing executes
+# there — it is a file copy.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
 WORKDIR /src
 
 # Restore before the source is copied, so a source change does not re-download the world.
 COPY global.json Directory.Build.props Directory.Packages.props DevBuddy.slnx ./
 COPY src/ src/
 COPY tests/ tests/
-RUN dotnet restore src/hosts/DevBuddy.Api/DevBuddy.Api.csproj
+RUN dotnet restore src/hosts/DevBuddy.Api/DevBuddy.Api.csproj -a $TARGETARCH
 
 RUN dotnet publish src/hosts/DevBuddy.Api/DevBuddy.Api.csproj \
     -c Release \
+    -a $TARGETARCH \
     -o /app \
     --no-restore \
     /p:UseAppHost=false
@@ -33,7 +40,10 @@ RUN mkdir -p /seed/empty
 # The administration UI ships inside this image, so the API and the client generated from it are
 # one origin and one deployment. Bun rather than npm, because that is what builds this client
 # everywhere else; `bun run build` type-checks first, so a type error fails the image build.
-FROM oven/bun:1 AS web
+# On the builder's own architecture too: this stage emits static files, which have no
+# architecture, so running Bun under emulation for an arm64 image would cost minutes and change
+# nothing about the output.
+FROM --platform=$BUILDPLATFORM oven/bun:1 AS web
 WORKDIR /web
 
 # The manifest first, so a source change does not reinstall the world.

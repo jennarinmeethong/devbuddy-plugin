@@ -3,16 +3,23 @@
 # Run it against the same database as the servers. In the Compose stack it runs migrations once and
 # exits, which is what the servers wait on.
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Multi-platform, and cross-compiled rather than emulated. `--platform=$BUILDPLATFORM` pins the SDK
+# stage to the machine doing the building, and `-a $TARGETARCH` tells .NET what to produce, so a
+# linux/arm64 image is compiled at native speed on an amd64 runner instead of running the whole
+# compiler under QEMU. Only the runtime stage is the target architecture, and nothing executes
+# there — it is a file copy.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
 WORKDIR /src
 
 COPY global.json Directory.Build.props Directory.Packages.props DevBuddy.slnx ./
 COPY src/ src/
 COPY tests/ tests/
-RUN dotnet restore src/hosts/DevBuddy.Cli/DevBuddy.Cli.csproj
+RUN dotnet restore src/hosts/DevBuddy.Cli/DevBuddy.Cli.csproj -a $TARGETARCH
 
 RUN dotnet publish src/hosts/DevBuddy.Cli/DevBuddy.Cli.csproj \
     -c Release \
+    -a $TARGETARCH \
     -o /app \
     --no-restore \
     /p:UseAppHost=false

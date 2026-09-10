@@ -206,6 +206,147 @@ public sealed partial class DeploymentTests
         }
     }
 
+    /// <summary>
+    /// Phase 12B's exit criterion, the half that lives in a file: the shipped stack schedules the
+    /// sweep instead of leaving it to whatever an operator builds.
+    /// <para>
+    /// Through v1 <c>compose.yaml</c> had <c>migrate</c>, <c>api</c>, <c>mcp</c>, <c>database</c>
+    /// and <c>evidence</c> and no scheduler, so the ten rows of the retention schedule were
+    /// enforced in code and unscheduled in fact. A window nothing sweeps is a window in name only.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void the_stack_schedules_the_retention_sweep()
+    {
+        string[] block = BlockFor(ComposeLines(), "retention:");
+
+        string command = Assert.Single(
+            block, line => line.TrimStart().StartsWith("command:", StringComparison.Ordinal));
+
+        Assert.Contains("\"retention\"", command, StringComparison.Ordinal);
+        Assert.Contains("--every", command, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The scheduler has no caller, and that is the design rather than an omission. A sweep spans
+    /// every workspace and project, so a scheduler holding an actor would be the installation-wide
+    /// superuser this system has deliberately never had — the same reason <c>restore_system</c>
+    /// was deleted rather than fixed.
+    /// </summary>
+    [Fact]
+    public void the_scheduler_runs_as_nobody()
+    {
+        Assert.DoesNotContain(
+            "DEVBUDDY_ACTOR",
+            ComposeText(),
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            BlockFor(ComposeLines(), "retention:"),
+            line => line.Contains("Token", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// A sweep that cannot see a store reports zero deletions for it and looks like it worked,
+    /// which is the worst failure mode this has. All four copies it purges are volumes.
+    /// </summary>
+    [Fact]
+    public void the_scheduler_can_reach_every_copy_it_purges()
+    {
+        string compose = ComposeText();
+
+        Assert.Contains("volumes: *console-volumes", BlockFor(ComposeLines(), "retention:").Select(line => line.Trim()));
+
+        foreach (string mount in (string[])["- backups:/srv/backups", "- exports:/srv/exports", "- logs:/srv/logs"])
+        {
+            Assert.Contains(mount, compose, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// A mount point listed twice for one service. Compose rejects some duplicates outright and
+    /// silently keeps one of the others, and the API service carried an identical <c>logs</c>
+    /// mount twice — harmless as it happened, and exactly the kind of thing that is not harmless
+    /// the day the two lines differ.
+    /// </summary>
+    [Fact]
+    public void no_service_mounts_the_same_container_path_twice()
+    {
+        foreach (string service in (string[])["api:", "mcp:", "database:", "evidence:", "retention:", "migrate:"])
+        {
+            string[] block = BlockFor(ComposeLines(), service);
+
+            string[] targets =
+            [
+                .. block
+                    .Select(line => line.Trim())
+                    .Where(line => line.StartsWith("- ", StringComparison.Ordinal)
+                        && line.Contains(":/", StringComparison.Ordinal))
+                    .Select(line => line[2..].Split(':')[1])
+            ];
+
+            Assert.Equal(targets.Length, targets.Distinct(StringComparer.Ordinal).Count());
+        }
+    }
+
+    /// <summary>
+    /// The owner's Phase 12B decision on the <c>Log</c> email provider, as configuration. v1 wrote
+    /// every setup and recovery token into the application log with nothing asked and nothing set,
+    /// and release-readiness carried that as an accepted risk. The default is now off.
+    /// </summary>
+    [Fact]
+    public void the_stack_does_not_write_tokens_to_a_log_unless_asked()
+    {
+        string[] block = BlockFor(ComposeLines(), "api:");
+
+        string setting = Assert.Single(
+            block,
+            line => line.TrimStart().StartsWith("DEVBUDDY_Email__AllowTokensInLog:", StringComparison.Ordinal));
+
+        // The default branch of the substitution is what an untouched deployment gets.
+        Assert.Contains(":-false}", setting, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The images are multi-platform, and cross-compiled rather than emulated: the SDK stage runs
+    /// on the builder's own architecture and <c>-a $TARGETARCH</c> decides what comes out. An
+    /// arm64 image built by running the whole compiler under QEMU would work and would take long
+    /// enough that somebody would eventually delete the platform instead.
+    /// </summary>
+    [Fact]
+    public void every_image_builds_for_the_architecture_it_is_asked_for()
+    {
+        FileInfo[] dockerfiles = [.. DockerDirectory().EnumerateFiles("Dockerfile.*")];
+
+        Assert.NotEmpty(dockerfiles);
+
+        foreach (FileInfo dockerfile in dockerfiles)
+        {
+            string text = File.ReadAllText(dockerfile.FullName);
+
+            Assert.Contains("--platform=$BUILDPLATFORM", text, StringComparison.Ordinal);
+            Assert.Contains("ARG TARGETARCH", text, StringComparison.Ordinal);
+            Assert.Contains("-a $TARGETARCH", text, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// And the release actually pushes both. <c>linux/arm64</c> was in the original release-matrix
+    /// decision, was never built for v1.0.0, and the decision was amended rather than the build
+    /// added; this is the line that makes the amendment unnecessary.
+    /// </summary>
+    [Fact]
+    public void the_release_publishes_both_architectures()
+    {
+        string workflow = File.ReadAllText(
+            Path.Combine(RepositoryRoot().FullName, ".github", "workflows", "release.yml"));
+
+        Assert.Contains("platforms: linux/amd64,linux/arm64", workflow, StringComparison.Ordinal);
+    }
+
+    private static string ComposeText() =>
+        File.ReadAllText(Path.Combine(DockerDirectory().FullName, "compose.yaml"));
+
     private static string[] ComposeLines() =>
         File.ReadAllLines(Path.Combine(DockerDirectory().FullName, "compose.yaml"));
 

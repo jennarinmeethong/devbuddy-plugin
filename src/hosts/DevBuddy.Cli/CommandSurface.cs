@@ -261,13 +261,48 @@ internal static class CommandSurface
     /// against. Run it on whatever schedule the operator's own cron or task scheduler provides —
     /// this system starts no scheduler of its own (SB-27).
     /// </summary>
+    /// <summary>
+    /// Applies the retention schedule, once or on an interval.
+    /// <para>
+    /// The interval is what lets the shipped stack schedule its own sweep. The images are
+    /// chiseled — no shell, no <c>cron</c> — so the alternative was a shell-bearing sidecar built
+    /// for the purpose, put back into a stack that has nothing in it to execute on purpose. See
+    /// <see cref="RetentionSchedule"/> for why it stays outside the pipeline either way.
+    /// </para>
+    /// </summary>
     private static Command Retention()
     {
+        Option<string?> every = new("--every")
+        {
+            Description =
+                "Keep running and repeat this often: 90m, 24h, 7d, or a hh:mm:ss span, and at "
+                + "least a minute. "
+                + "Omit for a single pass.",
+        };
+
         Command command = new(
             "retention",
             "Applies the retention schedule: deletes what has aged out, reports what has not.");
 
-        command.SetAction((_, cancellationToken) => Runner.RetentionAsync(cancellationToken));
+        command.Add(every);
+
+        command.SetAction((result, cancellationToken) =>
+        {
+            string? requested = result.GetValue(every);
+
+            if (requested is null)
+            {
+                return Runner.RetentionAsync(null, cancellationToken);
+            }
+
+            if (!RetentionSchedule.TryParseInterval(requested, out TimeSpan interval, out string? problem))
+            {
+                Console.Error.WriteLine(problem);
+                return Task.FromResult(Runner.MisconfiguredExitCode);
+            }
+
+            return Runner.RetentionAsync(interval, cancellationToken);
+        });
 
         return command;
     }

@@ -67,6 +67,20 @@ image unable to write to a fresh volume.
 **The application containers are read-only** with all capabilities dropped and
 `no-new-privileges`, with a `tmpfs` for the one directory a .NET process needs to write to.
 
+**It applies the retention schedule on its own.** The `retention` service runs
+`retention --every 24h` in the console image — the same sweep as `dotnet run -- retention`, which
+purges audit events past their window, orphaned evidence, stale backups and exports, and rolled log
+files. Through v1 this service did not exist and the sweep ran only if an operator built something
+to run it, so the windows in `docs/adr/0009-retention-defaults.md` were enforced in code and
+unscheduled in fact.
+
+`DEVBUDDY_RETENTION_EVERY` changes the interval; a minute is the shortest accepted, and daily is
+enough because every window in the schedule is measured in days or years. The service runs
+**outside** the use-case pipeline and holds no credential of any kind: a sweep spans every
+workspace and project, so there is no caller to authorise it against, and a scheduler with one
+would be an installation-wide superuser running unattended. Expect its first pass on start, and
+expect zeroes on a young installation.
+
 **It collects no traces or metrics on its own.** `Telemetry:Endpoint` is unset, so the
 instrumentation registers nothing. Adding a second file turns it on together with somewhere to
 send it:
@@ -156,6 +170,9 @@ curl and no shell, which is the point of one.
 3. `docker compose up -d`. The `migrate` service runs first and the servers wait for it to
    complete, so a deployment cannot race a schema change.
 4. Check `/health` and, once, sign in.
+5. Check the `retention` service came back up and logged a pass. It is the one service whose
+   failure is invisible from the outside: nothing stops working, the windows just stop being
+   applied.
 
 A migration that fails leaves the servers not started rather than started against a schema they do
 not match.

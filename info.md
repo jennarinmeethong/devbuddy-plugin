@@ -1,5 +1,57 @@
 # Project Decisions
 
+## Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10
+
+`docs/plan.md` Phase 12 was written after v1 shipped and so did not inherit the approval phases 0
+to 11 were given as a sequence. The project owner has now approved it, and settled the four
+decisions it left open. 12A and 12B are done; 12C is not started, because its own gate is an ADR
+per capability confirmed here first.
+
+**The acceptance `docs/security/release-readiness.md` asks for, which is what 12A is.** Both facts
+below are accepted, in writing, and real project data is no longer gated on paper alone.
+
+- **Application logs: option 2 of `docs/operations/logging.md` is the option in force.** Logs are
+  shipped to the aggregator in `docker/compose.observability.yaml` and Loki's ninety days is the
+  retention of record for them, searchable beside traces and metrics and readable without shell
+  access to a volume. `DEVBUDDY_TELEMETRY_EXPORT_LOGS` therefore defaults to true, and the
+  application's own file sink stays on as the local copy with its own sweep, so the window is
+  enforced in two places rather than one. Who can read them is whoever can reach Grafana, which
+  is published on loopback only and behind the reverse proxy the deployment already has.
+- **What `v1.0.0` published without running is accepted, and the four platforms keep shipping.**
+  `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` were built and published and have
+  never been started. No macOS and no Windows on ARM is available to this project, and acquiring
+  them is not worth the cost today. They stay in the built-but-unverified tier and every release's
+  notes say so verbatim, as `v1.0.0`'s did. Nobody may describe them as supported.
+
+**The `Log` email provider is now an opt-in rather than a default.** v1 wrote every setup and
+recovery token into the application log with nothing asked and nothing set, and this file's own
+Accepted Security Limitations carried that as a risk instead of a control.
+`Email:AllowTokensInLog` is false, so the fallback sender records that a message could not be
+delivered, to whom, and how to fix that, and writes the token nowhere. Refusing to start without
+a delivery channel was the other option and was rejected: it would break a plain `docker run` for
+a first-time operator, and this closes the same risk without that. A setup token is still
+returned in the `create_user_account` response, so inviting somebody works with no mail server;
+self-service recovery deliberately does not until SMTP or the opt-in is configured.
+
+**`linux/arm64` container images are built, published, and started.** The container matrix is no
+longer `linux/amd64` only. The images cross-compile rather than emulate — the SDK stage runs on the
+builder's architecture and `-a $TARGETARCH` decides the output — so an arm64 image costs a release
+minutes rather than hours. All three were started and answered under emulation, which is the same
+standard `linux-arm64` as a native RID already held, and is recorded as emulated rather than as
+hardware.
+
+**The retention sweep is scheduled by the stack rather than by the operator.**
+`docker/compose.yaml` runs `retention --every 24h` in the console image. A scheduling mode on the
+console rather than a `cron` sidecar, because the three images are chiseled and a sidecar would
+mean building a shell-bearing image and putting it back into a stack that has nothing in it to
+execute on purpose. It stays outside the use-case pipeline: a pass spans every workspace and
+project and has no caller to authorise it against, and a scheduler that acquired one would be the
+installation-wide superuser this system has deliberately never had.
+
+**Every release re-runs its own checklist.** `v1.0.0` carried its smoke tests over from an earlier
+commit, which was sound only because nothing between them changed product code. That will not be
+true again, and a release that carries everything is not a verified release.
+
 ## Confirmed Documentation Request — 2026-09-09
 
 - Create a detailed Thai HTML manual covering the DevBuddy plugin, its shared system,

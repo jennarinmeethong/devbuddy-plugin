@@ -24,8 +24,8 @@ Publish in three declared tiers, recorded in `docs/operations/release-matrix.md`
 | Built, unverified | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | Published as-is, never run, labelled unverified in the release notes. |
 | Not published | Everything else | Out of scope for v1. Not claimed as supported. |
 
-Container images are a **separate** matrix: `linux/amd64` only, on chiseled ASP.NET base images,
-running as a non-root user.
+Container images are a **separate** matrix: `linux/amd64` and `linux/arm64` (see the second
+amendment below), on chiseled base images, running as a non-root user.
 
 Native OS dependencies are documented explicitly, including ICU and OpenSSL on Linux unless
 invariant globalization is enabled. No single-file and no Native AOT claim is made. The matrix is
@@ -45,6 +45,30 @@ those smoke tests are performed by hand: CI runs the full test suite on `ubuntu-
 `windows-latest` and nothing else. The project owner chose to amend rather than hold the release
 until the original tiers were met; `info.md` carries that decision.
 
+## Amendment — 2026-09-10
+
+**`linux/arm64` container images are built again**, which un-does half of the 2026-09-07 amendment
+rather than adding something new: the 2026-09-01 decision named both architectures, the build was
+never made, and the honest response at the time was to narrow the claim. Phase 12B made the build,
+so the container matrix is `linux/amd64` and `linux/arm64` — as originally decided.
+
+The three Dockerfiles cross-compile rather than emulate: the SDK stage is pinned to the builder's
+architecture with `--platform=$BUILDPLATFORM` and `-a $TARGETARCH` decides the output. Nothing RUNs
+in a runtime stage, so the compiler never goes through QEMU and an arm64 image costs a release
+minutes instead of hours. Emulating the whole build works and is how a platform ends up quietly
+deleted a year later.
+
+All three images were **started** on arm64, not merely built — under emulation, because no arm64
+hardware is available here, which is the same standard the native `linux-arm64` RID row already
+held and is recorded that way in `docs/operations/release-matrix.md`. The release workflow checks
+the non-root user per architecture, because a manifest list can hold one image that drops root and
+one that does not.
+
+The four unverified RIDs are **not** affected. The project owner confirmed on 2026-09-10 that
+`osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` keep shipping in the middle tier, with
+every release's notes saying they were never started, rather than acquiring the hardware or
+dropping them. The middle tier is doing exactly the job this ADR says it is for.
+
 ## Consequences
 
 - The middle tier is the honest part of this decision: those artifacts are useful and untested, and
@@ -53,6 +77,8 @@ until the original tiers were met; `info.md` carries that decision.
   by somebody's time rather than by CI minutes, and is why the record of who ran what and when
   lives in `docs/operations/release-matrix.md`.
 - Users on an unverified RID carry the risk knowingly.
+- An arm64 container host is now served, and the row says "emulated" so that nobody reads it as a
+  claim about a Graviton or an Apple-silicon machine.
 
 ## Alternatives considered
 

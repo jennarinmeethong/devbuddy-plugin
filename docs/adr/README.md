@@ -44,3 +44,12 @@ Each with the reason it was not chosen.
 | [0009](0009-retention-defaults.md) | Retention defaults across every data copy | Accepted |
 | [0010](0010-work-item-source-of-truth.md) | DevBuddy owns the work item, GitHub is read-only | Accepted |
 | [0011](0011-explicit-persistence-rows.md) | Persistence maps explicit row types, not the aggregates | Accepted |
+| [0012](0012-embeddings-and-vector-search.md) | Embeddings and vector search | **Proposed** |
+| [0013](0013-knowledge-ai-worker.md) | The knowledge AI worker, and what authorises it | **Proposed** |
+
+The two `Proposed` rows are Phase 12C, and `Proposed` there means what the template says it does:
+nothing in them is confirmed in `info.md` and no code for either exists. `info.md` requires
+separate approval for an embedding provider and for a background worker, so each of those ADRs is
+the thing to approve or reject rather than a record that something was decided. They were written
+before any implementation deliberately — the alternative is deciding the authorization model of a
+background job while already halfway through building one.

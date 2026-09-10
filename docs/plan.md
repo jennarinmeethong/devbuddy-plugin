@@ -1115,11 +1115,17 @@ watching three cross-workspace cases fail.
 
 ## Phase 12 — Post-v1: operational closure and the two deferred decisions
 
-**Status: DRAFT (2026-09-07). Proposed, not approved, and not recorded in `info.md`.** Phases 0 to
-11 were approved as a sequence before any of them started. This one is written after v1 shipped,
-so it does not inherit that approval, and nothing in it should be built until the project owner
-confirms it the same way. Two of its three tracks carry decisions the owner has to *make* rather
-than inherit, which is precisely why they were kept out of v1.
+**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C is not started.** Phases 0 to 11 were
+approved as a sequence before any of them started; this one was written after v1 shipped and did
+not inherit that approval, so it was held as a draft until the project owner confirmed it the same
+way. That entry is *Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10*
+in `info.md`, and it settles the four decisions this phase left open: option 2 for application
+logs, an opt-in before a token is written to one, `linux/arm64` built, and the four unrun platforms
+kept in the built-but-unverified tier.
+
+12C remains not started, and that is the plan working rather than the plan slipping: its own exit
+criterion is an ADR per capability confirmed in `info.md` first. Both ADRs now exist as
+**proposals** — ADR-0012 and ADR-0013 — and neither is approved.
 
 **Goal:** take back from the operator what code can hold, settle what happens to the platforms v1
 published without ever running, and decide the two capabilities `info.md` deferred — without
@@ -1146,6 +1152,25 @@ out not to be in.
 **Exit criteria:** a dated, owner-confirmed entry in `info.md` naming both, in the same form as the
 2026-09-06 and 2026-09-07 entries. Until that entry exists, the other two tracks are optional and
 this one is not.
+
+**Met, 2026-09-10.** The entry exists and names both. Two of the four things this track was going
+to hand to the operator were closed instead of accepted, which is the better outcome and worth
+recording as such:
+
+- **Option 2 is in force** — logs to the aggregator, Loki's ninety days as the retention of record,
+  the application's file sink kept as the local copy with its own sweep. Who can read them is
+  whoever can reach Grafana, on loopback behind the existing reverse proxy.
+- **"Whether anything runs `retention` on a schedule" is no longer a question**, because 12B made
+  the stack run it.
+- **"Tokens are written to those logs by design" is no longer true**, because `Email:AllowTokensInLog`
+  is false. That was the item this track said mattered most, and accepting it was not the only
+  option available.
+- **The four unrun platforms are accepted and keep shipping**, with the release notes saying so
+  verbatim every time.
+
+`docs/security/release-readiness.md` carries the detail, including the consequence that
+self-service password recovery does not work with neither SMTP nor the opt-in configured — stated
+because a closed risk that quietly breaks a workflow is not closed.
 
 ### 12B — Operational closure
 
@@ -1184,6 +1209,36 @@ invokes the same sweep the console command does; `linux/arm64` is either publish
 or explicitly not claimed with the reason recorded in ADR-0008; and the release-matrix tiers for
 the next release describe only what was run for that release.
 
+**Met, 2026-09-10**, criterion by criterion.
+
+- **The stack schedules the sweep.** `docker/compose.yaml` runs `retention --every 24h` in the
+  console image, and `DeploymentTests` fails if the service or its interval goes. Verified running,
+  not only configured: `--every 1m` in a container against real PostgreSQL produced two passes a
+  minute apart, and `docker stop` returned in under a second with exit code 0 and the schedule's
+  closing line in the log — SIGTERM handled rather than a ten-second kill.
+- **A test proves it is the same sweep**, which was the criterion worth being pedantic about,
+  because the easy way to build this is a second code path that agrees today.
+  `RetentionScheduleTests.the_scheduled_pass_and_the_single_pass_are_the_same_sweep` drives both
+  entry points through one delegate and one report writer and asserts they are indistinguishable;
+  twenty-seven cases in total cover the loop, the failure behaviour, and the interval parser.
+- **`linux/arm64` is published and started.** All three images build for it — cross-compiled, so a
+  release pays minutes rather than hours — and all three were started: the console applied six
+  migrations and listed the eighteen AI-exposed operations, the API answered `/health` 200 and
+  `/operations` 401, the MCP server refused an unauthenticated call with 401. Under emulation, not
+  on hardware, which is the same standard the native `linux-arm64` row already held and is recorded
+  that way. ADR-0008 carries the amendment; it un-does half of the 2026-09-07 one rather than
+  adding something new, because the original 2026-09-01 decision named both architectures.
+- **The next release describes only itself.** Recorded in `docs/operations/release-matrix.md`: the
+  licence `v1.0.0` had to carry checks over from `6a60a48` is spent, since Phase 12 changed the
+  console, the fallback email sender, all three Dockerfiles, and the Compose stack.
+
+Two things went beyond the criteria and are worth naming. The `Log` email provider decision is the
+one that closes a real risk rather than documenting it: `Email:AllowTokensInLog` is false, so the
+fallback sender writes no token anywhere unless an operator asks. And the API service had mounted
+the `logs` volume twice — harmless as it stood, and exactly the kind of line that stops being
+harmless the day the two differ; `DeploymentTests` now refuses a duplicate mount point on any
+service.
+
 ### 12C — The two deferred capabilities
 
 Both require an ADR and the project owner's separate approval before any code, per the AI Data
@@ -1218,6 +1273,27 @@ it only as a separately authorised, isolated feature, and neither v1 nor this pr
 written. No implementation exit criteria are proposed here on purpose — the shape of that work
 depends on decisions nobody has made yet, and inventing criteria for it would be exactly the
 paper-ahead-of-evidence this plan exists to avoid.
+
+**Half met, and deliberately stopped there.** Both ADRs are written and both are `Proposed`:
+
+- **ADR-0012, embeddings and vector search.** Settles what Phase 12C said it had to — embedding
+  text is egress, so SB-17 and SB-18 apply before text leaves and the verification matrix gains its
+  own rows rather than being read as covered; the index is derived and a permission change
+  invalidates it like a cache; full-text search stays and a deployment with no provider configured
+  behaves exactly as v1 does. It leaves the **provider blank on purpose**, because a self-hosted
+  model and a hosted API differ on the one question the ADR is about: whether text leaves the
+  boundary at all.
+- **ADR-0013, the `knowledge-ai-worker`.** Answers the authorization question the same way this
+  system answered it for `restore_system` and `retention`: two shapes are permitted and nothing
+  between them. Either the worker holds a machine token with a real membership and is bounded by it
+  exactly like any other caller, or it runs outside the pipeline and may touch nothing a person's
+  permissions would gate. A worker outside the pipeline that reads project content would be the
+  installation-wide superuser this system has never had, running unattended.
+
+**No code exists for either, and none should until `info.md` confirms them.** `info.md` requires
+separate approval for an embedding provider and for background processing, and permission to use
+Claude and Codex does not carry either. Writing the ADRs first is the point: the alternative is
+deciding the authorization model of a background job while already halfway through building one.
 
 ---
 
@@ -1301,6 +1377,13 @@ have to decide rather than inherit: whether `linux/arm64` images and the four un
 worth the cost of keeping working, and what a v2 does about the embeddings and vector search this
 plan deliberately kept out of v1.
 
-Both of those, and the acceptance that gates real project data, are now drafted as **Phase 12**
-above. That section is a proposal: it is not approved, it is not in `info.md`, and no work in it
-has started.
+Both of those, and the acceptance that gates real project data, were drafted as **Phase 12** above
+and approved on 2026-09-10. 12A and 12B are done: the acceptance is in `info.md`, the retention
+sweep is scheduled by the stack, `linux/arm64` images are built and started, tokens are no longer
+written to a log unless an operator asks, and the four unrun platforms keep shipping with the
+release notes saying so.
+
+What is left is 12C, and it is left on purpose. ADR-0012 and ADR-0013 exist as **proposals** and
+neither is approved, so no line of either capability is written. Anything a v2 does about
+embeddings or a background worker starts from those two documents and from a confirmation in
+`info.md`, not from this list.

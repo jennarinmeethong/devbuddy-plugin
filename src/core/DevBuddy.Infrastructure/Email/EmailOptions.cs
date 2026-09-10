@@ -34,4 +34,21 @@ public sealed class EmailOptions
     public string FromAddress { get; set; } = "devbuddy@localhost";
 
     public string FromName { get; set; } = "DevBuddy";
+
+    /// <summary>
+    /// Whether <see cref="LogEmailSender"/> may write a message body — and so a one-time setup or
+    /// recovery token — into the application log. <b>False.</b>
+    /// <para>
+    /// v1 wrote them unconditionally, and said so: `docs/security/release-readiness.md` listed "a
+    /// secret in a log, by design" among the risks the operator had to accept, and a retention
+    /// window is not a control over who can read the file while it exists. Phase 12B closed it
+    /// with an opt-in rather than by refusing to start without SMTP, because that second option
+    /// breaks a plain <c>docker run</c> for a first-time operator and this one does not.
+    /// </para>
+    /// <para>
+    /// Ignored unless <see cref="Provider"/> is <see cref="EmailProvider.Log"/>: with a real
+    /// transport configured there is no log line for it to govern.
+    /// </para>
+    /// </summary>
+    public bool AllowTokensInLog { get; set; }
 }

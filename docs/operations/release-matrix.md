@@ -22,6 +22,12 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `win-arm64` | yes | no | No Windows on ARM available. Published as-is. |
 | `linux-musl-arm64` | yes | no | Not run; the x64 musl build was, so the dependency list is believed to carry over. |
 
+The four rows reading **no** are a decision rather than an omission, confirmed by the project owner
+on 2026-09-10: keep publishing them in this tier, with every release's notes saying they were never
+started, rather than acquire the hardware or stop publishing. No macOS and no Windows on ARM is
+available here. Whoever deploys on one of them is the first to run it, and nobody may describe them
+as supported. The alternative — dropping them — stays available and costs nothing but four rows.
+
 "Run" means the executable started and answered — `DevBuddy.Cli operations --ai` returned the
 eighteen AI-exposed operation names. It does not mean the full test suite ran on that platform.
 The suite runs on `ubuntu-latest` and `windows-latest` in CI; everything else in this table is a
@@ -54,13 +60,29 @@ and are verified differently.
 
 | Image | Base | Platforms | Verified |
 |---|---|---|---|
-| `devbuddy-api` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64` | Built and run: healthy in the Compose stack, serving sign-in and operations. |
-| `devbuddy-mcp` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64` | Built and run: refuses an unauthenticated call with 401. |
-| `devbuddy-migrate` (console) | `mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled` | `linux/amd64` | Built and run: applied migrations, bootstrapped, and performed a restore. |
+| `devbuddy-api` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: healthy in the Compose stack serving sign-in and operations on amd64; on arm64, `/health` 200 and `/operations` 401 unauthenticated. |
+| `devbuddy-mcp` | `mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: refuses an unauthenticated call with 401. |
+| `devbuddy-migrate` (console) | `mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled` | `linux/amd64`, `linux/arm64` | Built and run on both: applied migrations, bootstrapped, and performed a restore on amd64; on arm64, applied all six migrations and listed the eighteen AI-exposed operations. |
 
-`linux/arm64` images are **not built and not claimed**. The Dockerfiles have nothing
-architecture-specific in them and a multi-platform build is a CI change rather than a code one, but
-until that build runs the row would be a guess.
+**`linux/arm64` is built and started, as of 2026-09-10.** This table said "not built and not
+claimed" through v1, and ADR-0008 and the 2026-09-07 amendment to `info.md` said the same; the
+build was a CI change nobody had made, so the row would have been a guess. Phase 12B made it.
+
+Two things about how, because both matter to what the row means.
+
+**Cross-compiled, not emulated.** The SDK stage is pinned to the builder's own architecture with
+`--platform=$BUILDPLATFORM` and `-a $TARGETARCH` decides what comes out, so an arm64 image is
+compiled at native speed on an amd64 runner. Nothing in these Dockerfiles RUNs on the target
+platform — the runtime stage is a file copy — so the whole compiler never goes through QEMU. The
+alternative works and costs a release hours, which is how a platform ends up quietly deleted.
+
+**Started under emulation, not on hardware.** No arm64 hardware is available to this project, and
+that is stated rather than blurred: this is the same standard the `linux-arm64` native RID row
+already held. It does mean nobody has run these images on a Graviton or an Apple-silicon host.
+
+The release workflow's non-root check runs **per architecture**, because a manifest list can hold
+one image that drops root and one that does not, and a `docker pull` without `--platform` would
+only ever check the runner's own.
 
 Chiseled means no shell, no package manager, and no busybox: if something gets code execution in
 one of these containers, there is nothing in it to execute. It also means the container health
@@ -84,8 +106,8 @@ for no functional gain.
 
 `.github/workflows/release.yml` runs on a `v*` tag. It gates on the full suite, the format check,
 and the web build before it publishes anything; then it builds every RID in the first table, pushes
-the three images to GHCR, generates one SBOM per host, and signs all of it with GitHub's keyless
-OIDC identity — provenance for the archives and the images, and each host's SBOM attached to its
+the three images to GHCR for `linux/amd64` and `linux/arm64` under one tag each, generates one SBOM
+per host, and signs all of it with GitHub's keyless OIDC identity — provenance for the archives and the images, and each host's SBOM attached to its
 own image.
 
 It leaves the GitHub release as a **draft**. That is deliberate: the checklist below asks for smoke
@@ -119,6 +141,11 @@ artefacts. **Carried over** was performed against `6a60a48` and is not claimed a
 honest here only because the commits between `6a60a48` and `9a8ebf0` changed documentation, one
 code comment, `docker/compose.yaml`, `docker/.env.example` and two test files, and no product code.
 It would not be honest for a release that changed any.
+
+**That licence is now spent.** The project owner confirmed on 2026-09-10 that every release
+re-runs its own checklist in full. Phase 12 changed product code — the console, the fallback email
+sender, all three Dockerfiles and the Compose stack — so the next tag has nothing left to carry,
+and a release that carries everything is not a verified release.
 
 | Check | When | Result |
 | --- | --- | --- |
@@ -154,9 +181,33 @@ turning encryption off, so artefacts are still encrypted at rest. `DeploymentTes
 compose file for it, and the misleading comment is gone. The drill was then re-run from an empty
 stack and completed.
 
+## What was verified for Phase 12 (2026-09-10, not a release)
+
+Recorded here rather than waiting for the next tag, because these are the checks the tag will
+otherwise be tempted to carry over. Performed against `main`, not against a published artefact.
+
+| Check | Result |
+| --- | --- |
+| All three images build for `linux/arm64` | **Yes.** Cross-compiled on an amd64 host with `--platform=$BUILDPLATFORM` and `-a $TARGETARCH`; `docker image inspect` reports `arm64` and user `1654` for each. |
+| `devbuddy-migrate` starts on arm64 | **Yes.** Applied all six migrations against `postgres:17-alpine` on arm64, then listed the eighteen AI-exposed operations. |
+| `devbuddy-api` starts on arm64 | **Yes.** `/health` 200; `/operations` 401 unauthenticated, so the route exists rather than everything being refused. `dotnet --info` inside the container reports `arm64`. |
+| `devbuddy-mcp` starts on arm64 | **Yes.** `POST /` 401 unauthenticated, against a control showing an unmapped path answers 404. |
+| The scheduled retention sweep runs in a container | **Yes.** `retention --every 1m` in the console image against real PostgreSQL: two passes a minute apart, both reporting all six counts. |
+| It stops when the container is stopped | **Yes.** `docker stop` returned in under a second with exit code 0 and the schedule's own closing line in the log — SIGTERM handled, not a ten-second kill. |
+| The `retention` service runs in the shipped stack | **Yes.** `docker compose up -d` from clean on `linux/amd64`: all five services up, `api` healthy, `migrate` exited 0, and `retention` up with its first pass logged and all six counts reported. The log volume came back owned by the application user with a rolled file in it. |
+| `/health`, `/operations` and the MCP transport | **Yes.** 200, 401, and 401 respectively, with the UI served at the root; an unmatched path answers 200 because that is the client-route fallback, which `AdminUiTests` pins against shadowing an endpoint. |
+| Tokens stay out of the log by default | **Yes**, against the running stack and not only in tests. `POST /auth/recovery/begin` for a real account answered 202 and the API logged that the message could not be delivered, naming the address, the subject, and both ways to fix it — and no token, in stdout or in the file on the volume. |
+| The opt-in still works when it is asked for | **Yes.** With `DEVBUDDY_EMAIL_ALLOW_TOKENS_IN_LOG=true` the same request wrote the token to the log and to the file on the volume, under a line saying to treat it as sensitive. Both halves matter: the default suppresses it, and it is not a broken sender. |
+
+Emulated, not hardware, for every arm64 row above. The Compose stack and the token checks were run
+on `linux/amd64`. Not claimed: the Compose stack from clean on arm64, and the destroy-and-restore
+drill on either architecture for this change — that one is a release check and Phase 12 is not a
+release.
+
 ## Verifying a release
 
-Before publishing the draft, and recorded per release:
+Before publishing the draft, and recorded per release. Nothing is carried over from a previous
+tag: that licence was spent on `v1.0.0` and is closed by the 2026-09-10 decision above.
 
 1. `dotnet test DevBuddy.slnx -c Release` on Linux, with Docker available, so the integration and
    drill tests actually run. (The workflow does this too; doing it locally is what lets you read
@@ -165,10 +216,13 @@ Before publishing the draft, and recorded per release:
    table; it does not get a footnote.
 3. Run the smoke test on every row whose "Run" column says yes. If a platform cannot be run this
    time, its "Run" column changes to no for that release.
-4. `docker compose -f docker/compose.yaml up -d` from clean, to healthy.
-5. The destroy-and-restore drill in `docs/operations/backup-and-restore.md`, by hand, once.
-6. SBOM and vulnerability scan attached to the release (CI produces both).
-7. The signatures verify from outside the workflow that made them:
+4. `docker compose -f docker/compose.yaml up -d` from clean, to healthy — including the
+   `retention` service, which should log a pass on start and stay up.
+5. Start each image on **both** published architectures and record what answered. An arm64 image
+   that was built and never started belongs in a "built" column, not a "verified" one.
+6. The destroy-and-restore drill in `docs/operations/backup-and-restore.md`, by hand, once.
+7. SBOM and vulnerability scan attached to the release (CI produces both).
+8. The signatures verify from outside the workflow that made them:
 
    ```bash
    gh attestation verify oci://ghcr.io/<owner>/<repo>/devbuddy-api:1.0.0 --owner <owner>

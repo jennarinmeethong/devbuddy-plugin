@@ -11,9 +11,11 @@ Two documents govern the work and are read before changing anything:
 
 - `info.md` — decisions confirmed by the project owner. Add to it whenever a new decision is
   confirmed. Do not contradict it in code.
-- `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 11) with per-phase exit
-  criteria. Phases 0 to 11 are complete, and the v1 gaps named at the end of Phase 11 are closed
-  (see `docs/plan.md`'s "Closing the v1 gaps" section and `CLAUDE.md`).
+- `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 12) with per-phase exit
+  criteria. Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are closed
+  (see `docs/plan.md`'s "Closing the v1 gaps" section and `CLAUDE.md`), and Phase 12 was approved
+  on 2026-09-10: 12A and 12B are done, 12C is **not started** and needs ADR-0012 and ADR-0013
+  confirmed in `info.md` before a line of either is written.
 
 ## Project Structure & Module Organization
 

@@ -35,6 +35,12 @@ internal static class Runner
     private const int Refused = 1;
     private const int Misconfigured = 2;
 
+    /// <summary>
+    /// The same code, for a command that rejects its arguments before it builds anything —
+    /// <c>retention --every</c> with an interval that is not one.
+    /// </summary>
+    public static int MisconfiguredExitCode => Misconfigured;
+
     /// <summary>Indented output, because a person is reading it.</summary>
     private static readonly JsonSerializerOptions Printing = new() { WriteIndented = true };
 
@@ -126,28 +132,47 @@ internal static class Runner
     /// Applies the retention schedule, outside the pipeline for the same reason as
     /// <see cref="RestoreAsync"/>: a sweep spans every workspace and project, so there is no
     /// single caller to authorise it against.
+    /// <para>
+    /// With <paramref name="every"/> set it stays running and repeats, which is how the shipped
+    /// stack schedules the sweep without a shell to put <c>cron</c> in. Either way the pass
+    /// itself is <see cref="RetentionSchedule.SweepOnceAsync"/> against the same
+    /// <see cref="IRetentionEnforcer"/>; the interval adds a loop and nothing else.
+    /// </para>
     /// </summary>
-    public static async Task<int> RetentionAsync(CancellationToken cancellationToken)
+    public static async Task<int> RetentionAsync(TimeSpan? every, CancellationToken cancellationToken)
     {
-        return await WithScopeAsync(async scope =>
+        return await WithProviderAsync(async provider =>
         {
-            RetentionReport report = await scope.ServiceProvider
-                .GetRequiredService<IRetentionEnforcer>()
-                .ApplyAsync(cancellationToken);
-
-            Console.WriteLine($"audit events deleted        {report.AuditEventsDeleted}");
-            Console.WriteLine($"orphaned evidence deleted    {report.OrphanedEvidenceDeleted}");
-            Console.WriteLine($"backups deleted              {report.BackupsDeleted}");
-            Console.WriteLine($"exports deleted              {report.ExportsDeleted}");
-            Console.WriteLine($"log files deleted            {report.LogFilesDeleted}");
-            Console.WriteLine($"archived records eligible    {report.ArchivedRecordsEligibleForDeletion}");
-
-            if (report.ArchivedRecordsEligibleForDeletion > 0)
+            // A scope per pass, not one for the process. The unit of work behind this is a
+            // DbContext, and a scheduler that held one open for months would hold its change
+            // tracker, its connection, and every entity it had ever seen for just as long.
+            async Task<RetentionReport> SweepAsync(CancellationToken token)
             {
-                Console.WriteLine(
-                    "Eligible archived records are reported, not deleted: that needs the owner's "
-                    + "request.");
+                using IServiceScope scope = provider.CreateScope();
+
+                return await scope.ServiceProvider
+                    .GetRequiredService<IRetentionEnforcer>()
+                    .ApplyAsync(token);
             }
+
+            if (every is not { } interval)
+            {
+                await RetentionSchedule.SweepOnceAsync(SweepAsync, Console.Out, cancellationToken);
+                return Ok;
+            }
+
+            using CancellationTokenSource stopping =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            using IDisposable signals = RetentionSchedule.StopOnSignal(stopping);
+
+            await RetentionSchedule.SweepEveryAsync(
+                SweepAsync,
+                interval,
+                Task.Delay,
+                Console.Out,
+                Console.Error,
+                stopping.Token);
 
             return Ok;
         });
@@ -235,15 +260,29 @@ internal static class Runner
         });
     }
 
+    /// <summary>Builds the container and runs the work in one scope, which is what every command
+    /// but the scheduled retention mode wants.</summary>
+    private static Task<int> WithScopeAsync(Func<IServiceScope, Task<int>> work) =>
+        WithProviderAsync(async provider =>
+        {
+            using IServiceScope scope = provider.CreateScope();
+            return await work(scope);
+        });
+
     /// <summary>
-    /// Builds the container from configuration and runs the work in one scope.
+    /// Builds the container from configuration and hands over the provider rather than a scope.
     /// <para>
     /// A missing connection string is reported as a configuration problem rather than thrown at
     /// the operator as a stack trace, because it is the single most likely thing to be wrong on a
     /// first run and it is not a bug.
     /// </para>
+    /// <para>
+    /// The provider rather than a scope, because the scheduled retention mode runs for as long as
+    /// the container does and creates a scope per pass: one scope held for the life of a scheduler
+    /// is one <c>DbContext</c> held for the life of a scheduler.
+    /// </para>
     /// </summary>
-    private static async Task<int> WithScopeAsync(Func<IServiceScope, Task<int>> work)
+    private static async Task<int> WithProviderAsync(Func<IServiceProvider, Task<int>> work)
     {
         IConfiguration configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
@@ -268,9 +307,8 @@ internal static class Runner
         }
 
         await using ServiceProvider provider = services.BuildServiceProvider();
-        using IServiceScope scope = provider.CreateScope();
 
-        return await work(scope);
+        return await work(provider);
     }
 
     private static string Pretty(JsonElement? payload) =>

@@ -233,7 +233,8 @@ public static class DependencyInjection
 
             return options.Value.Provider == EmailProvider.Smtp
                 ? new SmtpEmailSender(options)
-                : new LogEmailSender(provider.GetRequiredService<ILogger<LogEmailSender>>());
+                : new LogEmailSender(
+                    provider.GetRequiredService<ILogger<LogEmailSender>>(), options);
         });
 
         return services;

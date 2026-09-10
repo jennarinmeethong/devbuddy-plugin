@@ -124,28 +124,68 @@ tests, and none of them widens the AI-exposed surface or changes an existing con
 
 All eight scenarios are now fully exercised.
 
-## Before real project data is connected
+## Before real project data was connected — accepted 2026-09-10
 
-Per `info.md`, this is the explicit sign-off point. The project owner should accept, in writing:
+Per `info.md`, this was the explicit sign-off point, and it is signed off. The entry is
+*Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10* in `info.md`, and
+this section records what it accepted and what changed rather than what was asked for. Until that
+entry existed the gate was open in fact and closed only on paper, which is the one state this
+project set out not to be in.
 
-1. Application log retention is now enforced and tested — the shipped stack writes daily files
-   and `dotnet run -- retention` deletes them past ninety days — but three things about it are the
-   operator's, and none of them is visible from inside the code. Whether anything actually runs
-   `retention` on a schedule; whether the path stays set, since clearing it reverts to the
-   size-bounded log driver; and, the one that matters most, that **with no SMTP configured, setup
-   and recovery tokens are written to those logs by design**. A retention window is not a control
-   over who can read the file while it exists. Record which option from
-   `docs/operations/logging.md` is in force and who can read the volume.
-2. `v1.0.0` is published, signed, and carries an SBOM per image, and SB-29 is `TESTED` on the
-   strength of a verification performed after publication rather than of a workflow having
-   succeeded. What is left is what the release notes state verbatim and this acceptance should
-   name too: four platforms — `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` — were
-   built and published **without ever being run**, because no macOS and no Windows on ARM is
-   available here, and `linux/arm64` container images are not built at all. If somebody deploys on
-   one of those, they are the first to run it. The rest of the release checklist was carried over
-   from `6a60a48` rather than re-run, which is sound only because the commits between it and
-   `9a8ebf0` changed no product code — a claim that stops being true for the next release.
+**1. Application logs — accepted, and narrower than it was.** Three of the four things this
+section used to hand to the operator are now decided or closed.
 
-Neither blocks the controls that are `TESTED` today, including the personal-data policy (SB-18),
-retention (SB-27), and the AI-channel and tenant-isolation controls that gate access to whatever
-data a workspace holds.
+| What it was | Where it stands |
+| --- | --- |
+| Whether anything runs `retention` on a schedule | **Closed.** `docker/compose.yaml` runs `retention --every 24h` in the console image, and `DeploymentTests` fails if that service or its interval goes. The scheduler is a loop around the same sweep the one-shot command runs; `RetentionScheduleTests` asserts that rather than assuming it. Verified in the shipped stack from clean, not only in the file: the service came up with its first pass logged. |
+| Which option from `docs/operations/logging.md` is in force | **Decided: option 2.** Logs go to the aggregator in `docker/compose.observability.yaml` and Loki's ninety days is the retention of record. The application's file sink stays on as the local copy with its own sweep, so the window is enforced twice. |
+| Whether `Logging:File:Path` stays set | **Still the operator's**, and it now costs less: clearing it drops the local copy, not the time-based window, because Loki holds that. |
+| That setup and recovery tokens are written to those logs by design | **Closed.** `Email:AllowTokensInLog` is false, so nothing writes a token to a log unless an operator sets that on purpose. Verified against the running stack in both directions: a real recovery request logged that the message could not be delivered and no token, and the same request with the opt-in set wrote the token to stdout and to the file on the volume. |
+
+Who can read them: whoever can reach Grafana, which is published on loopback only and sits behind
+the same reverse proxy as the API.
+
+The last row is the substantive change of the two, and it is worth being exact about what it did
+and did not do. It did not add a control over who may read a log file. It removed the reason there
+was a credential in one: the fallback sender now records that a message could not be delivered, to
+whom, and how to fix that, and writes the token nowhere. Anybody who sets
+`Email:AllowTokensInLog=true` is accepting the original risk knowingly, which is the difference
+between a decision and a default. Refusing to start outside development without a delivery channel
+was the other candidate and was rejected — it closes the same risk and breaks a plain `docker run`
+for a first-time operator.
+
+Consequences worth stating, since a closed risk that quietly breaks a workflow is not closed:
+
+- **Inviting somebody still works with no mail server.** `create_user_account` returns the setup
+  token in its own response, which was always a real delivery path rather than a fallback one.
+- **Self-service password recovery does not.** With no SMTP and no opt-in, a recovery token is
+  generated, is unreachable, and expires. That is deliberate. An administrator's alternative is to
+  configure SMTP, or to set the opt-in, read the token, and turn it off again.
+- **Log export to Loki is now on by default with the overlay**, which was previously held false
+  precisely because tokens were in those logs. An operator who turns the token opt-in on should
+  turn log export back off.
+
+**2. The four unrun platforms — accepted, and they keep shipping.** `osx-arm64`, `osx-x64`,
+`win-arm64` and `linux-musl-arm64` were built and published for `v1.0.0` without ever being
+started, because no macOS and no Windows on ARM is available here. The owner's decision is to keep
+publishing them in the built-but-unverified tier with every release's notes saying so verbatim,
+rather than to acquire the hardware or to stop publishing. Whoever deploys on one of them is the
+first to run it, and nobody may describe them as supported.
+
+**Closed rather than accepted: `linux/arm64` container images.** This section, ADR-0008 and the
+release matrix all said they were not built and not claimed. They are built now, published under
+the same tag as the amd64 images, and all three were started and answered. Cross-compiled rather
+than emulated, so it costs a release minutes; started under emulation rather than on hardware,
+which is the same standard the native `linux-arm64` row already held and is recorded that way.
+
+**Still the operator's, and unchanged:** the residual lag before deleted data ages out of a
+backup, and the fact that a permission revoked today does not retrieve a copy somebody downloaded
+yesterday. Both are in `info.md` under Accepted Security Limitations.
+
+Nothing here moves a control's status. All 33 remain `TESTED`, and SB-14, SB-15, SB-27 and SB-29
+gain evidence: `EmailSenderTests` is four cases over the token opt-in and its default,
+`RetentionScheduleTests` twenty-seven over the sweep and the loop around it — including that both
+entry points call the identical delegate, so "the same sweep" is asserted rather than assumed —
+and `DeploymentTests` seven more over the shipped file, covering the scheduler, the email default,
+the cross-compilation flags in all three Dockerfiles, and both architectures in the release
+workflow.

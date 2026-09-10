@@ -32,6 +32,38 @@ x-logging: &app-logging
     max-size: "10m"
     max-file: "10"
 
+# What the console needs, wherever it is run from: `migrate` once at deployment, and `retention`
+# for as long as the stack is up. One definition rather than two, because two would eventually
+# differ — most likely in which volume one of them forgot, and a retention sweep that cannot see
+# the backup volume reports zero deletions and looks like it worked.
+x-console-environment: &console-environment
+  DEVBUDDY_ConnectionStrings__DevBuddy: >-
+    Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
+  DEVBUDDY_Evidence__Provider: ObjectStorage
+  DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
+  DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
+  DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
+  DEVBUDDY_Backup__RootPath: /srv/backups
+  DEVBUDDY_Export__RootPath: /srv/exports
+  # The application writes and sweeps its own log files, which is what turns the ninety-day row of
+  # the retention schedule into a tested behaviour rather than a log-driver size to pick by hand.
+  # Clear the path and this reverts to standard output only; docs/operations/logging.md sets out
+  # that trade. The `retention` service below does the deleting, on the interval it is given.
+  DEVBUDDY_Logging__File__Path: ${DEVBUDDY_LOG_PATH:-/srv/logs/devbuddy.log}
+  DEVBUDDY_Logging__File__RetentionDays: ${DEVBUDDY_LOG_RETENTION_DAYS:-90}
+
+x-console-volumes: &console-volumes
+  # The console is how a restore is performed — it runs outside the pipeline, because a restore
+  # from total loss has no accounts to authorise against — so it needs the backups and the object
+  # store the artefacts go back into. Exports and backups share this image so the retention sweep
+  # can purge both.
+  - backups:/srv/backups
+  - exports:/srv/exports
+
+  # And the logs, because this is the image the sweep runs in and log files are one of the ten
+  # rows it enforces.
+  - logs:/srv/logs
+
 services:
   database:
     image: postgres:17-alpine
@@ -89,35 +121,55 @@ services:
       dockerfile: docker/Dockerfile.cli
     restart: "no"
     command: ["migrate"]
-    environment:
-      DEVBUDDY_ConnectionStrings__DevBuddy: >-
-        Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
-      DEVBUDDY_Evidence__Provider: ObjectStorage
-      DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
-      DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
-      DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
-      DEVBUDDY_Backup__RootPath: /srv/backups
-      DEVBUDDY_Export__RootPath: /srv/exports
-      # The application writes and sweeps its own log files, which is what turns the ninety-day row
-      # of the retention schedule into a tested behaviour rather than a log-driver size to pick by
-      # hand. Clear the path and this reverts to standard output only; docs/operations/logging.md
-      # sets out that trade. `dotnet run -- retention` does the deleting, on the operator's own
-      # schedule, exactly as it does for backups and exports.
-      DEVBUDDY_Logging__File__Path: ${DEVBUDDY_LOG_PATH:-/srv/logs/devbuddy.log}
-      DEVBUDDY_Logging__File__RetentionDays: ${DEVBUDDY_LOG_RETENTION_DAYS:-90}
-    volumes:
-      # The console is how a restore is performed — it runs outside the pipeline, because a restore
-      # from total loss has no accounts to authorise against — so it needs the backups and the
-      # object store the artefacts go back into. Exports and backups share this container's image
-      # so `dotnet ... -- retention` can purge both from wherever an operator's cron runs it.
-      - backups:/srv/backups
-      - exports:/srv/exports
-
-      # And the logs, because this is the container `retention` runs in.
-      - logs:/srv/logs
+    environment: *console-environment
+    volumes: *console-volumes
     depends_on:
       database:
         condition: service_healthy
+    networks: [internal]
+
+  # The retention sweep, on a schedule, in the image that already carries the code.
+  #
+  # Through v1 this service did not exist: `dotnet run -- retention` was documented and tested, and
+  # ran only if an operator built something to run it. A window nothing sweeps is a window in name
+  # only, so the ten rows of the retention schedule were enforced in code and unscheduled in fact.
+  #
+  # Why a mode on the console rather than a `cron` sidecar: the three application images are
+  # chiseled — no shell, no package manager, nothing in them to execute — and a sidecar running
+  # cron would mean building a shell-bearing image for the purpose and putting it back into a stack
+  # that was made this way deliberately. `retention --every` keeps the schedule inside the one
+  # image that already has the sweep in it.
+  #
+  # It still runs OUTSIDE the use-case pipeline, which is the part that matters. A pass spans every
+  # workspace and project and has no caller to authorise it against, exactly like `restore`; a
+  # scheduler that acquired a caller would be the installation-wide superuser this system does not
+  # have. There is no actor here and no token, and there is nothing for one to be.
+  retention:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cli
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    logging: *app-logging
+
+    # Daily by default. Every window in the schedule is measured in days or years, so a shorter
+    # interval buys nothing and costs a full pass over the audit, backup, export and log stores.
+    command: ["retention", "--every", "${DEVBUDDY_RETENTION_EVERY:-24h}"]
+    environment: *console-environment
+    volumes: *console-volumes
+    depends_on:
+      database:
+        condition: service_healthy
+      evidence:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks: [internal]
 
   api:
@@ -156,10 +208,15 @@ services:
       DEVBUDDY_Backup__RootPath: /srv/backups
       DEVBUDDY_Export__RootPath: /srv/exports
 
-      # Delivery for setup and recovery tokens. Left alone, the provider stays Log — which means
-      # those tokens are written to this container's log on purpose, for an operator to carry by
-      # hand. Setting this to Smtp with a host below stops that: a token in a log is a secret in a
-      # log, and the log retention you choose then applies to it (docs/operations/logging.md).
+      # Delivery for setup and recovery tokens. Left alone the provider stays Log, and since Phase
+      # 12B that no longer means the token is written to a log: AllowTokensInLog below is false, so
+      # the fallback sender records that a message could not be delivered, to whom, and how to fix
+      # that, and writes the token nowhere. A setup token is still returned in the
+      # create_user_account response, so inviting somebody works with no mail server at all; a
+      # self-service recovery token has no second route and is deliberately unreachable until one
+      # of the two settings below is changed.
+      #
+      # Setting this to Smtp with a host below is the option that actually delivers.
       #
       # Spelled out rather than inferred from whether a host is set. Compose can substitute one
       # value when a variable is present, but the else branch is the empty string, and an empty
@@ -172,6 +229,14 @@ services:
       DEVBUDDY_Email__Password: ${DEVBUDDY_SMTP_PASSWORD:-}
       DEVBUDDY_Email__UseStartTls: ${DEVBUDDY_SMTP_START_TLS:-true}
       DEVBUDDY_Email__FromAddress: ${DEVBUDDY_SMTP_FROM:-devbuddy@localhost}
+
+      # The other option, and a deliberate one: true writes one-time setup and recovery tokens
+      # into the application log for an operator to carry by hand — which is what v1 did
+      # unconditionally, and what docs/security/release-readiness.md carried as an accepted risk.
+      # A retention window is not a control over who can read the file while it exists, so
+      # whoever sets this is accepting that anything able to read the log volume can use the
+      # tokens in it.
+      DEVBUDDY_Email__AllowTokensInLog: ${DEVBUDDY_EMAIL_ALLOW_TOKENS_IN_LOG:-false}
     volumes:
       # Read-only. Analysis reads a working copy and never writes to it, and the mount says so as
       # well as the code (SB-04).
@@ -181,9 +246,6 @@ services:
       - logs:/srv/logs
       - backups:/srv/backups
       - exports:/srv/exports
-
-      # And the logs, because this is the container `retention` runs in.
-      - logs:/srv/logs
     depends_on:
       database:
         condition: service_healthy
