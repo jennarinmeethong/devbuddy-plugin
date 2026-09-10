@@ -1,7 +1,7 @@
 {
   "name": "devbuddy",
   "description": "Search, analyse, and draft engineering knowledge from a self-hosted DevBuddy installation. Read and draft only; approving and publishing stay with people.",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "author": { "name": "DevBuddy" },
   "keywords": ["knowledge", "handover", "analysis", "mcp"]
 }
