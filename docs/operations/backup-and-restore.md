@@ -101,8 +101,20 @@ drill run against an older build could only ever have exercised five of the six 
 | Approvals | A published record still shows the approval and the hash it was bound to. |
 | Evidence | Download an artefact. Rows without bytes is the failure mode this catches. |
 | Audit history | A system recovered without its history cannot say who approved what. |
-| Accounts | Sign in. Everybody will have to; sessions are not restored. |
-| Plugins | A machine token that worked before still works. |
+| Accounts | Sign in. Everybody will have to refresh; see the note below on what "sessions are not restored" does and does not mean. |
+| Plugins | A machine token that worked before still works. Over stdio, which is where a machine token is presented; the HTTP transport takes a signed-in session instead. |
+
+**What "sessions are not restored" means, exactly.** The refresh-session rows are not in a backup,
+so nobody can refresh a session across a restore and everybody signs in again. It does **not** mean
+previously issued access tokens stop working: those are stateless JWTs signed with
+`Identity:SigningKey`, and one inside its lifetime still validates after a restore. Observed in the
+v1.1.0 drill. A restore cannot revoke an issued bearer token, and nothing about that is specific to
+restoring — rotating the signing key is what invalidates them.
+
+**Destroy the evidence volume too, not just the database.** The drill below names
+`devbuddy_database`, and with the evidence volume left in place the artefact bytes were never
+actually lost, so the Evidence row cannot fail. The v1.1.0 drill destroyed both, and the bytes came
+back from the backup byte for byte. Do that.
 
 ## Retention
 

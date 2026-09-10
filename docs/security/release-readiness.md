@@ -178,6 +178,16 @@ the same tag as the amd64 images, and all three were started and answered. Cross
 than emulated, so it costs a release minutes; started under emulation rather than on hardware,
 which is the same standard the native `linux-arm64` row already held and is recorded that way.
 
+**Re-verified for `v1.1.0`, by hand:** the destroy-and-restore drill, against a harder disaster
+than the one `backup-and-restore.md` describes — both the database *and* the evidence volumes
+destroyed, so the row that catches "rows came back and bytes did not" was actually exercised rather
+than trivially satisfied. All six rows passed; the artefacts came back byte for byte from the
+backup, the approval was still bound to the same content hash, and the machine token minted before
+the disaster still resolved. `docs/operations/release-matrix.md` records it. It also found one
+overstatement in the documentation rather than in the code: an access token issued before a restore
+still validates afterwards, because it is a stateless JWT inside its lifetime, so "sessions are not
+restored" covers refreshing and not tokens already issued.
+
 **Still the operator's, and unchanged:** the residual lag before deleted data ages out of a
 backup, and the fact that a permission revoked today does not retrieve a copy somebody downloaded
 yesterday. Both are in `info.md` under Accepted Security Limitations.

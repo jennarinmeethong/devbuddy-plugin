@@ -143,14 +143,48 @@ nothing it could honestly have carried anyway.
 | The new capability stays off the AI surface | Re-run | **Yes**, in the shipped binaries on both platforms: neither `capture_evidence` nor `publish_record` appears in `operations --ai`, and nothing Phase 12 added is an operation at all. |
 | Compose from clean to healthy | **Against `4253a5b`, before the tag** | **Yes**, and it is the same commit rather than an earlier one. All five services up, `api` healthy, `migrate` exited 0, and the new `retention` service up with its first pass logged. The log volume came back owned by the application user with a rolled file in it. Compose builds from source, so this exercised the Dockerfiles rather than the published images. |
 | Tokens stay out of the log | **Against `4253a5b`, before the tag** | **Yes**, both directions against the running stack. A real recovery request answered 202 and the API logged only that the message could not be delivered, with no token in stdout or in the file on the volume; with `DEVBUDDY_EMAIL_ALLOW_TOKENS_IN_LOG=true` the same request wrote the token to both. |
-| `linux-arm64` and `linux-musl-x64` smoke tests | **Not run for this tag** | The native archives, as distinct from the container images. `linux-arm64` was run for `v1.0.0` and the arm64 *images* were started here, which is not the same artefact. |
-| Destroy-and-restore drill | **Not run for this tag** | Last performed by hand for `v1.0.0` on 2026-09-06. Phase 12 did not touch backup, restore, or the evidence store, and that is a reason to expect it to pass rather than a substitute for running it. |
+| `linux-arm64` smoke test | Re-run | **Yes.** `ubuntu:24.04` under `linux/arm64` with `libicu74`, `uname -m` reporting `aarch64`, from the published archive. Eighteen operations, exit 0, and `--every 24` refused with its reason. Emulated, not hardware. |
+| `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24.1) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, from the published archive. Eighteen operations, exit 0, and nothing Phase 12 added on the AI surface. |
+| Destroy-and-restore drill | **Re-run by hand, 2026-09-10** | **Yes, and against a harder disaster than the documented one.** See below. |
 | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | — | **Not run, again.** Built and published as-is, per the 2026-09-10 decision to keep shipping them. No macOS and no Windows on ARM available. The release notes must say this verbatim. |
 
-**The draft is not publishable as it stands.** Three rows above say "not run", and the checklist
-below asks for them. The two that matter are the destroy-and-restore drill and the two native
-archive smoke tests; until those are done the honest options are to run them or to state them in
-the notes as unverified for this release, the way the four unrun RIDs are stated.
+### The destroy-and-restore drill for v1.1.0
+
+Performed by hand on 2026-09-10 against the stack built from `4253a5b`. **Both** the database and
+the evidence volumes were destroyed, not the database alone as `backup-and-restore.md` describes.
+That matters: with the evidence volume surviving, the artefact bytes were never actually lost, so
+the row that catches "rows came back and bytes did not" was the one row the documented drill could
+not really exercise.
+
+What was there before the disaster: a work item, a record taken through draft, submit, approve and
+publish with the approval bound to its content hash, two evidence artefacts (310 bytes of text and
+64 random bytes), an account, a machine token, and thirteen audit entries. A file carrying a
+connection string and an AWS key was refused on the way in, with nothing written and the store
+still holding two artefacts — SB-17 against the running stack rather than in a test.
+
+| Row | Result |
+| --- | --- |
+| Records | **Back.** `Published`, revision 1, title and 295-byte body intact, provenance author preserved. |
+| Approvals | **Back, and still bound.** The revision's content hash and the approval's `approvedContentHash` are both `52B97230…`, the same value recorded before the disaster, with the approver named and `approverWasDraftCreator` true. |
+| Evidence | **Back, byte for byte.** Both artefacts downloaded at 310 and 64 bytes and hashed to `ff51e494…` and `8f54a27b…`, identical to what went in. The evidence volume had been destroyed, so those bytes came out of the backup. |
+| Audit history | **Back.** All thirteen entries, including both refusals — `RecordApproved` and `RecordPublished` each appear once Failed and once Succeeded, from a premature approve attempt — and the `ContentScanned`/`Denied` entry for the blocked file. Later entries are the restore's own reads. |
+| Accounts | **Back.** Sign-in with the same password succeeded. See the qualification below. |
+| Plugins | **Back.** The machine token minted before the disaster still resolves over MCP stdio and returns the same answer as before, against a control showing a bogus token is refused with "No identity was resolved for this request". |
+
+Restoring a second time was refused with "This installation already has data. Restore into an empty
+database." The `retention` service came back up with the stack and logged a pass.
+
+**One thing the drill qualified rather than confirmed.** `backup-and-restore.md` says "Sign in.
+Everybody will have to; sessions are not restored." The refresh-session rows are indeed not in a
+backup, and signing in again works — but an **access token issued before the disaster still
+validated afterwards**, because it is a stateless JWT signed with the same key and was inside its
+lifetime. A restore does not and cannot revoke one. Nothing here is broken, and the sentence is
+narrower than it reads: what a restore drops is the ability to *refresh*, not tokens already
+issued.
+
+**The draft is publishable.** Every row the checklist asks for has been run for this tag, except
+the four RIDs the 2026-09-10 decision keeps shipping without ever starting, which the release notes
+must state verbatim.
 
 ## What was verified for v1.0.0
 
