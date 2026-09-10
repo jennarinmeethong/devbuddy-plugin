@@ -8,8 +8,14 @@ import type { Operations, OperationName, PermissionName } from "./operations";
  * operation name and get a typed result, and nothing else in the client constructs a request.
  */
 
-/** Where the API lives. Vite proxies `/api` to it in development. */
-const BASE = import.meta.env.VITE_DEVBUDDY_API ?? "/api";
+/**
+ * Where the API lives. Empty, because the API host serves these files: the browser is already on
+ * the right origin, and every path below is absolute from its root. Development is the exception,
+ * and `vite.config.ts` handles it by proxying the API's own prefixes to the server rather than by
+ * inventing one of its own. Set `VITE_DEVBUDDY_API` at build time to point a build at a different
+ * origin; an installation that serves the client from somewhere else needs it, nothing else does.
+ */
+const BASE = import.meta.env.VITE_DEVBUDDY_API ?? "";
 
 /**
  * Tokens.

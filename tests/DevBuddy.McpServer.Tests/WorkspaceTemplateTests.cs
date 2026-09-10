@@ -41,6 +41,52 @@ public sealed class WorkspaceTemplateTests
     }
 
     /// <summary>
+    /// The example names the workspace its token belongs to, as the placeholder.
+    /// <para>
+    /// A machine token works in one DevBuddy workspace, so the file holding the credential has to
+    /// say which one — that is what lets <c>enter.ps1</c> refuse a <c>deployment.env</c> copied in
+    /// from another root, instead of the mismatch surfacing later as a refusal from the server
+    /// partway through somebody's work.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void the_example_names_the_workspace_its_token_belongs_to()
+    {
+        Dictionary<string, string> values = ReadEnvironmentFile(
+            Path.Combine(TemplateRoot().FullName, ".devbuddy", "deployment.env.example"));
+
+        Assert.True(
+            values.ContainsKey("DEVBUDDY_WORKSPACE_ID"),
+            "DEVBUDDY_WORKSPACE_ID is missing from deployment.env.example.");
+
+        Assert.Equal("00000000-0000-0000-0000-000000000000", values["DEVBUDDY_WORKSPACE_ID"]);
+    }
+
+    /// <summary>
+    /// The two guards that make a per-root arrangement mean anything, present in the shared
+    /// script rather than only in the document that explains them.
+    /// </summary>
+    [Fact]
+    public void the_scripts_refuse_a_mismatched_workspace_and_a_persistent_setting()
+    {
+        string common = File.ReadAllText(
+            Path.Combine(TemplateRoot().FullName, ".devbuddy", "common.ps1"));
+
+        string enter = File.ReadAllText(
+            Path.Combine(TemplateRoot().FullName, ".devbuddy", "enter.ps1"));
+
+        foreach (string guard in new[]
+        {
+            "Assert-DevBuddyWorkspaceMatches",
+            "Assert-NoPersistentDevBuddySettings",
+        })
+        {
+            Assert.Contains(guard, common, StringComparison.Ordinal);
+            Assert.Contains(guard, enter, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
     /// Only the example is committed. A real <c>deployment.env</c> is refused by the root
     /// <c>.gitignore</c>, but a file that never gets written cannot be ignored by mistake either.
     /// </summary>

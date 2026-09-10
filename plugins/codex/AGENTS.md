@@ -59,6 +59,22 @@ route; the refusal is already recorded, and there is no other route.
 AI access is off by default for every project. A project whose owner has not enabled it does not
 appear in `list_projects` at all. That is a decision, not a misconfiguration.
 
+## One workspace per session
+
+The token in `DEVBUDDY_TOKEN` identifies one DevBuddy user, and it works in exactly
+one DevBuddy workspace. A call naming any other workspace is refused before anything is read,
+whatever memberships that person holds there. Somebody who works across two workspaces holds
+two tokens, one for each.
+
+The token is a DevBuddy credential. It is not tied to, and does not prove, an OpenAI account —
+the same token works in Claude, if that is where its owner is working in that workspace.
+
+Identity is fixed when this session starts, from the environment it inherits. Changing directory
+does not change it, and opening a checkout that belongs to another workspace does not either: what
+is reachable stays whatever the token in the environment allows. If the wrong workspace's
+knowledge is what comes back, that is a session started from the wrong place. Say so, and stop.
+Starting a session in the right place is a person's job, not a thing to work around.
+
 ## What this does not cover
 
 The tool boundary governs DevBuddy and nothing else. Codex's own file reads, shell commands, and

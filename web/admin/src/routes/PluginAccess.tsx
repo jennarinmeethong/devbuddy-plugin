@@ -16,6 +16,10 @@ import { Failure } from "../components/Failure";
  * The value is shown once and never again — the server keeps a hash. Losing it means minting
  * another, which is the right trade for a credential that would otherwise sit readable in a
  * database and on a screen.
+ *
+ * Everything on this page is about the workspace in the route and nothing else. A token is minted
+ * for it, listed within it, and revoked inside it, because a token now works in exactly one
+ * workspace. Somebody who works in two comes to this page twice, and holds two tokens.
  */
 export function PluginAccess() {
   const { workspaceId } = useParams();
@@ -46,7 +50,7 @@ export function PluginAccess() {
 
   return (
     <>
-      <Panel title="Your plugin tokens">
+      <Panel title="Your plugin tokens for this workspace">
         {tokens.isPending ? (
           <Empty>Loading…</Empty>
         ) : tokens.isError ? (
@@ -68,10 +72,18 @@ export function PluginAccess() {
                   <When value={token.lastUsedAt} />
                 </td>
                 <td className="px-2 py-2">
-                  {token.isActive ? <Badge tone="live">Active</Badge> : <Badge tone="muted">Ended</Badge>}
+                  {token.needsReplacement ? (
+                    <Badge tone="muted">Needs replacing</Badge>
+                  ) : token.isActive ? (
+                    <Badge tone="live">Active</Badge>
+                  ) : (
+                    <Badge tone="muted">Ended</Badge>
+                  )}
                 </td>
                 <td className="px-2 py-2 text-right">
-                  {token.isActive ? (
+                  {/* A token needing replacement is already refused everywhere, but it is still a
+                      row somebody wants gone once they have minted its successor. */}
+                  {token.isActive || token.needsReplacement ? (
                     <Button
                       variant="danger"
                       disabled={revoke.isPending}
@@ -93,9 +105,27 @@ export function PluginAccess() {
         ) : null}
 
         <p className="mt-3 text-xs text-[var(--color-muted)]">
-          A token acts as you, with your permissions and no more. Revoking one takes effect on the
-          next call, not the next restart — and never touches your password.
+          A token acts as you, with your permissions and no more, in this workspace and no other. A
+          call naming a different workspace is refused even where you are a member, so if you work
+          in more than one, mint a token in each. Revoking one takes effect on the next call, not
+          the next restart — and never touches your password.
         </p>
+
+        <p className="mt-2 text-xs text-[var(--color-muted)]">
+          The same token works in Claude and in Codex. It identifies you to DevBuddy and is not
+          tied to, and does not verify, an account with either of them. A token per assistant is
+          worth having only if you want to revoke or watch them separately.
+        </p>
+
+        {tokens.data?.tokens.some((token) => token.needsReplacement) ? (
+          <div className="mt-3">
+            <Alert tone="error">
+              A token above was issued before tokens were tied to a workspace, and no longer works
+              anywhere. It cannot be repaired — only a hash of it was ever stored — so mint a
+              replacement here, put that in your plugin configuration, and revoke the old one.
+            </Alert>
+          </div>
+        ) : null}
       </Panel>
 
       <Panel title="Mint a token">
@@ -106,12 +136,15 @@ export function PluginAccess() {
             issue.mutate();
           }}
         >
-          <Field label="Name" hint="What it is for, so you can tell which to revoke later.">
+          <Field
+            label="Name"
+            hint="Where it will live, so you can tell which to revoke later. The machine is the useful part, not the assistant."
+          >
             <Input
               required
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Work laptop, Codex"
+              placeholder="Work laptop"
             />
           </Field>
 
@@ -149,7 +182,13 @@ export function PluginAccess() {
             </code>
             <p className="text-xs text-[var(--color-muted)]">
               Expires <When value={issue.data.expiresAt} />. Put it in your plugin configuration as{" "}
-              <code className="font-mono">DEVBUDDY_TOKEN</code>.
+              <code className="font-mono">DEVBUDDY_TOKEN</code>, in the environment the assistant is
+              launched from rather than in a file shared by every project on the machine.
+            </p>
+            <p className="text-xs text-[var(--color-muted)]">
+              It works in this workspace only. Whichever token is in the environment when the
+              assistant starts is the identity every call runs as, and changing folder afterwards
+              does not change it — so start a session per workspace.
             </p>
           </div>
         ) : null}

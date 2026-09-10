@@ -257,18 +257,26 @@ internal sealed class NullPorts :
         throw new NotSupportedException();
 
     public Task<MachineTokenIssued> IssueAsync(
-        UserId userId, string name, TimeSpan lifetime, CancellationToken cancellationToken) =>
+        UserId userId,
+        WorkspaceId workspaceId,
+        string name,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
-    public Task<UserId?> ResolveAsync(string token, CancellationToken cancellationToken) =>
+    public Task<MachineTokenIdentity?> ResolveAsync(
+        string token, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task<IReadOnlyList<MachineTokenSummary>> ListAsync(
-        UserId userId, CancellationToken cancellationToken) =>
+        UserId userId, WorkspaceId workspaceId, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task<bool> RevokeAsync(
-        UserId userId, MachineTokenId id, CancellationToken cancellationToken) =>
+        UserId userId,
+        WorkspaceId workspaceId,
+        MachineTokenId id,
+        CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task SetPasswordAsync(UserId userId, string password, CancellationToken cancellationToken) =>

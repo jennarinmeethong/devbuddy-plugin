@@ -1,0 +1,35 @@
+# What must never reach a build context.
+#
+# Every Dockerfile here copies what it needs by name, so this file is not about trimming the
+# context for speed. It is about the three things that would change what gets built or what ships:
+# a local build's output landing on top of the container's own, a secret arriving as a file, and
+# the repository's history riding along inside an image that has no use for it.
+#
+# web/admin matters most: the API image copies that whole directory, and a local node_modules would
+# overwrite the one `bun install` just produced inside the image, for a different platform.
+
+**/node_modules
+**/dist
+**/bin
+**/obj
+**/.vite
+*.tsbuildinfo
+
+.git
+.github
+.vs
+.vscode
+.idea
+
+# Secrets, in every shape .gitignore already refuses.
+**/.env
+**/*.env
+**/.env.*
+!**/.env.example
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/secrets.json
+
+# Local data volumes, if anybody has run the stack from a checkout.
+.data/
+.minio/

@@ -216,6 +216,97 @@ public sealed class SecurityFixture : IAsyncLifetime
         return record;
     }
 
+    /// <summary>
+    /// Mints a machine token the way <c>issue_machine_token</c> does, through the real service.
+    /// </summary>
+    public async Task<string> IssueMachineTokenAsync(
+        UserId user, WorkspaceId workspace, string name, TimeSpan? lifetime = null)
+    {
+        using Session session = OpenSession(workspace);
+
+        MachineTokenIssued issued = await session.Resolve<IMachineTokenService>().IssueAsync(
+            user, workspace, name, lifetime ?? TimeSpan.FromDays(90), TestToken.None);
+
+        return issued.Token;
+    }
+
+    /// <summary>
+    /// Resolves a presented token into the caller the MCP host would build from it, or null when
+    /// the token does not work. The credential scope is carried exactly as the host carries it,
+    /// so what these tests exercise is the shape that actually ships.
+    /// </summary>
+    public async Task<CallerContext?> CallerForTokenAsync(string token)
+    {
+        using Session session = OpenUnscopedSession();
+
+        MachineTokenIdentity? identity =
+            await session.Resolve<IMachineTokenService>().ResolveAsync(token, TestToken.None);
+
+        return identity is null
+            ? null
+            : new CallerContext(
+                identity.UserId,
+                AccessChannel.Ai,
+                "test-machine-token",
+                new CredentialScope(identity.TokenId, identity.WorkspaceId));
+    }
+
+    public async Task<IReadOnlyList<MachineTokenSummary>> ListMachineTokensAsync(
+        UserId user, WorkspaceId workspace)
+    {
+        using Session session = OpenSession(workspace);
+        return await session.Resolve<IMachineTokenService>().ListAsync(user, workspace, TestToken.None);
+    }
+
+    public async Task<bool> RevokeMachineTokenAsync(
+        UserId user, WorkspaceId workspace, MachineTokenId tokenId)
+    {
+        using Session session = OpenSession(workspace);
+        return await session.Resolve<IMachineTokenService>()
+            .RevokeAsync(user, workspace, tokenId, TestToken.None);
+    }
+
+    /// <summary>
+    /// Writes a token row the way the release before workspace scoping wrote one: a hash, an
+    /// owner, and no workspace at all.
+    /// <para>
+    /// Planted directly rather than minted, because the service cannot produce one any more —
+    /// which is the point. Upgrading an installation leaves rows in exactly this shape, and the
+    /// only way to test that they are refused is to write one.
+    /// </para>
+    /// </summary>
+    public async Task<string> PlantLegacyUnscopedTokenAsync(UserId user, string name)
+    {
+        string token = OpaqueToken.Create();
+
+        using Session session = OpenUnscopedSession();
+
+        session.Db.MachineTokens.Add(new MachineTokenRow
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Value,
+            WorkspaceId = null,
+            TokenHash = OpaqueToken.Hash(token),
+            Name = name,
+            IssuedAt = World.Now,
+            ExpiresAt = World.Now.AddYears(10),
+        });
+
+        await session.Db.SaveChangesAsync();
+        return token;
+    }
+
+    /// <summary>Backdates a token's expiry, so the resolver sees one that has run out.</summary>
+    public async Task ExpireMachineTokenAsync(MachineTokenId tokenId)
+    {
+        using Session session = OpenUnscopedSession();
+
+        await session.Db.MachineTokens
+            .Where(token => token.Id == tokenId.Value)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                token => token.ExpiresAt, DateTimeOffset.UtcNow.AddDays(-1)));
+    }
+
     public async Task<WorkItem> SeedWorkItemAsync(ProjectScope scope, string key, UserId author)
     {
         var item = new WorkItem(

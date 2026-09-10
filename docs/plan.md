@@ -1079,6 +1079,38 @@ The last two are the operator's, and `docs/security/release-readiness.md` asks t
 accept them in writing before real project data is connected. That acceptance, not this section, is
 the gate on using this system for real work.
 
+### Machine tokens are bound to a workspace (2026-09-10)
+
+Post-v1, and a defect rather than a feature. A machine token carried only its owner, so one
+credential in a plugin configuration reached **every workspace that person belonged to** — and the
+Codex package's own file is `~/.codex/config.toml`, one file for the whole operating-system
+account, so the credential in it was the credential every project and every session on that
+machine presented. An assistant working in one workspace's checkout could read another's recorded
+knowledge and write it into a draft or a source file, with the server answering every call
+correctly, because every membership behind it was real.
+
+Nothing about the authorization pipeline was wrong. What was missing was a ceiling on the
+credential itself.
+
+- A token is now bound to a user **and** a workspace, and `AuthorizationService` refuses a request
+  naming another before it looks the caller up at all. Account state, live membership, role, and
+  per-project AI policy then run exactly as before.
+- A signed-in person's HTTP session carries no such ceiling and reaches every workspace their
+  memberships cover, unchanged.
+- Listing and revocation are scoped to the workspace in the request, and revoking another
+  workspace's token answers not found rather than forbidden.
+- Tokens issued before this are **refused, not adopted**: the row says who owns it and nothing
+  about where it was meant to work, so any workspace chosen would be one nobody granted. They stay
+  listed as needing replacement, and the migration adds one nullable column and rewrites nothing.
+- Both plugin packages stopped holding literal settings and now forward named variables from the
+  environment the session was launched in. `templates/devbuddy-root/` became one root per
+  deployment **and** workspace, with scripts that refuse a mismatched pair and refuse a DevBuddy
+  setting stored as a persistent Windows environment variable.
+
+No row changes status; SB-11 and SB-14 gain evidence. `MachineTokenScopeTests` is fourteen cases
+through the real pipeline against real PostgreSQL, mutation-checked by removing the guard and
+watching three cross-workspace cases fail.
+
 ---
 
 ## Phase 12 — Post-v1: operational closure and the two deferred decisions

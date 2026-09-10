@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -15,9 +16,10 @@ namespace DevBuddy.Api.Tests;
 /// <para>
 /// This is the shape a locally launched Claude or Codex plugin actually runs in — a child process
 /// with two pipes and a machine token in its environment — and it is where the things that only
-/// break in that shape show up. It proves the three that matter: without a token nobody is
-/// anybody, with one the caller is exactly its owner, and revoking one stops it on the next call
-/// rather than at the next restart.
+/// break in that shape show up. It proves the four that matter: without a token nobody is
+/// anybody, with one the caller is exactly its owner, that owner reaches exactly the one
+/// workspace the token was minted in, and revoking one stops it on the next call rather than at
+/// the next restart.
 /// </para>
 /// </summary>
 [Collection(ApiCollection.Name)]
@@ -185,6 +187,166 @@ public sealed class StdioPluginTests(ApiFixture fixture)
         // Resolved against the database on every call, so revocation is immediate rather than
         // effective at the next process restart (SB-14).
         Assert.Contains("Refused", after, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The reason machine tokens are bound to a workspace, proved in the shape it actually
+    /// mattered in: one person, two workspaces, one token in the environment.
+    /// <para>
+    /// Before this, that single token reached both, because both memberships were real and each
+    /// call named a workspace its owner genuinely belonged to. Nothing here is a stricter
+    /// membership check; the membership is still fine. What changed is that the credential itself
+    /// now has a ceiling, and this is that ceiling seen from outside the process.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task a_token_minted_in_one_workspace_is_refused_in_another_its_owner_belongs_to()
+    {
+        string email = $"two-workspaces-{Guid.NewGuid():N}@example.test";
+        UserId owner = await fixture.CreateUserAsync(email);
+        await fixture.GrantAsync(owner, Role.Contributor);
+
+        ProjectScope elsewhere = await fixture.CreateSeparateWorkspaceAsync(owner);
+        await fixture.GrantInAsync(elsewhere.WorkspaceId, owner, Role.Contributor);
+
+        string token = await fixture.IssueMachineTokenAsync(owner, "a laptop");
+
+        string here = await CallAsync(
+            token, UseCaseCatalog.ListProjects.Name, new { workspaceId = fixture.Workspace.Value });
+
+        Assert.DoesNotContain("Refused", here, StringComparison.Ordinal);
+
+        string there = await CallAsync(
+            token,
+            UseCaseCatalog.ListProjects.Name,
+            new { workspaceId = elsewhere.WorkspaceId.Value });
+
+        Assert.Contains("Refused", there, StringComparison.Ordinal);
+        Assert.Contains("credential", there, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task a_token_minted_in_the_other_workspace_is_refused_here()
+    {
+        string email = $"other-workspace-{Guid.NewGuid():N}@example.test";
+        UserId owner = await fixture.CreateUserAsync(email);
+        await fixture.GrantAsync(owner, Role.Contributor);
+
+        ProjectScope elsewhere = await fixture.CreateSeparateWorkspaceAsync(owner);
+        await fixture.GrantInAsync(elsewhere.WorkspaceId, owner, Role.Contributor);
+
+        string token = await fixture.IssueMachineTokenAsync(
+            owner, "a laptop", elsewhere.WorkspaceId);
+
+        string there = await CallAsync(
+            token,
+            UseCaseCatalog.ListProjects.Name,
+            new { workspaceId = elsewhere.WorkspaceId.Value });
+
+        Assert.DoesNotContain("Refused", there, StringComparison.Ordinal);
+
+        string here = await CallAsync(
+            token, UseCaseCatalog.ListProjects.Name, new { workspaceId = fixture.Workspace.Value });
+
+        Assert.Contains("Refused", here, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A token issued before tokens carried a workspace leaves the caller anonymous, exactly as a
+    /// missing one does. An upgraded installation refuses these rather than adopting them into a
+    /// workspace nobody chose; the replacement is minted in a minute and is the honest answer.
+    /// </summary>
+    [Fact]
+    public async Task a_token_from_before_workspace_scoping_is_refused_like_no_token_at_all()
+    {
+        string email = $"legacy-plugin-{Guid.NewGuid():N}@example.test";
+        UserId owner = await fixture.CreateUserAsync(email);
+        await fixture.GrantAsync(owner, Role.Contributor);
+
+        string legacy = await fixture.PlantLegacyMachineTokenAsync(owner, "from the old release");
+
+        string answer = await CallAsync(
+            legacy, UseCaseCatalog.ListProjects.Name, new { workspaceId = fixture.Workspace.Value });
+
+        Assert.Contains("Refused", answer, StringComparison.Ordinal);
+        Assert.Contains("identity", answer, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The scope is a property of the credential, not of the transport. A person signed in over
+    /// HTTP holds a session token with no workspace on it, and still reaches every workspace their
+    /// memberships cover — which is what the web interface has always done and must keep doing.
+    /// </summary>
+    [Fact]
+    public async Task a_signed_in_person_over_http_is_not_narrowed_by_any_machine_token_scope()
+    {
+        string email = $"http-two-workspaces-{Guid.NewGuid():N}@example.test";
+        UserId person = await fixture.CreateUserAsync(email);
+        await fixture.GrantAsync(person, Role.Contributor);
+
+        ProjectScope elsewhere = await fixture.CreateSeparateWorkspaceAsync(person);
+        await fixture.GrantInAsync(elsewhere.WorkspaceId, person, Role.Contributor);
+
+        // A machine token exists for one of the two. It has nothing to say about a browser
+        // session belonging to the same person.
+        await fixture.IssueMachineTokenAsync(person, "a laptop");
+
+        using HttpClient client = await fixture.SignInAsync(email, ApiFixture.AdministratorPassword);
+
+        await Post(client, UseCaseCatalog.ListProjects.Name, new { workspaceId = fixture.Workspace.Value });
+        await Post(
+            client, UseCaseCatalog.ListProjects.Name, new { workspaceId = elsewhere.WorkspaceId.Value });
+    }
+
+    /// <summary>
+    /// Over the wire, the listing is the workspace's own. A token belonging to another one is not
+    /// filtered out of the projection — it is never read — and asking to revoke it answers the
+    /// same as asking to revoke one that never existed.
+    /// </summary>
+    [Fact]
+    public async Task a_listing_over_http_never_shows_or_revokes_another_workspaces_token()
+    {
+        string email = $"listing-{Guid.NewGuid():N}@example.test";
+        UserId owner = await fixture.CreateUserAsync(email);
+        await fixture.GrantAsync(owner, Role.Contributor);
+
+        ProjectScope elsewhere = await fixture.CreateSeparateWorkspaceAsync(owner);
+        await fixture.GrantInAsync(elsewhere.WorkspaceId, owner, Role.Contributor);
+
+        await fixture.IssueMachineTokenAsync(owner, "here");
+        await fixture.IssueMachineTokenAsync(owner, "elsewhere", elsewhere.WorkspaceId);
+
+        using HttpClient client = await fixture.SignInAsync(email, ApiFixture.AdministratorPassword);
+
+        JsonElement here = await Post(
+            client, UseCaseCatalog.ListMachineTokens.Name, new { workspaceId = fixture.Workspace.Value });
+
+        string[] names =
+        [
+            .. here.GetProperty("tokens").EnumerateArray()
+                .Select(token => token.GetProperty("name").GetString()!)
+        ];
+
+        Assert.Contains("here", names, StringComparer.Ordinal);
+        Assert.DoesNotContain("elsewhere", names, StringComparer.Ordinal);
+
+        JsonElement other = await Post(
+            client,
+            UseCaseCatalog.ListMachineTokens.Name,
+            new { workspaceId = elsewhere.WorkspaceId.Value });
+
+        Guid elsewhereId = other.GetProperty("tokens").EnumerateArray()
+            .Single(token => token.GetProperty("name").GetString() == "elsewhere")
+            .GetProperty("id")
+            .GetGuid();
+
+        using HttpResponseMessage refused = await client.PostAsJsonAsync(
+            $"/operations/{UseCaseCatalog.RevokeMachineToken.Name}",
+            new { workspaceId = fixture.Workspace.Value, tokenId = elsewhereId });
+
+        // Not found rather than forbidden. A caller who could tell the two apart could map out
+        // which credentials exist in a workspace they are asking about from the outside.
+        Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
     }
 
     private static async Task<JsonElement> Post(HttpClient client, string operation, object arguments)

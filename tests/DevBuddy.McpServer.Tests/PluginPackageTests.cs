@@ -185,6 +185,116 @@ public sealed partial class PluginPackageTests
         }
     }
 
+    /// <summary>
+    /// Neither package assigns a value to any setting. They name variables and let the
+    /// environment supply them.
+    /// <para>
+    /// The Codex package is the one this is really for. Its file is <c>~/.codex/config.toml</c>,
+    /// one file for the whole operating-system account, so a token written into it is the token
+    /// every project and every session on that machine uses — including sessions belonging to
+    /// another workspace and another company. Forwarding named variables instead means the
+    /// credential comes from the shell the session was started in, and a session started
+    /// somewhere else gets a different one, or none.
+    /// </para>
+    /// <para>
+    /// It is also the thing a committed example gets wrong most easily: a placeholder becomes a
+    /// real value the first time somebody fills it in locally and then pastes their file back.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void neither_package_assigns_a_value_to_any_devbuddy_setting()
+    {
+        List<string> offences = [];
+
+        foreach (FileInfo file in PluginFiles())
+        {
+            if (!file.Name.EndsWith(".toml", StringComparison.Ordinal)
+                && !file.Name.EndsWith(".json", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (string line in File.ReadAllLines(file.FullName))
+            {
+                Match assignment = SettingAssignment().Match(line);
+
+                if (!assignment.Success)
+                {
+                    continue;
+                }
+
+                string value = assignment.Groups["value"].Value.Trim();
+
+                // A JSON substitution is the value arriving from the environment, which is the
+                // point. Anything else is a value living in a committed file.
+                if (!value.StartsWith("\"${", StringComparison.Ordinal))
+                {
+                    offences.Add($"{file.Name} assigns {assignment.Groups["name"].Value}");
+                }
+            }
+        }
+
+        Assert.Empty(offences);
+    }
+
+    /// <summary>
+    /// The Codex package forwards the settings rather than setting them, which in that file's
+    /// syntax means an allow-list of variable names and no environment table at all.
+    /// </summary>
+    [Fact]
+    public void the_codex_package_forwards_its_settings_from_the_environment()
+    {
+        string configuration = File.ReadAllText(
+            Path.Combine(PackageRoot("codex").FullName, "config.toml"));
+
+        Assert.Contains("env_vars", configuration, StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "[mcp_servers.devbuddy.env]",
+            configuration,
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Both packages have to say what a token is bound to, because getting it wrong is a
+    /// cross-company knowledge leak rather than an inconvenience.
+    /// <para>
+    /// Three claims, and the last is the one an assistant most needs: identity is fixed when the
+    /// session starts, so changing directory into another workspace's checkout does not change
+    /// what the tools reach. An assistant that believed otherwise would carry one company's
+    /// recorded knowledge into another company's source file and think it was being helpful.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void both_packages_say_a_token_is_one_person_in_one_workspace()
+    {
+        foreach (string package in Packages)
+        {
+            string instructions = File.ReadAllText(InstructionsFor(package).FullName);
+
+            Assert.Contains("one DevBuddy workspace", instructions, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("two tokens", instructions, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Changing directory", instructions, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// And neither package may claim the token has anything to do with the account the assistant
+    /// itself signs in with. It does not: a DevBuddy token authenticates a DevBuddy user, the same
+    /// one token works in either assistant, and believing otherwise would make somebody think
+    /// switching assistants had changed who they were.
+    /// </summary>
+    [Fact]
+    public void neither_package_ties_a_token_to_the_assistants_own_account()
+    {
+        foreach (string package in Packages)
+        {
+            string instructions = File.ReadAllText(InstructionsFor(package).FullName);
+
+            Assert.Contains("not tied to", instructions, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     [Fact]
     public void the_claude_manifest_is_valid_and_names_the_plugin()
     {
@@ -282,4 +392,12 @@ public sealed partial class PluginPackageTests
     /// </summary>
     [GeneratedRegex(@"`(?<name>[a-z][a-z0-9]*(?:_[a-z0-9]+)+)`")]
     private static partial Regex OperationName();
+
+    /// <summary>
+    /// A setting being given a value, in either file's syntax: a bare TOML key or a quoted JSON
+    /// property, an equals or a colon, and whatever follows. A name inside a list — which is how
+    /// both packages now name what they need — has no separator after it and does not match.
+    /// </summary>
+    [GeneratedRegex(@"^\s*""?(?<name>DEVBUDDY_[A-Za-z0-9_]+)""?\s*[=:]\s*(?<value>.+)$")]
+    private static partial Regex SettingAssignment();
 }

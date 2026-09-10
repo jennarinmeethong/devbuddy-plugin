@@ -27,7 +27,7 @@ beforeEach(() => {
   });
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const path = (typeof input === "string" ? input : input.toString()).replace(/^\/api/, "");
+    const path = typeof input === "string" ? input : input.toString();
 
     if (path !== "/auth/refresh") {
       throw new Error(`The refresh test does not serve ${path}.`);

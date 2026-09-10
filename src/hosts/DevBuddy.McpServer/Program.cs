@@ -121,10 +121,18 @@ static McpToolHandlers Surface(IServiceProvider services) =>
 // transport delivered it. The channel is always Ai here: it is decided by which host is running,
 // never by anything in the request (SB-08, SB-09).
 //
-// Over HTTP that is the bearer token the API issues. Over stdio it is a machine token from the
-// plugin configuration, resolved against the database on every call so revoking one takes effect
-// immediately rather than at the next restart. A token that is unknown, revoked, or expired
-// leaves the caller anonymous, and an anonymous caller is refused everything.
+// Over HTTP that is the bearer token the API issues, and it carries no credential scope: it is
+// the same session credential the web interface holds, and it reaches every workspace its owner
+// is a member of, exactly as before.
+//
+// Over stdio it is a machine token from the plugin configuration, resolved against the database
+// on every call so revoking one takes effect immediately rather than at the next restart. That
+// resolution now answers with a workspace as well as a person, and the workspace travels into the
+// caller context as a ceiling the authorization service enforces: a token minted in one workspace
+// is refused every operation naming another, whatever memberships its owner holds there.
+//
+// A token that is unknown, revoked, expired, or left over from before tokens were scoped leaves
+// the caller anonymous, and an anonymous caller is refused everything.
 static async Task<McpToolHandlers> HandlersAsync(
     IServiceProvider services, CancellationToken cancellationToken)
 {
@@ -132,6 +140,7 @@ static async Task<McpToolHandlers> HandlersAsync(
     var accessor = services.GetService<IHttpContextAccessor>();
 
     UserId actor = default;
+    CredentialScope? credential = null;
 
     string? subject = accessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -141,13 +150,19 @@ static async Task<McpToolHandlers> HandlersAsync(
     }
     else if (Environment.GetEnvironmentVariable("DEVBUDDY_TOKEN") is { Length: > 0 } machineToken)
     {
-        actor = await services.GetRequiredService<IMachineTokenService>()
-            .ResolveAsync(machineToken, cancellationToken) ?? default;
+        MachineTokenIdentity? identity = await services.GetRequiredService<IMachineTokenService>()
+            .ResolveAsync(machineToken, cancellationToken);
+
+        if (identity is not null)
+        {
+            actor = identity.UserId;
+            credential = new CredentialScope(identity.TokenId, identity.WorkspaceId);
+        }
     }
 
     return new McpToolHandlers(
         dispatcher,
-        new CallerContext(actor, AccessChannel.Ai, Guid.NewGuid().ToString("N")),
+        new CallerContext(actor, AccessChannel.Ai, Guid.NewGuid().ToString("N"), credential),
         new TenantEntry(
             services.GetRequiredService<MutableTenantContext>(),
             services.GetRequiredService<IWorkspaceResolver>()));

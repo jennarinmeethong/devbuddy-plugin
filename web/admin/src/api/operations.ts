@@ -1020,6 +1020,7 @@ export type IssueMachineTokenArguments = {
 
 export type IssueMachineTokenResult = {
   tokenId: string;
+  workspaceId: string;
   name: string;
   token: string;
   expiresAt: string;
@@ -1037,6 +1038,7 @@ export type ListMachineTokensResult = {
       expiresAt: string;
       lastUsedAt: string | null;
       isActive: boolean;
+      needsReplacement?: boolean;
     }>;
 };
 

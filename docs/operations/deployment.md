@@ -20,6 +20,30 @@ afterwards.
 
 The API is then on `127.0.0.1:8080` and the MCP server on `127.0.0.1:8081`.
 
+## The administration UI
+
+**It is inside the API image.** `docker/Dockerfile.api` builds `web/admin` with Bun and copies the
+result into `wwwroot`, so the client and the API it was generated from are one origin, one image
+and one deployment. There is no second container, no CORS policy, and nothing for a reverse proxy
+to know beyond the one port:
+
+```
+devbuddy.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+Paths that belong to the client — `/`, `/set-password`, and everything under `/w/` — are served
+`index.html` and routed in the browser. Everything the API maps keeps its own answer, refusals
+included, because the fallback only sees what no endpoint matched. A GET of a path that exists for
+POST is in that category: `GET /operations/anything` serves the client, because operations are
+invoked with POST and nothing maps that address for a GET.
+
+Two consequences worth knowing. Assets carry a content hash and are served `immutable`, while
+`index.html` is served `no-cache`, so a deployment lands without anybody clearing anything. And a
+host with no `wwwroot` — which is what running from source is — skips all of it and serves the API
+alone, rather than guessing at a build that is not there.
+
 ## What the stack does and does not do
 
 **It does not terminate TLS.** There is no certificate in it and no self-signed one pretending to

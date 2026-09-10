@@ -432,6 +432,19 @@ internal sealed class MachineTokenRow
 
     public Guid UserId { get; set; }
 
+    /// <summary>
+    /// The one workspace this token works in. Nullable only for the rows issued before tokens
+    /// were scoped: those are refused on every call rather than adopted into a workspace nobody
+    /// chose for them.
+    /// <para>
+    /// No global query filter on this table, unlike every tenant-scoped table. A token is
+    /// resolved before any workspace has been entered — that is what the resolution decides — so
+    /// a filter here would make every lookup find nothing. The scoping is in the statements
+    /// instead, which is also what keeps a legacy row visible to its owner for revocation.
+    /// </para>
+    /// </summary>
+    public Guid? WorkspaceId { get; set; }
+
     public string TokenHash { get; set; } = string.Empty;
 
     /// <summary>What its owner called it, so they can tell it from the others when revoking one.</summary>

@@ -77,6 +77,14 @@ bun run build     # tsc --noEmit && vite build
 bun test          # smoke tests over the real screens, with a fake API
 ```
 
+**The API serves this build.** `docker/Dockerfile.api` runs the same `bun run build` in a stage of
+its own and copies `dist` into the image's `wwwroot`, so a type error fails the image build and the
+client is never a separate thing to deploy. That is why the client calls the API at the root rather
+than under a prefix, and why `vite.config.ts` proxies the API's own top-level routes in
+development: the dev server has to look like the host that will serve it. `AdminUiTests` holds the
+part that could break silently — that the fallback for the client's routes does not put an HTML
+page in front of an endpoint that used to answer with JSON or a refusal.
+
 `web/admin/src/api/operations.ts` is **generated** from `GET /operations` and committed. Do not
 edit it. After changing an operation, its request record, or its response record, regenerate:
 
@@ -100,7 +108,10 @@ may name an operation people alone may perform** — not as an example, not to s
 unavailable. A name in a file an assistant reads is a name it now knows to try.
 
 Identity over stdio is a machine token in `DEVBUDDY_TOKEN`, never a caller identifier in the
-environment. `DEVBUDDY_ACTOR` is gone and a test fails if either package mentions it.
+environment. `DEVBUDDY_ACTOR` is gone and a test fails if either package mentions it. A token is
+bound to one user **and** one workspace, so neither package may assign a literal value to any
+setting — they name variables and take them from the environment the session was launched in, and
+a test fails if either file assigns one.
 
 See `docs/operations/plugin-hosts.md`, particularly the part about what the tool boundary does not
 cover: the assistant's own file reads and shell commands go straight past it.

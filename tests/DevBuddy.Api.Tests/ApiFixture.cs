@@ -8,8 +8,10 @@ using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
 using DevBuddy.Infrastructure.Administration;
+using DevBuddy.Infrastructure.Identity;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.Infrastructure.Persistence.Mapping;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,7 +71,7 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         await _container.StartAsync();
 
-        _factory = Build([]);
+        _factory = Build([], webRoot: null);
 
         using (IServiceScope scope = _factory.Services.CreateScope())
         {
@@ -114,7 +116,14 @@ public sealed class ApiFixture : IAsyncLifetime
     /// would otherwise have to spend the shared instance's budget to observe anything.
     /// </summary>
     public WebApplicationFactory<ApiHost> BuildWith(params (string Key, string Value)[] settings) =>
-        Build(settings);
+        Build(settings, webRoot: null);
+
+    /// <summary>
+    /// The same application with a web root, for the tests about serving the administration UI.
+    /// A test run has no such build — the one the API ships is made by <c>docker/Dockerfile.api</c>
+    /// — so those tests stand a directory up by hand and point a host at it.
+    /// </summary>
+    public WebApplicationFactory<ApiHost> BuildWithWebRoot(string webRoot) => Build([], webRoot);
 
     /// <summary>Signs in and returns a client carrying the bearer token.</summary>
     public async Task<HttpClient> SignInAsync(string email, string password)
@@ -183,6 +192,23 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Grants a workspace-wide role in a named workspace, for the tests whose subject is somebody
+    /// belonging to two of them.
+    /// </summary>
+    public async Task<MembershipId> GrantInAsync(WorkspaceId workspace, UserId user, Role role)
+    {
+        Membership membership = Membership.ForWorkspace(
+            MembershipId.New(), user, workspace, role, DateTimeOffset.UtcNow, Administrator);
+
+        using IServiceScope scope = OpenScope(workspace);
+
+        await scope.ServiceProvider.GetRequiredService<IAccessDirectory>()
+            .AddMembershipAsync(membership, CancellationToken.None);
+
+        return membership.Id;
+    }
+
+    /// <summary>
     /// Another project in the same workspace, so a test whose subject is the AI access policy
     /// starts from the default rather than from whatever an earlier test left behind. AI access
     /// is off for it, because off is what absence means.
@@ -241,17 +267,49 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Mints a machine token for somebody, the way the plugin configuration expects one.
+    /// Mints a machine token for somebody in one workspace, the way the plugin configuration
+    /// expects one. Defaults to this fixture's workspace, which is where all but the
+    /// cross-workspace tests want it.
     /// </summary>
-    public async Task<string> IssueMachineTokenAsync(UserId userId, string name)
+    public async Task<string> IssueMachineTokenAsync(
+        UserId userId, string name, WorkspaceId? workspace = null)
     {
-        using IServiceScope scope = OpenScope(Workspace);
+        WorkspaceId target = workspace ?? Workspace;
+
+        using IServiceScope scope = OpenScope(target);
 
         MachineTokenIssued issued = await scope.ServiceProvider
             .GetRequiredService<IMachineTokenService>()
-            .IssueAsync(userId, name, TimeSpan.FromDays(1), CancellationToken.None);
+            .IssueAsync(userId, target, name, TimeSpan.FromDays(1), CancellationToken.None);
 
         return issued.Token;
+    }
+
+    /// <summary>
+    /// Writes a token row the way the release before workspace scoping wrote one: an owner, a
+    /// hash, and no workspace. The service cannot mint one any more, which is exactly why an
+    /// upgraded installation is the only place they exist and a test has to plant one.
+    /// </summary>
+    public async Task<string> PlantLegacyMachineTokenAsync(UserId userId, string name)
+    {
+        string token = OpaqueToken.Create();
+
+        using IServiceScope scope = OpenScope(Workspace);
+        var db = scope.ServiceProvider.GetRequiredService<DevBuddyDbContext>();
+
+        db.MachineTokens.Add(new MachineTokenRow
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId.Value,
+            WorkspaceId = null,
+            TokenHash = OpaqueToken.Hash(token),
+            Name = name,
+            IssuedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddYears(1),
+        });
+
+        await db.SaveChangesAsync();
+        return token;
     }
 
     /// <summary>Turns AI access on for a project. Off is the default and is never written here.</summary>
@@ -287,12 +345,19 @@ public sealed class ApiFixture : IAsyncLifetime
         return scope.ServiceProvider.GetRequiredService<OperationDispatcher>();
     }
 
-    private WebApplicationFactory<ApiHost> Build(IReadOnlyList<(string Key, string Value)> overrides)
+    private WebApplicationFactory<ApiHost> Build(
+        IReadOnlyList<(string Key, string Value)> overrides,
+        string? webRoot)
     {
         var factory = new WebApplicationFactory<ApiHost>();
 
         return factory.WithWebHostBuilder(builder =>
         {
+            if (webRoot is not null)
+            {
+                builder.UseWebRoot(webRoot);
+            }
+
             builder.UseSetting("ConnectionStrings:DevBuddy", _container.GetConnectionString());
             builder.UseSetting("Identity:SigningKey", SigningKey);
             builder.UseSetting("Identity:MinimumPasswordLength", "12");

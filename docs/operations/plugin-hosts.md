@@ -23,26 +23,72 @@ Four environment variables, all set in the plugin configuration:
 |---|---|
 | `DEVBUDDY_ConnectionStrings__DevBuddy` | PostgreSQL. The MCP server is a host over the shared core, not a client of the HTTP API, so it connects directly. |
 | `DEVBUDDY_Identity__SigningKey` | The deployment's signing key. Shared with the API so one identity works across both. |
-| `DEVBUDDY_TOKEN` | A machine token. Who you are. |
+| `DEVBUDDY_TOKEN` | A machine token. Who you are, and which workspace you are in. |
 | `DEVBUDDY_Analysis__RootPath` | Where analysis reads from: one directory per project, named by project identifier, mounted read-only. |
+
+Neither package assigns a value to any of them. Both name the variables and take them from the
+environment the assistant was launched in, and a test fails if either file ever assigns one. The
+Claude package expands them from short names; the Codex package lists them under `env_vars`, which
+is that file's allow-list of variables to forward, as against `env`, which sets literal values.
+
+That distinction matters most for Codex, whose file is `~/.codex/config.toml` — one file for the
+whole operating-system account. A token written into it is the token every project and every
+session on that machine uses, including the ones belonging to another workspace and another
+company.
 
 ### The token
 
-Mint one under **Plugin access** in the web interface, or from the console. It is shown once and
-stored only as a hash.
+Mint one under **Plugin access**, in the workspace you want it for. It is shown once and stored
+only as a hash.
 
-It carries exactly the permissions its owner already has — the same memberships, the same roles,
-the same per-project AI policy. It is not a service account and it cannot become one. It expires,
-it is revocable without changing a password, and revoking it takes effect on the next call rather
-than at the next process restart.
+It identifies one **DevBuddy user** in one **DevBuddy workspace**:
+
+- It carries exactly the permissions its owner already has in that workspace — the same
+  memberships, the same roles, the same per-project AI policy. It is not a service account and it
+  cannot become one.
+- A call naming any other workspace is refused before anything is read, **even where its owner is
+  a member of that workspace too**. Somebody who works across two workspaces holds two tokens.
+- It has nothing to do with the account the assistant itself signs in with. It neither carries nor
+  verifies a Claude or an OpenAI identity, and the same token works in either assistant while both
+  are working in that one workspace.
+- Minting one per assistant is available and entirely optional. It buys separate revocation and
+  separate last-used timestamps. It buys nothing in authorization, where the pair that decides
+  everything is the user and the workspace.
+- It expires, it is revocable without changing a password, and revoking it takes effect on the
+  next call rather than at the next process restart.
 
 Without it the server still starts and still lists its tools, and every call is refused for lack
 of an identity. That is the intended failure: a configuration missing a token must not fall back
 to acting as somebody.
 
+**Identity is fixed when the assistant starts.** Whichever token was in the environment at launch
+is the identity every call runs as. Changing directory does not change it, and opening a checkout
+that belongs to another workspace does not either — the calls simply start being refused. To work
+in another workspace, start another session with that workspace's token.
+`docs/operations/workspace-layout.md` is the arrangement for doing that on a machine that works
+against several.
+
 > Before Phase 9 the stdio server read a user identifier from `DEVBUDDY_ACTOR`, which anybody who
 > could start the process could set to anybody. That variable is gone, and a test fails if either
 > package mentions it.
+
+### Upgrading from a token issued before workspace scoping
+
+A token minted before this change carries no workspace, and **it is refused on every call.**
+
+It is not adopted into a workspace, because the row says who owns it and nothing about where it
+was meant to work: any workspace chosen for it would be a workspace nobody granted it. Its value
+cannot be shown again either, because only a hash was ever stored.
+
+What an operator does:
+
+1. Each token owner opens **Plugin access** in the workspace they work in. Their old token is
+   listed as **Needs replacing**, so nobody has to guess why their plugin stopped answering.
+2. They mint a new one there and put it in that session's environment.
+3. They revoke the old row, which is kept until then so it stays visible and auditable.
+
+Nothing else in an installation changes. The migration adds one nullable column; no data is
+rewritten, and no other credential is affected.
 
 ## What the tool boundary covers
 
@@ -105,18 +151,33 @@ instead once Phase 10 produces one.
 
 ### Codex
 
-Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, filling in the four values, and put
-`plugins/codex/AGENTS.md` where Codex will read it.
+Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, and put `plugins/codex/AGENTS.md`
+where Codex will read it. Set the assembly path in `args`; there is nothing else in the file to
+fill in.
+
+The four settings are **forwarded, not written**. `env_vars` is Codex's allow-list of variables to
+take from its own environment, as against `env`, which sets literal values. The file therefore
+holds no credential at all, and Codex has to be started from a shell that carries the ones for the
+workspace being worked in.
+
+> This is the one place where a wrong choice is a cross-company leak rather than an inconvenience.
+> `~/.codex/config.toml` is a single file for the whole operating-system account. A token pasted
+> into it is the token every project and every session on that machine presents, so an assistant
+> working in one company's checkout would be reading, and could quote into a file, another
+> company's recorded knowledge — with the server answering correctly throughout, because the
+> credential really did belong to somebody who really was a member.
 
 Codex refuses MCP tool calls in non-interactive mode unless approvals are routed somewhere — `codex
 exec --approve-for-me` is the documented way, and an interactive session prompts as usual. Without
 it every call comes back `requires approval, but approval policy is never`, which reads like a
 server refusal and is not one.
 
-### More than one deployment on one machine
+### More than one deployment, or more than one workspace, on one machine
 
 Both packages read their four values from the environment they are launched in, so the environment
-is what separates one deployment from another — not the folder that happens to be open.
+is what separates one deployment or workspace from another — not the folder that happens to be
+open. Since a token is bound to one workspace, the unit those settings belong to is one deployment
+**and** one workspace.
 `docs/operations/workspace-layout.md` sets out the arrangement, and `templates/devbuddy-root/` is
 the copyable form of it. It also covers the junction tree analysis needs, which is the part that
 otherwise fails silently.
@@ -137,7 +198,8 @@ the four things is wrong:
 | Symptom | Cause |
 |---|---|
 | No tools at all | The server did not start. Check the assembly path and `dotnet`. |
-| Tools listed, every call refused for lack of identity | `DEVBUDDY_TOKEN` is missing, wrong, expired, or revoked. |
+| Tools listed, every call refused for lack of identity | `DEVBUDDY_TOKEN` is missing, wrong, expired, revoked, or was issued before workspace scoping. |
+| Every call refused, saying the credential is not valid in this workspace | The token belongs to a different workspace. Mint one in this workspace, or start the session from the root that holds this workspace's token. |
 | `list_projects` returns nothing | No project has AI access enabled, or the token's owner is not a member of any. |
 | A specific project missing | Its owner has not enabled AI access. Working as intended. |
 | Analysis reports nothing to analyse | `DEVBUDDY_Analysis__RootPath` has no directory named for that project. |

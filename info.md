@@ -6,6 +6,44 @@
   installation, workflows, tools, administration, operations, and development.
 - Use a cream main colour and a claymorphism theme for the manual.
 
+## Confirmed Administration UI Delivery — 2026-09-10
+
+- The API host serves the administration UI. `docker/Dockerfile.api` builds `web/admin` in a stage
+  of its own and copies the result into the image's `wwwroot`; there is no second container and no
+  separate copy of the built files to place on a host by hand.
+- Do not add a static-serving container to the stack. An `nginx` or `caddy` image would bring a
+  shell and a package manager into a stack whose three images are chiseled precisely so that there
+  is nothing in them to execute, and serving files is not worth that.
+- The client calls the API at the root, not under a prefix. `VITE_DEVBUDDY_API` remains as a
+  build-time override for an installation that serves the client from a different origin; nothing
+  in this repository sets it.
+- A host with no `wwwroot` serves the API alone. Running from source is that case, and it stays a
+  supported one rather than an error.
+- Do not publish source maps. The files are served to anybody who reaches the sign-in page, and a
+  map is the whole client in readable form.
+
+## Confirmed Machine-Token Scoping — 2026-09-10
+
+- Bind a machine token to a DevBuddy user **and** a DevBuddy workspace. A token minted in one
+  workspace is refused in every other, even where its owner holds a live membership there.
+- Do not bind a token to a Claude or an OpenAI account, and do not add a client kind to it. The
+  assistants are processes that hold a credential; they are not identity providers for DevBuddy,
+  and the same token works in either while both are working in that one workspace.
+- Separate tokens per assistant remain available to anybody who wants to revoke or monitor them
+  separately. That is a convenience and never an authorization boundary.
+- Take the workspace from the request the authorization pipeline has already approved, never from
+  anything a caller could set independently.
+- Fail closed on the tokens issued before this. They carry no workspace, no workspace can be
+  chosen for them without granting authority nobody granted, and so they are refused on every call
+  and shown in the interface as needing replacement. Their rows are kept for audit and listing;
+  their values are not recoverable, because only a hash was ever stored.
+- Do not narrow a signed-in person's HTTP session by any of this. A browser session reaches every
+  workspace its owner is a member of, exactly as before.
+- Extend the workspace-layout convention from one root per deployment to one root per deployment
+  **and** workspace, since the credential a root holds now has a workspace in it. The root's own
+  settings state which workspace they are for, the scripts refuse a mismatched pair, and they
+  refuse a DevBuddy setting stored as a persistent Windows environment variable.
+
 ## Confirmed Workspace Layout — 2026-09-09
 
 - Support working against more than one self-hosted deployment from one machine, by settings that

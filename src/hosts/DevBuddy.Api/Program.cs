@@ -141,6 +141,35 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 WebApplication app = builder.Build();
 
 app.UseExceptionHandler();
+
+// The administration UI, when this image was built with one. `docker/Dockerfile.api` builds
+// `web/admin` and copies the result into wwwroot, so the API and the client generated from it are
+// one origin and one deployment: no second container to place, no CORS policy, and nothing for a
+// reverse proxy to know beyond one port. Running from source there is no wwwroot and this is
+// skipped rather than guessed at — `bun run dev` serves the client then, and proxies here.
+bool servesAdminUi = app.Environment.WebRootPath is string webRoot
+    && File.Exists(Path.Combine(webRoot, "index.html"));
+
+// Vite writes a content hash into every asset file name, so those may be cached forever.
+// `index.html` names them and must never be, or a deployment lands for nobody.
+StaticFileOptions adminUiFiles = new()
+{
+    OnPrepareResponse = served =>
+        served.Context.Response.Headers.CacheControl =
+            served.File.Name.Equals("index.html", StringComparison.Ordinal)
+                ? "no-cache"
+                : "public, max-age=31536000, immutable",
+};
+
+if (servesAdminUi)
+{
+    // Ahead of the rate limiter deliberately. That limiter is a ceiling on work reaching the
+    // database (SB-21), and a page load fetching a dozen hashed assets is not that; behind it, one
+    // person opening the site would spend everybody's budget, because a reverse proxy collapses
+    // them all onto one address.
+    app.UseStaticFiles(adminUiFiles);
+}
+
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -155,6 +184,17 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 app.MapAuthentication();
 app.MapMe();
 app.MapOperations();
+
+if (servesAdminUi)
+{
+    // Client-side routing: `/w/...` is a route in the browser, not a file and not an endpoint.
+    // Only what no endpoint matched arrives here, so every route the API maps keeps its own
+    // answer, refusals included. What reaches this is a GET nothing claimed — including a GET of
+    // a path that exists for POST, such as an operation — and answering a navigation with the
+    // client is what a person following a link expects. An API caller never sees it: the client
+    // invokes operations with POST, and that route answers for itself.
+    app.MapFallbackToFile("index.html", adminUiFiles).AllowAnonymous();
+}
 
 await app.RunAsync();
 return 0;

@@ -1,7 +1,8 @@
 # devbuddy-root
 
 A template for the folder that holds your checkouts, when you work against more than one DevBuddy
-deployment from one machine.
+deployment — or more than one workspace in one deployment — from one machine. A machine token is
+bound to one workspace, so that pair is what a root is for.
 
 Copy `.devbuddy/` and `gitignore` (as `.gitignore`) into that folder. `.devbuddy/README.md` travels
 with the copy and is what somebody reads once it is in place.

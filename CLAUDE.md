@@ -26,7 +26,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 469 .NET tests and 34 web tests exist, and all of them pass in this environment —
+enforcement. 495 .NET tests and 36 web tests exist, and all of them pass in this environment —
 count them rather than trusting this sentence, which was left at the release figure of 433 and 31
 while both grew. `docs/plan.md` keeps the per-phase figures, and the ones under *v1 is released*
 are what passed at `v1.0.0`; they are a record and are not updated. All
@@ -40,6 +40,19 @@ permission, so a viewer is offered neither), and deleting a project is on the pr
 behind typing the project's name back, because it takes records, their history, and the evidence
 bytes with it and there is no undo. Adding somebody to a team picks them from the workspace's own
 members rather than asking for an identifier to be typed.
+
+**The API host serves that UI, from inside its own image.** `docker/Dockerfile.api` builds
+`web/admin` with Bun in a stage of its own and copies `dist` into `wwwroot`, so the client and the
+API it is generated from are one origin, one image, and one thing to deploy — a reverse proxy in
+front of the stack now needs `reverse_proxy 127.0.0.1:8080` and nothing else. A static-serving
+container was the alternative and was refused: `nginx` or `caddy` would put a shell and a package
+manager into a stack whose images are chiseled so that there is nothing in them to execute. The
+client therefore calls the API **at the root**, not under a prefix, `vite.config.ts` proxies the
+API's own top-level routes in development so the dev server looks like the host that will serve it,
+and source maps are off because these files are public. A host with **no `wwwroot` serves the API
+alone**, which is what running from source does, and `AdminUiTests` covers that case alongside the
+one that matters more: the fallback for the client's routes must never put an HTML page in front of
+an endpoint that answered with JSON, a refusal, or a 404.
 
 **Source synchronisation can now read the GitHub API, opt-in.** `GitHubOptions.Mode` defaults to
 `WorkingCopy` — the mounted-checkout reader Phase 6 shipped, unchanged. Setting it to `GitHubApi`
@@ -145,10 +158,17 @@ exists. Backup is still an operation, because that one has a caller.
 external program from product code would break the no-execution guard. Sessions are not restored;
 passwords and machine tokens are.
 
-**Identity over MCP stdio is a machine token in `DEVBUDDY_TOKEN`.** `DEVBUDDY_ACTOR` is gone: it
-let anybody who could start the process start it as anybody, and a test fails if either plugin
-package mentions it. A token carries exactly its owner's permissions and is revocable on the next
-call.
+**Identity over MCP stdio is a machine token in `DEVBUDDY_TOKEN`, bound to one user and one
+workspace.** `DEVBUDDY_ACTOR` is gone: it let anybody who could start the process start it as
+anybody, and a test fails if either plugin package mentions it. A token carries exactly its
+owner's permissions **in the one workspace it was minted in**, and is revocable on the next call.
+`AuthorizationService` refuses a request naming another workspace before it looks the caller up,
+so the check costs no query and cannot be reached past. A signed-in person's HTTP session carries
+no such ceiling and is unaffected. Tokens issued before this scoping carry no workspace and are
+**refused rather than adopted** — the row says who owns it and nothing about where it was meant to
+work — and are listed as needing replacement so their owners can mint a successor. Neither plugin
+package holds a literal setting any more: both name variables and take them from the environment
+the session was launched in, which matters most for Codex, whose file is account-wide.
 
 ## Commands
 

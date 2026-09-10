@@ -41,13 +41,25 @@ if ([string]::IsNullOrWhiteSpace($EnvPath))
 $project = Read-DevBuddyProject -Path $ConfigPath
 $envValues = Read-DevBuddyEnvFile -Path $EnvPath
 
+Assert-NoPersistentDevBuddySettings
+
 $deployment = Assert-DevBuddyDeploymentMatches -Project $project -EnvValues $envValues
+$workspaceId = Assert-DevBuddyWorkspaceMatches -Project $project -EnvValues $envValues
 $projectId = Assert-DevBuddyGuid -Value $project.projectId -Field 'projectId'
 
 if ($env:DEVBUDDY_DEPLOYMENT -and $env:DEVBUDDY_DEPLOYMENT -cne $deployment)
 {
     throw ("This session is already entered for deployment '$env:DEVBUDDY_DEPLOYMENT'. " +
            "Open a new shell for '$deployment' rather than loading both into one.")
+}
+
+# The same rule one level down. Two workspaces in one deployment are still two sets of knowledge
+# and two tokens, and a session that loaded both would leave whichever ran last in force with
+# nothing on screen to say so.
+if ($env:DEVBUDDY_WORKSPACE_ID -and $env:DEVBUDDY_WORKSPACE_ID -cne $workspaceId)
+{
+    throw ("This session is already entered for workspace '$env:DEVBUDDY_WORKSPACE_ID'. " +
+           "Open a new shell for '$workspaceId' rather than loading both into one.")
 }
 
 foreach ($name in $envValues.Keys)
@@ -85,5 +97,7 @@ if ([string]::IsNullOrWhiteSpace($env:DEVBUDDY_TOKEN))
 $count = @($project.repositories).Count
 $noun = if ($count -eq 1) { 'repository' } else { 'repositories' }
 
-# The token is deliberately not printed, here or anywhere else.
-Write-Host "DevBuddy: $deployment, project $projectId, $count $noun."
+# The token is deliberately not printed, here or anywhere else. The workspace is, because it is
+# not a secret and it is the thing worth checking at a glance: it is what the token in this
+# session is limited to, and every call naming another workspace will be refused.
+Write-Host "DevBuddy: $deployment, workspace $workspaceId, project $projectId, $count $noun."

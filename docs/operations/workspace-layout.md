@@ -1,6 +1,7 @@
 # Workspace layout
 
-How to arrange checkouts on a machine that works against more than one DevBuddy deployment.
+How to arrange checkouts on a machine that works against more than one DevBuddy deployment, or
+more than one workspace in one deployment.
 
 This is a convention for the operator's side of the plugin, not a product feature. Nothing in
 `src/` reads any of it. `templates/devbuddy-root/` is the copyable form.
@@ -23,6 +24,31 @@ boundary governs DevBuddy and nothing else.
 The only place that gap closes is before launch. One deployment's credentials in the environment,
 and no other's.
 
+## One root per deployment *and* workspace
+
+The original arrangement was one root per deployment. That was the right unit while a machine
+token was bound only to its owner, because the deployment was the only thing the credential
+distinguished: one token reached every workspace its owner belonged to inside it.
+
+A token is now bound to one **workspace** as well, so the unit is one root per deployment and
+workspace. Two workspaces in one deployment mean two roots, two tokens, and two sessions.
+
+This is the same failure the deployment boundary already had, one level in. Two workspaces in one
+installation are usually two clients, or a client and an internal system: separate knowledge,
+separate people, and no reason for one session to hold both. Before the token carried a workspace,
+a single credential covered all of them and nothing in the environment could narrow it. Now the
+server refuses the mismatch, and the layout below is what stops that refusal arriving as a
+surprise partway through somebody's work.
+
+Two things the layout adds for it:
+
+- `deployment.env` states `DEVBUDDY_WORKSPACE_ID`, and `enter.ps1` refuses to load it if it
+  disagrees with `workspaceId` in `project.json`. That is what catches a `deployment.env` copied
+  in from another root: the credential and the identifiers came from different places, and the
+  server would otherwise be the first thing to notice.
+- Entering a second workspace into a session already entered for one is refused, exactly as a
+  second deployment already was.
+
 ## The layout
 
 ```
@@ -31,8 +57,8 @@ root\
   .gitignore                 insurance, in case anyone ever runs `git init` here
   .devbuddy\
     README.md                what somebody reads when they find this folder
-    project.json             which project these checkouts are, and which deployment
-    deployment.env           connection string, signing key, machine token
+    project.json             which project and workspace these checkouts are, and which deployment
+    deployment.env           workspace, connection string, signing key, machine token
     common.ps1               shared by the two scripts below
     setup.ps1                builds the junction tree, once and after every change
     enter.ps1                dot-sourced, loads this root into the current session
@@ -41,7 +67,7 @@ root\
         <repositoryId>  ->  ..\..\..\git1
 ```
 
-One root per deployment. Everything under it belongs to that deployment and to no other.
+One root per deployment and workspace. Everything under it belongs to that pair and to no other.
 
 **`.devbuddy` sits beside the checkouts, never inside one.** That is the whole of the design. A
 settings file inside a repository is committed, travels with `git clone`, gets copied along with a
@@ -84,7 +110,7 @@ named, and the junction tree is one level shallower.
 is a naming convention and no more, the same convention `GitHubOptions.Repositories` already uses.
 `workspaceId` and `projectId` are not: take them from `list_projects` or from the web interface.
 
-## The four settings, and how they arrive
+## The settings, and how they arrive
 
 `deployment.env` holds the values the plugin configuration expands from. `enter.ps1` loads them
 into the current session, and the server inherits them when the host launches it.
@@ -93,8 +119,23 @@ into the current session, and the server inherits them when the host launches it
 |---|---|---|
 | `DEVBUDDY_CONNECTION_STRING` | `deployment.env` | Expanded into `DEVBUDDY_ConnectionStrings__DevBuddy` by the Claude package. |
 | `DEVBUDDY_SIGNING_KEY` | `deployment.env` | Expanded into `DEVBUDDY_Identity__SigningKey`. At least 32 characters, or the host refuses to start. |
-| `DEVBUDDY_TOKEN` | `deployment.env` | Your machine token. Without it the server starts, lists its tools, and refuses every call. |
+| `DEVBUDDY_WORKSPACE_ID` | `deployment.env` | The workspace the token below belongs to. Not a secret, and not read by the server: it is here so the file holding the credential says what the credential is for, and so `enter.ps1` can refuse a pair that disagrees. |
+| `DEVBUDDY_TOKEN` | `deployment.env` | Your machine token, for that workspace. Without it the server starts, lists its tools, and refuses every call. |
 | `DEVBUDDY_ANALYSIS_ROOT_PATH` | computed by `enter.ps1` | Not read from the file, so it cannot drift out of step with the junctions `setup.ps1` built. |
+
+### Never as a persistent environment variable
+
+`enter.ps1` refuses to run if any of these is set at Windows **User** or **Machine** scope, and it
+is worth being blunt about why. A variable set there is inherited by every process the account
+starts, for ever, in every folder — which is precisely the account-wide arrangement these per-root
+settings exist to replace, and it is invisible once done. Somebody would enter a root, watch their
+assistant work, and never learn it had been working from the account-wide token all along.
+
+Remove one with:
+
+```powershell
+[Environment]::SetEnvironmentVariable('DEVBUDDY_TOKEN', $null, 'User')
+```
 
 `enter.ps1` also sets every one of them under its framework-shaped name —
 `DEVBUDDY_ConnectionStrings__DevBuddy`, `DEVBUDDY_Identity__SigningKey`,
@@ -111,11 +152,14 @@ Each of these is a mistake that would otherwise fail silently, or fail as a conf
 | Situation | What happens |
 |---|---|
 | `deployment.env` and `project.json` name different deployments | Refused. This is a `project.json` that came from another root; the GUIDs in it mean nothing here. |
+| `deployment.env` and `project.json` name different workspaces | Refused. The credential and the identifiers came from different places, and the token would be refused by the server on the first call anyway. |
+| A DevBuddy setting is a persistent User or Machine environment variable | Refused, naming the variable and the command that removes it. |
 | An identifier is not a canonical lowercase GUID | Refused, naming the field and the form expected. |
 | An identifier is still the all-zero placeholder | Refused. The template ships unfilled on purpose. |
 | A checkout named in `project.json` is missing | Refused before anything is created, so a typo cannot leave the tree half built. |
 | A checkout has no `.git` | Warned. Analysis reads git references from working-copy metadata, so history will be reported as unavailable. |
 | `enter.ps1` run in a session already entered for another deployment | Refused. Open a new shell instead. |
+| `enter.ps1` run in a session already entered for another workspace | Refused, for the same reason: the last one loaded would silently win. |
 | A path where a junction belongs is a real directory | Refused, left untouched. |
 
 Removing a stale link deletes the reparse point only, through `Directory.Delete` with recursion
@@ -126,9 +170,13 @@ would mean deleting the checkout it points at.
 
 **It is not a control.** No operation reads `project.json`, and editing it changes only which
 project gets asked about. What any call may reach is still decided by the server, per project, per
-person, on every call, from the permissions the token owner already has. A `project.json` pointed
-at a project the token cannot see produces a refusal, not a leak — but the refusal is the server's
-doing, not this file's.
+person, on every call, from the permissions the token owner already has, in the one workspace the
+token was minted in. A `project.json` pointed at a project the token cannot see produces a
+refusal, not a leak — but the refusal is the server's doing, not this file's.
+
+The workspace check `enter.ps1` performs is the same kind of thing. It catches a mismatched pair
+at the door, where the message can say which two files disagree; the server would have refused the
+call regardless, and that refusal is what actually holds.
 
 **The isolation boundary is the process, not the directory.** The identity in force is whatever
 was in the environment when the assistant was launched. Changing directory afterwards changes
@@ -136,9 +184,9 @@ nothing, and neither does opening a different checkout. One session per root, en
 root.
 
 **`deployment.env` is a credential in plain text on disk.** ADR-0006 accepts that for stdio: the
-token carries only permissions its owner already has and is revocable on the next call. What the
-ADR does not cover is the file leaving the machine, so keep the root out of OneDrive, Dropbox, and
-any other sync.
+token carries only permissions its owner already has, in one workspace, and is revocable on the
+next call. What the ADR does not cover is the file leaving the machine, so keep the root out of
+OneDrive, Dropbox, and any other sync.
 
 **Host restrictions still have to be configured separately.** If a path or a command must be off
 limits, that is `permissions` and the sandbox in Claude Code, or `sandbox` mode, the approval

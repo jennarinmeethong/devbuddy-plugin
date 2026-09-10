@@ -234,7 +234,11 @@ public class DevBuddyDbContext : DbContext
             row.Property(entity => entity.TokenHash).HasMaxLength(64).IsRequired().IsFixedLength();
             row.Property(entity => entity.Name).HasMaxLength(200).IsRequired();
             row.HasIndex(entity => entity.TokenHash).IsUnique();
-            row.HasIndex(entity => new { entity.UserId, entity.ExpiresAt });
+
+            // Owner and workspace together, because that is how both a listing and a revocation
+            // ask: this person's tokens, in this workspace. No query filter — see MachineTokenRow
+            // for why a credential table cannot have one.
+            row.HasIndex(entity => new { entity.UserId, entity.WorkspaceId, entity.ExpiresAt });
         });
     }
 

@@ -31,7 +31,10 @@ $envValues = Read-DevBuddyEnvFile -Path $EnvPath
 
 $deployment = Assert-DevBuddyDeploymentMatches -Project $project -EnvValues $envValues
 
-$workspaceId = Assert-DevBuddyGuid -Value $project.workspaceId -Field 'workspaceId'
+# Checked here as well as in enter.ps1. Building a tree for a project in a workspace this root's
+# token cannot reach produces junctions nothing will ever look in, and the first symptom would be
+# a refusal from the server rather than anything about this folder.
+$workspaceId = Assert-DevBuddyWorkspaceMatches -Project $project -EnvValues $envValues
 $projectId = Assert-DevBuddyGuid -Value $project.projectId -Field 'projectId'
 
 if (-not $project.repositories -or $project.repositories.Count -eq 0)

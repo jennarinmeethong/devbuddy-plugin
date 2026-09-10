@@ -17,6 +17,11 @@ namespace DevBuddy.Infrastructure.Security;
 /// request itself.
 /// </para>
 /// <para>
+/// One thing is checked before any of that: whether the credential the caller presented is even
+/// allowed to speak for this workspace. A machine token is bound to one, and a request naming
+/// another is refused here rather than reaching a membership check it might well pass.
+/// </para>
+/// <para>
 /// Every path returns a denial unless a specific check passes. There is no branch that falls
 /// through to allow.
 /// </para>
@@ -33,6 +38,25 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
         if (request.Caller.IsAnonymous)
         {
             return AuthorizationDecision.Deny("No identity was resolved.");
+        }
+
+        // The credential's own ceiling, before anything about the person is looked up.
+        //
+        // A machine token is bound to one workspace, and this is where that binding becomes a
+        // refusal. It runs first because it is the cheapest true statement available: it needs no
+        // database at all, and a token presented against the wrong workspace is wrong whatever
+        // the memberships behind it say. Everything after this line — account state, live
+        // membership, role, per-project AI policy — then runs exactly as it always did.
+        //
+        // A caller with no credential scope, which is every signed-in person over HTTP, passes
+        // straight through. Their reach is their memberships, which is what a browser session is.
+        if (request.Caller.Credential is { } credential
+            && credential.WorkspaceId != request.WorkspaceId)
+        {
+            // Worded as the credential's limit rather than as the workspace's existence. The
+            // caller may well be a member here; what they may not do is get in with this token.
+            return AuthorizationDecision.Deny(
+                "The credential presented is not valid in this workspace.");
         }
 
         UserRow? user = await _db.Users

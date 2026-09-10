@@ -4,6 +4,15 @@
 # DevBuddy.McpServer the Claude plugin launches and the same one a self-hosted deployment exposes
 # over authenticated HTTP: one tool surface, one pipeline, one set of rules. What differs between
 # the two plugins is the instructions beside this file, never what the server allows.
+#
+# Nothing here holds a value. ~/.codex/config.toml is one file for the whole operating-system
+# account, so a credential written into it is the credential every project and every session on
+# that machine uses — including the ones belonging to a different workspace, and a different
+# company. This file therefore names the variables and forwards them from the shell the session
+# was started in, which is where a DevBuddy root's own settings put them.
+#
+# env_vars is Codex's allow-list of variables to forward from its environment, as against env,
+# which sets literal values. Anything not named here does not reach the server.
 
 [mcp_servers.devbuddy]
 command = "dotnet"
@@ -13,19 +22,26 @@ args = ["/path/to/DevBuddy.McpServer.dll", "--stdio"]
 startup_timeout_sec = 30
 tool_timeout_sec = 120
 
-[mcp_servers.devbuddy.env]
-# Where the knowledge lives. The MCP server talks to PostgreSQL directly; it is a host over the
-# same core, not a client of the HTTP API.
-DEVBUDDY_ConnectionStrings__DevBuddy = "Host=localhost;Port=5432;Database=devbuddy;Username=devbuddy;Password=..."
+env_vars = [
+  # Where the knowledge lives. The MCP server talks to PostgreSQL directly; it is a host over the
+  # same core, not a client of the HTTP API.
+  "DEVBUDDY_ConnectionStrings__DevBuddy",
 
-# Must match the deployment. Shared with the API so one identity works across both.
-DEVBUDDY_Identity__SigningKey = "..."
+  # Must match the deployment. Shared with the API so one identity works across both.
+  "DEVBUDDY_Identity__SigningKey",
 
-# Who you are. Mint one under Plugin access in the web interface, or with the console; it is shown
-# once, it carries exactly your own permissions and no more, and you can revoke it without
-# changing your password. Without it every call is refused, which is the intended failure.
-DEVBUDDY_TOKEN = "..."
+  # Who you are, and where. Mint one under Plugin access in the web interface: it is shown once,
+  # it carries exactly your own permissions, it works in the one DevBuddy workspace it was minted
+  # in and is refused in every other, and you can revoke it without changing your password.
+  # Without it every call is refused, which is the intended failure.
+  #
+  # It identifies a DevBuddy user. It is not tied to, and does not verify, a Claude or an OpenAI
+  # account — the same token works in either assistant, as long as both are working in that one
+  # workspace. Minting one per assistant is available if you want to revoke or watch them
+  # separately; it changes nothing about what either may do.
+  "DEVBUDDY_TOKEN",
 
-# Where analysis reads from: one directory per project, named by project identifier, mounted
-# read-only. DevBuddy never fetches a checkout itself, because cloning means running git.
-DEVBUDDY_Analysis__RootPath = "/srv/devbuddy/projects"
+  # Where analysis reads from: one directory per project, named by project identifier, mounted
+  # read-only. DevBuddy never fetches a checkout itself, because cloning means running git.
+  "DEVBUDDY_Analysis__RootPath",
+]

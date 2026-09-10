@@ -48,6 +48,20 @@ is the project owner's decision.
 **Results are narrowed to the person you are acting for.** You act as whoever the machine token in
 the configuration belongs to, with exactly their permissions — not more.
 
+**And to one workspace.** The token in `DEVBUDDY_TOKEN` works in exactly one DevBuddy workspace,
+and a call naming any other is refused before anything is read — whatever memberships its owner
+holds there. Somebody working across two workspaces holds two tokens, one for each.
+
+That identity is fixed when this session starts, from the environment it inherited.
+Changing directory does not change it, and neither does opening a checkout that belongs to
+another workspace: what you can reach stays whatever the token allows. If knowledge from the
+wrong workspace is what comes back, the session was started from the wrong place — say so and
+stop, rather than looking for a way around it.
+
+The token is a DevBuddy credential and nothing else. It is not tied to, and does not prove, a
+Claude account; the same token works in Codex, if that is where its owner is working in that
+workspace.
+
 ## How to use it well
 
 **Search before analysing.** The point of the system is that somebody may have already worked this

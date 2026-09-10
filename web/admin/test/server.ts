@@ -243,11 +243,24 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
           expiresAt: "2026-12-01T09:00:00+00:00",
           lastUsedAt: null,
           isActive: true,
+          needsReplacement: false,
+        },
+        // One left over from before tokens were tied to a workspace. It works nowhere and cannot
+        // be repaired, so the page has to say so rather than showing it as merely expired.
+        {
+          id: "77777777-7777-7777-7777-777777777777",
+          name: "Old desktop",
+          issuedAt: "2026-08-01T09:00:00+00:00",
+          expiresAt: "2027-08-01T09:00:00+00:00",
+          lastUsedAt: null,
+          isActive: false,
+          needsReplacement: true,
         },
       ],
     },
     issue_machine_token: {
       tokenId: "99999999-9999-9999-9999-999999999999",
+      workspaceId: WORKSPACE,
       name: "Codex",
       token: "the-token-shown-exactly-once",
       expiresAt: "2026-12-01T09:00:00+00:00",
@@ -263,8 +276,7 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
   };
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input.toString();
-    const path = url.replace(/^\/api/, "");
+    const path = typeof input === "string" ? input : input.toString();
 
     const json = (body: unknown, status = 200) =>
       new Response(JSON.stringify(body), {

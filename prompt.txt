@@ -1,0 +1,223 @@
+คุณกำลังแก้ไข repository DevBuddy ที่ C:\Codes\devbuddy-plugin
+
+นี่เป็น implementation task ให้ตรวจโค้ดปัจจุบัน ออกแบบ ลงมือแก้ไข migration, application, authorization, UI, plugin configuration, tests และ documentation ให้ครบถ้วน
+
+ก่อนแก้ไข:
+
+1. อ่าน AGENTS.md ทั้งหมด
+2. อ่าน info.md และ docs/plan.md
+3. ตรวจ git status และรักษาการเปลี่ยนแปลงเดิมของผู้ใช้
+4. ปฏิบัติตาม Clean Architecture และ security requirements ของ repository
+5. ห้าม commit จนกว่าจะได้รับคำสั่งแยกต่างหาก
+
+## ปัญหา
+
+ปัจจุบัน DevBuddy machine token ผูกกับ `UserId` เท่านั้น ทำให้ token เดียวสามารถใช้กับทุก workspace ที่ user มี membership ภายใน deployment เดียวกัน
+
+อีกด้านหนึ่ง Codex template แนะนำให้ใส่ `DEVBUDDY_TOKEN` เป็น literal ใน global `~/.codex/config.toml` ทำให้ทุก project/session บน OS user เดียวกันอาจใช้ DevBuddy identity และ token เดียวกันโดยไม่ตั้งใจ
+
+ต้องแก้ให้ token ถูกแยกและบังคับตาม DevBuddy workspace
+
+## ข้อกำหนดที่ยืนยันแล้ว
+
+Machine token ต้องผูกตาม:
+
+`DevBuddy UserId × DevBuddy WorkspaceId`
+
+ไม่ต้องผูกกับบัญชี Claude หรือ OpenAI/Codex และไม่ต้องเพิ่ม `ClientKind`
+
+ผู้ใช้สามารถใช้ workspace token เดียวกันได้ทั้ง Claude และ Codex หากทั้งสองทำงานในนาม DevBuddy user คนเดียวกันและอยู่ใน workspace เดียวกัน
+
+ตัวอย่าง:
+
+- Jenna + Workspace A → Token A
+- Jenna + Workspace B → Token B
+- Token A ใช้กับ Claude หรือ Codex ใน Workspace A ได้
+- Token A ต้องใช้กับ Workspace B ไม่ได้ แม้ Jenna จะมี membership ใน Workspace B
+- Token B ต้องใช้กับ Workspace A ไม่ได้
+
+Claude/Codex เป็นเพียง client ที่ถือ token ไม่ใช่ identity provider ของ DevBuddy
+
+## Server-side changes
+
+ปรับ machine token ให้มีอย่างน้อย:
+
+- TokenId
+- UserId
+- WorkspaceId
+- TokenHash
+- Name
+- IssuedAt
+- ExpiresAt
+- RevokedAt
+- LastUsedAt
+
+ข้อกำหนดการทำงาน:
+
+1. `IssueMachineTokenUseCase` ต้องออก token ให้ caller เท่านั้น
+2. WorkspaceId ต้องมาจาก request ที่ผ่าน authorization pipeline แล้ว
+3. `IMachineTokenService.ResolveAsync` ต้องคืน identity ที่มีทั้ง `UserId`, `WorkspaceId` และข้อมูล credential ที่จำเป็น ไม่ใช่คืนเพียง `UserId`
+4. เมื่อ MCP stdio resolve token แล้ว ต้องส่ง workspace restriction เข้า application authorization context
+5. `AuthorizationService` ต้องตรวจว่า workspace ใน operation request ตรงกับ workspace ของ machine token
+6. ถ้า workspace ไม่ตรง ให้ deny ก่อนเรียก use case
+7. หลังจาก workspace ตรงแล้ว จึงตรวจ user status, live membership, role และ project AI-access policy ตาม pipeline เดิม
+8. HTTP requests ที่ใช้ DevBuddy JWT จาก web/API ไม่ควรถูกจำกัดด้วย machine-token workspace scope
+9. unknown, expired, revoked และ legacy unscoped token ต้อง fail closed
+10. การ revoke membership, disable user หรือ disable project AI access ต้องมีผลใน request ถัดไปเหมือนเดิม
+11. MCP AI allow-list ต้องไม่เปลี่ยน
+12. ห้ามเปิด human-only operation ให้ AI
+
+ออกแบบ application-layer type ที่เหมาะสม เช่น `MachineTokenIdentity` หรือ credential scope ภายใน `CallerContext` โดยอย่าให้ Domain/Application ผูกกับ Claude/OpenAI SDK
+
+## Migration และ backward compatibility
+
+เพิ่ม EF Core migration สำหรับ `WorkspaceId` ใน machine token
+
+token เก่าที่ไม่มี workspace scope ต้องไม่ถูกย้ายไป workspace ใดแบบเดาสุ่ม เพราะอาจขยายสิทธิ์ผิด workspace
+
+ให้ใช้แนวทาง fail closed:
+
+- เก็บ legacy token ไว้เพื่อ audit/listing ได้
+- resolver ต้องปฏิเสธ legacy unscoped token
+- หน้า Plugin Access ต้องแสดงว่า token เดิมใช้ไม่ได้และต้อง mint ใหม่
+- ห้ามแสดง token value เดิม เพราะฐานข้อมูลเก็บเฉพาะ hash
+- อธิบาย upgrade behavior ใน documentation
+
+ห้าม hand-edit generated migration เพื่อแก้ style analyzer
+
+## Token listing และ revocation
+
+- `list_machine_tokens` ต้องแสดงเฉพาะ token ของ caller ภายใน workspace ปัจจุบัน
+- token ของ workspace อื่นต้องไม่ปรากฏ
+- `revoke_machine_token` ต้องตรวจทั้ง owner และ workspace
+- การพยายาม revoke token ของ workspace อื่นต้องตอบแบบ not found เพื่อไม่เปิดเผยว่ามี token อยู่
+- ผู้ใช้สามารถสร้างหลาย tokenใน workspace เดียวกันได้ เช่น laptop, desktop หรือ CI
+- token value แสดงเพียงครั้งเดียวและเก็บในฐานข้อมูลเป็น hash เท่านั้น
+
+## Web UI
+
+ปรับหน้า Plugin Access ให้:
+
+- แสดงชัดว่า token ใช้ได้เฉพาะ workspace ปัจจุบัน
+- mint token ด้วย WorkspaceId ของ route ปัจจุบัน
+- list/revoke เฉพาะ token ของ workspace ปัจจุบัน
+- แสดง legacy unscoped token เป็น inactive/needs replacement หากยังจำเป็นต้องแสดง
+- ไม่กล่าวอ้างว่า token ผูกกับบัญชี Claude หรือ Codex
+- อธิบายว่า token เดียวกันใช้กับ Claude และ Codex ได้ภายใน workspace เดียวกัน
+
+หลังเปลี่ยน wire contract ให้ regenerate:
+
+`web/admin/src/api/operations.ts`
+
+ตามคำสั่งใน AGENTS.md ห้ามแก้ไฟล์ generated นี้ด้วยมือ
+
+## Client-side settings
+
+ห้ามฝัง token จริงใน repository หรือ global plugin template
+
+ปรับ `plugins/codex/config.toml` ให้ global config ประกาศ MCP server และส่งต่อ environment variables แทน literal secrets รูปแบบประมาณนี้:
+
+[mcp_servers.devbuddy]
+command = "dotnet"
+args = ["C:/path/to/DevBuddy.McpServer.dll", "--stdio"]
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+
+env_vars = [
+  "DEVBUDDY_ConnectionStrings__DevBuddy",
+  "DEVBUDDY_Identity__SigningKey",
+  "DEVBUDDY_TOKEN",
+  "DEVBUDDY_Analysis__RootPath"
+]
+
+ตรวจ syntax กับ Codex configuration ปัจจุบันก่อนใช้จริง
+
+Claude `.mcp.json` สามารถใช้ environment substitution เดิมได้ แต่ต้องตรวจว่าตัวแปรที่จำเป็นถูกส่งครบและไม่มี literal secret
+
+## Local workspace layout
+
+เก็บ workspace token ใน machine-local settings ซึ่งอยู่นอก repository:
+
+<workspace-root>\
+  repo-one\
+  repo-two\
+  .devbuddy\
+    project.json
+    deployment.env
+    enter.ps1
+
+กำหนดให้:
+
+- `project.json` มี WorkspaceId ที่ต้องการ
+- `deployment.env` มี token สำหรับ WorkspaceId นั้น
+- `enter.ps1` ตรวจว่า settings ตรงกับ workspace/project configuration
+- token ต้องถูกโหลดเข้า environment ของ client process เท่านั้น
+- ห้ามตั้งเป็น Windows User/Machine environment variable แบบถาวร
+- ห้ามเปลี่ยน identity อัตโนมัติตาม current directory
+- เมื่อต้องเปลี่ยน workspace ให้เปิด client process/session ใหม่
+- settings directory ต้องไม่ถูก commit หรือ sync ไป cloud storage
+
+ถ้า root layout ปัจจุบันรองรับเพียงหนึ่ง deployment แต่ไม่รองรับหลาย workspace อย่างปลอดภัย ให้ออกแบบส่วนขยายที่ไม่ขัดกับ confirmed decisions และบันทึกเหตุผลไว้ในเอกสาร
+
+## Tests ที่ต้องมีอย่างน้อย
+
+1. Workspace A token ใช้กับ Workspace A ได้เมื่อ membership และ AI policy อนุญาต
+2. Workspace A token ถูกปฏิเสธใน Workspace B แม้ user เป็นสมาชิกทั้งสอง workspace
+3. Workspace B token ถูกปฏิเสธใน Workspace A
+4. user เดียวกันสร้าง token แยกสำหรับหลาย workspace ได้
+5. user สร้างหลาย tokenใน workspace เดียวกันได้
+6. list token ไม่แสดง token จาก workspace อื่น
+7. revoke token ของ workspace อื่นตอบ not found
+8. revoke token หนึ่งไม่กระทบ token อื่น
+9. legacy unscoped token ถูกปฏิเสธ
+10. missing, invented, expired และ revoked token ถูกปฏิเสธ
+11. disabled user และ revoked membership ถูกปฏิเสธใน request ถัดไป
+12. project AI access ที่ปิดอยู่ยังถูกปฏิเสธ
+13. HTTP JWT flow เดิมยังทำงานโดยไม่ถูก machine-token scope กระทบ
+14. stdio MCP flow บังคับ workspace scope จริง
+15. MCP tool allow-list ไม่เปลี่ยน
+16. plugin package tests ยืนยันว่าไม่มี literal token และประกาศ environment variables ครบ
+17. token/connection string/signing key ไม่ปรากฏใน log, audit หรือ test output
+
+## Documentation
+
+อัปเดตอย่างน้อย:
+
+- `info.md` พร้อม owner-confirmed decision และวันที่ปัจจุบัน
+- `docs/operations/plugin-hosts.md`
+- `docs/operations/workspace-layout.md`
+- `docs/security/verification-matrix.md` หาก security control เปลี่ยน
+- plugin instructions ของ Claude และ Codex
+- UI help text ที่เกี่ยวข้อง
+
+เอกสารต้องระบุชัดเจนว่า:
+
+- DevBuddy machine token ระบุ DevBuddy user และจำกัดหนึ่ง DevBuddy workspace
+- token ไม่ได้ผูกหรือยืนยันบัญชี Claude/OpenAI
+- token เดียวกันใช้ได้ทั้ง Claude และ Codex ภายใน workspace เดียวกัน
+- การแยก tokenตาม client เป็นทางเลือกเพื่อ revoke/monitor แยกกัน ไม่ใช่ข้อกำหนด authorization
+- การเปลี่ยน folder ไม่เปลี่ยน identity ของ process ที่กำลังรันอยู่
+
+## Verification
+
+หลัง implement:
+
+1. รัน formatter
+2. รัน build
+3. รัน unit/integration/security tests ที่เกี่ยวข้อง
+4. รัน generated-client drift test
+5. Infrastructure/Security tests ที่ต้องใช้ Docker ต้องรันกับ Docker จริง
+6. ถ้า Docker ใช้ไม่ได้ ให้รายงานว่า test ใดยังไม่ได้รัน ห้ามอ้างว่าผ่าน
+7. ตรวจ git diff ว่าไม่มี secret, generated drift หรือ unrelated changes
+8. ตรวจว่า Domain ไม่มี PackageReference/ProjectReference ใหม่
+9. ตรวจว่า host ยังผ่าน OperationDispatcher/UseCaseExecutor และไม่ bypass authorization pipeline
+
+เมื่อเสร็จให้สรุปเป็นภาษาไทย:
+
+- root cause
+- architecture ที่เปลี่ยน
+- migration และผลกระทบต่อ token เก่า
+- files สำคัญที่แก้
+- tests ที่รันพร้อมผลจริง
+- security limitations ที่ยังเหลือ
+- ขั้นตอนที่ผู้ใช้ต้องทำเพื่อ mint token ใหม่และตั้งค่าแต่ละ workspace

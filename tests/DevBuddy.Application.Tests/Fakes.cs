@@ -330,27 +330,35 @@ internal sealed class FakePorts :
     }
 
     public Task<MachineTokenIssued> IssueAsync(
-        UserId userId, string name, TimeSpan lifetime, CancellationToken cancellationToken)
+        UserId userId,
+        WorkspaceId workspaceId,
+        string name,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken)
     {
         Touch();
-        return Task.FromResult(
-            new MachineTokenIssued(MachineTokenId.New(), "machine-token", TestData.Now.AddDays(90)));
+        return Task.FromResult(new MachineTokenIssued(
+            MachineTokenId.New(), workspaceId, "machine-token", TestData.Now.AddDays(90)));
     }
 
-    public Task<UserId?> ResolveAsync(string token, CancellationToken cancellationToken)
+    public Task<MachineTokenIdentity?> ResolveAsync(string token, CancellationToken cancellationToken)
     {
         Touch();
-        return Task.FromResult<UserId?>(null);
+        return Task.FromResult<MachineTokenIdentity?>(null);
     }
 
     public Task<IReadOnlyList<MachineTokenSummary>> ListAsync(
-        UserId userId, CancellationToken cancellationToken)
+        UserId userId, WorkspaceId workspaceId, CancellationToken cancellationToken)
     {
         Touch();
         return Task.FromResult<IReadOnlyList<MachineTokenSummary>>([]);
     }
 
-    public Task<bool> RevokeAsync(UserId userId, MachineTokenId id, CancellationToken cancellationToken)
+    public Task<bool> RevokeAsync(
+        UserId userId,
+        WorkspaceId workspaceId,
+        MachineTokenId id,
+        CancellationToken cancellationToken)
     {
         Touch();
         return Task.FromResult(true);

@@ -418,21 +418,56 @@ describe("plugin access", () => {
 
     expect(await screen.findByText("Work laptop")).toBeDefined();
 
-    fireEvent.change(await screen.findByPlaceholderText("Work laptop, Codex"), {
-      target: { value: "Codex" },
+    fireEvent.change(await screen.findByPlaceholderText("Work laptop"), {
+      target: { value: "Second laptop" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Mint" }));
 
     await waitFor(() => expect(server.called("issue_machine_token")).toBeDefined());
     expect(await screen.findByText("the-token-shown-exactly-once")).toBeDefined();
+
+    // Minted for the workspace in the route, and for no other. Nothing on the page asks which
+    // one, because there is nothing to ask: it is where you already are.
+    expect(
+      (server.called("issue_machine_token")?.body as { workspaceId: string }).workspaceId,
+    ).toBe(WORKSPACE);
+  });
+
+  test("the page says the token is limited to this workspace", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/plugin-access`));
+
+    expect(
+      await screen.findByText(/in this workspace and no other/i),
+    ).toBeDefined();
+
+    // And that the assistant holding it is not what the token identifies.
+    expect(await screen.findByText(/works in Claude and in Codex/i)).toBeDefined();
+  });
+
+  test("a token from before workspace scoping is shown as needing replacement", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/plugin-access`));
+
+    expect(await screen.findByText("Old desktop")).toBeDefined();
+    expect(await screen.findByText("Needs replacing")).toBeDefined();
+
+    // It cannot be repaired — only a hash was ever stored — so the page has to say what to do
+    // instead, rather than leaving somebody waiting for it to start working again.
+    expect(await screen.findByText(/no longer works/i)).toBeDefined();
   });
 
   test("a token can be revoked", async () => {
     signedIn();
     render(mount(`/w/${WORKSPACE}/plugin-access`));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Revoke" }));
+    // One per row: the live token, and the leftover that needs replacing. A row nobody can tidy
+    // away is a row that stays on the page for ever.
+    const buttons = await screen.findAllByRole("button", { name: "Revoke" });
+    expect(buttons.length).toBe(2);
+
+    fireEvent.click(buttons[0]!);
 
     await waitFor(() => expect(server.called("revoke_machine_token")).toBeDefined());
   });
