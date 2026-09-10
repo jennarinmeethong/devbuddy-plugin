@@ -122,6 +122,41 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
+## Verifying the release workflow itself, without cutting a release
+
+Every action in `.github/workflows/release.yml` was bumped a major version after `v1.1.0` (the
+Node 20 deprecation), and four of them are reachable **only** from that workflow, so CI could not
+touch them: `download-artifact`, `attest-build-provenance`, `attest`, and `action-gh-release`.
+Three are on the SB-29 path. Reading their `action.yml` at the target tag confirms the inputs still
+exist; it does not confirm the workflow runs.
+
+**The way to confirm it is a throwaway prerelease tag.** `v1.1.1-rc.1` from `23216fd`, run
+34474906604, 2026-09-10. All 14 jobs passed, the Node 20 warning was gone, and the four
+release-only actions worked: eight archives and the SBOMs collected, three images pushed and
+attested, a draft created with 12 assets. Attestations verified from outside the workflow for all
+three images, including the SBOM predicate at `https://cyclonedx.org/bom` with the same 36
+components as `v1.1.0`'s API image.
+
+It also found two things reading could not, which is the entire argument for doing it this way.
+
+| Found | What it was |
+| --- | --- |
+| `actions/attest-sbom` is deprecated | It had been invisible at `@v1`; bumping to `@v4` surfaced the notice. Migrated to `actions/attest@v4`, which takes `sbom-path` directly — a rename, and `predicate-type` must not be set alongside it. |
+| A prerelease draft was not marked as one | `action-gh-release` was given `draft: true` and never `prerelease`, so the `v1.1.1-rc.1` draft carried `prerelease=false`. Publishing it would have made a release candidate the repository's Latest release ahead of `v1.1.0`. Now derived from the hyphen in the tag. |
+
+And one thing it confirmed rather than found: **the moving container tag was not hijacked.**
+`docker/metadata-action` skips `{{major}}.{{minor}}` for a prerelease, so `1.1` still pointed at
+`v1.1.0`'s digest (`sha256:05645a37…`) after the rc run, while the rc got its own
+(`sha256:39f3122e…`). Had it moved, anybody pinned to `1.1` would have been served a release
+candidate without asking for one.
+
+Do this before the next real tag whenever `release.yml` changes. The rc tag and its draft are
+deleted afterwards; the GHCR image tags it pushes are left, because deleting a package version is
+a separate permission and not worth the reach.
+
+**Both fixes above are themselves unverified** — they landed after that run. The next `release.yml`
+change to be proved is this one.
+
 ## What was verified for v1.1.0
 
 Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **draft, not published**, 2026-09-10.

@@ -275,8 +275,13 @@ jobs:
 
       # Attached to the image it describes rather than to a tarball holding all three hosts, so
       # "which dependencies are in the thing I am running" has one unambiguous answer.
+      #
+      # `actions/attest`, not `actions/attest-sbom`: the latter is deprecated, which the
+      # v1.1.1-rc.1 run said out loud the moment it was bumped off @v1. This is the rename and
+      # nothing more — `sbom-path` is an input of `attest` itself, it still derives the CycloneDX
+      # predicate from the document, and `predicate-type` must NOT be set alongside it.
       - name: Attest the SBOM
-        uses: actions/attest-sbom@v4
+        uses: actions/attest@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ github.repository }}/devbuddy-${{ matrix.image }}
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -332,6 +337,17 @@ jobs:
             sbom/*.json
           fail_on_unmatched_files: true
           generate_release_notes: true
+
+          # A semver prerelease is marked as one. Without this the draft cut from a tag like
+          # v1.1.1-rc.1 carried prerelease=false, so pressing publish on it would have made a
+          # release candidate the repository's "Latest" release, ahead of the real one. Observed
+          # on the v1.1.1-rc.1 draft; the hyphen is what semver uses to say prerelease, and it is
+          # the only thing distinguishing the two here.
+          #
+          # The container tags were already safe: docker/metadata-action skips the moving
+          # {{major}}.{{minor}} tag for a prerelease, so 1.1 stayed on v1.1.0 through that run.
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
+
           # Left as a draft on purpose. docs/operations/release-matrix.md asks for smoke tests on
           # platforms no runner has and a destroy-and-restore drill performed by hand; a release
           # that published itself would be claiming those happened. A person records what was
