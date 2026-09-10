@@ -154,8 +154,18 @@ Do this before the next real tag whenever `release.yml` changes. The rc tag and 
 deleted afterwards; the GHCR image tags it pushes are left, because deleting a package version is
 a separate permission and not worth the reach.
 
-**Both fixes above are themselves unverified** — they landed after that run. The next `release.yml`
-change to be proved is this one.
+**Both fixes were then proved the same way.** `v1.1.1-rc.2` from `3c78cb8`, run 34477446655,
+2026-09-10. All 14 jobs passed and the run carried **no annotations at all** — the `attest-sbom`
+deprecation notice is gone, and so is the Node 20 one.
+
+| Claim | Result |
+| --- | --- |
+| `actions/attest@v4` still produces a verifiable CycloneDX attestation | **Yes**, on all three images, verified from outside the workflow: predicate `https://cyclonedx.org/bom` with 36, 38 and 56 components for the API, the MCP server and the console — the same figures `attest-sbom` produced, so the migration changed the action and not the artefact. |
+| Provenance is unaffected | **Yes.** `https://slsa.dev/provenance/v1` verifies, and a deliberately wrong `--owner` is still refused. |
+| A prerelease draft is marked as one | **Yes.** `prerelease=true`, where rc.1's draft was `false`. `v1.1.0` stayed Latest throughout. |
+| The moving tag is still not hijacked | **Yes.** `1.1` still points at `sha256:05645a37…`; rc.2 got `sha256:0958e327…`. |
+
+Both rc tags and their drafts are deleted. Their GHCR image tags are left, as above.
 
 ## What was verified for v1.1.0
 
