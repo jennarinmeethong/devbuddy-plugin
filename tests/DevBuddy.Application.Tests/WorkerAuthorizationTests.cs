@@ -69,7 +69,9 @@ public sealed class WorkerAuthorizationTests
     {
         // Unknown, revoked, expired, or issued before tokens carried a workspace all arrive here
         // as null. The answer is no run — never an anonymous or elevated fallback.
-        Assert.Null(WorkerCaller.FromMachineToken(null, "run-1"));
+        Assert.Null(WorkerCaller.FromMachineToken(null, "run-1", WorkerModelUse.None));
+        Assert.Null(WorkerCaller.FromMachineToken(
+            null, "run-1", WorkerModelUse.SendsContentToAModel));
     }
 
     [Fact]
@@ -77,7 +79,8 @@ public sealed class WorkerAuthorizationTests
     {
         MachineTokenIdentity identity = Token();
 
-        WorkerCaller caller = WorkerCaller.FromMachineToken(identity, "run-1")!;
+        WorkerCaller caller = WorkerCaller.FromMachineToken(
+            identity, "run-1", WorkerModelUse.SendsContentToAModel)!;
 
         Assert.Equal(identity.UserId, caller.Context.UserId);
         Assert.NotNull(caller.Context.Credential);
@@ -87,30 +90,66 @@ public sealed class WorkerAuthorizationTests
     }
 
     /// <summary>
-    /// The channel is not the worker's to pick, and this is the sharpest thing in the skeleton.
+    /// The channel follows whether the job touches a model, and this is the sharpest thing in the
+    /// skeleton.
     /// <para>
-    /// <see cref="AccessChannel.InternalSystem"/> skips the per-project AI access policy and the
-    /// SB-18 personal-data redaction, both of which the executor applies on the strength of the
-    /// channel alone. A worker running on it could read a project whose AI access nobody enabled
-    /// and hand the contents to a model — through an authorization service that answered every
-    /// question correctly, because the membership behind it is real.
+    /// A job that sends content to a model runs on <see cref="AccessChannel.Ai"/>, because that is
+    /// where the per-project AI access policy and the SB-18 redaction are attached — the executor
+    /// applies both on the strength of the channel alone. A worker on
+    /// <see cref="AccessChannel.InternalSystem"/> could otherwise read a project whose AI access
+    /// nobody enabled and hand the contents to a model, through an authorization service answering
+    /// every question correctly, because the membership behind it is real.
+    /// </para>
+    /// <para>
+    /// The other direction matters just as much and is why this is not simply "workers are AI".
+    /// The AI channel is an allow-list of eighteen operations, and every feature ADR-0013 proposed
+    /// — stale-record detection, source analysis, reindexing — needs a permission that is
+    /// <c>AiExposure.Denied</c>. A worker pinned to the AI channel could not do the work it exists
+    /// for.
     /// </para>
     /// </summary>
-    [Fact]
-    public void a_worker_always_runs_on_the_ai_channel()
+    [Theory]
+    [InlineData(WorkerModelUse.SendsContentToAModel, AccessChannel.Ai)]
+    [InlineData(WorkerModelUse.None, AccessChannel.InternalSystem)]
+    public void the_channel_follows_what_the_job_declared_about_models(
+        WorkerModelUse modelUse, AccessChannel expected)
     {
-        WorkerCaller caller = WorkerCaller.FromMachineToken(Token(), "run-1")!;
+        WorkerCaller caller = WorkerCaller.FromMachineToken(Token(), "run-1", modelUse)!;
 
-        Assert.Equal(AccessChannel.Ai, caller.Context.Channel);
+        Assert.Equal(expected, caller.Context.Channel);
+    }
 
-        // And there is no way to ask for another. A channel parameter is the mistake this asserts
-        // the absence of.
+    [Fact]
+    public void a_worker_cannot_ask_for_a_channel_directly()
+    {
+        // The declaration is the only input. A channel parameter is the mistake this asserts the
+        // absence of, and the declaration lives on the job type so it cannot vary per run.
         Assert.DoesNotContain(
             typeof(WorkerCaller)
                 .GetMethod(nameof(WorkerCaller.FromMachineToken))!
                 .GetParameters()
                 .Select(parameter => parameter.ParameterType),
             type => type == typeof(AccessChannel));
+
+        Assert.NotNull(typeof(CallerBoundWorkerJob).GetProperty(nameof(CallerBoundWorkerJob.ModelUse)));
+    }
+
+    /// <summary>
+    /// A job that declared it touches no model, and then reaches for one. The declaration bought
+    /// it the human-only operations its membership carries; it does not also buy it the model, and
+    /// the gateway is where that is enforced rather than trusted.
+    /// </summary>
+    [Fact]
+    public async Task a_job_that_declared_no_model_use_is_refused_the_embedding_provider()
+    {
+        WorkerCaller caller = WorkerCaller.FromMachineToken(Token(), "run-1", WorkerModelUse.None)!;
+        EmbeddingGateway gateway = new(new CleanScanner(), new CountingProvider());
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            caller, ["anything at all"], new WorkerBudget(10), CancellationToken.None);
+
+        Assert.True(outcome.Refused);
+        Assert.Contains("AI channel", outcome.Reason!, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -276,6 +315,236 @@ public sealed class WorkerAuthorizationTests
         Assert.True(report.Refused);
         Assert.Equal(0, report.CallsSpent);
         Assert.Equal("the budget is spent", report.Reason);
+    }
+
+    /// <summary>
+    /// The default, and the whole of what an installation that chose no provider gets: a refusal
+    /// that says so, never a silent no-op that leaves a caller believing an index exists.
+    /// </summary>
+    [Fact]
+    public async Task with_no_provider_configured_the_gateway_refuses_and_says_why()
+    {
+        EmbeddingGateway gateway = new(new CleanScanner());
+
+        Assert.False(gateway.IsConfigured);
+        Assert.Null(gateway.ProviderDescription);
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            AiCaller(), ["some text"], new WorkerBudget(1), CancellationToken.None);
+
+        Assert.True(outcome.Refused);
+        Assert.Contains("no embedding provider", outcome.Reason!, StringComparison.Ordinal);
+        Assert.Contains("Full-text search is unaffected", outcome.Reason!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// ADR-0012's first point, as an assertion: embedding text is egress, so SB-17 applies
+    /// <b>before</b> it leaves. A vector cannot be scanned after the fact, which is why scanning
+    /// the response would be scanning the wrong copy.
+    /// </summary>
+    [Fact]
+    public async Task a_secret_is_refused_before_anything_is_sent()
+    {
+        CountingProvider provider = new();
+        EmbeddingGateway gateway = new(new ScannerThatFinds("connection-string"), provider);
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            AiCaller(),
+            ["Host=db;Username=devbuddy;Password=hunter2"],
+            new WorkerBudget(10),
+            CancellationToken.None);
+
+        Assert.True(outcome.BlockedBySecretScan);
+        Assert.True(outcome.Refused);
+        Assert.Equal(["connection-string"], outcome.BlockingRules);
+
+        // The part that matters. Nothing left the boundary.
+        Assert.Equal(0, provider.Calls);
+    }
+
+    [Fact]
+    public async Task a_blocked_scan_names_its_rules_and_never_the_matched_text()
+    {
+        EmbeddingGateway gateway = new(
+            new ScannerThatFinds("assigned-secret"), new CountingProvider());
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            AiCaller(),
+            ["AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENG"],
+            new WorkerBudget(2),
+            CancellationToken.None);
+
+        Assert.Contains("assigned-secret", outcome.Reason!, StringComparison.Ordinal);
+        Assert.DoesNotContain("wJalrXUtnFEMIK7MDENG", outcome.Reason!, StringComparison.Ordinal);
+    }
+
+    /// <summary>A refused scan costs nothing: the budget is spent after the scan, not before.</summary>
+    [Fact]
+    public async Task a_blocked_scan_does_not_spend_the_budget()
+    {
+        WorkerBudget budget = new(1);
+
+        EmbeddingGateway gateway = new(
+            new ScannerThatFinds("high-entropy-string"), new CountingProvider());
+
+        await gateway.EmbedAsync(AiCaller(), ["nope"], budget, CancellationToken.None);
+
+        Assert.Equal(0, budget.Spent);
+        Assert.Equal(1, budget.Remaining);
+    }
+
+    [Fact]
+    public async Task an_exhausted_budget_refuses_the_call_rather_than_making_it()
+    {
+        CountingProvider provider = new();
+        EmbeddingGateway gateway = new(new CleanScanner(), provider);
+        WorkerBudget budget = new(1);
+
+        EmbeddingOutcome first = await gateway.EmbedAsync(
+            AiCaller(), ["one"], budget, CancellationToken.None);
+
+        EmbeddingOutcome second = await gateway.EmbedAsync(
+            AiCaller(), ["two"], budget, CancellationToken.None);
+
+        Assert.False(first.Refused);
+        Assert.True(second.Refused);
+        Assert.Contains("budget", second.Reason!, StringComparison.Ordinal);
+        Assert.Equal(1, provider.Calls);
+    }
+
+    /// <summary>
+    /// A provider that answered short dropped an input, and an index built from that is misaligned
+    /// against the records it claims to describe: every row after the gap describes the wrong
+    /// thing, and nothing about it looks wrong. Refused rather than trimmed.
+    /// </summary>
+    [Fact]
+    public async Task a_provider_that_returns_too_few_vectors_is_refused()
+    {
+        EmbeddingGateway gateway = new(new CleanScanner(), new ShortProvider());
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            AiCaller(), ["one", "two", "three"], new WorkerBudget(5), CancellationToken.None);
+
+        Assert.True(outcome.Refused);
+        Assert.Contains("misaligned", outcome.Reason!, StringComparison.Ordinal);
+        Assert.Empty(outcome.Vectors);
+    }
+
+    [Fact]
+    public async Task an_empty_request_embeds_nothing_and_costs_nothing()
+    {
+        CountingProvider provider = new();
+        WorkerBudget budget = new(3);
+        EmbeddingGateway gateway = new(new CleanScanner(), provider);
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            AiCaller(), [], budget, CancellationToken.None);
+
+        Assert.False(outcome.Refused);
+        Assert.Empty(outcome.Vectors);
+        Assert.Equal(0, provider.Calls);
+        Assert.Equal(3, budget.Remaining);
+    }
+
+    [Fact]
+    public async Task a_clean_batch_comes_back_one_vector_per_text()
+    {
+        EmbeddingGateway gateway = new(new CleanScanner(), new CountingProvider());
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            AiCaller(), ["a", "b", "c"], new WorkerBudget(5), CancellationToken.None);
+
+        Assert.False(outcome.Refused);
+        Assert.Equal(3, outcome.Vectors.Count);
+    }
+
+    /// <summary>
+    /// The gateway is the only door. Anything else in the product holding
+    /// <see cref="IEmbeddingProvider"/> would be a second place for the scan and the channel check
+    /// to be missing, which is the same defect as a host reaching past the use-case pipeline.
+    /// </summary>
+    [Fact]
+    public void nothing_but_the_gateway_reaches_the_embedding_provider()
+    {
+        string obj = string.Concat(SEPARATOR, "obj", SEPARATOR);
+        string bin = string.Concat(SEPARATOR, "bin", SEPARATOR);
+
+        string[] offenders =
+        [
+            .. Directory
+                .EnumerateFiles(
+                    Path.Combine(RepositoryLayout.Root.FullName, "src"),
+                    "*.cs",
+                    SearchOption.AllDirectories)
+                .Where(file => !file.Contains(obj, StringComparison.Ordinal)
+                    && !file.Contains(bin, StringComparison.Ordinal))
+                .Where(file => File.ReadAllText(file)
+                    .Contains("IEmbeddingProvider", StringComparison.Ordinal))
+                .Select(Path.GetFileName)
+                .Where(name => name is not "IEmbeddingProvider.cs"
+                    and not "EmbeddingGateway.cs"
+                    and not "HttpEmbeddingProvider.cs"
+                    and not "DependencyInjection.cs")
+                .Cast<string>()
+        ];
+
+        Assert.True(
+            offenders.Length == 0,
+            "Only EmbeddingGateway may reach IEmbeddingProvider: it is where the SB-17 scan runs "
+            + "before text leaves and where the channel is checked. Found it in: "
+            + string.Join(", ", offenders));
+    }
+
+    private static readonly string SEPARATOR = Path.DirectorySeparatorChar.ToString();
+
+    private static WorkerCaller AiCaller() =>
+        WorkerCaller.FromMachineToken(Token(), "run-1", WorkerModelUse.SendsContentToAModel)!;
+
+    private sealed class CleanScanner : ISecretScanner
+    {
+        public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken) =>
+            Task.FromResult(SecretScanResult.Clean);
+    }
+
+    private sealed class ScannerThatFinds(string rule) : ISecretScanner
+    {
+        public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken) =>
+            Task.FromResult(new SecretScanResult([new SecretFinding(rule, 1, 8)]));
+    }
+
+    private sealed class CountingProvider : IEmbeddingProvider
+    {
+        public int Calls { get; private set; }
+
+        public string Description => "a fake, in a test";
+
+        public int Dimensions => 4;
+
+        public bool LeavesTheBoundary => false;
+
+        public Task<EmbeddingResult> EmbedAsync(
+            IReadOnlyList<string> texts, CancellationToken cancellationToken)
+        {
+            Calls++;
+
+            return Task.FromResult(new EmbeddingResult(
+                [.. texts.Select(_ => new ReadOnlyMemory<float>([0f, 0f, 0f, 0f]))], 1));
+        }
+    }
+
+    /// <summary>Answers with one vector fewer than it was asked for.</summary>
+    private sealed class ShortProvider : IEmbeddingProvider
+    {
+        public string Description => "a fake that drops an input";
+
+        public int Dimensions => 4;
+
+        public bool LeavesTheBoundary => true;
+
+        public Task<EmbeddingResult> EmbedAsync(
+            IReadOnlyList<string> texts, CancellationToken cancellationToken) =>
+            Task.FromResult(new EmbeddingResult(
+                [.. texts.Skip(1).Select(_ => new ReadOnlyMemory<float>([0f, 0f, 0f, 0f]))], 1));
     }
 
     private static IEnumerable<Type> InstallationJobs() =>

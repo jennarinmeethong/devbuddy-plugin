@@ -1303,14 +1303,20 @@ ADR fixes the constraints an implementation must satisfy; it is not authorisatio
   out of the boundary that did not exist then needs its own. The self-hosted mode sends no text
   out and therefore has no third egress path, though a secret still may not be embedded into a
   local index either — that index is a data copy SB-27 already covers.
-- **The worker's authorization skeleton is begun.** `DevBuddy.Application/Workers/` holds the two
-  permitted job types, a `WorkerCaller` obtainable only by resolving a real machine token, and a
-  budget that refuses rather than throttles. Nothing in it calls a model.
-  `WorkerAuthorizationTests` is eighteen cases enforcing the boundary by allow-list, mutation-
-  checked against a job that deliberately reaches too far. One decision came out of building it:
-  **a worker always runs on the AI channel and cannot ask for another**, because
-  `AccessChannel.InternalSystem` skips the per-project AI policy and the SB-18 redaction, so a
-  worker on it could read a project whose AI access nobody enabled and feed it to a model.
+- **The worker's authorization skeleton, the first job, and the embedding adapter are built.**
+  `DevBuddy.Application/Workers/` holds the two permitted job types and no third, a `WorkerCaller`
+  obtainable only by resolving a real machine token, a budget that refuses rather than throttles,
+  the `stale-record-sweep` job, and `EmbeddingGateway`. What does not exist is a vector index, a
+  schedule, or any enabled provider.
+- **ADR-0013 needed an amendment, found by writing the job rather than by re-reading the ADR.**
+  Pinning every worker to the AI channel was sound about the danger and too broad about the
+  remedy: that channel is also an allow-list of eighteen operations, and every feature the worker
+  was proposed for needs `ManageIndex` or `ManageSources`, both `AiExposure.Denied`. So **the
+  channel follows whether the job sends content to a model.** A job that does runs on the AI
+  channel; a job that does not runs on `InternalSystem`, still bounded by a real membership, which
+  `AuthorizationService` has always required regardless of channel. The declaration is on the job
+  type so it cannot vary per run, and a job that declared no model use and reaches for one is
+  refused by the gateway.
 
 Writing the ADRs before any of it was the point: the alternative is deciding the authorization
 model of a background job while already halfway through building one.
@@ -1403,8 +1409,12 @@ sweep is scheduled by the stack, `linux/arm64` images are built and started, tok
 written to a log unless an operator asks, and the four unrun platforms keep shipping with the
 release notes saying so.
 
-What is left is 12C's features, not its foundations. Both ADRs are confirmed, the embedding
-provider is settled as a port with two modes off by default, and the worker's authorization
-skeleton is built and tested. What nobody has written is a job that does anything, an embedding
-adapter, or a vector index — and the hosted embedding mode may not be switched on in a deployment
-without the vendor named, an outbound allow-list entry, and an acceptance of its own.
+What is left is a vector index and a schedule. Both ADRs are confirmed, the embedding provider is
+settled as a port with two modes off by default, the worker's authorization skeleton is built, the
+first job (`stale-record-sweep`, which touches no model) runs through the ordinary dispatcher, and
+the embedding adapter exists behind a gateway that scans before text leaves.
+
+What nobody has written: a `pgvector` migration, a similarity query, anything that reads a vector
+back, a job that embeds, or a schedule to run any of it. No provider is enabled anywhere, and the
+hosted mode may not be switched on in a deployment without the vendor named, an outbound allow-list
+entry, and an acceptance of its own.

@@ -1,9 +1,11 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Workers;
 using DevBuddy.Infrastructure.Administration;
 using DevBuddy.Infrastructure.Analysis;
 using DevBuddy.Infrastructure.Email;
+using DevBuddy.Infrastructure.Embeddings;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
 using DevBuddy.Infrastructure.Observability;
@@ -45,7 +47,8 @@ public static class DependencyInjection
         Action<ExportOptions>? configureExport = null,
         Action<EmailOptions>? configureEmail = null,
         Action<GitHubOptions>? configureGitHub = null,
-        Action<LogFileOptions>? configureLogFile = null)
+        Action<LogFileOptions>? configureLogFile = null,
+        Action<EmbeddingOptions>? configureEmbedding = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -154,6 +157,66 @@ public static class DependencyInjection
         services.AddSingleton<UrlGuard>();
 
         services.AddEvidenceStorage(configureEvidence);
+        services.AddEmbeddings(configureEmbedding, configureOutbound);
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the embedding port, or registers nothing.
+    /// <para>
+    /// ADR-0012 as amended: one port, two modes, off by default. With
+    /// <see cref="EmbeddingProviderKind.None"/> — the default — no <see cref="IEmbeddingProvider"/>
+    /// is registered at all, and <see cref="EmbeddingGateway"/> answers every call with a refusal
+    /// naming that. An installation that wants none of this pays nothing, exports nothing, and
+    /// behaves exactly as v1 did.
+    /// </para>
+    /// <para>
+    /// A misconfigured provider is refused <b>here</b>, at composition, rather than at the first
+    /// call. The one that matters is a hosted provider whose host nobody added to
+    /// <c>OutboundAccess:AllowedHosts</c>: `info.md` requires that entry as the deliberate
+    /// statement that a vendor may receive project text, and a deployment that discovered the
+    /// omission at the first call would have discovered it by trying to send.
+    /// </para>
+    /// </summary>
+    private static IServiceCollection AddEmbeddings(
+        this IServiceCollection services,
+        Action<EmbeddingOptions>? configureEmbedding,
+        Action<OutboundAccessOptions>? configureOutbound)
+    {
+        EmbeddingOptions embedding = new();
+        configureEmbedding?.Invoke(embedding);
+
+        // The gateway is always present. It is the only door to a provider, and a door that
+        // disappeared when the room behind it was empty would push every caller into checking
+        // whether it exists before asking.
+        services.AddScoped<EmbeddingGateway>(provider => new EmbeddingGateway(
+            provider.GetRequiredService<ISecretScanner>(),
+            provider.GetService<IEmbeddingProvider>()));
+
+        if (embedding.Provider == EmbeddingProviderKind.None)
+        {
+            return services;
+        }
+
+        OutboundAccessOptions outbound = new();
+        configureOutbound?.Invoke(outbound);
+
+        IReadOnlyList<string> problems = embedding.Problems(outbound.AllowedHosts);
+
+        if (problems.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "The embedding provider is configured but not usable:"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, problems.Select(problem => "  - " + problem)));
+        }
+
+        if (configureEmbedding is not null)
+        {
+            services.Configure(configureEmbedding);
+        }
+
+        services.AddHttpClient<IEmbeddingProvider, HttpEmbeddingProvider>();
         return services;
     }
 

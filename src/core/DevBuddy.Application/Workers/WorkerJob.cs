@@ -55,6 +55,17 @@ public abstract class CallerBoundWorkerJob : IWorkerJob
     public abstract string Name { get; }
 
     /// <summary>
+    /// Whether this job sends content to a model, which decides the channel its caller runs on.
+    /// <para>
+    /// A property of the job and not an argument to the run, so it cannot be chosen per call. See
+    /// <see cref="WorkerModelUse"/> for why the channel turns on this and not on being a worker,
+    /// and for what stops a job that declares <see cref="WorkerModelUse.None"/> and reaches for a
+    /// model anyway.
+    /// </para>
+    /// </summary>
+    public abstract WorkerModelUse ModelUse { get; }
+
+    /// <summary>
     /// Runs once, as <paramref name="caller"/>, spending from <paramref name="budget"/>.
     /// <para>
     /// Implementations call use cases through the ordinary executor or dispatcher. They must not

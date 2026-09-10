@@ -1,6 +1,7 @@
 using DevBuddy.Infrastructure.Administration;
 using DevBuddy.Infrastructure.Analysis;
 using DevBuddy.Infrastructure.Email;
+using DevBuddy.Infrastructure.Embeddings;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
 using DevBuddy.Infrastructure.Observability;
@@ -50,7 +51,8 @@ public static class HostComposition
             export => configuration.GetSection(ExportOptions.SectionName).Bind(export),
             email => configuration.GetSection(EmailOptions.SectionName).Bind(email),
             github => configuration.GetSection(GitHubOptions.SectionName).Bind(github),
-            logFile => configuration.GetSection(LogFileOptions.SectionName).Bind(logFile));
+            logFile => configuration.GetSection(LogFileOptions.SectionName).Bind(logFile),
+            embedding => configuration.GetSection(EmbeddingOptions.SectionName).Bind(embedding));
 
         services.AddDevBuddyIdentity(
             identity => configuration.GetSection(IdentitySettings.SectionName).Bind(identity));

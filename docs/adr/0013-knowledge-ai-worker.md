@@ -70,6 +70,42 @@ GitHub API mode. An LLM or embedding API means per-call spend on a loop nobody i
 bounded budget and a refusal when it is exhausted are part of this decision, not an operational
 afterthought. Embedding generation additionally depends on ADR-0012, which is itself unapproved.
 
+## Amendment — 2026-09-10: the channel follows the model, not the worker
+
+Found by writing the first job, which is the only way this kind of thing is ever found.
+
+The decision above says a caller-bound worker is "bounded by it exactly like any other caller", and
+the first reading of that put every worker on `AccessChannel.Ai` — the strictest channel, and the
+only one where the per-project AI access policy and the SB-18 personal-data redaction apply. That
+reasoning was sound and the conclusion was too broad.
+
+**The AI channel is also an allow-list of eighteen operations.** Every feature this ADR proposes —
+scheduled source analysis, stale-record detection, embedding generation — needs `ManageIndex` or
+`ManageSources`, and both are `AiExposure.Denied`. A worker pinned to the AI channel can search,
+read, analyse and create a draft, and nothing else. It cannot do the work it was proposed for. The
+two halves of this ADR contradicted each other and nobody noticed until there was a job to run.
+
+**The resolution: the channel follows whether the job sends content to a model.**
+
+- A job that sends content to an LLM or an embedding provider runs on `AccessChannel.Ai`, because
+  that is where the controls protecting that act live.
+- A job that touches no model runs on `AccessChannel.InternalSystem` — still holding a real
+  machine token, still bounded by a live membership, a role, and the credential's workspace
+  ceiling. What it is not subject to are AI-specific rules about a model it never calls.
+
+`AccessChannel.InternalSystem` existed since Phase 2 and had never been used by product code. It
+is worth stating why it is safe to use now: `AuthorizationService` does **not** special-case it.
+An `InternalSystem` caller needs an existing account, an enabled account, a live membership
+covering the scope, and a role carrying the permission, exactly like a human. The channel decides
+which AI-specific rules apply on top, and nothing else.
+
+Two things keep this from becoming a loophole:
+
+- **The declaration is on the job type**, not on a call, so it cannot vary per run.
+- **A job that declared no model use and then reaches for a model is refused.** `EmbeddingGateway`
+  takes a caller and rejects one that is not on the AI channel. Declaring no model use buys a job
+  the human-only operations its membership carries; it does not also buy it the model.
+
 ## Consequences
 
 - Stale-record detection, recurring handover reports, and scheduled source analysis become possible

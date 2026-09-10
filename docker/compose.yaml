@@ -237,6 +237,18 @@ services:
       # whoever sets this is accepting that anything able to read the log volume can use the
       # tokens in it.
       DEVBUDDY_Email__AllowTokensInLog: ${DEVBUDDY_EMAIL_ALLOW_TOKENS_IN_LOG:-false}
+
+      # Embeddings. None by default, which registers no provider at all: full-text search is what
+      # v1 shipped and is complete on its own. SelfHosted points at a model inside this deployment
+      # and sends no project text out of it; HostedApi sends project text to a vendor and is a
+      # third egress path, so it refuses to start unless its host is also named in
+      # OutboundAccess:AllowedHosts. See ADR-0012 and info.md before setting that one.
+      DEVBUDDY_Embedding__Provider: ${DEVBUDDY_EMBEDDING_PROVIDER:-None}
+      DEVBUDDY_Embedding__Endpoint: ${DEVBUDDY_EMBEDDING_ENDPOINT:-}
+      DEVBUDDY_Embedding__Model: ${DEVBUDDY_EMBEDDING_MODEL:-}
+      DEVBUDDY_Embedding__ApiKey: ${DEVBUDDY_EMBEDDING_API_KEY:-}
+      DEVBUDDY_Embedding__Dimensions: ${DEVBUDDY_EMBEDDING_DIMENSIONS:-0}
+      DEVBUDDY_Embedding__BatchSize: ${DEVBUDDY_EMBEDDING_BATCH_SIZE:-32}
     volumes:
       # Read-only. Analysis reads a working copy and never writes to it, and the mount says so as
       # well as the code (SB-04).

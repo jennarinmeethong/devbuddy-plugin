@@ -11,8 +11,9 @@ repository.
   something new, add it there.
 - `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
   approved as of 2026-09-10: 12A and 12B are complete, and 12C's gate is met — ADR-0012 and
-  ADR-0013 are confirmed, the embedding provider is settled as a port with two modes off by
-  default, and the worker's authorization skeleton is built. No job, adapter or index exists yet.
+  ADR-0013 are confirmed (0013 amended the same day), the embedding provider is a port with two
+  modes off by default, and the worker, its first job and the embedding adapter are built. No
+  vector index and no schedule exist yet.
 
 ## Where the project is
 
@@ -27,7 +28,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 557 .NET tests and 36 web tests exist, and all of them pass in this environment —
+enforcement. 578 .NET tests and 36 web tests exist, and all of them pass in this environment —
 count them rather than trusting this sentence, which has been stale twice already: it sat at the
 release figure of 433 and 31 while both grew, and at 495 and 36 through Phase 12. `docs/plan.md`
 keeps the per-phase figures, and the ones under *v1 is released* are what passed at `v1.0.0`; they
@@ -135,19 +136,35 @@ boundary the 2026-09-10 acceptance does not cover. No default may turn it on. Th
 has no egress, and a secret still may not be embedded into a local index — that index is a data
 copy SB-27 covers.
 
-**The worker's authorization skeleton exists; nothing in it calls a model.**
-`DevBuddy.Application/Workers/` holds the two job types ADR-0013 permits and no third,
-`WorkerCaller` (obtainable only by resolving a real machine token — private constructor, one
-factory), and `WorkerBudget` (refuses rather than throttles, all-or-nothing spends, zero is a
-legitimate off switch). `WorkerAuthorizationTests` enforces the installation shape's reach by
-**allow-list** and is mutation-checked against a job that deliberately reaches too far.
+**The worker exists in `DevBuddy.Application/Workers/`: two job types and no third,
+`WorkerCaller` (private constructor, one factory taking a resolved machine token), `WorkerBudget`
+(refuses rather than throttles, all-or-nothing spends, zero is a legitimate off switch), the
+`stale-record-sweep` job, and `EmbeddingGateway`.** The installation shape's reach is enforced by
+**allow-list** and mutation-checked against a job that deliberately reaches too far.
 
-**A worker always runs on the AI channel and cannot ask for another.** This is the sharp bit and it
-is easy to get wrong: `AccessChannel.InternalSystem` skips the per-project AI access policy and the
-SB-18 personal-data redaction, both applied by the executor on the strength of the channel alone.
-A worker on that channel could read a project whose AI access nobody enabled and hand the contents
-to a model, through an authorization service answering every question correctly, because the
-membership behind it is real. `WorkerCaller.FromMachineToken` therefore takes no channel parameter.
+**A worker's channel follows whether the job sends content to a model — not whether it is a
+worker.** This is the sharp bit, and the first version of it was wrong in a way only writing a job
+revealed. A job that feeds a model runs on `AccessChannel.Ai`, because that is where the
+per-project AI access policy and the SB-18 redaction are applied, both on the strength of the
+channel alone. A job that touches no model runs on `AccessChannel.InternalSystem`, because **the AI
+channel is also an allow-list of eighteen operations** and everything a worker is for —
+`detect_staleness`, `sync_sources`, `reindex` — is `AiExposure.Denied`. `InternalSystem` is not a
+bypass: `AuthorizationService` has never special-cased it and still requires an enabled account, a
+live membership and a role carrying the permission. The declaration lives on the **job type** so it
+cannot vary per run, and a job that declared no model use and reaches for one is refused by the
+gateway.
+
+**`EmbeddingGateway` is the only door to `IEmbeddingProvider`, and an architecture test fails the
+build if anything else touches it.** It is where ADR-0012's rules are applied rather than
+described: **SB-17 scans before text leaves**, because a vector cannot be scanned afterwards and
+scanning the response would be scanning the wrong copy. It refuses four things — no provider
+configured, a caller off the AI channel, a secret in the text (nothing sent), and a provider that
+returned fewer vectors than it was given texts, since an index built from a short answer is
+misaligned against the records it describes and nothing about it looks wrong. A hosted provider
+**refuses to start** unless its host is in `OutboundAccess:AllowedHosts`.
+
+**What does not exist yet:** a `pgvector` migration, a similarity query, anything that reads a
+vector back, a job that embeds, and a schedule to run any job at all.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports

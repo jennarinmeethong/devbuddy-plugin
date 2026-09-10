@@ -15,9 +15,11 @@ Two documents govern the work and are read before changing anything:
   criteria. Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are closed
   (see `docs/plan.md`'s "Closing the v1 gaps" section and `CLAUDE.md`), and Phase 12 was approved
   on 2026-09-10: 12A and 12B are done, and 12C's gate is met — ADR-0012 and ADR-0013 are
-  confirmed, the embedding provider is settled as a port with two modes off by default, and the
-  worker's authorization skeleton is built in `DevBuddy.Application/Workers/`. **Enabling the
-  hosted embedding mode in a deployment stays gated**: the vendor named, an
+  confirmed (0013 amended the same day, so the channel follows whether a job feeds a model), the
+  embedding provider is a port with two modes off by default, and the worker, the
+  `stale-record-sweep` job and the embedding adapter are built in
+  `DevBuddy.Application/Workers/`. No vector index and no schedule exist. **Enabling the hosted
+  embedding mode in a deployment stays gated**: the vendor named, an
   `OutboundAccess:AllowedHosts` entry, and an acceptance of its own.
 
 ## Project Structure & Module Organization

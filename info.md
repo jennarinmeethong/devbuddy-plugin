@@ -1,5 +1,78 @@
 # Project Decisions
 
+## Confirmed Phase 12C Delivery — the first job and the embedding adapter — 2026-09-10
+
+Built on the ADRs confirmed the same day. Two things exist that did not, and one thing had to be
+corrected in a document already accepted.
+
+### The correction: a worker's channel follows the model, not the worker
+
+ADR-0013 is amended, and the amendment came out of writing the job rather than out of reading the
+ADR again. The earlier decision put every worker on the AI channel, on the sound reasoning that a
+worker feeding a model must not escape the per-project AI access policy or the SB-18 redaction.
+That conclusion was too broad: **the AI channel is also an allow-list of eighteen operations**, and
+every feature the worker was proposed for — stale-record detection, source analysis, embedding
+generation — needs `ManageIndex` or `ManageSources`, both `AiExposure.Denied`. A worker pinned to
+the AI channel could not do the work it exists for.
+
+- A job that **sends content to a model** runs on the AI channel, where the controls protecting
+  that act live.
+- A job that **touches no model** runs on `InternalSystem` — still holding a real machine token,
+  still bounded by a live membership, a role, and the credential's workspace ceiling.
+  `AuthorizationService` does not special-case that channel and never has, which is what makes it
+  safe to use.
+- The declaration lives on the **job type**, so it cannot vary per run, and a job that declared no
+  model use and then reaches for one is **refused by the embedding gateway**. Declaring no model
+  use buys a job the human-only operations its membership carries; it does not also buy it the
+  model.
+
+### The first job: `stale-record-sweep`
+
+Caller-bound, touches no model, spends nothing, writes nothing, publishes nothing. It finds
+knowledge nobody has touched in a while, in every project the worker's membership actually reaches.
+
+It **reimplements nothing**: `detect_staleness` has existed since Phase 6 and is the operation that
+answers this, so the job discovers which projects it may ask about and asks, through the ordinary
+dispatcher. A job that queried the repository itself would be a second place for authorization,
+redaction and audit to be got wrong. A project the credential cannot reach is reported as a
+refusal per project rather than thrown, because that tells an operator the token is narrower than
+the sweep they asked for.
+
+### The embedding adapter
+
+One port, one gateway, one HTTP adapter serving both modes, and **nothing registered when the
+provider is `None`** — which is the default.
+
+- **`EmbeddingGateway` is the only door to a provider**, and an architecture test fails the build
+  if anything else in the product references `IEmbeddingProvider`. It is where ADR-0012's rules are
+  applied rather than described: SB-17 scans **before** text leaves, because a vector cannot be
+  scanned afterwards and scanning the response would be scanning the wrong copy.
+- Four refusals, each for its own reason: no provider configured; a caller off the AI channel; a
+  secret in the text, with nothing sent; and a provider that answered with fewer vectors than it
+  was given texts, because an index built from a short answer is misaligned against the records it
+  claims to describe and nothing about it looks wrong.
+- **A hosted provider refuses to start** unless its host is named in
+  `OutboundAccess:AllowedHosts`. Refused at composition rather than at the first call: a deployment
+  that discovered the omission later would have discovered it by trying to send.
+- One HTTP adapter for both modes, because the self-hosted servers worth pointing at and the
+  hosted APIs all speak the same `/embeddings` shape. What the modes do not share — whether project
+  text leaves the building — is expressed as `LeavesTheBoundary` and as the startup refusal above,
+  not as a branch inside the adapter.
+- No retry. A provider that is down is a run that reports a refusal and tries again on its next
+  schedule; a retry loop inside a paid call is a bill nobody authorised.
+
+### What still does not exist
+
+- **No vector index.** No `pgvector` migration, no similarity query, nothing reads a vector back.
+  The adapter can produce vectors and there is nowhere to put them yet.
+- **No job embeds anything.** The first job deliberately touches no model.
+- **No provider is enabled anywhere**, and turning the hosted mode on in a deployment remains the
+  separate decision recorded above: the vendor named, the allow-list entry, and an acceptance of
+  its own.
+- **No schedule.** Nothing runs a job yet. A schedule belongs beside the retention service in
+  `docker/compose.yaml`, off unless configured.
+
+
 ## Confirmed Phase 12C ADRs — 2026-09-10
 
 The project owner confirms **ADR-0012** (embeddings and vector search) and **ADR-0013** (the

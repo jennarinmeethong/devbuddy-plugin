@@ -21,6 +21,12 @@ namespace DevBuddy.Application.Workers;
 /// therefore touch nothing a person's permissions would gate. Anything between the two would be
 /// the installation-wide superuser this system has deliberately never had, running unattended.
 /// </para>
+/// <para>
+/// What this type does <b>not</b> decide is which permissions the caller has. Those come from the
+/// membership behind the token, granted and revocable through the ordinary interface, and a
+/// worker's reach is therefore something an administrator can see on the `Teams` screen and take
+/// away without touching a configuration file.
+/// </para>
 /// </summary>
 public sealed class WorkerCaller
 {
@@ -50,27 +56,40 @@ public sealed class WorkerCaller
     /// that could not resolve its credential has no business doing the work by another route.
     /// </para>
     /// <para>
-    /// The channel is <see cref="AccessChannel.Ai"/> and is not a parameter. A worker exists to
-    /// call an LLM or an embedding provider, and that is precisely the channel the AI controls are
-    /// attached to: the eighteen-operation allow-list, the per-project AI access policy, and the
-    /// SB-18 personal-data redaction. <see cref="AccessChannel.InternalSystem"/> would skip the
-    /// second and third of those, so a worker running on it could read a project whose AI access
-    /// nobody enabled and hand the contents to a model. That is not a channel a worker may pick.
+    /// The channel is derived from <paramref name="modelUse"/> and is never a free parameter. See
+    /// <see cref="WorkerModelUse"/> for why that is the axis: a job that sends content to a model
+    /// runs on <see cref="AccessChannel.Ai"/>, where the per-project AI access policy and the
+    /// SB-18 redaction apply; a job that touches no model runs on
+    /// <see cref="AccessChannel.InternalSystem"/>, still bounded by the credential and the
+    /// membership behind it, and able to reach the human-only operations that membership carries.
+    /// </para>
+    /// <para>
+    /// A job cannot pick its own channel per run, because the declaration lives on the job type.
+    /// And a job that declared <see cref="WorkerModelUse.None"/> and then reached for a model is
+    /// refused by the embedding gateway, which will not accept a caller off the AI channel.
     /// </para>
     /// </summary>
     /// <param name="identity">The result of <see cref="IMachineTokenService.ResolveAsync"/>.</param>
     /// <param name="requestId">Correlates the pipeline stages and the audit entry for this run.</param>
-    public static WorkerCaller? FromMachineToken(MachineTokenIdentity? identity, string requestId)
+    /// <param name="modelUse">What the job declared about touching a model.</param>
+    public static WorkerCaller? FromMachineToken(
+        MachineTokenIdentity? identity, string requestId, WorkerModelUse modelUse)
     {
         if (identity is null)
         {
             return null;
         }
 
+        AccessChannel channel = Guard.Defined(modelUse, nameof(modelUse)) switch
+        {
+            WorkerModelUse.SendsContentToAModel => AccessChannel.Ai,
+            _ => AccessChannel.InternalSystem,
+        };
+
         return new WorkerCaller(
             new CallerContext(
                 identity.UserId,
-                AccessChannel.Ai,
+                channel,
                 Guard.NotBlank(requestId, nameof(requestId)),
                 new CredentialScope(identity.TokenId, identity.WorkspaceId)),
             identity);
