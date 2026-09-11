@@ -106,6 +106,11 @@ public static class DependencyInjection
         services.AddScoped<IAccessDirectory, AccessDirectory>();
         services.AddScoped<IWorkspaceProvisioner, WorkspaceProvisioner>();
         services.AddScoped<ISearchIndex, PostgresSearchIndex>();
+
+        // Always registered, even where the table does not exist. IEmbeddingIndex answers that it
+        // is unavailable in that case, and a port that disappeared would push every caller into
+        // checking whether it had been registered before asking it anything.
+        services.AddScoped<IEmbeddingIndex, PostgresEmbeddingIndex>();
         services.AddScoped<EvidenceMetadataStore>();
 
         services.AddScoped<AuditStore>();

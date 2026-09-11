@@ -344,6 +344,42 @@ public sealed partial class DeploymentTests
         Assert.Contains("platforms: linux/amd64,linux/arm64", workflow, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The shipped database image carries no pgvector, and that has to stay true by default.
+    /// <para>
+    /// Turning it on is a data-directory migration and a larger, Debian-based image, so it is an
+    /// operator's decision rather than something an embedding setting drags in. The vector index
+    /// migration skips itself where the extension is absent, which is the case this default puts
+    /// every untouched deployment in.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void the_database_image_is_overridable_and_defaults_to_the_one_without_pgvector()
+    {
+        string image = Assert.Single(
+            BlockFor(ComposeLines(), "database:"),
+            line => line.TrimStart().StartsWith("image:", StringComparison.Ordinal));
+
+        Assert.Contains("DEVBUDDY_DB_IMAGE", image, StringComparison.Ordinal);
+        Assert.Contains(":-postgres:17-alpine}", image, StringComparison.Ordinal);
+        Assert.DoesNotContain("pgvector", image, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// And no embedding provider is switched on by a default. A hosted provider is a third egress
+    /// path and needs the vendor named, an outbound allow-list entry and an acceptance of its own;
+    /// a substitution default that quietly selected one would be all three of those skipped.
+    /// </summary>
+    [Fact]
+    public void no_embedding_provider_is_enabled_by_default()
+    {
+        string provider = Assert.Single(
+            BlockFor(ComposeLines(), "api:"),
+            line => line.TrimStart().StartsWith("DEVBUDDY_Embedding__Provider:", StringComparison.Ordinal));
+
+        Assert.Contains(":-None}", provider, StringComparison.Ordinal);
+    }
+
     private static string ComposeText() =>
         File.ReadAllText(Path.Combine(DockerDirectory().FullName, "compose.yaml"));
 

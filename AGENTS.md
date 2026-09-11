@@ -17,10 +17,11 @@ Two documents govern the work and are read before changing anything:
   on 2026-09-10: 12A and 12B are done, and 12C's gate is met — ADR-0012 and ADR-0013 are
   confirmed (0013 amended the same day, so the channel follows whether a job feeds a model), the
   embedding provider is a port with two modes off by default, and the worker, the
-  `stale-record-sweep` job and the embedding adapter are built in
-  `DevBuddy.Application/Workers/`. No vector index and no schedule exist. **Enabling the hosted
-  embedding mode in a deployment stays gated**: the vendor named, an
-  `OutboundAccess:AllowedHosts` entry, and an acceptance of its own.
+  `stale-record-sweep` job, the embedding adapter and the derived vector index are built. Nothing
+  calls the similarity query yet and no schedule exists. **Enabling the hosted embedding mode in a
+  deployment stays gated**: the vendor named, an `OutboundAccess:AllowedHosts` entry, and an
+  acceptance of its own. The vector index also needs a pgvector-capable database image, which the
+  default is not.
 
 ## Project Structure & Module Organization
 

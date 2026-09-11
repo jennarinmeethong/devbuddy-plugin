@@ -1,5 +1,86 @@
 # Project Decisions
 
+## Confirmed Phase 12C Delivery — the vector index and the similarity query — 2026-09-11
+
+The derived index ADR-0012 permits now exists, and a similarity query runs against it. Both
+constraints that mattered are enforced in SQL rather than described in a comment.
+
+### What the index is, and what it is not
+
+- **It holds no text.** A row is a workspace, a project, a record, a revision number, a content
+  hash, a model, a dimension count, and the vector. Nothing in it reads back as content, which
+  bounds what a mistake here could cost: the worst a wrongly scoped query could disclose is *which
+  record resembles a question*. That is still disclosure, and it is why the scope rule below is
+  absolute, but it is not the record.
+- **It is derived and droppable**, per ADR-0012 and the retention schedule. Everything in it is
+  rebuildable from the records it describes, which is why the migration's `Down` drops the table
+  without ceremony.
+
+### The two rules that are enforced, not documented
+
+- **Isolation is in the `where` clause.** Every method on the port takes a project scope and there
+  is no overload that does not. This table has no EF entity, therefore no global query filter, so
+  the mechanism that protects every other table protects nothing here. The test that proves it
+  seeds two projects with **identical** vectors and asks each: every numerical reason to return the
+  other project's row is present, and only the `where` clause refuses. A post-filter would have
+  computed and ranked both first.
+- **Vectors from two models are never compared.** The model is in the primary key and in the
+  query, and the dimension count is matched too. Comparing across models does not fail — it
+  returns a confident ranking of nonsense, which is the worst failure mode available. A model
+  renamed across an upgrade while changing its dimension is the case the dimension match catches,
+  and rows that cannot be compared are skipped rather than raising from a background sweep.
+
+### The pgvector constraint, and what it cost
+
+`pgvector` is an extension, and the image this stack ships with — `postgres:17-alpine` — does not
+carry it. An unguarded `create extension vector` would have failed inside `migrate`, which every
+deployment runs and which both servers wait on, so a stack that never asked for embeddings would
+have stopped starting.
+
+- **The migration is conditional.** It creates nothing where the extension is unavailable, and the
+  index reports itself absent there. Both sides are tested, each against the server it describes.
+- **The database image is now a setting**, `DEVBUDDY_DB_IMAGE`, defaulting to the image every
+  deployment has run so far. An installation turning embeddings on sets
+  `pgvector/pgvector:pg17` instead, which is a data-directory migration rather than a restart and
+  a larger, Debian-based image. A test fails if that default ever carries pgvector.
+- **The vector column has no declared dimension.** Committing it to one length at migration time
+  would commit the installation to one embedding model before anybody had chosen one. The cost is
+  that no approximate-search index can be built over it, so a similarity query is an exact scan
+  bounded by the scope filter — fine for a per-project knowledge base, and stated rather than left
+  to be discovered.
+
+### A deleted project takes its vectors with it
+
+`delete_project` now purges the index. It had to be added explicitly: the table has no EF entity,
+so no cascade and no query filter would have taken it, and a deleted project's vectors would have
+outlived the project, its records and its evidence, keyed by identifiers that no longer resolve.
+
+### A refinement to what "invalidate like a cache" means
+
+ADR-0012 says a permission change must invalidate the index the way it invalidates a cache.
+Building it showed that sentence to be imprecise in a way worth correcting rather than repeating.
+
+The index is **per project and never per user**. There is nothing user-specific in it to purge, so
+revoking a membership needs no sweep — what it needs is that every query carries a scope the
+pipeline has already authorised, which is the rule above. What genuinely does need a purge is
+**project deletion**, and that is now wired. Recorded here so a later reader does not go looking
+for an invalidation hook that would have had nothing to do.
+
+### What still does not exist
+
+- **Nothing calls the similarity query.** No operation, no endpoint, no screen, and no job. The
+  index can be written and queried; no caller can reach it yet.
+- **No job embeds anything.** Wiring one means a job on the AI channel, which is where the
+  per-project AI policy and the SB-18 redaction apply, and a decision about whether semantic search
+  belongs inside `search_knowledge` or beside it as its own operation. Extending the AI surface is
+  a separate decision and has not been taken.
+- **No provider is enabled anywhere**, and the hosted mode still needs the vendor named, an
+  outbound allow-list entry, and an acceptance of its own.
+- **The verification matrix still owes the embedding egress path its own rows.** ADR-0012 requires
+  them and they are deliberately unwritten: a `TESTED` row for a path nothing exercises end to end
+  would be the paper-ahead-of-evidence this project exists to avoid.
+
+
 ## Confirmed Phase 12C Delivery — the first job and the embedding adapter — 2026-09-10
 
 Built on the ADRs confirmed the same day. Two things exist that did not, and one thing had to be

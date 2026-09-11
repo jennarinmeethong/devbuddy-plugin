@@ -66,7 +66,16 @@ x-console-volumes: &console-volumes
 
 services:
   database:
-    image: postgres:17-alpine
+    # postgres:17-alpine by default, which is what every deployment has run so far and what the
+    # suite tests against. It does NOT carry pgvector, so the vector index migration skips itself
+    # there and IEmbeddingIndex reports the index as absent — full-text search is unaffected and
+    # nothing else notices (ADR-0012).
+    #
+    # An installation that turns embeddings on needs a pgvector-capable image instead:
+    #   DEVBUDDY_DB_IMAGE=pgvector/pgvector:pg17
+    # Changing this is a migration of the data directory, not a restart: take a backup first, and
+    # note pgvector/pgvector is Debian-based rather than Alpine, so the image is larger.
+    image: ${DEVBUDDY_DB_IMAGE:-postgres:17-alpine}
     restart: unless-stopped
     user: postgres
     environment:

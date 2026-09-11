@@ -1115,8 +1115,9 @@ watching three cross-workspace cases fail.
 
 ## Phase 12 — Post-v1: operational closure and the two deferred decisions
 
-**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and its authorization
-skeleton is built.** Phases 0 to 11 were
+**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and its foundations —
+the worker, the first job, the embedding adapter and the derived vector index — are built with no
+caller yet.** Phases 0 to 11 were
 approved as a sequence before any of them started; this one was written after v1 shipped and did
 not inherit that approval, so it was held as a draft until the project owner confirmed it the same
 way. That entry is *Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10*
@@ -1303,11 +1304,13 @@ ADR fixes the constraints an implementation must satisfy; it is not authorisatio
   out of the boundary that did not exist then needs its own. The self-hosted mode sends no text
   out and therefore has no third egress path, though a secret still may not be embedded into a
   local index either — that index is a data copy SB-27 already covers.
-- **The worker's authorization skeleton, the first job, and the embedding adapter are built.**
-  `DevBuddy.Application/Workers/` holds the two permitted job types and no third, a `WorkerCaller`
-  obtainable only by resolving a real machine token, a budget that refuses rather than throttles,
-  the `stale-record-sweep` job, and `EmbeddingGateway`. What does not exist is a vector index, a
-  schedule, or any enabled provider.
+- **The worker's authorization skeleton, the first job, the embedding adapter and the vector index
+  are built.** `DevBuddy.Application/Workers/` holds the two permitted job types and no third, a
+  `WorkerCaller` obtainable only by resolving a real machine token, a budget that refuses rather
+  than throttles, the `stale-record-sweep` job, and `EmbeddingGateway`. The index is
+  `PostgresEmbeddingIndex` behind `IEmbeddingIndex`, on a conditional migration that skips itself
+  where pgvector is absent. What does not exist is any **caller** for the similarity query, a
+  schedule, or an enabled provider.
 - **ADR-0013 needed an amendment, found by writing the job rather than by re-reading the ADR.**
   Pinning every worker to the AI channel was sound about the danger and too broad about the
   remedy: that channel is also an allow-list of eighteen operations, and every feature the worker
@@ -1409,12 +1412,19 @@ sweep is scheduled by the stack, `linux/arm64` images are built and started, tok
 written to a log unless an operator asks, and the four unrun platforms keep shipping with the
 release notes saying so.
 
-What is left is a vector index and a schedule. Both ADRs are confirmed, the embedding provider is
+What is left is a caller and a schedule. Both ADRs are confirmed, the embedding provider is
 settled as a port with two modes off by default, the worker's authorization skeleton is built, the
 first job (`stale-record-sweep`, which touches no model) runs through the ordinary dispatcher, and
 the embedding adapter exists behind a gateway that scans before text leaves.
 
-What nobody has written: a `pgvector` migration, a similarity query, anything that reads a vector
-back, a job that embeds, or a schedule to run any of it. No provider is enabled anywhere, and the
-hosted mode may not be switched on in a deployment without the vendor named, an outbound allow-list
-entry, and an acceptance of its own.
+The derived vector index exists too, as of 2026-09-11: a conditional `pgvector` migration that
+skips itself where the extension is absent, and a similarity query whose scope is a `where` clause
+and whose model and dimension are matched so two models are never compared. A deleted project
+purges its vectors.
+
+What nobody has written: **anything that calls the similarity query.** No operation, no endpoint,
+no screen, no job. Wiring one means a caller on the AI channel and a decision about whether
+semantic search belongs inside `search_knowledge` or beside it as an operation of its own, which
+extends the AI surface and has not been decided. No provider is enabled anywhere, the hosted mode
+may not be switched on without the vendor named, an outbound allow-list entry and an acceptance of
+its own, and the verification matrix still owes the embedding egress path rows of its own.

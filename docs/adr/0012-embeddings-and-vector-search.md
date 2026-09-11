@@ -87,6 +87,40 @@ So the mechanism is approved and the hosted mode is not pre-authorised. That is 
 arrangement `GitHubOptions.Mode = GitHubApi` already lives under: the adapter ships, and turning it
 on takes a token and a deliberate allow-list entry.
 
+## Amendment — 2026-09-11: what building the index changed
+
+Three things, all found by writing it.
+
+**"A permission change must invalidate the index the way it invalidates a cache" was imprecise.**
+The index is **per project and never per user**, so there is nothing user-specific in it for a
+revoked membership to purge. What a permission change needs is that every query carries a scope the
+pipeline has already authorised — which is the rule this ADR already states as isolation in the
+query, and which is now the only isolation this table has, because it has no EF entity and
+therefore no global query filter. What genuinely needs a purge is **project deletion**, and
+`delete_project` now does it. A later reader looking for an invalidation hook would have found
+nothing for it to do; this is why.
+
+**pgvector is an extension the shipped image does not carry.** `postgres:17-alpine` has no
+`vector`, and an unguarded `create extension vector` would have failed inside `migrate` — which
+every deployment runs and which both servers wait on. A stack that never asked for embeddings would
+have stopped starting. So the migration is conditional, creating nothing where the extension is
+unavailable, and the index reports itself absent there; both sides are tested, each against the
+server it describes. The database image became a setting (`DEVBUDDY_DB_IMAGE`) defaulting to the
+image every deployment already runs, and a test fails if that default ever carries pgvector.
+
+**The vector column has no declared dimension, and that is a trade rather than an oversight.**
+pgvector allows a bare `vector`; declaring `vector(1536)` at migration time would commit the
+installation to one embedding model before anybody had chosen one. The cost is that no HNSW or
+IVFFlat index can be built over the column, so a similarity query is an exact scan bounded by the
+scope filter. For a per-project knowledge base that is the right side of the trade, and an
+installation large enough to disagree commits to a model and adds its own index — the model and the
+dimension are on every row, so it can see what it would be committing to.
+
+One thing this ADR said that survived contact unchanged, and is worth recording as such: the index
+**holds no text**. A row is identifiers, a content hash, a model, a dimension count and a vector.
+The worst a wrongly scoped query could disclose is which record resembles a question, which is real
+disclosure and not the record.
+
 ## Consequences
 
 - A question phrased differently from the record that answers it becomes findable. That is the

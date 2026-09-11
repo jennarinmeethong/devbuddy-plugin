@@ -9,10 +9,16 @@ namespace DevBuddy.Infrastructure.Persistence.Search;
 /// <summary>
 /// PostgreSQL full-text search over record revisions, combined with structured filters.
 /// <para>
-/// No embeddings and no vector search in v1 (ADR-0003). The trade-off is real: this will miss a
-/// semantic match that an embedding would find. That is the stated decision, not an oversight,
-/// and a future vector index would be a derived index that can be dropped and rebuilt, never a
-/// source of truth.
+/// No embeddings here, and that is still true of this class: v1 shipped full-text search alone
+/// (ADR-0003), and it remains complete on its own. The trade-off is real — this misses a semantic
+/// match an embedding would find.
+/// </para>
+/// <para>
+/// Since Phase 12C there is a second retrieval path for installations that configure one:
+/// <c>PostgresEmbeddingIndex</c>, the derived vector index ADR-0012 permits. It is a separate
+/// class on purpose. This one is always present and needs nothing; that one needs the pgvector
+/// extension, a configured provider, and a scope on every query. Nothing has been folded into
+/// this class, so an installation with no provider runs exactly the code it always did.
 /// </para>
 /// </summary>
 internal sealed class PostgresSearchIndex(DevBuddyDbContext db) : ISearchIndex

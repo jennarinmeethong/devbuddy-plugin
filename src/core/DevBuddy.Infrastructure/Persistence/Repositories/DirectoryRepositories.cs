@@ -14,10 +14,12 @@ namespace DevBuddy.Infrastructure.Persistence.Repositories;
 /// The tenancy graph. Only ever returns the projects a named user is actually a member of, which
 /// is what narrows AI results to the requesting user rather than to the AI credential (SB-09).
 /// </summary>
-internal sealed class ProjectDirectory(DevBuddyDbContext db, IEvidenceBlobStore blobs) : IProjectDirectory
+internal sealed class ProjectDirectory(
+    DevBuddyDbContext db, IEvidenceBlobStore blobs, IEmbeddingIndex embeddings) : IProjectDirectory
 {
     private readonly DevBuddyDbContext _db = Guard.NotNull(db, nameof(db));
     private readonly IEvidenceBlobStore _blobs = Guard.NotNull(blobs, nameof(blobs));
+    private readonly IEmbeddingIndex _embeddings = Guard.NotNull(embeddings, nameof(embeddings));
 
     public async Task<IReadOnlyList<Project>> ListProjectsForUserAsync(
         WorkspaceId workspaceId, UserId userId, CancellationToken cancellationToken)
@@ -137,6 +139,16 @@ internal sealed class ProjectDirectory(DevBuddyDbContext db, IEvidenceBlobStore 
             .IgnoreQueryFilters()
             .Where(row => row.WorkspaceId == workspaceId && row.Id == projectId)
             .ExecuteDeleteAsync(cancellationToken);
+
+        // The derived vector index, last, and only where it exists (ADR-0012). It has no EF
+        // entity and therefore no cascade and no global query filter, so nothing else in this
+        // method would have taken it: a deleted project's vectors would have outlived the
+        // project, the records, and the evidence, in a table whose rows are keyed by record
+        // identifiers that no longer resolve.
+        //
+        // They hold no text, so what would have been left is which records used to resemble each
+        // other. That is still disclosure, and it is still cheaper to delete than to explain.
+        await _embeddings.PurgeProjectAsync(scope, cancellationToken);
     }
 }
 

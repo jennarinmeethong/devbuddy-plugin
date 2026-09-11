@@ -12,8 +12,8 @@ repository.
 - `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
   approved as of 2026-09-10: 12A and 12B are complete, and 12C's gate is met — ADR-0012 and
   ADR-0013 are confirmed (0013 amended the same day), the embedding provider is a port with two
-  modes off by default, and the worker, its first job and the embedding adapter are built. No
-  vector index and no schedule exist yet.
+  modes off by default, and the worker, its first job, the embedding adapter and the derived vector
+  index are built. Nothing calls the similarity query yet, and no schedule exists.
 
 ## Where the project is
 
@@ -163,8 +163,30 @@ returned fewer vectors than it was given texts, since an index built from a shor
 misaligned against the records it describes and nothing about it looks wrong. A hosted provider
 **refuses to start** unless its host is in `OutboundAccess:AllowedHosts`.
 
-**What does not exist yet:** a `pgvector` migration, a similarity query, anything that reads a
-vector back, a job that embeds, and a schedule to run any job at all.
+**The derived vector index exists: `PostgresEmbeddingIndex` behind `IEmbeddingIndex`.** Three
+things about it are easy to get wrong.
+
+- **Its migration is conditional, and must stay so.** `pgvector` is an extension and
+  `postgres:17-alpine` — the shipped image — does not carry it. An unguarded
+  `create extension vector` fails inside `migrate`, which every deployment runs and both servers
+  wait on, so a stack that never asked for embeddings would stop starting. `DEVBUDDY_DB_IMAGE`
+  selects `pgvector/pgvector:pg17` for an installation that wants it; the default must never carry
+  pgvector and a test enforces that.
+- **The table has no EF entity, so it has no global query filter.** The scope in every `where`
+  clause is the only isolation it has. There is no port method that can be called without a
+  `ProjectScope`, and the test that proves it seeds two projects with identical vectors so only the
+  `where` clause can refuse.
+- **The model and the dimension are matched on every query.** Comparing vectors across models does
+  not fail; it returns a confident ranking of nonsense. The column has no declared dimension on
+  purpose, so no approximate-search index can be built over it and a similarity query is an exact
+  scan bounded by the scope.
+
+`delete_project` purges the index explicitly, because no cascade would have taken it. The index
+holds **no text** — identifiers, a content hash, a model, a dimension and a vector.
+
+**What does not exist yet:** any **caller** for the similarity query (no operation, endpoint,
+screen or job), a job that embeds, a schedule to run any job at all, and the verification-matrix
+rows ADR-0012 requires for the embedding egress path.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports
@@ -311,7 +333,13 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 - **`CR` is banned.** Change Request and Code Review are separate record types. Write
   `change_request` and `code_review` in full, in code, schema, API, and UI.
 - **No SQLite.** PostgreSQL in development and production, and in tests via Testcontainers.
-- **No embeddings or vector search in v1.** PostgreSQL full-text search and structured filters only.
+- **Embeddings and vector search are post-v1, off by default, and gated.** v1 shipped full-text
+  search and structured filters alone, and an installation that configures no provider still runs
+  exactly that. The derived vector index (ADR-0012) is opt-in and needs the pgvector extension the
+  shipped `postgres:17-alpine` image does not carry, so its migration skips itself there and the
+  index reports as absent. **Enabling the hosted provider mode in a deployment needs the vendor
+  named, an `OutboundAccess:AllowedHosts` entry, and an acceptance of its own.** Never turn any of
+  it on by default.
 - **Warnings are errors.** Fix them rather than suppressing them.
 - **AI access is denied by default per project.** Nothing reaches the MCP tool surface unless it is
   added to the allow-list on purpose.
