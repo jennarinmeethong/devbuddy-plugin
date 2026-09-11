@@ -1115,9 +1115,10 @@ watching three cross-workspace cases fail.
 
 ## Phase 12 — Post-v1: operational closure and the two deferred decisions
 
-**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and its foundations —
-the worker, the first job, the embedding adapter and the derived vector index — are built with no
-caller yet.** Phases 0 to 11 were
+**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and everything but the
+schedule is built — the worker, two jobs, the embedding adapter, the derived vector index and the
+`search_similar_records` operation. No provider is enabled anywhere, so today all of it answers
+with a reason rather than doing anything.** Phases 0 to 11 were
 approved as a sequence before any of them started; this one was written after v1 shipped and did
 not inherit that approval, so it was held as a draft until the project owner confirmed it the same
 way. That entry is *Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10*

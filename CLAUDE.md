@@ -121,7 +121,7 @@ architecture**, because a manifest list can hold one image that drops root and o
 stay in the built-but-unverified tier with every release's notes saying they were never started.
 Confirmed as a decision, not left as a gap. Nobody may describe them as supported.
 
-**Phase 12C's ADRs are confirmed and its code is not written.** ADR-0012 (embeddings and vector
+**Phase 12C's ADRs are confirmed and everything but the schedule is written.** ADR-0012 (embeddings and vector
 search) and ADR-0013 (the `knowledge-ai-worker`) were confirmed in `info.md` on 2026-09-10, so
 their constraints are binding: **embedding text is egress**, so SB-17 and SB-18 apply before text
 leaves and the verification matrix gains rows of its own rather than being read as covered; and **a
