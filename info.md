@@ -1,5 +1,75 @@
 # Project Decisions
 
+## Confirmed the Embedding Sweep, and list_records on the AI Surface — 2026-09-11
+
+The vector index has something that writes it. Getting there needed one decision the owner had to
+make, because it widens the AI surface a second time in a day.
+
+### The decision: `list_records` is AI-exposed
+
+A job that sends record text to a model **must** run on the AI channel — that is where the
+per-project access policy and the SB-18 redaction apply. But no AI-exposed operation could
+enumerate a project's records, so the job could not know what to embed. `list_records` was
+`AiExposure.Denied`.
+
+Confirmed: expose it. The surface is **twenty** operations.
+
+Why this is a tool and not a privilege:
+
+- It needs `ReadKnowledge`, which `search_knowledge` already needs.
+- It returns metadata and titles, **never bodies**. `search_knowledge` already returns titles and
+  snippets to AI, so this changes "the records matching a query" into "the records" and adds no
+  kind of information the surface did not carry.
+- On the AI channel a project whose owner never enabled access is not listed at all, so this
+  cannot enumerate a project nobody opened.
+
+Two alternatives were considered and rejected. A purpose-built enumeration returning only
+identifiers and hashes would have disclosed less but put a second operation on the surface for one
+internal caller. Queueing work from a human-triggered `reindex` would have avoided the widening at
+the cost of machinery nobody else needs.
+
+### The job: `record-embedding-sweep`
+
+It declares `SendsContentToAModel`, so it runs on the AI channel, and that is what makes it safe
+rather than a formality. Three controls hang off that channel and all three are load-bearing:
+
+- **The per-project AI access policy.** `list_projects` omits a project nobody opened to AI, so the
+  job cannot see it, list its records, or send its text anywhere. **A project nobody opened to AI is
+  never embedded** — the single most important sentence about this job.
+- **SB-18.** Personal data is redacted out of what the job reads, so what it embeds is what an AI
+  caller was allowed to see.
+- **SB-17, twice.** The pipeline scans what it returns; the gateway scans again before anything
+  leaves. A record carrying a credential is skipped with nothing sent and nothing written, and the
+  sweep continues.
+
+Two behaviours worth recording as decisions rather than details:
+
+- **It embeds the published revision and nothing else.** A draft is not knowledge yet, and indexing
+  one would let a semantic search surface something nobody approved — the same mistake as
+  publishing on a stale approval, reached from a different direction.
+- **It re-embeds only what changed**, by comparing each published revision's content hash against
+  what the index holds. An unchanged record costs neither a read nor an embedding. That is the
+  difference between a nightly sweep that costs nothing on a quiet installation and one that
+  re-bills the whole corpus every night. `AlreadyCurrent` staying high is the sign it works.
+
+### A correction: the budget counts texts, not calls
+
+`WorkerBudget` counted gateway invocations. The gateway takes a batch, so one invocation could be
+thirty-two texts, and a budget of ten bounded nothing anybody cared about. Providers charge for
+input, so the unit is now a **text**, spent all-or-nothing — a batch a run cannot fully afford is
+not started rather than half-sent.
+
+### What still does not exist
+
+- **No schedule.** Nothing runs either job. A schedule belongs beside the retention service in
+  `docker/compose.yaml`, off unless configured, and it is the last piece of Phase 12C.
+- **No provider is enabled anywhere**, so on every installation today both the sweep and semantic
+  search answer with a reason rather than doing anything. The hosted mode still needs the vendor
+  named, an `OutboundAccess:AllowedHosts` entry, and an acceptance of its own.
+- **The verification matrix still owes the embedding egress path its own rows.** Everything that
+  would cross it now exists; nothing has crossed it, because no provider is configured.
+
+
 ## Confirmed Semantic Search as Its Own Operation — 2026-09-11
 
 `search_similar_records` exists, is AI-exposed, and is the **nineteenth** tool on the MCP surface.

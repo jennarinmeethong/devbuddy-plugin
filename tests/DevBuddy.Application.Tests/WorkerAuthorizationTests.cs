@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Security;
 using DevBuddy.Application.Workers;
@@ -43,6 +44,46 @@ public sealed class WorkerAuthorizationTests
         "IClock",
         "WorkerBudget",
     ];
+
+    /// <summary>
+    /// Every caller-bound job in the product, and what it declares about models. Written out so a
+    /// job that quietly changed its declaration — from None to SendsContentToAModel, or the other
+    /// way — fails here, because that declaration is what decides its channel and therefore which
+    /// controls apply to it.
+    /// </summary>
+    [Fact]
+    public void every_caller_bound_job_declares_what_it_does_with_models()
+    {
+        Dictionary<string, WorkerModelUse> expected = new(StringComparer.Ordinal)
+        {
+            // Reads through the dispatcher, touches no model, so it runs on InternalSystem and can
+            // reach detect_staleness, which the AI channel denies.
+            ["StaleRecordSweepJob"] = WorkerModelUse.None,
+
+            // Sends record text to an embedding provider, so it runs on the AI channel and is
+            // bounded by the per-project AI access policy and the SB-18 redaction.
+            ["RecordEmbeddingSweepJob"] = WorkerModelUse.SendsContentToAModel,
+        };
+
+        Type[] jobs = [.. typeof(IWorkerJob).Assembly
+            .GetTypes()
+            .Where(type => !type.IsAbstract && typeof(CallerBoundWorkerJob).IsAssignableFrom(type))];
+
+        Assert.Equal(
+            expected.Keys.Order(StringComparer.Ordinal),
+            jobs.Select(job => job.Name).Order(StringComparer.Ordinal));
+
+        foreach (Type job in jobs)
+        {
+            // Read off the type rather than an instance: these jobs take a dispatcher and a
+            // gateway to construct, and the declaration is a property of the job, not of a run.
+            PropertyInfo property = job.GetProperty(nameof(CallerBoundWorkerJob.ModelUse))!;
+            object? declared = property.GetMethod!.Invoke(
+                RuntimeHelpers.GetUninitializedObject(job), null);
+
+            Assert.Equal(expected[job.Name], declared);
+        }
+    }
 
     [Fact]
     public void a_worker_caller_cannot_be_built_without_a_resolved_token()

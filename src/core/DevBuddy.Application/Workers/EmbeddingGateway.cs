@@ -134,11 +134,18 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
             }
         }
 
-        // Budget after the scan and before the call, because a refused scan should cost nothing.
-        if (budget is not null && !budget.TrySpend())
+        // After the scan, because a refused scan should cost nothing, and priced per text rather
+        // than per call. That is a correction: spending one unit per invocation undercounted a
+        // batch, and a batch is what a sweep sends. Providers charge for input, not for HTTP
+        // requests, so the text is the unit that tracks the bill.
+        //
+        // All or nothing, which WorkerBudget already guarantees and which means a batch the run
+        // cannot fully afford is not started rather than half-sent.
+        if (budget is not null && !budget.TrySpend(texts.Count))
         {
             return EmbeddingOutcome.Refuse(
-                $"The run's budget of {budget.MaximumCalls} provider call(s) is spent.");
+                $"This run's budget is {budget.MaximumCalls} text(s) and it has "
+                + $"{budget.Remaining} left, which will not cover {texts.Count}.");
         }
 
         EmbeddingResult result = await _provider.EmbedAsync(texts, cancellationToken);

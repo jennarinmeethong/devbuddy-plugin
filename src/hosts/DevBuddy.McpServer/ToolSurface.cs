@@ -41,6 +41,11 @@ public static class ToolSurface
                 + "Answers with a reason instead of hits when this installation has no embedding "
                 + "provider, has no vector index, or has nothing indexed for the project yet; "
                 + "search_knowledge needs none of those and is the one to reach for first.",
+            ["list_records"] =
+                "Every knowledge record in one project, as summaries: identifier, kind, status, "
+                + "title, revision numbers and when it last changed. No bodies, so read one with "
+                + "get_record. Optional filters by status. Use it to see what a project holds "
+                + "before searching it.",
             ["get_record"] =
                 "Reads one knowledge record. Returns the published revision unless a specific "
                 + "revision number is asked for, so unapproved drafts are not served by accident.",

@@ -1185,7 +1185,7 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "create_work_item": { permission: "ManageWorkItems", availableToAi: false },
   "create_user_account": { permission: "ManageAccounts", availableToAi: false },
   "list_work_items": { permission: "ReadKnowledge", availableToAi: false },
-  "list_records": { permission: "ReadKnowledge", availableToAi: false },
+  "list_records": { permission: "ReadKnowledge", availableToAi: true },
   "create_team": { permission: "ManageTeams", availableToAi: false },
   "rename_team": { permission: "ManageTeams", availableToAi: false },
   "delete_team": { permission: "ManageTeams", availableToAi: false },

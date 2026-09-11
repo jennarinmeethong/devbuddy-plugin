@@ -33,6 +33,15 @@ public sealed class UseCaseCatalogTests
         "get_record",
         "get_work_item",
         "list_projects",
+
+        // Added 2026-09-11, and the only entry here that moved from Denied rather than arriving
+        // new. The embedding sweep runs on the AI channel — that is where the per-project access
+        // policy and SB-18 apply to content going to a model — and no AI-exposed operation could
+        // enumerate a project, so the job could not have been written without it. What it
+        // discloses is metadata and titles, which search_knowledge already returns to AI with
+        // snippets; it turns "the records matching a query" into "the records".
+        "list_records",
+
         "search_knowledge",
 
         // Added 2026-09-11 with the derived vector index (ADR-0012). Search is one of the five

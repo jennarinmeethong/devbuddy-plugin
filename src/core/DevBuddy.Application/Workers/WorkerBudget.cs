@@ -1,16 +1,22 @@
 namespace DevBuddy.Application.Workers;
 
 /// <summary>
-/// How many paid calls one worker run may make, and what happens when they are gone.
+/// How many texts one worker run may send to a paid provider, and what happens when they are gone.
 /// <para>
 /// Part of the design rather than an operational afterthought, per ADR-0013 and the AI Usage
 /// section of `info.md`: a worker means per-call spend on a loop nobody is watching. A run that
 /// throttled or retried when it ran out would keep spending; this refuses.
 /// </para>
 /// <para>
-/// Deliberately a count of calls and not a sum of money. This code cannot know what a provider
-/// charges, and a budget denominated in currency would be a number that drifts out of date
-/// silently. An operator who knows the per-call price converts once.
+/// Deliberately a count and not a sum of money. This code cannot know what a provider charges, and
+/// a budget denominated in currency would be a number that drifts out of date silently. An
+/// operator who knows the price converts once.
+/// </para>
+/// <para>
+/// The unit is a <b>text</b>, not a request. That is a correction to the first version, which
+/// counted invocations: <see cref="EmbeddingGateway"/> takes a batch, so one invocation could be
+/// thirty-two texts, and a budget of ten requests bounded nothing anybody cared about. Providers
+/// charge for input.
 /// </para>
 /// </summary>
 public sealed class WorkerBudget

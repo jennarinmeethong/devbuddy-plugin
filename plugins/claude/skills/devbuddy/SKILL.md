@@ -12,10 +12,10 @@ reconstructing the reasoning from the diff.
 
 ## What you can do
 
-Nineteen tools, and they fall into five groups:
+Twenty tools, and they fall into five groups:
 
 - **Search and read** — `search_knowledge`, `search_similar_records`, `get_record`,
-  `get_work_item`, `list_projects`, `view_record_history`, `compare_snapshots`.
+  `get_work_item`, `list_projects`, `list_records`, `view_record_history`, `compare_snapshots`.
 - **Analyse, read-only** — `analyze_project`, `analyze_code`, `analyze_documents`,
   `analyze_architecture`, `analyze_git_history`, `analyze_work_items`, `analyze_test_evidence`,
   `analyze_change_impact`.
@@ -68,11 +68,12 @@ workspace.
 out. `search_knowledge` first; `search_similar_records` when the words you have are not the words
 the record uses; `analyze_*` when the answer is not there.
 
-`search_similar_records` is the one tool that can answer with a reason instead of results. It
-needs an embedding provider and a vector index, both of which an installation may not have, and
-it says so rather than returning nothing. Reach for `search_knowledge` first: it is free, local,
-and available everywhere. Reach for this one when the words you have are not the words the record
-uses.
+Two of these need saying. `search_similar_records` can answer with a reason instead of results: it
+needs an embedding provider and a vector index, which an installation may not have, and it says so
+rather than returning nothing. Reach for `search_knowledge` first — free, local, everywhere — and
+for that one when the words you have are not the words the record uses. And `list_records` shows
+you what a project holds before you search it; it returns summaries, never bodies, so read a hit
+with `get_record`.
 
 
 **Analysis reads and never runs.** `analyze_*` inspects files, git objects, documents, and test

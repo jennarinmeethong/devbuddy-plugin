@@ -22,7 +22,7 @@ namespace DevBuddy.McpServer.Tests;
 public sealed partial class ToolSurfaceTests : IDisposable
 {
     /// <summary>
-    /// The nineteen operations info.md permits: search, get, analyse, create a draft, and generate
+    /// The twenty operations info.md permits: search, get, analyse, create a draft, and generate
     /// a handover. Written out here as well as in the catalogue on purpose. Two independent
     /// statements of the same list mean a change has to be made twice, deliberately, and cannot
     /// happen as a side effect of adding a use case.
@@ -56,6 +56,11 @@ public sealed partial class ToolSurfaceTests : IDisposable
         "find_open_questions",
         "find_missing_evidence",
         "create_draft",
+
+        // Last, because the exported list follows catalogue order and ListRecords sits with the
+        // provisioning entries rather than with the reading ones. Moved onto the surface on
+        // 2026-09-11 so the embedding sweep could enumerate a project from the AI channel.
+        "list_records",
     ];
 
     private readonly ServiceProvider _host = NullPorts.BuildHost();

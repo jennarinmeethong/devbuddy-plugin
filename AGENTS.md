@@ -111,8 +111,9 @@ prove it live in `DevBuddy.Api.Tests`, not in the browser.
 
 `plugins/claude` and `plugins/codex` are configuration and instructions over the same
 `DevBuddy.McpServer`. Instructions differ; capability does not, and `PluginPackageTests` enforces
-that: both instruction files must describe exactly the tools the server exposes — nineteen since
-semantic search landed, and the test derives the number rather than hardening it — and **neither file
+that: both instruction files must describe exactly the tools the server exposes — twenty since
+semantic search and the embedding sweep landed, and the test derives the number rather than
+hardening it — and **neither file
 may name an operation people alone may perform** — not as an example, not to say it is
 unavailable. A name in a file an assistant reads is a name it now knows to try.
 

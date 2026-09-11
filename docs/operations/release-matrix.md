@@ -29,9 +29,9 @@ available here. Whoever deploys on one of them is the first to run it, and nobod
 as supported. The alternative — dropping them — stays available and costs nothing but four rows.
 
 "Run" means the executable started and answered — `DevBuddy.Cli operations --ai` returned the
-AI-exposed operation names — eighteen when the rows below were recorded, nineteen since semantic
-search landed, and the check is that the list is the catalogue's rather than that it is any
-particular length. It does not mean the full test suite ran on that platform.
+AI-exposed operation names — eighteen when the rows below were recorded, twenty since semantic
+search and the embedding sweep landed, and the check is that the list is the catalogue's rather
+than that it is any particular length. It does not mean the full test suite ran on that platform.
 The suite runs on `ubuntu-latest` and `windows-latest` in CI; everything else in this table is a
 smoke test or a build.
 

@@ -291,8 +291,26 @@ public static class UseCaseCatalog
         "list_work_items", PermissionKind.ReadKnowledge, AiExposure.Denied,
         AuditAction.RecordViewed, redactsOutput: true);
 
+    /// <summary>
+    /// The records in one project, as summaries.
+    /// <para>
+    /// <b>AI-exposed since 2026-09-11</b>, and it was `Denied` before. The reason it changed is
+    /// the embedding sweep: a job that writes the vector index has to know which records exist,
+    /// and it runs on the AI channel because that is where the per-project access policy and the
+    /// SB-18 redaction apply to content going to a model. No AI-exposed operation could enumerate
+    /// a project, so the job could not have been written without either this or a
+    /// purpose-built substitute.
+    /// </para>
+    /// <para>
+    /// What it discloses is metadata and titles, which <c>search_knowledge</c> already returns to
+    /// AI along with snippets — so this changes "the records matching a query" into "the records",
+    /// and adds no kind of information the surface did not already carry. It needs the same
+    /// <c>ReadKnowledge</c> permission, and on the AI channel the project's own access policy
+    /// still decides whether the project is visible at all.
+    /// </para>
+    /// </summary>
     public static UseCaseDescriptor ListRecords { get; } = new(
-        "list_records", PermissionKind.ReadKnowledge, AiExposure.Denied,
+        "list_records", PermissionKind.ReadKnowledge, AiExposure.Allowed,
         AuditAction.RecordViewed, redactsOutput: true);
 
     // Credentials a person mints for their own processes. Denied to AI, and the reason is worth

@@ -124,7 +124,8 @@ disclosure and not the record.
 ## Amendment — 2026-09-11: the caller is an operation of its own
 
 `search_similar_records`, AI-exposed, and the **nineteenth** tool on the MCP surface — the first
-change to that number since Phase 7.
+change to that number since Phase 7. It became twenty later the same day: see the next amendment,
+where the embedding sweep needed `list_records` to enumerate a project.
 
 **An operation rather than a mode of `search_knowledge`**, by the project owner's decision, and the
 reason holds up in code: the two differ in what they *do*, not in how they rank. Full-text search
@@ -155,6 +156,35 @@ on `AccessChannel.Human`. It now refuses `AccessChannel.InternalSystem` specific
 exact channel that rule is about. The budget became optional for the same reason: an interactive
 search is one call per query bounded by the request rate limiter (SB-21); a worker loop nobody
 watches is what needs counting.
+
+## Amendment — 2026-09-11: the sweep that writes the index, and the surface it needed
+
+`record-embedding-sweep` fills the index, declaring `SendsContentToAModel` so it runs on the AI
+channel. That is what bounds it rather than a formality: `list_projects` on that channel omits a
+project whose owner never enabled access, so **a project nobody opened to AI is never embedded**.
+SB-18 redacts what the job reads, and SB-17 scans twice — the pipeline on what it returns, the
+gateway before anything leaves — so a record carrying a credential is skipped with nothing sent.
+
+Two behaviours are decisions rather than details. It embeds **the published revision and nothing
+else**, because a draft is not knowledge yet and indexing one would let a semantic search surface
+something nobody approved. And it **re-embeds only what changed**, by comparing each published
+revision's content hash against what the index holds, so an unchanged record costs neither a read
+nor an embedding.
+
+**It needed `list_records` on the AI surface, which took it to twenty.** A job that sends record
+text to a model has to be on the AI channel, and no AI-exposed operation could enumerate a
+project. The project owner confirmed the exposure: it needs `ReadKnowledge`, which
+`search_knowledge` already needs, and returns metadata and titles rather than bodies — so it turns
+"the records matching a query" into "the records" and adds no kind of information the surface did
+not carry. A purpose-built enumeration returning only identifiers and hashes would have disclosed
+less and put a second operation on the surface for one internal caller; queueing work from a
+human-triggered `reindex` would have avoided the widening at the cost of machinery nobody else
+needs.
+
+**And a correction to the budget.** `WorkerBudget` counted gateway invocations, and the gateway
+takes a batch — so one invocation could be thirty-two texts and a budget of ten bounded nothing
+anybody cared about. It counts **texts** now, spent all-or-nothing, so a batch a run cannot fully
+afford is not started rather than half-sent. Providers charge for input.
 
 ## Consequences
 

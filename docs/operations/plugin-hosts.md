@@ -15,7 +15,7 @@ Instructions differ between them. Capability does not: both launch the same
 `DevBuddy.McpServer` with `--stdio`, and a test asserts that both instruction files describe
 exactly the tools the server exposes and never name one it does not. A test derives that list
 from the catalogue rather than hardening a count, which is how it caught both packages when
-semantic search made the surface nineteen.
+semantic search and the embedding sweep took the surface to twenty.
 
 ## What the server needs
 
@@ -94,7 +94,7 @@ rewritten, and no other credential is affected.
 
 ## What the tool boundary covers
 
-The MCP surface is nineteen read, analyse, and draft operations. Approving, publishing, correcting,
+The MCP surface is twenty read, analyse, and draft operations. Approving, publishing, correcting,
 archiving, managing access, exporting, and backing up are not on it — not refused, absent — and no
 argument to any tool reaches them.
 

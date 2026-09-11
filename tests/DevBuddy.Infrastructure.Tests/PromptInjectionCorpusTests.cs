@@ -94,11 +94,12 @@ public sealed class PromptInjectionCorpusTests : IDisposable
         // a security boundary here because it is not an input to one (SB-02).
         Assert.Equal(toolSurfaceBefore, toolSurfaceAfter);
 
-        // Nineteen since 2026-09-11, when semantic search over the derived vector index landed
-        // (ADR-0012). The number is written out rather than computed for the same reason the
-        // tool-surface test writes its own list: a count that derived itself from the catalogue
-        // would agree with any catalogue, including one an analysed document had somehow widened.
-        Assert.Equal(19, toolSurfaceAfter.Length);
+        // Twenty since 2026-09-11: semantic search, then list_records so the embedding sweep
+        // could enumerate a project from the AI channel it has to run on. The number is written
+        // out rather than computed for the same reason the tool-surface test writes its own list:
+        // a count that derived itself from the catalogue would agree with any catalogue, including
+        // one an analysed document had somehow widened.
+        Assert.Equal(20, toolSurfaceAfter.Length);
     }
 
     [Fact]

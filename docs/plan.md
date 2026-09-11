@@ -1422,10 +1422,17 @@ skips itself where the extension is absent, and a similarity query whose scope i
 and whose model and dimension are matched so two models are never compared. A deleted project
 purges its vectors. `search_similar_records` is the caller — an operation of its own rather than a
 mode of `search_knowledge`, and the **nineteenth** on the AI surface, the first change to that
-number since Phase 7.
+number since Phase 7. `list_records` followed it to twenty, so the embedding sweep could enumerate
+a project from the AI channel it has to run on.
 
-What nobody has written: **anything that writes the index.** No job embeds, so on a fresh
-installation semantic search answers "nothing is indexed yet" for every project, honestly. No
-schedule runs any job at all. No provider is enabled anywhere, the hosted mode may not be switched
-on without the vendor named, an outbound allow-list entry and an acceptance of its own, and the
-verification matrix still owes the embedding egress path rows of its own.
+`record-embedding-sweep` writes the index, and is the only thing that does. It runs on the AI
+channel by declaring `SendsContentToAModel`, which is what bounds it: a project nobody opened to
+AI is never listed to it and therefore never embedded. It indexes the published revision only, and
+re-embeds only what changed, by content hash.
+
+What nobody has written: **a schedule.** Nothing runs either job, which is the last piece of Phase
+12C and belongs beside the retention service in `docker/compose.yaml`, off unless configured. No
+provider is enabled anywhere, so today the sweep and semantic search both answer with a reason
+rather than doing anything; the hosted mode may not be switched on without the vendor named, an
+outbound allow-list entry and an acceptance of its own; and the verification matrix still owes the
+embedding egress path rows of its own.
