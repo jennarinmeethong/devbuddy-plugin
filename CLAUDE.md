@@ -12,8 +12,9 @@ repository.
 - `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
   approved as of 2026-09-10: 12A and 12B are complete, and 12C's gate is met — ADR-0012 and
   ADR-0013 are confirmed (0013 amended the same day), the embedding provider is a port with two
-  modes off by default, and the worker, its first job, the embedding adapter and the derived vector
-  index are built. Nothing calls the similarity query yet, and no schedule exists.
+  modes off by default, and the worker, its first job, the embedding adapter, the derived vector
+  index and the `search_similar_records` operation are built. Nothing writes the index yet and no
+  schedule exists.
 
 ## Where the project is
 
@@ -28,7 +29,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 578 .NET tests and 36 web tests exist, and all of them pass in this environment —
+enforcement. 613 .NET tests and 36 web tests exist, and all of them pass in this environment —
 count them rather than trusting this sentence, which has been stale twice already: it sat at the
 release figure of 433 and 31 while both grew, and at 495 and 36 through Phase 12. `docs/plan.md`
 keeps the per-phase figures, and the ones under *v1 is released* are what passed at `v1.0.0`; they
@@ -147,7 +148,7 @@ worker.** This is the sharp bit, and the first version of it was wrong in a way 
 revealed. A job that feeds a model runs on `AccessChannel.Ai`, because that is where the
 per-project AI access policy and the SB-18 redaction are applied, both on the strength of the
 channel alone. A job that touches no model runs on `AccessChannel.InternalSystem`, because **the AI
-channel is also an allow-list of eighteen operations** and everything a worker is for —
+channel is also an allow-list** (nineteen operations today) and everything a worker is for —
 `detect_staleness`, `sync_sources`, `reindex` — is `AiExposure.Denied`. `InternalSystem` is not a
 bypass: `AuthorizationService` has never special-cased it and still requires an enabled account, a
 live membership and a role carrying the permission. The declaration lives on the **job type** so it
@@ -184,9 +185,21 @@ things about it are easy to get wrong.
 `delete_project` purges the index explicitly, because no cascade would have taken it. The index
 holds **no text** — identifiers, a content hash, a model, a dimension and a vector.
 
-**What does not exist yet:** any **caller** for the similarity query (no operation, endpoint,
-screen or job), a job that embeds, a schedule to run any job at all, and the verification-matrix
-rows ADR-0012 requires for the embedding egress path.
+**`search_similar_records` is the nineteenth AI-exposed operation**, and the first change to
+that number since Phase 7. An operation of its own rather than a mode of `search_knowledge`,
+because the two differ in what they *do*: full-text search is free and local, this one embeds the
+query, which on a hosted provider is egress and costs money per call. It needs `ReadKnowledge`, the
+permission `search_knowledge` already needs — the surface grew by a tool, not by a privilege. It
+returns identifiers, titles, kinds and distances and **never content**; a caller that wants a
+record calls `get_record`. The query is scanned twice on purpose: the pipeline's SB-17 pass
+protects what is stored and audited, the gateway's protects what leaves. It answers with a
+**reason** rather than an empty list when there is no provider, no index, or nothing indexed,
+because a caller that cannot tell those from "no match" will read them as "no match".
+
+**What does not exist yet:** anything that **writes** the index — no job embeds, so on a fresh
+installation semantic search answers "nothing is indexed yet" for every project — no schedule to
+run any job at all, no enabled provider anywhere, and the verification-matrix rows ADR-0012
+requires for the embedding egress path.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports

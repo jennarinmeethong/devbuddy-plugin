@@ -34,6 +34,15 @@ public sealed class UseCaseCatalogTests
         "get_work_item",
         "list_projects",
         "search_knowledge",
+
+        // Added 2026-09-11 with the derived vector index (ADR-0012). Search is one of the five
+        // categories info.md permits, and this is search: it needs the same ReadKnowledge
+        // permission search_knowledge does, so the surface grows by a tool and not by a privilege.
+        // What is new is that the query text reaches an embedding provider, which on a hosted mode
+        // is outside the boundary — so the request declares itself scannable and SB-17 refuses a
+        // secret before it leaves.
+        "search_similar_records",
+
         "view_record_history",
     ];
 

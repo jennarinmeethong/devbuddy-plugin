@@ -1,5 +1,6 @@
 using System.Reflection;
 using DevBuddy.Application;
+using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
 using DevBuddy.Application.UseCases;
@@ -11,10 +12,12 @@ using DevBuddy.Application.UseCases.Lifecycle;
 using DevBuddy.Application.UseCases.Reading;
 using DevBuddy.Application.UseCases.Safety;
 using DevBuddy.Application.UseCases.Sources;
+using DevBuddy.Application.Workers;
 using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Knowledge;
+using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
 
 namespace DevBuddy.Application.Tests;
@@ -36,6 +39,12 @@ internal sealed class UseCaseRegistry
     {
         Add(new SearchKnowledgeUseCase(ports),
             new SearchKnowledgeRequest(TestData.Scope, "importer"));
+
+        // No provider and no index in the fakes, so this one answers with a reason rather than
+        // hits — which is the correct behaviour for every installation that has configured none,
+        // and is what the authorization and redaction sweeps need it to do here.
+        Add(new SearchSimilarRecordsUseCase(new EmbeddingGateway(ports), new NoEmbeddingIndex(), ports),
+            new SearchSimilarRecordsRequest(TestData.Scope, "importer"));
 
         Add(new GetRecordUseCase(ports),
             new GetRecordRequest(TestData.Scope, KnowledgeRecordId.New()));
@@ -240,3 +249,35 @@ internal sealed record RegisteredUseCase(
 
 /// <summary>A pipeline result flattened so the test can inspect it without knowing its type.</summary>
 internal sealed record ExecutionSummary(ExecutionOutcome Outcome, string Reason, object? Value);
+
+/// <summary>
+/// A database with no vector index, which is what every shipped stack has: pgvector is not in
+/// <c>postgres:17-alpine</c>, so the migration that would create the table skips itself. Used by
+/// the sweeps above so semantic search answers with a reason rather than reaching for a provider
+/// nobody configured.
+/// </summary>
+internal sealed class NoEmbeddingIndex : IEmbeddingIndex
+{
+    public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(false);
+
+    public Task<int> UpsertAsync(
+        ProjectScope scope,
+        string model,
+        IReadOnlyList<EmbeddedRevision> entries,
+        CancellationToken cancellationToken) => Task.FromResult(0);
+
+    public Task<IReadOnlyList<SimilarRevision>> FindSimilarAsync(
+        ProjectScope scope,
+        string model,
+        ReadOnlyMemory<float> query,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<SimilarRevision>>([]);
+
+    public Task<IReadOnlySet<string>> IndexedContentHashesAsync(
+        ProjectScope scope, string model, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.Ordinal));
+
+    public Task<int> PurgeProjectAsync(ProjectScope scope, CancellationToken cancellationToken) =>
+        Task.FromResult(0);
+}

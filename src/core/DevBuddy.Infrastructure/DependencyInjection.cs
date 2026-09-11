@@ -191,13 +191,6 @@ public static class DependencyInjection
         EmbeddingOptions embedding = new();
         configureEmbedding?.Invoke(embedding);
 
-        // The gateway is always present. It is the only door to a provider, and a door that
-        // disappeared when the room behind it was empty would push every caller into checking
-        // whether it exists before asking.
-        services.AddScoped<EmbeddingGateway>(provider => new EmbeddingGateway(
-            provider.GetRequiredService<ISecretScanner>(),
-            provider.GetService<IEmbeddingProvider>()));
-
         if (embedding.Provider == EmbeddingProviderKind.None)
         {
             return services;

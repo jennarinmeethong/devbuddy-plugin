@@ -34,6 +34,13 @@ public static class ToolSurface
             ["search_knowledge"] =
                 "Full-text search over the knowledge records of one project, with optional filters "
                 + "by record kind and status. Returns titles and snippets, not whole records.",
+            ["search_similar_records"] =
+                "Semantic search over one project, by meaning rather than by words: the query is "
+                + "embedded and compared against the project's vector index. Returns record "
+                + "identifiers, titles and distances, not content — read a hit with get_record. "
+                + "Answers with a reason instead of hits when this installation has no embedding "
+                + "provider, has no vector index, or has nothing indexed for the project yet; "
+                + "search_knowledge needs none of those and is the one to reach for first.",
             ["get_record"] =
                 "Reads one knowledge record. Returns the published revision unless a specific "
                 + "revision number is asked for, so unapproved drafts are not served by accident.",

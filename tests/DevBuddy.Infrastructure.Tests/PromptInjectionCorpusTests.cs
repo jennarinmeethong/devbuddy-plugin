@@ -93,7 +93,12 @@ public sealed class PromptInjectionCorpusTests : IDisposable
         // And the set of operations the system will perform is byte-identical. Prompt text is not
         // a security boundary here because it is not an input to one (SB-02).
         Assert.Equal(toolSurfaceBefore, toolSurfaceAfter);
-        Assert.Equal(18, toolSurfaceAfter.Length);
+
+        // Nineteen since 2026-09-11, when semantic search over the derived vector index landed
+        // (ADR-0012). The number is written out rather than computed for the same reason the
+        // tool-surface test writes its own list: a count that derived itself from the catalogue
+        // would agree with any catalogue, including one an analysed document had somehow widened.
+        Assert.Equal(19, toolSurfaceAfter.Length);
     }
 
     [Fact]

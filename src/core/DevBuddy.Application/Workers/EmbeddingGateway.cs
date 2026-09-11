@@ -23,9 +23,18 @@ namespace DevBuddy.Application.Workers;
 /// refusal, never a silent no-op that leaves a caller believing an index exists.
 /// </item>
 /// <item>
-/// <b>A caller off the AI channel</b> — this is what stops a job that declared
-/// <see cref="WorkerModelUse.None"/> from reaching a model anyway. Declaring no model use buys a
-/// job the human-only operations its membership carries; it does not also buy it the model.
+/// <b>A caller on <see cref="AccessChannel.InternalSystem"/></b> — which is what stops a job that
+/// declared <see cref="WorkerModelUse.None"/> from reaching a model anyway. Declaring no model use
+/// buys a job the human-only operations its membership carries; it does not also buy it the model.
+/// <para>
+/// Refusing that one channel rather than requiring the AI channel, and the difference is not
+/// cosmetic. The first version of this required <see cref="AccessChannel.Ai"/>, which enforced the
+/// worker rule correctly and locked <b>people</b> out — a person searching their own project from
+/// the web interface is on <see cref="AccessChannel.Human"/>, and semantic search would have been
+/// an AI-only feature by accident. <c>InternalSystem</c> is the exact channel the rule is about:
+/// no host puts a human or a model on it, and a worker only lands there by declaring it touches no
+/// model.
+/// </para>
 /// </item>
 /// <item>
 /// <b>A secret in the text</b> — refused with nothing sent, the same shape a draft carrying a
@@ -53,6 +62,12 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
     private readonly IEmbeddingProvider? _provider = provider;
 
     /// <summary>
+    /// The model behind the configured provider, or null when there is none. The index keys rows
+    /// by it, because vectors from two models are not comparable.
+    /// </summary>
+    public string? Model => _provider is null ? null : ModelOf(_provider.Description);
+
+    /// <summary>
     /// True when this installation has a provider. False is the default and not a fault: full-text
     /// search is what v1 shipped and remains complete on its own.
     /// </summary>
@@ -65,15 +80,22 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
     /// Embeds <paramref name="texts"/> on behalf of <paramref name="caller"/>, or refuses and
     /// sends nothing.
     /// </summary>
+    /// <param name="budget">
+    /// A worker run's remaining provider calls, or null for a caller that is not a worker.
+    /// <para>
+    /// Null is not "unlimited". An interactive search is one call per query and is bounded by the
+    /// request rate limiter the API already applies (SB-21); a worker loop is the thing that needs
+    /// counting, because nobody is watching it and it can spend all night.
+    /// </para>
+    /// </param>
     public async Task<EmbeddingOutcome> EmbedAsync(
-        WorkerCaller caller,
+        CallerContext caller,
         IReadOnlyList<string> texts,
-        WorkerBudget budget,
+        WorkerBudget? budget,
         CancellationToken cancellationToken)
     {
         Guard.NotNull(caller, nameof(caller));
         Guard.NotNull(texts, nameof(texts));
-        Guard.NotNull(budget, nameof(budget));
 
         if (_provider is null)
         {
@@ -82,14 +104,16 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
                 + "embed with. Full-text search is unaffected.");
         }
 
-        if (caller.Context.Channel != AccessChannel.Ai)
+        if (caller.Channel == AccessChannel.InternalSystem)
         {
-            // The job declared it touches no model and is now reaching for one. Refused here
-            // rather than trusted, because the declaration is what bought it the human-only
-            // operations its membership carries.
+            // A job that declared it touches no model, now reaching for one. Refused here rather
+            // than trusted, because that declaration is what bought it the human-only operations
+            // its membership carries.
             return EmbeddingOutcome.Refuse(
-                "Embedding is available only to a caller on the AI channel. This job declared "
-                + $"{WorkerModelUse.None} and runs on {caller.Context.Channel}.");
+                $"Embedding is refused on the {AccessChannel.InternalSystem} channel, which is "
+                + $"where a job that declared {WorkerModelUse.None} runs. A job that needs a model "
+                + $"declares {WorkerModelUse.SendsContentToAModel} and is bounded by the AI "
+                + "channel's controls accordingly.");
         }
 
         if (texts.Count == 0)
@@ -111,7 +135,7 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
         }
 
         // Budget after the scan and before the call, because a refused scan should cost nothing.
-        if (!budget.TrySpend())
+        if (budget is not null && !budget.TrySpend())
         {
             return EmbeddingOutcome.Refuse(
                 $"The run's budget of {budget.MaximumCalls} provider call(s) is spent.");
@@ -128,6 +152,19 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
         }
 
         return EmbeddingOutcome.Embedded(result.Vectors, result.CallsMade);
+    }
+
+    /// <summary>
+    /// The model name out of a provider's description, which is where it already has to be for a
+    /// health report. Read rather than added as a second property, so a provider cannot report one
+    /// model to an operator and another to the index.
+    /// </summary>
+    private static string? ModelOf(string description)
+    {
+        const string marker = "model ";
+        int at = description.IndexOf(marker, StringComparison.Ordinal);
+
+        return at < 0 ? null : description[(at + marker.Length)..].Trim();
     }
 }
 

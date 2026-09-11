@@ -121,6 +121,41 @@ One thing this ADR said that survived contact unchanged, and is worth recording 
 The worst a wrongly scoped query could disclose is which record resembles a question, which is real
 disclosure and not the record.
 
+## Amendment — 2026-09-11: the caller is an operation of its own
+
+`search_similar_records`, AI-exposed, and the **nineteenth** tool on the MCP surface — the first
+change to that number since Phase 7.
+
+**An operation rather than a mode of `search_knowledge`**, by the project owner's decision, and the
+reason holds up in code: the two differ in what they *do*, not in how they rank. Full-text search
+is free, local and available everywhere; this one embeds the query, which on a hosted provider is
+the egress this ADR is about and costs money per call. Folding that into an existing operation
+would have made an egress path a ranking preference, and an installation with no provider would
+have carried a documented parameter that quietly did nothing.
+
+What the surface gained is **a tool and not a privilege**: it needs `ReadKnowledge`, which
+`search_knowledge` already needs. It returns identifiers, titles, kinds and distances and never
+content, so a hit has to be read with `get_record` — separately authorised, audited and redacted.
+That is more round trips and the right number of them.
+
+**The query is scanned twice, and the two are not redundant.** The pipeline's SB-17 pass refuses a
+secret before the use case is entered, protecting what would be stored and audited; the gateway's
+scan protects what would leave. Titles in the response are redacted like any other read; the
+reason string is not, because redacting this system's own prose about its own configuration would
+only make a clear refusal harder to read.
+
+**It answers with a reason rather than an empty list**, in the three cases an installation cannot
+answer: no provider, no vector index, nothing indexed yet. Both configuration refusals happen
+before anything is embedded, so an installation that cannot answer never pays a provider to learn
+that.
+
+**And wiring a caller found a defect in the gateway.** It required `AccessChannel.Ai`, which
+enforced the worker rule correctly and locked people out — a person searching their own project is
+on `AccessChannel.Human`. It now refuses `AccessChannel.InternalSystem` specifically, which is the
+exact channel that rule is about. The budget became optional for the same reason: an interactive
+search is one call per query bounded by the request rate limiter (SB-21); a worker loop nobody
+watches is what needs counting.
+
 ## Consequences
 
 - A question phrased differently from the record that answers it becomes findable. That is the

@@ -1,4 +1,5 @@
 using DevBuddy.Application;
+using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.UseCases.Administration;
@@ -9,7 +10,9 @@ using DevBuddy.Application.UseCases.Lifecycle;
 using DevBuddy.Application.UseCases.Reading;
 using DevBuddy.Application.UseCases.Safety;
 using DevBuddy.Application.UseCases.Sources;
+using DevBuddy.Application.Workers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DevBuddy.Infrastructure.Hosting;
 
@@ -36,7 +39,23 @@ public static class DevBuddyOperations
 
         services.AddScoped<UseCaseExecutor>();
 
+        // The one door to an embedding provider, registered with the operations rather than with
+        // the infrastructure adapters, because it is where the SB-17 scan and the channel check
+        // live and a use case must be able to resolve it whether or not a provider exists. With
+        // none registered it answers every call with a refusal naming that, which is what an
+        // installation that configured no provider should get.
+        services.AddScoped(provider => new EmbeddingGateway(
+            provider.GetRequiredService<ISecretScanner>(),
+            provider.GetService<IEmbeddingProvider>()));
+
+        // TryAdd, so the real PostgreSQL adapter wins wherever persistence is registered — which
+        // happens first, being an infrastructure concern. What this leaves is an operations-only
+        // container still able to build its use cases, which is how the tool-surface suite reads
+        // the AI allow-list without a database.
+        services.TryAddScoped<IEmbeddingIndex, AbsentEmbeddingIndex>();
+
         services.AddScoped<SearchKnowledgeUseCase>();
+        services.AddScoped<SearchSimilarRecordsUseCase>();
         services.AddScoped<GetRecordUseCase>();
         services.AddScoped<GetWorkItemUseCase>();
         services.AddScoped<ListProjectsUseCase>();
@@ -116,6 +135,7 @@ public static class DevBuddyOperations
         return new OperationDispatcher(
         [
             Bind(services.GetRequiredService<SearchKnowledgeUseCase>(), executor),
+            Bind(services.GetRequiredService<SearchSimilarRecordsUseCase>(), executor),
             Bind(services.GetRequiredService<GetRecordUseCase>(), executor),
             Bind(services.GetRequiredService<GetWorkItemUseCase>(), executor),
             Bind(services.GetRequiredService<ListProjectsUseCase>(), executor),

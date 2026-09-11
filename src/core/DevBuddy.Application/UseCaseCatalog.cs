@@ -25,6 +25,28 @@ public static class UseCaseCatalog
         "search_knowledge", PermissionKind.ReadKnowledge, AiExposure.Allowed,
         AuditAction.KnowledgeSearched, redactsOutput: true);
 
+    /// <summary>
+    /// Semantic search over the derived vector index (ADR-0012). A second retrieval path beside
+    /// <see cref="SearchKnowledge"/>, not a replacement for it.
+    /// <para>
+    /// An operation of its own rather than a mode of <c>search_knowledge</c>, and the reason is
+    /// that the two differ in what they <b>do</b>, not only in how they rank. Full-text search is
+    /// free, local, and available on every installation. This one embeds the query, which on a
+    /// hosted provider sends the caller's words out of the trust boundary and costs money per
+    /// call. Folding that into an existing operation would have made an egress path a ranking
+    /// preference, and an installation with no provider would have had a documented parameter that
+    /// quietly did nothing.
+    /// </para>
+    /// <para>
+    /// AI-exposed, because it is search, which is one of the categories `info.md` permits. The
+    /// query text an AI sends is scanned for secrets before it reaches a provider, exactly as a
+    /// draft is, and the response is redacted like any other read.
+    /// </para>
+    /// </summary>
+    public static UseCaseDescriptor SearchSimilarRecords { get; } = new(
+        "search_similar_records", PermissionKind.ReadKnowledge, AiExposure.Allowed,
+        AuditAction.KnowledgeSearched, redactsOutput: true);
+
     public static UseCaseDescriptor GetRecord { get; } = new(
         "get_record", PermissionKind.ReadKnowledge, AiExposure.Allowed,
         AuditAction.RecordViewed, redactsOutput: true);
@@ -291,7 +313,8 @@ public static class UseCaseCatalog
     /// <summary>Every operation. Adding a use case without adding it here fails a test.</summary>
     public static IReadOnlyList<UseCaseDescriptor> All { get; } =
     [
-        SearchKnowledge, GetRecord, GetWorkItem, ListProjects, ViewRecordHistory, CompareSnapshots,
+        SearchKnowledge, SearchSimilarRecords, GetRecord, GetWorkItem, ListProjects,
+        ViewRecordHistory, CompareSnapshots,
         DownloadEvidence, CaptureEvidence, ListEvidence,
         AnalyzeProject, AnalyzeCode, AnalyzeDocuments, AnalyzeArchitecture, AnalyzeGitHistory,
         AnalyzeWorkItems, AnalyzeTestEvidence, AnalyzeChangeImpact,

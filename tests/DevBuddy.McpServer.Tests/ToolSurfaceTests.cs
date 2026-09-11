@@ -22,14 +22,23 @@ namespace DevBuddy.McpServer.Tests;
 public sealed partial class ToolSurfaceTests : IDisposable
 {
     /// <summary>
-    /// The eighteen operations info.md permits: search, get, analyse, create a draft, and generate
+    /// The nineteen operations info.md permits: search, get, analyse, create a draft, and generate
     /// a handover. Written out here as well as in the catalogue on purpose. Two independent
     /// statements of the same list mean a change has to be made twice, deliberately, and cannot
     /// happen as a side effect of adding a use case.
+    /// <para>
+    /// It was eighteen until 2026-09-11, when semantic search over the derived vector index landed
+    /// (ADR-0012). Search is one of the five permitted categories and this is search, on the same
+    /// ReadKnowledge permission full-text search already needs — so the surface grew by a tool and
+    /// not by a privilege. What is new about it is that the query text reaches an embedding
+    /// provider, which on a hosted mode is outside the boundary; the request declares itself
+    /// scannable so SB-17 refuses a secret before it leaves.
+    /// </para>
     /// </summary>
     private static readonly string[] Expected =
     [
         "search_knowledge",
+        "search_similar_records",
         "get_record",
         "get_work_item",
         "list_projects",

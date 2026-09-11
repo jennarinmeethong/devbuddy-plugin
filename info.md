@@ -1,5 +1,80 @@
 # Project Decisions
 
+## Confirmed Semantic Search as Its Own Operation — 2026-09-11
+
+`search_similar_records` exists, is AI-exposed, and is the **nineteenth** tool on the MCP surface.
+The eighteen-operation surface v1 shipped is no longer eighteen, which is the first time that
+number has moved since Phase 7, so it is worth saying plainly what changed and what did not.
+
+### Why an operation of its own rather than a mode of `search_knowledge`
+
+The owner's decision, and the code agrees with it for a reason worth recording: the two differ in
+what they **do**, not in how they rank.
+
+- Full-text search is free, local, and works on every installation.
+- This one **embeds the query**, which on a hosted provider sends the caller's words out of the
+  trust boundary and costs money per call.
+
+Folding that into an existing operation would have made an egress path a ranking preference, and
+an installation with no provider would have had a documented parameter that quietly did nothing.
+
+### What the surface gained, and what it did not
+
+- **A tool, not a privilege.** It needs `ReadKnowledge`, the permission `search_knowledge` already
+  needs. Nobody can reach anything through it they could not reach before.
+- **It returns identifiers, titles, kinds and distances — never content.** A caller that wants a
+  record calls `get_record`, which is separately authorised, audited and redacted. More round
+  trips, and the right number of them: a search returning bodies would be a way to read a whole
+  project on one permission check.
+- **The query is scanned twice, and the two are not redundant.** The pipeline's SB-17 pass refuses
+  a secret before the use case is entered, which protects what is stored and audited; the
+  gateway's scan protects what leaves. A connection string pasted into a search box is blocked
+  with nothing sent.
+- **Titles are redacted like any other read.** The reason string is not, and must not be: it is
+  this system's own prose about its own configuration, and redacting "no embedding provider
+  configured" would only make a clear refusal harder to read.
+
+### It answers with a reason rather than an empty list
+
+Three ways an installation cannot answer, each said plainly: no provider configured, no vector
+index on this database, nothing indexed for this project yet. "Nothing resembles your question"
+and "this installation cannot answer that question" are different answers, and a caller that
+cannot tell them apart will read the second as the first and keep asking. Both refusals happen
+**before** anything is embedded, so an installation that cannot answer never pays a provider to
+find that out.
+
+### A correction to the embedding gateway, found by wiring a caller to it
+
+The gateway required `AccessChannel.Ai`. That enforced the worker rule correctly and **locked
+people out**: a person searching their own project from the web interface is on
+`AccessChannel.Human`, so semantic search would have been an AI-only feature by accident.
+
+It now refuses `AccessChannel.InternalSystem` specifically, which is the exact channel the rule is
+about — no host puts a human or a model on it, and a worker only lands there by declaring it
+touches no model. The budget became optional for the same reason: an interactive search is one
+call per query, bounded by the request rate limiter (SB-21); a worker loop nobody is watching is
+what needs counting.
+
+### Both plugin packages say nineteen
+
+Claude's `SKILL.md` and Codex's `AGENTS.md` both list the new tool and both carry the same
+guidance: reach for `search_knowledge` first, because it is free and available everywhere; reach
+for this one when the words you have are not the words the record uses. A test fails if the two
+packages ever describe different surfaces.
+
+### What still does not exist
+
+- **Nothing writes the index.** No job embeds anything, so on a fresh installation this operation
+  answers "nothing is indexed yet" for every project. An index is built by a worker run, and that
+  run has not been written.
+- **No schedule**, so no job runs at all.
+- **No provider is enabled anywhere**, and the hosted mode still needs the vendor named, an
+  `OutboundAccess:AllowedHosts` entry, and an acceptance of its own.
+- **The verification matrix still owes the embedding egress path its own rows**, per ADR-0012.
+  There is now a caller that would exercise it, which is closer than before; there is still no
+  configured provider anywhere to exercise it against.
+
+
 ## Confirmed Phase 12C Delivery — the vector index and the similarity query — 2026-09-11
 
 The derived index ADR-0012 permits now exists, and a similarity query runs against it. Both

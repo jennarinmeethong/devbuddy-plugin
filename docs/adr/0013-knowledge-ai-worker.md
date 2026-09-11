@@ -79,7 +79,7 @@ the first reading of that put every worker on `AccessChannel.Ai` — the stricte
 only one where the per-project AI access policy and the SB-18 personal-data redaction apply. That
 reasoning was sound and the conclusion was too broad.
 
-**The AI channel is also an allow-list of eighteen operations.** Every feature this ADR proposes —
+**The AI channel is also an allow-list.** Every feature this ADR proposes —
 scheduled source analysis, stale-record detection, embedding generation — needs `ManageIndex` or
 `ManageSources`, and both are `AiExposure.Denied`. A worker pinned to the AI channel can search,
 read, analyse and create a draft, and nothing else. It cannot do the work it was proposed for. The

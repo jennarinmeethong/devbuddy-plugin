@@ -146,7 +146,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), new CountingProvider());
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            caller, ["anything at all"], new WorkerBudget(10), CancellationToken.None);
+            caller.Context, ["anything at all"], new WorkerBudget(10), CancellationToken.None);
 
         Assert.True(outcome.Refused);
         Assert.Contains("AI channel", outcome.Reason!, StringComparison.Ordinal);
@@ -330,7 +330,7 @@ public sealed class WorkerAuthorizationTests
         Assert.Null(gateway.ProviderDescription);
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller(), ["some text"], new WorkerBudget(1), CancellationToken.None);
+            AiCaller().Context, ["some text"], new WorkerBudget(1), CancellationToken.None);
 
         Assert.True(outcome.Refused);
         Assert.Contains("no embedding provider", outcome.Reason!, StringComparison.Ordinal);
@@ -349,7 +349,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new ScannerThatFinds("connection-string"), provider);
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller(),
+            AiCaller().Context,
             ["Host=db;Username=devbuddy;Password=hunter2"],
             new WorkerBudget(10),
             CancellationToken.None);
@@ -369,7 +369,7 @@ public sealed class WorkerAuthorizationTests
             new ScannerThatFinds("assigned-secret"), new CountingProvider());
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller(),
+            AiCaller().Context,
             ["AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENG"],
             new WorkerBudget(2),
             CancellationToken.None);
@@ -387,7 +387,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(
             new ScannerThatFinds("high-entropy-string"), new CountingProvider());
 
-        await gateway.EmbedAsync(AiCaller(), ["nope"], budget, CancellationToken.None);
+        await gateway.EmbedAsync(AiCaller().Context, ["nope"], budget, CancellationToken.None);
 
         Assert.Equal(0, budget.Spent);
         Assert.Equal(1, budget.Remaining);
@@ -401,10 +401,10 @@ public sealed class WorkerAuthorizationTests
         WorkerBudget budget = new(1);
 
         EmbeddingOutcome first = await gateway.EmbedAsync(
-            AiCaller(), ["one"], budget, CancellationToken.None);
+            AiCaller().Context, ["one"], budget, CancellationToken.None);
 
         EmbeddingOutcome second = await gateway.EmbedAsync(
-            AiCaller(), ["two"], budget, CancellationToken.None);
+            AiCaller().Context, ["two"], budget, CancellationToken.None);
 
         Assert.False(first.Refused);
         Assert.True(second.Refused);
@@ -423,7 +423,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), new ShortProvider());
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller(), ["one", "two", "three"], new WorkerBudget(5), CancellationToken.None);
+            AiCaller().Context, ["one", "two", "three"], new WorkerBudget(5), CancellationToken.None);
 
         Assert.True(outcome.Refused);
         Assert.Contains("misaligned", outcome.Reason!, StringComparison.Ordinal);
@@ -438,7 +438,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), provider);
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller(), [], budget, CancellationToken.None);
+            AiCaller().Context, [], budget, CancellationToken.None);
 
         Assert.False(outcome.Refused);
         Assert.Empty(outcome.Vectors);
@@ -452,7 +452,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), new CountingProvider());
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller(), ["a", "b", "c"], new WorkerBudget(5), CancellationToken.None);
+            AiCaller().Context, ["a", "b", "c"], new WorkerBudget(5), CancellationToken.None);
 
         Assert.False(outcome.Refused);
         Assert.Equal(3, outcome.Vectors.Count);
@@ -481,10 +481,14 @@ public sealed class WorkerAuthorizationTests
                 .Where(file => File.ReadAllText(file)
                     .Contains("IEmbeddingProvider", StringComparison.Ordinal))
                 .Select(Path.GetFileName)
+                // The port itself, the gateway, the one adapter that implements it, and the two
+                // composition roots. Registering a port is not reaching it; everything else on
+                // this list would be.
                 .Where(name => name is not "IEmbeddingProvider.cs"
                     and not "EmbeddingGateway.cs"
                     and not "HttpEmbeddingProvider.cs"
-                    and not "DependencyInjection.cs")
+                    and not "DependencyInjection.cs"
+                    and not "DevBuddyOperations.cs")
                 .Cast<string>()
         ];
 

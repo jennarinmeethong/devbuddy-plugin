@@ -1420,11 +1420,12 @@ the embedding adapter exists behind a gateway that scans before text leaves.
 The derived vector index exists too, as of 2026-09-11: a conditional `pgvector` migration that
 skips itself where the extension is absent, and a similarity query whose scope is a `where` clause
 and whose model and dimension are matched so two models are never compared. A deleted project
-purges its vectors.
+purges its vectors. `search_similar_records` is the caller — an operation of its own rather than a
+mode of `search_knowledge`, and the **nineteenth** on the AI surface, the first change to that
+number since Phase 7.
 
-What nobody has written: **anything that calls the similarity query.** No operation, no endpoint,
-no screen, no job. Wiring one means a caller on the AI channel and a decision about whether
-semantic search belongs inside `search_knowledge` or beside it as an operation of its own, which
-extends the AI surface and has not been decided. No provider is enabled anywhere, the hosted mode
-may not be switched on without the vendor named, an outbound allow-list entry and an acceptance of
-its own, and the verification matrix still owes the embedding egress path rows of its own.
+What nobody has written: **anything that writes the index.** No job embeds, so on a fresh
+installation semantic search answers "nothing is indexed yet" for every project, honestly. No
+schedule runs any job at all. No provider is enabled anywhere, the hosted mode may not be switched
+on without the vendor named, an outbound allow-list entry and an acceptance of its own, and the
+verification matrix still owes the embedding egress path rows of its own.

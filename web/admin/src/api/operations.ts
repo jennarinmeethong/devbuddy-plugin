@@ -10,6 +10,7 @@
 /** Every operation this deployment can perform. */
 export type OperationName =
   | "search_knowledge"
+  | "search_similar_records"
   | "get_record"
   | "get_work_item"
   | "list_projects"
@@ -111,6 +112,26 @@ export type SearchKnowledgeResult = {
       snippet: string;
       rank: number;
     }>;
+};
+
+export type SearchSimilarRecordsArguments = {
+  queryText: string;
+  maxResults?: number;
+  scope: {
+    workspaceId: string;
+    projectId: string;
+  };
+};
+
+export type SearchSimilarRecordsResult = {
+  hits: Array<{
+      recordId: string;
+      revisionNumber: number;
+      kind: "ContextReference" | "DeliveryState" | "Decision" | "TechnicalKnowledge" | "ChangeImpact" | "Handover" | "CodeReviewFeedback";
+      title: string;
+      distance: number;
+    }>;
+  unavailable?: string | null;
 };
 
 export type GetRecordArguments = {
@@ -1054,6 +1075,7 @@ export type RevokeMachineTokenResult = {
 /** Argument and result types, keyed by operation name. */
 export interface Operations {
   "search_knowledge": { arguments: SearchKnowledgeArguments; result: SearchKnowledgeResult };
+  "search_similar_records": { arguments: SearchSimilarRecordsArguments; result: SearchSimilarRecordsResult };
   "get_record": { arguments: GetRecordArguments; result: GetRecordResult };
   "get_work_item": { arguments: GetWorkItemArguments; result: GetWorkItemResult };
   "list_projects": { arguments: ListProjectsArguments; result: ListProjectsResult };
@@ -1116,6 +1138,7 @@ export interface Operations {
 /** What each operation needs, and whether the AI surface may reach it. */
 export const OPERATIONS: Record<OperationName, { permission: PermissionName; availableToAi: boolean }> = {
   "search_knowledge": { permission: "ReadKnowledge", availableToAi: true },
+  "search_similar_records": { permission: "ReadKnowledge", availableToAi: true },
   "get_record": { permission: "ReadKnowledge", availableToAi: true },
   "get_work_item": { permission: "ReadKnowledge", availableToAi: true },
   "list_projects": { permission: "ReadKnowledge", availableToAi: true },
