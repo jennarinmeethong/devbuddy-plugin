@@ -196,6 +196,68 @@ The rc tag and its draft are deleted; its GHCR image tags are left. None of this
 checklist: it proves the workflow, not the release, and no smoke test, Compose run or drill was
 performed against it.
 
+## What was verified for v1.2.0
+
+**Not tagged yet.** This section records the checks that do not need the release's artefacts. They
+were run against `3160f61` on 2026-09-13, before the tag. The tag may land on a later commit only
+if that commit changes documentation alone; if it changes anything else, these rows are re-run. The
+rows that need the published archives and images are added once the tag exists.
+
+Everything below ran on jmhp. It used a clean clone and a Compose project of its own,
+`devbuddy-v120`. The owner's own `devbuddy` stack on that machine was not touched, and neither were
+its volumes. That stack holds 8080 and 8081, so this one published the API and the MCP server on
+18080 and 18081 through an override of those two port lines. Nothing else in `docker/compose.yaml`
+was changed.
+
+| Check | When | Result |
+| --- | --- | --- |
+| `dotnet test DevBuddy.slnx -c Release` on Linux with Docker | **Against `3160f61`, before the tag** | **Yes.** It ran in `mcr.microsoft.com/dotnet/sdk:10.0` against the host's Docker daemon, so the Testcontainers and drill tests actually ran. All six test projects ran, with 656 tests passed and none failed. |
+| Compose from clean to healthy | **Against `3160f61`, before the tag** | **Yes.** All six services came up. `api` was healthy, `migrate` exited 0, and `retention` logged its first pass with all six counts. `/health` returned 200, `/operations` 401 and the UI 200 at the root. The MCP server answered `POST /` with 401, against a control showing an unmapped path answers 404. Neither 5432 nor 9000 was listening on the host. The log volume came back owned by uid 1654 with a dated file in it. Compose builds from source, so this exercised the Dockerfiles rather than the published images. |
+| Tokens stay out of the log | **Against `3160f61`, before the tag** | **Yes**, in both directions against the running stack. With the default, a recovery request answered 202. The API logged that the message could not be delivered and wrote no token, to stdout or to the file on the volume. With `DEVBUDDY_EMAIL_ALLOW_TOKENS_IN_LOG=true`, the same request wrote the token, under the line marking it sensitive. That token appears exactly once in the log file and nowhere in the default run's output. The API was put back on the default afterwards. |
+| Destroy-and-restore drill | **Run on 2026-09-13, against `3160f61`** | **Yes**, with both the database and the evidence volumes destroyed. See below. |
+
+### The destroy-and-restore drill for v1.2.0
+
+This was scripted rather than clicked through the web UI. It still ran against the running stack,
+through the same console commands and HTTP routes a person would use.
+
+**Before the disaster**, the installation held:
+- a work item;
+- a record taken through draft, submit, approve and publish, with the approval bound to content
+  hash `AFB537E1…`;
+- two evidence artefacts, one of 232 bytes of text and one of 64 random bytes;
+- an administrator account;
+- a machine token;
+- fourteen audit entries.
+
+A file carrying a connection string and an AWS key was refused on upload with 422 Blocked. The store
+still held two artefacts afterwards, which is SB-17 against the running stack. The backup was
+copied off its volume before the disaster, and came to 12,552 bytes.
+
+| Row | Result |
+| --- | --- |
+| Records | **Back.** `get_record` returned exactly what it did before the disaster: `Published`, revision 1, title, body and provenance unchanged. |
+| Approvals | **Back, and still bound.** The history is identical to its pre-disaster copy. The revision's content hash and the approval's `approvedContentHash` are both `AFB537E1…`, the approver is named, and `approverWasDraftCreator` is true. |
+| Evidence | **Back, byte for byte.** Both artefacts downloaded at 232 and 64 bytes, and their SHA-256 matched the files that went in (`ebd4fdc7…`, `acb675af…`). The evidence volume had been destroyed, so those bytes came out of the backup. |
+| Audit history | **Back.** All fourteen entries are present afterwards, and none is missing. They include `RecordApproved/Failed` from an approval attempted before submission, and the `ContentScanned/Denied` entry for the blocked file. The three later entries are the restore's own reads. |
+| Accounts | **Back.** Sign-in with the same password succeeded. |
+| Plugins | **Back.** The machine token minted before the disaster still resolves over MCP stdio. `list_projects` returned an answer identical to the one before. The control: a bogus token was refused with "No identity was resolved for this request". |
+
+A second restore was refused with "This installation already has data. Restore into an empty
+database." It exited 1, and the record count stayed at one. The `retention` service came back with
+the stack and logged a pass.
+
+As in the `v1.1.0` drill, an access token issued before the disaster still answered 200 on `/me`
+afterwards. A restore does not revoke a stateless JWT inside its lifetime, and
+`backup-and-restore.md` already says so.
+
+**Still owed before the draft is publishable.** These need the tag:
+- smoke tests of `win-x64`, `linux-x64`, `linux-arm64`, `linux-musl-x64` and `osx-arm64` from the
+  published archives;
+- all three images started on both architectures, from GHCR by digest;
+- attestations verified from outside the workflow;
+- release notes stating verbatim that `win-arm64` and `linux-musl-arm64` were never run.
+
 ## What was verified for v1.1.0
 
 Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **published 2026-09-10**.
