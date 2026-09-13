@@ -10,20 +10,27 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**Phases 0 to 10 complete of 11.** 49 operations behind one pipeline, PostgreSQL with full-text
-search, MinIO evidence storage, the product own sign-in with lockout and rotating tokens, tenant
-isolation enforced server-side on every request, a draft-to-published path whose audit history
-records who approved exactly which revision, read-only analysis that provably executes nothing, a
-secret scanner that refuses credentials on the way in and redacts them on the way out, and three
-hosts over that one core — an HTTP API, an MCP server on stdio and authenticated HTTP, and a
-console — a React administration UI over a client generated from the API, and thin Claude and
-Codex plugin packages over that same MCP server, and a self-hosted Compose stack whose
-destroy-and-restore drill runs in CI.
+**v1 is released, and Phase 12 followed it.** `v1.0.0` (2026-09-06) and `v1.1.0` (2026-09-10) are
+published, signed, with an SBOM per image; `v1.2.0` is the next tag. 58 operations behind one
+pipeline plus two streaming evidence routes, PostgreSQL with full-text search, MinIO evidence
+storage, the product's own sign-in with lockout and rotating tokens, tenant isolation enforced
+server-side on every request, a draft-to-published path whose audit history records who approved
+exactly which revision, read-only analysis that provably executes nothing, a secret scanner that
+refuses credentials on the way in and redacts them on the way out, and three hosts over that one
+core — an HTTP API, an MCP server on stdio and authenticated HTTP, and a console — a React
+administration UI served by the API, covering workspaces, teams and project deletion, thin Claude
+and Codex plugin packages over that same MCP server, and a self-hosted Compose stack that schedules
+its own retention sweep, with images for `linux/amd64` and `linux/arm64`.
 
-**Thirty of 33 security controls are verified; one more is implemented but unproven.**
-Source synchronisation reads a mounted working copy rather than the GitHub API, so pull requests
-and issues are not available. Only the first workspace can be created, and teams have no
-operations. Do not connect real project data until the remaining controls are verified.
+**All 34 security controls are `TESTED`.** Source synchronisation reads a mounted working copy by
+default and the GitHub API when configured. Embeddings, semantic search and the background worker
+exist and are off by default; no hosted embedding provider is enabled anywhere, and no provider or
+worker has run against real project data. The owner's acceptance for connecting real project data
+is in `docs/security/release-readiness.md`.
+
+**Do not deploy from the `v1.0.0` or `v1.1.0` tag's Compose file.** Both name `minio/minio` on
+Docker Hub, which no longer serves it, so the evidence store cannot start without a cached image.
+`main` takes it from `quay.io`, pinned by digest, and `v1.2.0` will be the first release that does.
 
 ## Documents
 
@@ -31,9 +38,9 @@ operations. Do not connect real project data until the remaining controls are ve
 |---|---|
 | [คู่มือภาษาไทย — DevBuddy Handbook](docs/manual/devbuddy-guide.th.html) | Detailed offline HTML manual: cream claymorphism theme, installation, all MCP tools, administration, operations, and development. |
 | [info.md](info.md) | Decisions confirmed by the project owner. Binding. |
-| [docs/plan.md](docs/plan.md) | The phased implementation plan, Phase 0 to Phase 11, with exit criteria. |
+| [docs/plan.md](docs/plan.md) | The phased implementation plan, Phase 0 to Phase 12, with exit criteria. |
 | [docs/security/threat-model.md](docs/security/threat-model.md) | Assets, trust boundaries, adversaries, threats. |
-| [docs/security/security-baseline.md](docs/security/security-baseline.md) | The 33 controls and how each will be proved. |
+| [docs/security/security-baseline.md](docs/security/security-baseline.md) | The 34 controls and how each is proved. |
 | [docs/security/verification-matrix.md](docs/security/verification-matrix.md) | What has actually been tested. The only place a control counts as proven. |
 | [docs/operations/plugin-hosts.md](docs/operations/plugin-hosts.md) | Installing the plugins, and what the tool boundary does not cover. |
 | [docs/operations/workspace-layout.md](docs/operations/workspace-layout.md) | Arranging checkouts on a machine that works against more than one deployment. |

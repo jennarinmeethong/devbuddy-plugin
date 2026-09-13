@@ -39,6 +39,12 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
+**`v1.1.0` is published too (2026-09-10, from `4253a5b`), and `v1.2.0` is the next tag**, decided
+2026-09-13 in `info.md`. Nothing merged since `v1.1.0` is in a release yet — Phase 12C, the MinIO
+move to `quay.io`, and dropping `osx-x64` included — and the Compose file of both published tags
+names a MinIO image Docker Hub no longer serves. `release.yml` changed after the last rc proved it,
+so `v1.2.0` needs a throwaway prerelease tag first and its full checklist, `osx-arm64` included.
+
 What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
 operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images
 are built and started, and the log facts are decided rather than deferred — the sweep is scheduled

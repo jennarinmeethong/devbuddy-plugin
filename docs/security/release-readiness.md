@@ -3,12 +3,16 @@
 Phase 11 exit criteria, from `docs/plan.md`: the verification matrix has no silent gaps, and every
 remaining risk is named and accepted explicitly by the project owner before real project data is
 connected. This note is that naming. `docs/security/verification-matrix.md` is the per-control
-source of truth; this note does not repeat its 33 rows, only the ones whose status moved last and
+source of truth; this note does not repeat its 34 rows, only the ones whose status moved last and
 the eight Phase 11 scenarios.
 
 ## Status
 
-**All 33 controls are `TESTED`. 0 are `IMPLEMENTED`, 0 are `NOT IMPLEMENTED`.**
+**All 34 controls are `TESTED`. 0 are `IMPLEMENTED`, 0 are `NOT IMPLEMENTED`.**
+
+Thirty-three reached that state by `v1.0.0`. The thirty-fourth, SB-34, is the embedding egress path
+ADR-0012 required a control for; it was added and reached `TESTED` on 2026-09-13, and has a section
+of its own below.
 
 ## SB-29 — closed by the first published release
 
@@ -19,7 +23,8 @@ repository, `.github/workflows/release.yml`, `refs/tags/v1.0.0` and `9a8ebf0`; t
 archive matching its attested digest byte for byte and matching `SHA256SUMS`; a deliberately wrong
 `--owner` refused, so that a pass means something.
 
-That is the last row. **All 33 controls are `TESTED`.**
+That was the last of the original rows: **all 33 controls were `TESTED`** at `v1.0.0`. The
+thirty-fourth, SB-34, came with Phase 12C.
 
 An earlier draft of this same version was withdrawn rather than published, and the reason is worth
 keeping: its source archive carried the Compose file from before the MinIO key, so an operator
@@ -109,6 +114,26 @@ tests, and none of them widens the AI-exposed surface or changes an existing con
   `OutboundAccess:AllowedHosts` — the empty-allow-list default (SB-03) is unchanged by this
   existing.
 
+## SB-34 — embedding egress, added and closed 2026-09-13
+
+Phase 12C opened a path out of the boundary v1 did not have, and ADR-0012 required it to be a
+control of its own rather than read as covered by SB-17 and SB-18. SB-34 is that control.
+`EmbeddingEgressTests` runs the real `record-embedding-sweep` job and the real
+`search_similar_records` operation over PostgreSQL with pgvector, through the shipped pipeline, and
+replaces only the HTTP handler at the far end, so its assertions are about what the provider
+actually received rather than about what a job reported: a project nobody opened to AI contributes
+nothing, a secret never reaches the provider, drafts are never sent, and a query carrying a secret
+is refused with nothing sent.
+
+It found a defect before it proved anything. The sweep read a field the history operation does not
+produce, so on a real installation it would have reported success having embedded nothing; its unit
+test had passed throughout because the fake answered in the same wrong shape.
+
+What it does not accept is a hosted provider. That mode is enabled nowhere, and switching it on
+needs the vendor named, an `OutboundAccess:AllowedHosts` entry and an acceptance of its own beside
+the 2026-09-10 one. The self-hosted mode has run end to end once, on the owner's test installation
+with synthetic data only, and no provider or worker has run against real project data.
+
 ## Phase 11 scenario coverage
 
 | # | Scenario | Status |
@@ -165,8 +190,8 @@ Consequences worth stating, since a closed risk that quietly breaks a workflow i
   precisely because tokens were in those logs. An operator who turns the token opt-in on should
   turn log export back off.
 
-**2. The four unrun platforms — accepted, and they keep shipping.** `osx-arm64`, `osx-x64`,
-`win-arm64` and `linux-musl-arm64` were built and published for `v1.0.0` without ever being
+**2. The unrun platforms — accepted, and they keep shipping.** Four when accepted, two today; the
+narrowing is below. `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` were built and published for `v1.0.0` without ever being
 started, because no macOS and no Windows on ARM is available here. The owner's decision is to keep
 publishing them in the built-but-unverified tier with every release's notes saying so verbatim,
 rather than to acquire the hardware or to stop publishing. Whoever deploys on one of them is the
@@ -201,8 +226,8 @@ restored" covers refreshing and not tokens already issued.
 backup, and the fact that a permission revoked today does not retrieve a copy somebody downloaded
 yesterday. Both are in `info.md` under Accepted Security Limitations.
 
-Nothing here moves a control's status. All 33 remain `TESTED`, and SB-14, SB-15, SB-27 and SB-29
-gain evidence: `EmailSenderTests` is four cases over the token opt-in and its default,
+Nothing here moves a control's status. All 33 of that date remain `TESTED`, and SB-14, SB-15,
+SB-27 and SB-29 gain evidence: `EmailSenderTests` is four cases over the token opt-in and its default,
 `RetentionScheduleTests` twenty-seven over the sweep and the loop around it — including that both
 entry points call the identical delegate, so "the same sweep" is asserted rather than assumed —
 and `DeploymentTests` seven more over the shipped file, covering the scheduler, the email default,

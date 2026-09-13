@@ -1,5 +1,31 @@
 # Project Decisions
 
+## Confirmed Cutting v1.2.0 from main — 2026-09-13
+
+The owner decided the next release is `v1.2.0`, cut from `main`.
+
+- **A minor version, not `v1.1.1`.** Nothing merged since `v1.1.0` is in a release: the MinIO image
+  move, `osx-x64` leaving the release matrix, and all of Phase 12C — the worker and its schedule,
+  the embedding adapter, the derived vector index, and two operations joining the AI surface,
+  `search_similar_records` and `list_records`. That is new capability. A `v1.1.1` carrying only the
+  MinIO fix would have needed a branch from `v1.1.0` and a checklist of its own, and was not chosen.
+- **Why it is more than housekeeping.** The Compose files of `v1.0.0` and `v1.1.0` both name
+  `minio/minio` on Docker Hub, which no longer serves it, so an installation made from either tag
+  cannot start its evidence store without a cached image. `v1.2.0` is the first release whose stack
+  pulls from clean. This settles the question the MinIO entry below left open.
+- **What already binds it, restated rather than decided again.** The checklist in
+  `docs/operations/release-matrix.md` is re-run in full with nothing carried over (2026-09-10),
+  including `osx-arm64` on the Mac mini (2026-09-13). `release.yml` changed after `v1.1.1-rc.2`
+  proved it — `6fded95` removed `osx-x64` from its matrix — so a throwaway prerelease tag goes
+  first. The release notes state verbatim that `win-arm64` and `linux-musl-arm64` were never run and
+  that every `linux/arm64` result is emulated.
+- **What it does not change.** Embeddings and the workers ship off by default: no provider is
+  configured, a plain `up -d` starts neither worker, and the default database image stays
+  `postgres:17-alpine`. The hosted provider mode, and any provider or worker on real project data,
+  still need approvals of their own; publishing a release that contains the code is not one.
+- **`plugins/claude/.claude-plugin/plugin.json` goes to `1.2.0`.** No workflow reads it, and the
+  Codex package carries no version field.
+
 ## Confirmed Moving osx-arm64 to the Verified Tier — 2026-09-13
 
 The owner moved `osx-arm64` into the verified tier, after it was run natively on the owner's Apple M4
@@ -40,7 +66,7 @@ Docker Hub before it stopped serving the image, so the MinIO build does not chan
 digest as well as the tag means a registry cannot move what the tag points at.
 
 Not decided here: whether to cut a release carrying this, although `v1.0.0`'s Compose file still
-names the image Docker Hub no longer serves.
+names the image Docker Hub no longer serves. Decided since: `v1.2.0` carries it, per the entry above.
 
 ## Confirmed the Worker Schedule, and a Self-Hosted Embedding Trial on a Test Installation — 2026-09-13
 

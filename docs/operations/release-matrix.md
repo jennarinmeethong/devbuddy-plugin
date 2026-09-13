@@ -179,7 +179,7 @@ Both rc tags and their drafts are deleted. Their GHCR image tags are left, as ab
 
 ## What was verified for v1.1.0
 
-Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **draft, not published**, 2026-09-10.
+Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **published 2026-09-10**.
 
 Nothing is carried over. The 2026-09-10 decision closed that licence, and this release changed the
 console, the fallback email sender, all three Dockerfiles and the Compose stack, so there was
@@ -237,9 +237,9 @@ lifetime. A restore does not and cannot revoke one. Nothing here is broken, and 
 narrower than it reads: what a restore drops is the ability to *refresh*, not tokens already
 issued.
 
-**The draft is publishable.** Every row the checklist asks for has been run for this tag, except
-the four RIDs the 2026-09-10 decision keeps shipping without ever starting, which the release notes
-must state verbatim.
+**The draft was publishable, and was published the same day.** Every row the checklist asks for
+has been run for this tag, except the four RIDs the 2026-09-10 decision keeps shipping without ever
+starting, which the release notes must state verbatim.
 
 ## What was verified for v1.0.0
 
