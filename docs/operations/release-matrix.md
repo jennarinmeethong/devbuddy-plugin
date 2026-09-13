@@ -17,15 +17,19 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `linux-x64` | yes | **yes** | `ubuntu:24.04`, in a container. |
 | `linux-arm64` | yes | **yes** | `ubuntu:24.04` under `linux/arm64` emulation. Emulated, not hardware. |
 | `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
-| `osx-arm64` | yes | no | Not smoke-tested per release. Run once outside a release, on an Apple M4 Mac mini on 2026-09-13; see below. |
+| `osx-arm64` | yes | **yes** | Natively, on an Apple M4 Mac mini running macOS 26.6.2. Hardware, not emulation. First run 2026-09-13, outside a release; see below. |
 | `win-arm64` | yes | no | No Windows on ARM available. Published as-is. |
 | `linux-musl-arm64` | yes | no | Not run; the x64 musl build was, so the dependency list is believed to carry over. |
 
-The three rows reading **no** are a decision rather than an omission, confirmed by the project owner
+The two rows reading **no** are a decision rather than an omission, confirmed by the project owner
 on 2026-09-10: keep publishing them in this tier, with every release's notes saying they were never
-started, rather than acquire the hardware or stop publishing. No Windows on ARM is available here,
-and a Mac only became available on 2026-09-13. Whoever deploys on one of them is the first to run
-it, and nobody may describe them as supported.
+started, rather than acquire the hardware or stop publishing. No Windows on ARM is available here.
+Whoever deploys on one of them is the first to run it, and nobody may describe them as supported.
+
+**`osx-arm64` moved to the verified tier (2026-09-13).** The owner moved it after a Mac mini became
+available and the build was run on it. From the next release on it is smoke-tested by hand on that
+machine like every other row reading yes, and a release for which it cannot be run records its
+"Run" column as no, per step 3 of the checklist below.
 
 **`osx-x64` is no longer published (2026-09-13).** It was a fourth row in this tier until the owner
 removed it from the platforms this project supports. It had never been run here. The release
@@ -352,10 +356,9 @@ Two things these runs settled rather than assumed.
   refused to load locally built test assemblies on 2026-09-13, citing that policy. The self-contained
   executable ran without a refusal.
 
-**What this does not change.** The table at the top still shows `osx-arm64` in the unverified tier,
-because that tier means "not smoke-tested by hand every release", and one run outside a release is
-not that commitment. Moving it to the verified tier is the owner's decision under ADR-0008 and
-`info.md`. Not claimed: the API or MCP executables on any of these three platforms; a macOS host
+**What this did not change by itself.** One run outside a release does not put a platform in the
+verified tier, because that tier means "smoke-tested by hand every release". The owner moved
+`osx-arm64` there the same day, under ADR-0008 and `info.md`, and the table at the top reflects it. Not claimed: the API or MCP executables on any of these three platforms; a macOS host
 with nothing installed but the operating system, since the Mac mini also carries a system-wide .NET
 installation that a self-contained executable does not use; and any run of `win-arm64` or
 `linux-musl-arm64`.

@@ -1,5 +1,18 @@
 # Project Decisions
 
+## Confirmed Moving osx-arm64 to the Verified Tier — 2026-09-13
+
+The owner moved `osx-arm64` into the verified tier, after it was run natively on the owner's Apple M4
+Mac mini the same day.
+
+- **What it was moved on.** The Linux-built self-contained executable for `6fded95` and the published
+  `v1.1.0` archive both started on that machine and listed the catalogue's AI operations, and both
+  apphosts are ad-hoc signed. `docs/operations/release-matrix.md` records the runs.
+- **What it commits to.** A smoke test by hand before every release, recorded per release, as for
+  every other verified row. A release for which it cannot be run records it as not run.
+- **The unverified tier is two RIDs:** `win-arm64` and `linux-musl-arm64`. This supersedes the list
+  in the entry below.
+
 ## Confirmed Dropping osx-x64 from the Supported Platforms — 2026-09-13
 
 The owner removed macOS on x64 from the platforms this project supports.
@@ -728,10 +741,10 @@ design questions it raised. These are confirmed requirements, not proposals.
   HTTP (for self-hosted or remote use) in the first release, sharing one tool allow-list and one
   authorization pipeline.
 - Release matrix (**amended 2026-09-07**, to what v1.0.0 actually shipped, and **2026-09-13**, to
-  drop `osx-x64`; what the original decision named is in the amendment note at the end of this
-  file): publish three explicit tiers — verified (`linux-x64`, `linux-arm64`, `win-x64`,
-  `linux-musl-x64`), built but unverified (`osx-arm64`, `win-arm64`, `linux-musl-arm64`), and not
-  published.
+  drop `osx-x64` and move `osx-arm64` to verified; what the original decision named is in the
+  amendment note at the end of this file): publish three explicit tiers — verified (`linux-x64`,
+  `linux-arm64`, `win-x64`, `linux-musl-x64`, `osx-arm64`), built but unverified (`win-arm64`,
+  `linux-musl-arm64`), and not published.
   Verified means smoke-tested by hand and recorded per release in
   `docs/operations/release-matrix.md`, not smoke-tested in CI: CI runs the full suite on
   `ubuntu-latest` and `windows-latest` and nothing else. Container images cover `linux/amd64` as a

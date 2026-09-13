@@ -177,6 +177,10 @@ platforms this project supports, so it is no longer built or published. `osx-arm
 and `linux-musl-arm64` stay on the terms above. Archives earlier releases published for `osx-x64`
 remain as they were released, unverified.
 
+**Narrowed again the same day: two platforms.** `osx-arm64` moved to the verified tier after it was
+run natively on an Apple M4 Mac mini, so it is smoke-tested before every release rather than
+accepted as unrun. `win-arm64` and `linux-musl-arm64` remain on the terms above.
+
 **Closed rather than accepted: `linux/arm64` container images.** This section, ADR-0008 and the
 release matrix all said they were not built and not claimed. They are built now, published under
 the same tag as the amd64 images, and all three were started and answered. Cross-compiled rather

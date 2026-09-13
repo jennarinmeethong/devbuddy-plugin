@@ -20,8 +20,8 @@ Publish in three declared tiers, recorded in `docs/operations/release-matrix.md`
 
 | Tier | RIDs | Meaning |
 |---|---|---|
-| Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64` | Built and smoke-tested by hand every release, recorded in that file. |
-| Built, unverified | `osx-arm64`, `win-arm64`, `linux-musl-arm64` | Published as-is, never run, labelled unverified in the release notes. |
+| Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`, `osx-arm64` | Built and smoke-tested by hand every release, recorded in that file. |
+| Built, unverified | `win-arm64`, `linux-musl-arm64` | Published as-is, never run, labelled unverified in the release notes. |
 | Not published | Everything else | Out of scope for v1. Not claimed as supported. |
 
 Container images are a **separate** matrix: `linux/amd64` and `linux/arm64` (see the second
@@ -80,11 +80,23 @@ This narrows the 2026-09-10 amendment above from four unverified RIDs to three: 
 `win-arm64` and `linux-musl-arm64` keep shipping in the middle tier on the same terms. The table in
 the decision reflects it.
 
+## Amendment — 2026-09-13, later the same day
+
+**`osx-arm64` returns to the verified tier**, where the 2026-09-01 decision put it and from which the
+2026-09-07 amendment moved it because no macOS was available. A Mac mini now is. The build was run on
+it natively, both the Linux-built executable for the current source and the published `v1.1.0`
+archive, and both started and answered; `docs/operations/release-matrix.md` records the runs. The
+project owner moved it after those runs.
+
+It commits to what every verified row commits to: a smoke test by hand before each release,
+recorded per release, and a release for which it cannot be run records its "Run" column as no. The
+middle tier is now `win-arm64` and `linux-musl-arm64`.
+
 ## Consequences
 
 - The middle tier is the honest part of this decision: those artifacts are useful and untested, and
   saying so is better than either hiding them or implying they are verified.
-- Verification cost is bounded, because only four RIDs are smoke-tested — by hand, which bounds it
+- Verification cost is bounded, because only five RIDs are smoke-tested — by hand, which bounds it
   by somebody's time rather than by CI minutes, and is why the record of who ran what and when
   lives in `docs/operations/release-matrix.md`.
 - Users on an unverified RID carry the risk knowingly.

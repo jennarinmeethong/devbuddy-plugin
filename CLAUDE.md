@@ -42,8 +42,9 @@ ADR-0012 required a control for, closed on 2026-09-13.
 What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
 operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images
 are built and started, and the log facts are decided rather than deferred — the sweep is scheduled
-and tokens are no longer written to a log by default. Three unrun platforms remain, now as an
-accepted decision rather than a gap; `osx-x64`, the fourth, was dropped on 2026-09-13. `docs/security/release-readiness.md` is the current statement
+and tokens are no longer written to a log by default. Two unrun platforms remain, now as an
+accepted decision rather than a gap: on 2026-09-13 `osx-x64` was dropped and `osx-arm64` moved to
+the verified tier. `docs/security/release-readiness.md` is the current statement
 of what is accepted and by whom.
 
 **Every operation a person needs is reachable from `web/admin`.** Team administration is the
@@ -120,9 +121,11 @@ stage, which is what makes that possible. All three were started under emulation
 emulated rather than as hardware. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
-**The three unrun RIDs keep shipping.** `osx-arm64`, `win-arm64`, `linux-musl-arm64` stay in the
+**The two unrun RIDs keep shipping.** `win-arm64` and `linux-musl-arm64` stay in the
 built-but-unverified tier with every release's notes saying they were never started. Confirmed as a
-decision, not left as a gap. Nobody may describe them as supported. **`osx-x64` is not published at
+decision, not left as a gap. Nobody may describe them as supported. **`osx-arm64` is verified since
+2026-09-13**: it ran natively on the owner's Apple M4 Mac mini, including the Linux-built archive,
+which the SDK ad-hoc signs, so every release now owes a smoke test of it on that machine. **`osx-x64` is not published at
 all since 2026-09-13**: the owner dropped it, the release workflow no longer builds it, and it must
 not come back without a decision in `info.md`.
 
