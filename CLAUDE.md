@@ -42,8 +42,8 @@ ADR-0012 required a control for, closed on 2026-09-13.
 What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
 operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images
 are built and started, and the log facts are decided rather than deferred — the sweep is scheduled
-and tokens are no longer written to a log by default. The four unrun platforms remain, now as an
-accepted decision rather than a gap. `docs/security/release-readiness.md` is the current statement
+and tokens are no longer written to a log by default. Three unrun platforms remain, now as an
+accepted decision rather than a gap; `osx-x64`, the fourth, was dropped on 2026-09-13. `docs/security/release-readiness.md` is the current statement
 of what is accepted and by whom.
 
 **Every operation a person needs is reachable from `web/admin`.** Team administration is the
@@ -120,9 +120,11 @@ stage, which is what makes that possible. All three were started under emulation
 emulated rather than as hardware. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
-**The four unrun RIDs keep shipping.** `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64`
-stay in the built-but-unverified tier with every release's notes saying they were never started.
-Confirmed as a decision, not left as a gap. Nobody may describe them as supported.
+**The three unrun RIDs keep shipping.** `osx-arm64`, `win-arm64`, `linux-musl-arm64` stay in the
+built-but-unverified tier with every release's notes saying they were never started. Confirmed as a
+decision, not left as a gap. Nobody may describe them as supported. **`osx-x64` is not published at
+all since 2026-09-13**: the owner dropped it, the release workflow no longer builds it, and it must
+not come back without a decision in `info.md`.
 
 **Phase 12C's ADRs are confirmed and all of it is written.** ADR-0012 (embeddings and vector
 search) and ADR-0013 (the `knowledge-ai-worker`) were confirmed in `info.md` on 2026-09-10, so

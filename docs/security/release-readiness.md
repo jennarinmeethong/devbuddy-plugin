@@ -172,6 +172,11 @@ publishing them in the built-but-unverified tier with every release's notes sayi
 rather than to acquire the hardware or to stop publishing. Whoever deploys on one of them is the
 first to run it, and nobody may describe them as supported.
 
+**Narrowed on 2026-09-13: three platforms, not four.** The owner removed `osx-x64` from the
+platforms this project supports, so it is no longer built or published. `osx-arm64`, `win-arm64`
+and `linux-musl-arm64` stay on the terms above. Archives earlier releases published for `osx-x64`
+remain as they were released, unverified.
+
 **Closed rather than accepted: `linux/arm64` container images.** This section, ADR-0008 and the
 release matrix all said they were not built and not claimed. They are built now, published under
 the same tag as the amd64 images, and all three were started and answered. Cross-compiled rather

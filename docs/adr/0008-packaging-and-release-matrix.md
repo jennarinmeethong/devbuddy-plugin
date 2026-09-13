@@ -1,6 +1,6 @@
 # ADR-0008: Self-contained publish tiers and Docker packaging
 
-- Status: Accepted; amended 2026-09-07
+- Status: Accepted; amended 2026-09-07, 2026-09-10 and 2026-09-13
 - Date: 2026-09-01
 - Phase: 10
 
@@ -21,7 +21,7 @@ Publish in three declared tiers, recorded in `docs/operations/release-matrix.md`
 | Tier | RIDs | Meaning |
 |---|---|---|
 | Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64` | Built and smoke-tested by hand every release, recorded in that file. |
-| Built, unverified | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | Published as-is, never run, labelled unverified in the release notes. |
+| Built, unverified | `osx-arm64`, `win-arm64`, `linux-musl-arm64` | Published as-is, never run, labelled unverified in the release notes. |
 | Not published | Everything else | Out of scope for v1. Not claimed as supported. |
 
 Container images are a **separate** matrix: `linux/amd64` and `linux/arm64` (see the second
@@ -68,6 +68,17 @@ The four unverified RIDs are **not** affected. The project owner confirmed on 20
 `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` keep shipping in the middle tier, with
 every release's notes saying they were never started, rather than acquiring the hardware or
 dropping them. The middle tier is doing exactly the job this ADR says it is for.
+
+## Amendment — 2026-09-13
+
+**`osx-x64` leaves the matrix.** The project owner removed it from the platforms this project
+supports, so it moves from built-but-unverified to not published. The release workflow no longer
+builds it, and no later release carries an archive for it. Releases tagged before this date did
+publish one, and those are left as they were released.
+
+This narrows the 2026-09-10 amendment above from four unverified RIDs to three: `osx-arm64`,
+`win-arm64` and `linux-musl-arm64` keep shipping in the middle tier on the same terms. The table in
+the decision reflects it.
 
 ## Consequences
 

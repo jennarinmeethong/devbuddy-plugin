@@ -18,15 +18,19 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `linux-arm64` | yes | **yes** | `ubuntu:24.04` under `linux/arm64` emulation. Emulated, not hardware. |
 | `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
 | `osx-arm64` | yes | no | No macOS available. Published as-is. |
-| `osx-x64` | yes | no | No macOS available. Published as-is. |
 | `win-arm64` | yes | no | No Windows on ARM available. Published as-is. |
 | `linux-musl-arm64` | yes | no | Not run; the x64 musl build was, so the dependency list is believed to carry over. |
 
-The four rows reading **no** are a decision rather than an omission, confirmed by the project owner
+The three rows reading **no** are a decision rather than an omission, confirmed by the project owner
 on 2026-09-10: keep publishing them in this tier, with every release's notes saying they were never
 started, rather than acquire the hardware or stop publishing. No macOS and no Windows on ARM is
 available here. Whoever deploys on one of them is the first to run it, and nobody may describe them
-as supported. The alternative — dropping them — stays available and costs nothing but four rows.
+as supported.
+
+**`osx-x64` is no longer published (2026-09-13).** It was a fourth row in this tier until the owner
+removed it from the platforms this project supports. It had never been run here. The release
+workflow no longer builds it, so it now falls under *not published and not supported* below.
+Archives that releases tagged before that date published for it are left where they are.
 
 "Run" means the executable started and answered — `DevBuddy.Cli operations --ai` returned the
 AI-exposed operation names — eighteen when the rows below were recorded, twenty since semantic

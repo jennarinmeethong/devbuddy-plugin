@@ -743,12 +743,13 @@ Both are in `docs/operations/plugin-hosts.md`.
 
 - Self-contained publish for the console and server workloads, with an explicit **RID and
   verification matrix** in `docs/operations/release-matrix.md`. Short and honest, three tiers
-  (**amended 2026-09-07**, to what `v1.0.0` shipped; the amendment note is in `info.md`):
+  (**amended 2026-09-07**, to what `v1.0.0` shipped, and **2026-09-13**, dropping `osx-x64`; the
+  amendment notes are in `info.md`):
 
   | Tier | RIDs | Meaning |
   |---|---|---|
   | Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64` | Built **and** smoke-tested by hand, recorded per release. CI runs the full suite on `ubuntu-latest` and `windows-latest` only. |
-  | Built, unverified | `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | Published as-is; never run. Stated as unverified in the release notes. |
+  | Built, unverified | `osx-arm64`, `win-arm64`, `linux-musl-arm64` | Published as-is; never run. Stated as unverified in the release notes. |
   | Not published | everything else | Out of scope for v1; not claimed as supported. |
 
   Native OS dependencies are documented explicitly (ICU and OpenSSL on Linux unless invariant
@@ -1393,10 +1394,11 @@ each gets an ADR in `docs/adr/`.
    filesystem adapter stays behind the same `IEvidenceStore` port for tests and single-host installs.
 2. **MCP transport (Phase 7)** — **both** ship in the first release: stdio for the local Claude and
    Codex plugins, authenticated HTTP for self-hosted/remote. One tool allow-list covers both.
-3. **RID matrix (Phase 10)** — three tiers, **amended 2026-09-07** to what `v1.0.0` shipped:
-   verified (`linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`), built-but-unverified
-   (`osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64`), and not published. Containers are a
-   separate matrix: `linux/amd64` only. The amendment note is in `info.md`.
+3. **RID matrix (Phase 10)** — three tiers, **amended 2026-09-07** to what `v1.0.0` shipped and
+   **2026-09-13** to drop `osx-x64`: verified (`linux-x64`, `linux-arm64`, `win-x64`,
+   `linux-musl-x64`), built-but-unverified (`osx-arm64`, `win-arm64`, `linux-musl-arm64`), and not
+   published. Containers are a separate matrix: `linux/amd64`, and `linux/arm64` since 2026-09-10.
+   The amendment notes are in `info.md`.
 4. **Retention (Phase 11)** — the defaults table in Phase 11 applies, covering records, evidence,
    audit, logs, exports, backups, and caches, with the backup-lag residual risk stated explicitly.
 5. **Work-item source of truth (Phase 6)** — **DevBuddy owns the work item.** GitHub is imported
@@ -1415,8 +1417,8 @@ plan deliberately kept out of v1.
 Both of those, and the acceptance that gates real project data, were drafted as **Phase 12** above
 and approved on 2026-09-10. 12A and 12B are done: the acceptance is in `info.md`, the retention
 sweep is scheduled by the stack, `linux/arm64` images are built and started, tokens are no longer
-written to a log unless an operator asks, and the four unrun platforms keep shipping with the
-release notes saying so.
+written to a log unless an operator asks, and the unrun platforms keep shipping with the release
+notes saying so — three of them since 2026-09-13, when `osx-x64` was dropped.
 
 What is left is a caller and a schedule. Both ADRs are confirmed, the embedding provider is
 settled as a port with two modes off by default, the worker's authorization skeleton is built, the

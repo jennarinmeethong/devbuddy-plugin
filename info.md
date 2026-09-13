@@ -1,5 +1,18 @@
 # Project Decisions
 
+## Confirmed Dropping osx-x64 from the Supported Platforms — 2026-09-13
+
+The owner removed macOS on x64 from the platforms this project supports.
+
+- **`osx-x64` is no longer built or published.** It leaves the built-but-unverified tier for the
+  not-published tier, and the release workflow no longer has it in its RID matrix.
+- **The unverified tier is three RIDs:** `osx-arm64`, `win-arm64` and `linux-musl-arm64`, on the
+  terms confirmed on 2026-09-10 — published as-is, never run, and stated verbatim in every
+  release's notes.
+- **macOS on Apple silicon is unaffected.** `osx-arm64` keeps shipping.
+- **Archives earlier releases published for `osx-x64` are not withdrawn.** Removing a published
+  release asset would be a separate decision, and this one does not make it.
+
 ## Confirmed Taking MinIO from quay.io — 2026-09-13
 
 Docker Hub had stopped serving `minio/minio` by 2026-09-13: the repository answers 404 and a pull of
@@ -714,10 +727,11 @@ design questions it raised. These are confirmed requirements, not proposals.
 - MCP transport: ship both stdio (for locally launched Claude and Codex plugins) and authenticated
   HTTP (for self-hosted or remote use) in the first release, sharing one tool allow-list and one
   authorization pipeline.
-- Release matrix (**amended 2026-09-07**; the tiers below are what v1.0.0 actually shipped, and
-  what the original decision named is in the amendment note at the end of this file): publish three
-  explicit tiers — verified (`linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`), built but
-  unverified (`osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64`), and not published.
+- Release matrix (**amended 2026-09-07**, to what v1.0.0 actually shipped, and **2026-09-13**, to
+  drop `osx-x64`; what the original decision named is in the amendment note at the end of this
+  file): publish three explicit tiers — verified (`linux-x64`, `linux-arm64`, `win-x64`,
+  `linux-musl-x64`), built but unverified (`osx-arm64`, `win-arm64`, `linux-musl-arm64`), and not
+  published.
   Verified means smoke-tested by hand and recorded per release in
   `docs/operations/release-matrix.md`, not smoke-tested in CI: CI runs the full suite on
   `ubuntu-latest` and `windows-latest` and nothing else. Container images cover `linux/amd64` as a
