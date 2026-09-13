@@ -352,9 +352,15 @@ Two things these runs settled rather than assumed.
   that the archive had never been startable at all. It is not the case: `codesign -dv` reports the
   apphost as ad-hoc signed, for the `v1.1.0` archive and for the `6fded95` build alike, so the .NET
   SDK signs it even when publishing from Linux.
-- **The development machine's Application Control policy did not stop `win-x64`.** The same machine
-  refused to load locally built test assemblies on 2026-09-13, citing that policy. The self-contained
-  executable ran without a refusal.
+- **Smart App Control on the development machine did not stop `win-x64`, and it does stop local
+  test runs there.** Smart App Control is on, and every DevBuddy assembly in the self-contained build
+  is unsigned. The executable ran all the same, and not only `operations --ai`, which may never load
+  the infrastructure assembly: `migrate` with no connection string got as far as refusing for the
+  missing connection string, which happens inside `DevBuddy.Infrastructure.dll`. What the policy does
+  block is `dotnet test` on that machine. The code integrity log records `DevBuddy.Infrastructure.dll`
+  from the build output refused under policy `{0283AC0F-FFF1-49AE-ADA1-8A933130CAD6}` for not meeting
+  the required signing level, so the Windows test projects are verified by CI on `windows-latest`,
+  not locally.
 
 **What this did not change by itself.** One run outside a release does not put a platform in the
 verified tier, because that tier means "smoke-tested by hand every release". The owner moved
