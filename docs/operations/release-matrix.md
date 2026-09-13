@@ -177,6 +177,25 @@ deprecation notice is gone, and so is the Node 20 one.
 
 Both rc tags and their drafts are deleted. Their GHCR image tags are left, as above.
 
+**And again before `v1.2.0`, because `release.yml` changed after rc.2 proved it.** `6fded95`
+removed `osx-x64` from the RID matrix. `v1.2.0-rc.1` from `cc3aacb`, run 34767676557, 2026-09-13.
+All 13 jobs passed with **no annotations** in any of them. That is one job fewer than rc.2, because
+one RID fewer is published.
+
+| Claim | Result |
+| --- | --- |
+| The matrix publishes exactly the seven RIDs in the first table | **Yes.** The draft carries seven archives, `SHA256SUMS` and the three SBOMs: eleven assets, and no `osx-x64`. |
+| Provenance verifies from outside the workflow | **Yes**, for all three images and the `linux-x64` archive. It names this repository, `.github/workflows/release.yml`, `refs/tags/v1.2.0-rc.1` and `cc3aacb`. A deliberately wrong `--owner` is refused for both an image and the archive. |
+| The SBOMs are still attested per image | **Yes.** Predicate `https://cyclonedx.org/bom`, with 36, 38 and 56 components for the API, the MCP server and the console. Those are the same figures as rc.2, which Phase 12C did not change. |
+| `SHA256SUMS` matches the archive | **Yes.** `devbuddy-linux-x64.tar.gz` downloaded from the draft hashes to `e341e068…`, matching `SHA256SUMS`. |
+| Both architectures are in the manifest | **Yes.** `linux/amd64` and `linux/arm64` for `devbuddy-api:1.2.0-rc.1`. This was checked for that one image only. |
+| A prerelease draft is marked as one | **Yes.** `prerelease=true`, and `v1.1.0` stayed Latest. |
+| The moving tag is not hijacked | **Yes.** No `1.2` tag exists for any of the three images. `1.1` still resolves to the same digest as `1.1.0` for all three, for the API `sha256:05645a37…`. |
+
+The rc tag and its draft are deleted; its GHCR image tags are left. None of this is the `v1.2.0`
+checklist: it proves the workflow, not the release, and no smoke test, Compose run or drill was
+performed against it.
+
 ## What was verified for v1.1.0
 
 Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **published 2026-09-10**.
