@@ -279,7 +279,12 @@ public sealed class RecordEmbeddingSweepJob(
                 continue;
             }
 
-            if (revision.TryGetProperty("revisionNumber", out JsonElement number)
+            // "number", because that is what RevisionSummary serialises as. This read
+            // "revisionNumber" until the embedding egress suite ran the job against the real
+            // operation: every published record came back with no number, was counted as skipped
+            // as though it were a draft, and the sweep reported success having embedded nothing.
+            // The unit test's fake answered with the same wrong name, so the two agreed.
+            if (revision.TryGetProperty("number", out JsonElement number)
                 && number.TryGetInt32(out int parsed)
                 && revision.TryGetProperty("contentHash", out JsonElement hash)
                 && hash.GetString() is { Length: > 0 } contentHash)

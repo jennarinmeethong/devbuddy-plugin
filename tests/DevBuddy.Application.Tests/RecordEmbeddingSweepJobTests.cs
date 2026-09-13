@@ -3,9 +3,13 @@ using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
+using DevBuddy.Application.UseCases;
+using DevBuddy.Application.UseCases.Administration;
+using DevBuddy.Application.UseCases.Reading;
 using DevBuddy.Application.Workers;
 using DevBuddy.Application.Workers.Jobs;
 using DevBuddy.Domain.Common;
+using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
 
 namespace DevBuddy.Application.Tests;
@@ -356,30 +360,49 @@ public sealed class RecordEmbeddingSweepJobTests
 
         public List<string> Invoked { get; } = [];
 
+        private static readonly DateTimeOffset Now = new(2026, 9, 13, 9, 0, 0, TimeSpan.Zero);
+
+        private static readonly ProvenanceView SeedProvenance =
+            new(ProvenanceSourceKind.HumanAuthored, "seed", "seed", Now, IsAiGenerated: false, EvidenceCount: 0);
+
+        // Every payload below is a real response record, serialised the way the dispatcher
+        // serialises one — never an anonymous object typed to look like what the job reads. The job
+        // read "revisionNumber" from view_record_history while RevisionSummary serialises "number",
+        // and the anonymous fake this replaced said "revisionNumber" too. The unit test and the bug
+        // agreed, every published record was skipped on a real installation, and only the embedding
+        // egress suite, running the job against the real operation, found it.
         public void Projects(params Guid[] ids) =>
-            Answer("list_projects", new { projects = ids.Select(id => new { projectId = id }) });
+            Answer("list_projects", new ListProjectsResponse(
+                [.. ids.Select(id => new ProjectSummary(new ProjectId(id), "Project", Now, AiAccessEnabled: true))]));
 
         public void Records(params Guid[] ids) =>
-            Answer("list_records", new { records = ids.Select(id => new { recordId = id }) });
+            Answer("list_records", new ListRecordsResponse(
+                [.. ids.Select(id => new RecordSummary(
+                    new KnowledgeRecordId(id), new WorkItemId(Guid.NewGuid()), RecordKind.Decision,
+                    RecordStatus.Published, "Title", CurrentRevisionNumber: 1, PublishedRevisionNumber: 1, Now))]));
 
         public void History(int publishedRevision, string contentHash) =>
-            Answer("view_record_history", new
-            {
-                revisions = new[]
-                {
-                    new { revisionNumber = publishedRevision - 1, contentHash = "older", isPublished = false },
-                    new { revisionNumber = publishedRevision, contentHash, isPublished = true },
-                },
-            });
+            Answer("view_record_history", new RecordHistoryResponse(
+                new KnowledgeRecordId(Guid.NewGuid()),
+                RecordStatus.Published,
+                [
+                    Revision(publishedRevision - 1, "older", isPublished: false),
+                    Revision(publishedRevision, contentHash, isPublished: true),
+                ]));
 
         public void HistoryWithNoPublishedRevision() =>
-            Answer("view_record_history", new
-            {
-                revisions = new[] { new { revisionNumber = 1, contentHash = "draft", isPublished = false } },
-            });
+            Answer("view_record_history", new RecordHistoryResponse(
+                new KnowledgeRecordId(Guid.NewGuid()),
+                RecordStatus.Draft,
+                [Revision(1, "draft", isPublished: false)]));
 
         public void Record(string title, string body) =>
-            Answer("get_record", new { title, body });
+            Answer("get_record", new KnowledgeRecordView(
+                new KnowledgeRecordId(Guid.NewGuid()), RecordKind.Decision, RecordStatus.Published,
+                RevisionNumber: 1, PublishedRevisionNumber: 1, title, body, SeedProvenance, Now));
+
+        private static RevisionSummary Revision(int number, string contentHash, bool isPublished) =>
+            new(number, contentHash, "Title", Now, SeedProvenance, isPublished, Approval: null);
 
         public void Refuse(string operation, string reason) =>
             _answers[operation] = () => new DispatchResult(
