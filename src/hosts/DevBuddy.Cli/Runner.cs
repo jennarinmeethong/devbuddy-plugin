@@ -5,6 +5,8 @@ using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
+using DevBuddy.Application.Workers;
+using DevBuddy.Application.Workers.Jobs;
 using DevBuddy.Domain.Common;
 using DevBuddy.Infrastructure.Administration;
 using DevBuddy.Infrastructure.Hosting;
@@ -168,6 +170,89 @@ internal static class Runner
 
             await RetentionSchedule.SweepEveryAsync(
                 SweepAsync,
+                interval,
+                Task.Delay,
+                Console.Out,
+                Console.Error,
+                stopping.Token);
+
+            return Ok;
+        });
+    }
+
+    /// <summary>
+    /// Runs one worker job as the owner of <see cref="WorkerSchedule.TokenVariable"/>, once or on
+    /// a schedule.
+    /// <para>
+    /// Unlike <see cref="RetentionAsync"/> this runs <b>inside</b> the pipeline, because both jobs
+    /// read project content and ADR-0013 leaves such a job only one shape: a caller bound to a real
+    /// token. Every call the job makes is dispatched, authorised against the membership behind that
+    /// token, redacted on the channel the job declared, and audited under the token owner's name.
+    /// </para>
+    /// <para>
+    /// A scope per pass, and within it the token resolved again, the job built again and the
+    /// workspace entered again. Nothing about a caller survives from one pass to the next, so a
+    /// revoked token stops the very next pass and a narrowed membership narrows it.
+    /// </para>
+    /// </summary>
+    public static async Task<int> WorkerAsync(
+        string jobName,
+        TimeSpan? every,
+        int? budget,
+        TimeSpan? staleAfter,
+        CancellationToken cancellationToken)
+    {
+        string? token = Environment.GetEnvironmentVariable(WorkerSchedule.TokenVariable);
+
+        if (!WorkerSchedule.TryValidate(jobName, budget, staleAfter, token, out string? problem))
+        {
+            Console.Error.WriteLine(problem);
+            return Misconfigured;
+        }
+
+        return await WithProviderAsync(async provider =>
+        {
+            async Task<WorkerRunReport> PassAsync(CancellationToken passToken)
+            {
+                using IServiceScope scope = provider.CreateScope();
+                IServiceProvider services = scope.ServiceProvider;
+
+                OperationDispatcher dispatcher = services.GetRequiredService<OperationDispatcher>();
+
+                CallerBoundWorkerJob job = jobName == WorkerSchedule.RecordEmbeddingSweep
+                    ? new RecordEmbeddingSweepJob(
+                        dispatcher,
+                        services.GetRequiredService<EmbeddingGateway>(),
+                        services.GetRequiredService<IEmbeddingIndex>())
+                    : new StaleRecordSweepJob(dispatcher, staleAfter!.Value);
+
+                WorkerRunReport report = await WorkerSchedule.PassAsync(
+                    job,
+                    resolving => services.GetRequiredService<IMachineTokenService>()
+                        .ResolveAsync(token!, resolving),
+                    workspace => services.GetRequiredService<MutableTenantContext>()
+                        .EnterWorkspace(workspace),
+                    budget ?? 0,
+                    passToken);
+
+                WorkerSchedule.Report(job, report, Console.Out);
+                return report;
+            }
+
+            if (every is not { } interval)
+            {
+                WorkerRunReport once = await PassAsync(cancellationToken);
+                return once.Refused ? Refused : Ok;
+            }
+
+            using CancellationTokenSource stopping =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            using IDisposable signals = RetentionSchedule.StopOnSignal(stopping);
+
+            await WorkerSchedule.RunEveryAsync(
+                jobName,
+                PassAsync,
                 interval,
                 Task.Delay,
                 Console.Out,

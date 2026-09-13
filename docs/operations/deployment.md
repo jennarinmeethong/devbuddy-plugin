@@ -81,6 +81,60 @@ workspace and project, so there is no caller to authorise it against, and a sche
 would be an installation-wide superuser running unattended. Expect its first pass on start, and
 expect zeroes on a young installation.
 
+**It can run background workers, and does not unless asked.** `stale-record-sweep` and
+`record-embedding-sweep` are services in `docker/compose.yaml` behind a `workers` profile, so a
+plain `up -d` starts neither:
+
+```bash
+docker compose -f docker/compose.yaml --profile workers up -d
+```
+
+Unlike `retention`, a worker runs **inside** the pipeline, as somebody. Each reads a machine token
+from `docker/.env` — `DEVBUDDY_STALE_SWEEP_TOKEN` and `DEVBUDDY_EMBEDDING_SWEEP_TOKEN` — minted in
+the web interface for an account whose membership is what that job needs, in the one workspace it
+works in. Every call the job makes is authorised against that membership and audited under that
+account's name. The token is resolved again on every pass, so **revoking it stops the next pass**
+without touching this file or restarting anything. Use one account per job:
+
+- **`stale-record-sweep`** calls `detect_staleness`, which needs `ManageIndex`. Today only the
+  Administrator role carries that, so this worker's account is an administrator of its workspace —
+  grant it on one workspace, not more, and treat its token accordingly. It sends nothing to a
+  model. `DEVBUDDY_STALE_AFTER` has no default and the worker refuses to start without it, because
+  how long untouched is suspect depends on the installation.
+- **`record-embedding-sweep`** needs read access, which Viewer carries, and nothing more. It also
+  needs an embedding provider configured, a pgvector-capable database image, and at least one
+  project whose owner enabled AI access: a project nobody opened to AI is never listed to it, so it
+  is never read and never embedded. It embeds published revisions only.
+  `DEVBUDDY_EMBEDDING_SWEEP_BUDGET` is the most record texts one pass may send, and its default of
+  zero sends nothing — starting the profile spends nothing until that number is written down.
+
+A pass that cannot run — a revoked token, no provider, no pgvector — is logged as **refused** with
+the reason, and the schedule carries on to the next pass. A refusal is not an error, and a worker
+that logs one every night is telling you something is not configured rather than that something
+broke.
+
+**Enabling a provider is a decision, not a setting.** A self-hosted model sends no project text out
+of the deployment. The hosted mode does, refuses to start unless its host is on
+`OutboundAccess:AllowedHosts`, and per `info.md` needs the vendor named and an acceptance of its
+own before it is used with real project data.
+
+**Moving the database to `DEVBUDDY_DB_IMAGE=pgvector/pgvector:pg17` is a data-directory change, and
+not only in name.** Back up first. The pgvector image runs PostgreSQL as uid 999 and the default
+Alpine image runs it as uid 70, so the new image cannot open a volume the old one created: the
+database restart-loops with `initdb: could not access directory "/var/lib/postgresql/data":
+Permission denied`, and every service that waits on it stays in `Created`. Two ways through:
+restore the backup into a fresh volume, or stop the database and change the volume's owner before
+starting it on the new image:
+
+```bash
+docker compose -f docker/compose.yaml stop database
+docker run --rm -v devbuddy_database:/d alpine chown -R 999:999 /d
+docker compose -f docker/compose.yaml up -d
+```
+
+The second keeps the data in place. It was how the owner's test installation was moved on
+2026-09-13, after the first attempt restart-looped exactly as described.
+
 **It collects no traces or metrics on its own.** `Telemetry:Endpoint` is unset, so the
 instrumentation registers nothing. Adding a second file turns it on together with somewhere to
 send it:

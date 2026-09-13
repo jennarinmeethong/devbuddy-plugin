@@ -62,6 +62,7 @@ internal static class CommandSurface
         root.Add(Backup());
         root.Add(Restore());
         root.Add(Retention());
+        root.Add(Worker());
         root.Add(Sync());
         root.Add(Reindex());
 
@@ -302,6 +303,91 @@ internal static class CommandSurface
             }
 
             return Runner.RetentionAsync(interval, cancellationToken);
+        });
+
+        return command;
+    }
+
+    /// <summary>
+    /// Runs one worker job, once or on a schedule, as the owner of a machine token.
+    /// <para>
+    /// Not a shortcut over <c>run</c>, and the difference is the caller. <c>run</c> acts as the
+    /// person <c>--actor</c> names, on the Human channel. A worker acts as whoever
+    /// <c>DEVBUDDY_WORKER_TOKEN</c> resolves to on each pass, on the channel its job declared, and
+    /// <c>--actor</c> plays no part. An option naming an identity is what ADR-0013 rules out for
+    /// unattended work: a worker's reach has to be a membership somebody granted and can revoke.
+    /// </para>
+    /// </summary>
+    private static Command Worker()
+    {
+        Argument<string> job = new("job")
+        {
+            Description = "stale-record-sweep or record-embedding-sweep.",
+        };
+
+        Option<string?> every = new("--every")
+        {
+            Description =
+                "Keep running and repeat this often: 90m, 24h, 7d, or a hh:mm:ss span. "
+                + "Omit for a single pass.",
+        };
+
+        Option<int?> budget = new("--budget")
+        {
+            Description =
+                "The most texts one pass may send to a model. Required for "
+                + "record-embedding-sweep; zero sends nothing.",
+        };
+
+        Option<string?> staleAfter = new("--stale-after")
+        {
+            Description = "For stale-record-sweep: how long untouched is suspect, for example 180d.",
+        };
+
+        Command command = new(
+            "worker",
+            "Runs a background job as the owner of DEVBUDDY_WORKER_TOKEN, through the pipeline.");
+
+        command.Add(job);
+        command.Add(every);
+        command.Add(budget);
+        command.Add(staleAfter);
+
+        command.SetAction((result, cancellationToken) =>
+        {
+            TimeSpan? interval = null;
+            TimeSpan? threshold = null;
+
+            if (result.GetValue(every) is { } requested)
+            {
+                if (!RetentionSchedule.TryParseInterval(
+                    requested, out TimeSpan parsedInterval, out string? intervalProblem))
+                {
+                    Console.Error.WriteLine(intervalProblem);
+                    return Task.FromResult(Runner.MisconfiguredExitCode);
+                }
+
+                interval = parsedInterval;
+            }
+
+            if (result.GetValue(staleAfter) is { } stale)
+            {
+                if (!RetentionSchedule.TryParseInterval(
+                    stale, out TimeSpan parsedThreshold, out string? thresholdProblem))
+                {
+                    Console.Error.WriteLine($"--stale-after: {thresholdProblem}");
+                    return Task.FromResult(Runner.MisconfiguredExitCode);
+                }
+
+                threshold = parsedThreshold;
+            }
+
+            return Runner.WorkerAsync(
+                result.GetRequiredValue(job),
+                interval,
+                result.GetValue(budget),
+                threshold,
+                cancellationToken);
         });
 
         return command;

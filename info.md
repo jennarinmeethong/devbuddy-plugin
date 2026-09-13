@@ -1,5 +1,69 @@
 # Project Decisions
 
+## Confirmed the Worker Schedule, and a Self-Hosted Embedding Trial on a Test Installation — 2026-09-13
+
+The owner was shown what remained of Phase 12C — the schedule, an end-to-end run with a self-hosted
+model, and the verification-matrix rows ADR-0012 requires — together with the decisions each needed,
+and answered: do all of it. What that confirms, and what it does not, is set out here so the answer
+is not read as wider than it was.
+
+### The schedule
+
+- **A `worker` console command runs either job, once or with `--every`**, and `docker/compose.yaml`
+  carries one service per job behind a `workers` profile. A plain `up -d` starts neither. This is
+  the placement ADR-0013 named: beside the retention service, off unless configured.
+- **Both jobs run inside the pipeline as the owner of a machine token**, from
+  `DEVBUDDY_WORKER_TOKEN`. There is no actor option and no identifier in configuration; a worker's
+  reach is a membership somebody granted and can revoke.
+- **The token is resolved on every pass**, so revoking it stops the next pass. The workspace entered
+  is the token's. The budget is per pass.
+- **One token per job.** The stale-record sweep and the embedding sweep need different things, and a
+  single token would need a membership able to do both.
+- **The embedding sweep must be given `--budget`**, and the Compose default is zero, so starting the
+  profile sends nothing. The stale-record sweep must be given `--stale-after`; there is no default,
+  because an active codebase and an archive do not agree on it.
+- **The MCP server now receives the embedding settings** in `docker/compose.yaml`. It never did, so an
+  installation that enabled a provider would have had semantic search working in the web interface
+  and answering "no provider" to every assistant. Found while writing the worker services.
+
+### The self-hosted trial
+
+- **Approved: a self-hosted embedding provider on the owner's own test installation, with synthetic
+  data only.** It is not a deployment, holds no real project data, and this approval does not carry
+  over to one that does.
+- **The model was left to Claude under that instruction** and is `BAAI/bge-small-en-v1.5`, served by
+  Hugging Face `text-embeddings-inference` on CPU inside the same machine: 384 dimensions, batches of
+  8, which is that server's CPU ceiling. Self-hosted means no project text leaves the boundary.
+  Downloading the model's weights is inbound and carries no project data.
+- **That installation's database image moves to `pgvector/pgvector:pg17`.** Checked before the change:
+  it held no workspaces, users, projects or records, and a dump is taken first regardless.
+
+### What was verified the same day
+
+- **The .NET suite, 655 tests, and the web suite, 36, pass** on the owner's Linux test machine, in
+  the SDK and Bun containers. SB-34 reaches `TESTED` on `EmbeddingEgressTests`, mutation-checked
+  twice.
+- **The trial ran end to end.** The embedding worker, holding a Viewer account's token, embedded the
+  three published records of the project opened to AI with the real model, skipped its draft, and
+  sent nothing from the project that was not opened. A second pass sent nothing. Semantic search on
+  a query about retries ranked "Retry policy for the import job" first. Revoking the token refused
+  the next pass with nothing read, and the worker's calls are in the audit trail under its own
+  account.
+- **Two defects were found and fixed, neither by reading.** The embedding sweep had never embedded a
+  real published record, because it read a field name the history operation does not produce. And
+  a database volume created by the default image cannot be opened by the pgvector image until its
+  owner is changed, which no document had said.
+- **The test installation keeps running** the pgvector database, the model server and both workers.
+  The embedding worker's token was revoked as part of the trial, so its daily pass refuses until a
+  new one is minted.
+
+### Still not approved
+
+- **The hosted provider mode**, anywhere. It still needs the vendor named, an
+  `OutboundAccess:AllowedHosts` entry and an acceptance of its own.
+- **Enabling any provider or worker in an installation holding real project data.** The 2026-09-10
+  rule that this needs separate approval stands.
+
 ## Confirmed the Embedding Sweep, and list_records on the AI Surface — 2026-09-11
 
 The vector index has something that writes it. Getting there needed one decision the owner had to

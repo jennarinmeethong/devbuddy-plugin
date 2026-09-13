@@ -7,6 +7,7 @@ using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
 using DevBuddy.Infrastructure;
+using DevBuddy.Infrastructure.Embeddings;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Identity;
 using DevBuddy.Infrastructure.Persistence;
@@ -26,15 +27,42 @@ namespace DevBuddy.Security.Tests;
 /// policy, and the query scoping are all the ones that ship.
 /// </para>
 /// </summary>
-public sealed class SecurityFixture : IAsyncLifetime
+public class SecurityFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("devbuddy_security")
-        .WithUsername("devbuddy")
-        .WithPassword("devbuddy-test-only")
-        .Build();
+    private readonly PostgreSqlContainer _container;
+    private readonly Action<EmbeddingOptions>? _configureEmbedding;
+    private readonly Action<IServiceCollection>? _configureServices;
 
     private ServiceProvider? _services;
+
+    /// <summary>The shipped database image, with no embedding provider: what every deployment runs.</summary>
+    public SecurityFixture()
+        : this("postgres:17-alpine", configureEmbedding: null, configureServices: null)
+    {
+    }
+
+    /// <summary>
+    /// The same real system over a different database image or with more composed into it, for a
+    /// suite whose subject needs what the default does not carry.
+    /// <para>
+    /// The embedding egress suite is the reason: it needs pgvector, and moving this fixture's own
+    /// image would have tested every other scenario against a database no deployment has.
+    /// </para>
+    /// </summary>
+    protected SecurityFixture(
+        string image,
+        Action<EmbeddingOptions>? configureEmbedding,
+        Action<IServiceCollection>? configureServices)
+    {
+        _container = new PostgreSqlBuilder(image)
+            .WithDatabase("devbuddy_security")
+            .WithUsername("devbuddy")
+            .WithPassword("devbuddy-test-only")
+            .Build();
+
+        _configureEmbedding = configureEmbedding;
+        _configureServices = configureServices;
+    }
 
     /// <summary>Where this fixture's backups land, for tests that plant a synthetic one.</summary>
     public string BackupRoot { get; } =
@@ -74,7 +102,8 @@ public sealed class SecurityFixture : IAsyncLifetime
             // A path, so the sweep has somewhere to look. Nothing here writes through Serilog —
             // this fixture composes Infrastructure, not a host — so the files the test plants are
             // the only ones in that directory, which is what makes the assertion exact.
-            configureLogFile: logFile => logFile.Path = LogFile);
+            configureLogFile: logFile => logFile.Path = LogFile,
+            configureEmbedding: _configureEmbedding);
 
         // Replaces the real IEmailSender registration above (last registration wins): the fixture
         // proves the pipeline actually calls the port, not what a specific transport does with
@@ -88,6 +117,8 @@ public sealed class SecurityFixture : IAsyncLifetime
             identity.LockoutDuration = TimeSpan.FromMinutes(10);
             identity.MinimumPasswordLength = 12;
         });
+
+        _configureServices?.Invoke(services);
 
         _services = services.BuildServiceProvider();
 

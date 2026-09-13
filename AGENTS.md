@@ -14,14 +14,16 @@ Two documents govern the work and are read before changing anything:
 - `docs/plan.md` — the phased implementation plan (Phase 0 to Phase 12) with per-phase exit
   criteria. Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are closed
   (see `docs/plan.md`'s "Closing the v1 gaps" section and `CLAUDE.md`), and Phase 12 was approved
-  on 2026-09-10: 12A and 12B are done, and 12C's gate is met — ADR-0012 and ADR-0013 are
-  confirmed (0013 amended the same day, so the channel follows whether a job feeds a model), the
-  embedding provider is a port with two modes off by default, and the worker, the
-  `stale-record-sweep` job, the embedding adapter and the derived vector index are built. Nothing
-  calls the similarity query yet and no schedule exists. **Enabling the hosted embedding mode in a
-  deployment stays gated**: the vendor named, an `OutboundAccess:AllowedHosts` entry, and an
-  acceptance of its own. The vector index also needs a pgvector-capable database image, which the
-  default is not.
+  on 2026-09-10: 12A and 12B are done, and 12C is built — ADR-0012 and ADR-0013 are confirmed
+  (0013 amended the same day, so the channel follows whether a job feeds a model), the embedding
+  provider is a port with two modes off by default, the derived vector index and
+  `search_similar_records` exist, and since 2026-09-13 a `worker` console command runs both jobs on
+  a schedule, from two Compose services behind a `workers` profile that a plain `up -d` never
+  starts. The embedding egress path has a control of its own, SB-34. **Enabling the hosted embedding
+  mode in a deployment stays gated**: the vendor named, an `OutboundAccess:AllowedHosts` entry, and
+  an acceptance of its own. The vector index also needs a pgvector-capable database image, which the
+  default is not — and moving an existing volume onto one is not a restart, see
+  `docs/operations/deployment.md`.
 
 ## Project Structure & Module Organization
 

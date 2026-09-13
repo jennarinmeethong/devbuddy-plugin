@@ -10,11 +10,12 @@ repository.
 - `info.md` — decisions confirmed by the project owner. Treat as binding. When the owner confirms
   something new, add it there.
 - `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
-  approved as of 2026-09-10: 12A and 12B are complete, and 12C's gate is met — ADR-0012 and
-  ADR-0013 are confirmed (0013 amended the same day), the embedding provider is a port with two
-  modes off by default, and the worker, two jobs, the embedding adapter, the derived vector index
-  and the `search_similar_records` operation are built. No schedule exists, which is the last
-  piece, and no provider is enabled anywhere.
+  approved as of 2026-09-10, and as of 2026-09-13 all three tracks are done: ADR-0012 and ADR-0013
+  are confirmed (0013 amended the same day), the embedding provider is a port with two modes off by
+  default, and the worker, two jobs, the embedding adapter, the derived vector index,
+  `search_similar_records` and the schedule that runs both jobs are built. SB-34 covers the
+  embedding egress path. The self-hosted mode has run end to end on the owner's test installation
+  with synthetic data; the hosted mode has never been enabled anywhere.
 
 ## Where the project is
 
@@ -29,12 +30,14 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 624 .NET tests and 36 web tests exist, and all of them pass in this environment —
-count them rather than trusting this sentence, which has been stale twice already: it sat at the
-release figure of 433 and 31 while both grew, and at 495 and 36 through Phase 12. `docs/plan.md`
-keeps the per-phase figures, and the ones under *v1 is released* are what passed at `v1.0.0`; they
-are a record and are not updated. All 33 controls are `TESTED`; SB-29, the last one, closed on that
-publication.
+enforcement. 655 .NET tests and 36 web tests exist, and all of them passed on 2026-09-13 — the
+.NET suite in the SDK container on the owner's Linux test machine, the web suite in a Bun
+container there — count them rather than trusting this sentence, which has been stale three times
+already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
+and at 624 and 36 until the worker schedule landed. `docs/plan.md` keeps the per-phase figures, and
+the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
+All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
+ADR-0012 required a control for, closed on 2026-09-13.
 
 What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
 operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images
@@ -212,10 +215,40 @@ so an unchanged record costs neither a read nor an embedding.
 invocations meant a budget of ten bounded nothing. Providers charge for input. Spent
 all-or-nothing, so a batch a run cannot fully afford is not started rather than half-sent.
 
-**What does not exist yet:** a **schedule** — nothing runs either job, and that is the last piece of
-Phase 12C — no enabled provider anywhere, so today both the sweep and semantic search answer with a
-reason rather than doing anything, and the verification-matrix rows ADR-0012 requires for the
-embedding egress path.
+**The schedule exists (2026-09-13): `worker <job> --every <interval>` on the console, and two
+Compose services behind a `workers` profile.** A plain `up -d` starts neither. Both jobs run
+**inside** the pipeline as the owner of a machine token from `DEVBUDDY_WORKER_TOKEN`, one token per
+job, and the console resolves that token **again on every pass** — so revoking it on the Teams
+screen stops the next pass without a restart — enters the token's own workspace and no other, and
+gives each pass a fresh budget. `record-embedding-sweep` must be given `--budget` and Compose
+defaults it to zero; `stale-record-sweep` must be given `--stale-after` and has no default. A pass
+that cannot run is reported as **refused**, not as an error, and the schedule continues. Two things
+that are easy to get wrong: **`stale-record-sweep` needs `ManageIndex`, which only the
+Administrator role carries**, so its token's owner administers that workspace; and the MCP server
+did not receive the embedding settings in Compose until this change, so semantic search would have
+answered "no provider" to every assistant on an installation that enabled one.
+
+**SB-34 found a defect before it proved anything.** `record-embedding-sweep` read `revisionNumber`
+from `view_record_history`, whose `RevisionSummary` serialises `number`, so on a real installation
+every published record was counted as skipped and the sweep reported success having embedded
+nothing. Its unit test passed throughout because the fake answered in the same wrong shape. The
+fakes in `RecordEmbeddingSweepJobTests` are now built from the real response records — **do not go
+back to anonymous objects there**. `EmbeddingEgressTests` runs the real job and the real search over
+a pgvector database with a recorder behind the real HTTP adapter, and asserts on what arrived.
+
+**The self-hosted mode has run end to end, once, on synthetic data (2026-09-13).** On the owner's
+test installation, with `BAAI/bge-small-en-v1.5` served by text-embeddings-inference: the first pass
+embedded the three published records of the project opened to AI and skipped its draft, nothing
+from the closed project reached the model or the index, a second pass sent nothing, semantic search
+ranked the matching record first, a revoked token refused the next pass, and the worker's calls are
+in the audit trail under its own Viewer account. **Moving an existing database volume onto
+`pgvector/pgvector:pg17` restart-loops on `Permission denied`**, because that image runs PostgreSQL
+as uid 999 and the Alpine default as uid 70; `docs/operations/deployment.md` has the fix.
+
+**What does not exist:** a hosted provider enabled anywhere, and any provider or worker on an
+installation holding real project data — both still need an approval of their own. Known and not
+fixed: with `Logging:File:Path` set, the console image writes its SQL logs to standard output ahead
+of a `run` result, so that output is not machine-parseable.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports

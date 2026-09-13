@@ -272,7 +272,7 @@ public sealed partial class DeploymentTests
     [Fact]
     public void no_service_mounts_the_same_container_path_twice()
     {
-        foreach (string service in (string[])["api:", "mcp:", "database:", "evidence:", "retention:", "migrate:"])
+        foreach (string service in (string[])["api:", "mcp:", "database:", "evidence:", "retention:", "migrate:", "stale-record-sweep:", "record-embedding-sweep:"])
         {
             string[] block = BlockFor(ComposeLines(), service);
 
@@ -370,14 +370,94 @@ public sealed partial class DeploymentTests
     /// path and needs the vendor named, an outbound allow-list entry and an acceptance of its own;
     /// a substitution default that quietly selected one would be all three of those skipped.
     /// </summary>
+    /// <para>
+    /// Every service that reads the setting, not only the API: the MCP server serves semantic search
+    /// to assistants and the embedding sweep writes the index, and a default that was safe in one
+    /// block and not in another would be the one nobody looked at.
+    /// </para>
     [Fact]
     public void no_embedding_provider_is_enabled_by_default()
     {
-        string provider = Assert.Single(
-            BlockFor(ComposeLines(), "api:"),
-            line => line.TrimStart().StartsWith("DEVBUDDY_Embedding__Provider:", StringComparison.Ordinal));
+        foreach (string service in (string[])["api:", "mcp:", "record-embedding-sweep:"])
+        {
+            string provider = Assert.Single(
+                BlockFor(ComposeLines(), service),
+                line => line.TrimStart().StartsWith("DEVBUDDY_Embedding__Provider:", StringComparison.Ordinal));
 
-        Assert.Contains(":-None}", provider, StringComparison.Ordinal);
+            Assert.Contains(":-None}", provider, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// ADR-0013's schedule, as configuration: the workers exist in the stack and a plain
+    /// <c>up -d</c> does not start them. Off unless asked for, the posture telemetry, SMTP and the
+    /// embedding provider already take — and the opposite of <c>retention</c>, which has to run on
+    /// every deployment and is checked here to stay that way.
+    /// </summary>
+    [Fact]
+    public void the_workers_are_scheduled_and_off_unless_asked_for()
+    {
+        foreach ((string service, string job) in (ReadOnlySpan<(string, string)>)[
+            ("stale-record-sweep:", "\"stale-record-sweep\""),
+            ("record-embedding-sweep:", "\"record-embedding-sweep\"")])
+        {
+            string[] block = BlockFor(ComposeLines(), service);
+
+            string profiles = Assert.Single(
+                block, line => line.TrimStart().StartsWith("profiles:", StringComparison.Ordinal));
+
+            Assert.Contains("workers", profiles, StringComparison.Ordinal);
+
+            string command = Assert.Single(
+                block, line => line.TrimStart().StartsWith("command:", StringComparison.Ordinal));
+
+            Assert.Contains("\"worker\"", command, StringComparison.Ordinal);
+            Assert.Contains(job, command, StringComparison.Ordinal);
+            Assert.Contains("--every", command, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain(
+            BlockFor(ComposeLines(), "retention:"),
+            line => line.TrimStart().StartsWith("profiles:", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A worker acts as somebody, and who is a credential from the environment. Never an actor
+    /// identifier — the thing ADR-0013 rules out for unattended work — and never a literal, which
+    /// <see cref="no_deployment_file_carries_a_secret"/> would also catch.
+    /// </summary>
+    [Fact]
+    public void each_worker_acts_as_the_owner_of_its_own_token()
+    {
+        List<string> sources = [];
+
+        foreach (string service in (string[])["stale-record-sweep:", "record-embedding-sweep:"])
+        {
+            string token = Assert.Single(
+                BlockFor(ComposeLines(), service),
+                line => line.TrimStart().StartsWith("DEVBUDDY_WORKER_TOKEN:", StringComparison.Ordinal));
+
+            Assert.Contains("${", token, StringComparison.Ordinal);
+            sources.Add(token.Trim());
+        }
+
+        // Two jobs, two credentials. One token shared by both would need a membership that could do
+        // either job, which is more than either needs.
+        Assert.Equal(sources.Count, sources.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    /// <summary>
+    /// Starting the profile spends nothing until somebody writes a budget down. On a hosted provider
+    /// that number bounds a bill, and a default that spent would be a cost decision this file took.
+    /// </summary>
+    [Fact]
+    public void the_embedding_sweep_sends_nothing_until_it_is_given_a_budget()
+    {
+        string command = Assert.Single(
+            BlockFor(ComposeLines(), "record-embedding-sweep:"),
+            line => line.TrimStart().StartsWith("command:", StringComparison.Ordinal));
+
+        Assert.Contains("\"--budget\", \"${DEVBUDDY_EMBEDDING_SWEEP_BUDGET:-0}\"", command, StringComparison.Ordinal);
     }
 
     private static string ComposeText() =>

@@ -1115,10 +1115,11 @@ watching three cross-workspace cases fail.
 
 ## Phase 12 — Post-v1: operational closure and the two deferred decisions
 
-**Status: APPROVED 2026-09-10. 12A and 12B are complete; 12C's gate is met and everything but the
-schedule is built — the worker, two jobs, the embedding adapter, the derived vector index and the
-`search_similar_records` operation. No provider is enabled anywhere, so today all of it answers
-with a reason rather than doing anything.** Phases 0 to 11 were
+**Status: APPROVED 2026-09-10. 12A, 12B and 12C are complete as of 2026-09-13** — the worker, two
+jobs, the embedding adapter, the derived vector index, `search_similar_records`, the schedule that
+runs both jobs, and SB-34 for the embedding egress path. The self-hosted provider has run end to end
+on the owner's test installation with synthetic data; no hosted provider has been enabled anywhere,
+and no provider or worker runs against real project data. Phases 0 to 11 were
 approved as a sequence before any of them started; this one was written after v1 shipped and did
 not inherit that approval, so it was held as a draft until the project owner confirmed it the same
 way. That entry is *Confirmed Phase 12 Approval and the Release-Readiness Acceptance — 2026-09-10*
@@ -1127,8 +1128,11 @@ logs, an opt-in before a token is written to one, `linux/arm64` built, and the f
 kept in the built-but-unverified tier.
 
 12C's exit criterion — an ADR per capability confirmed in `info.md` — is met: ADR-0012 and
-ADR-0013 were confirmed on 2026-09-10. No implementation exists, and embeddings carry a second gate
-that is still open: the provider is not selected, which `info.md` requires separately.
+ADR-0013 were confirmed on 2026-09-10. Embeddings carried a second gate beyond that, the provider,
+which `info.md` requires separately. It was settled in two steps: on 2026-09-10 as a port with a
+self-hosted and a hosted mode, both off by default, and on 2026-09-13 by approving the self-hosted
+mode on the owner's own test installation with synthetic data only. The hosted mode is still gated:
+the vendor named, an outbound allow-list entry, and an acceptance of its own.
 
 **Goal:** take back from the operator what code can hold, settle what happens to the platforms v1
 published without ever running, and decide the two capabilities `info.md` deferred — without
@@ -1294,8 +1298,8 @@ this criterion asked for and the whole of what it asked for:
   permissions would gate. A worker outside the pipeline that reads project content would be the
   installation-wide superuser this system has never had, running unattended.
 
-**No code exists for either, and the two capabilities are not equally unblocked.** Confirming an
-ADR fixes the constraints an implementation must satisfy; it is not authorisation to implement.
+**Both were then built, and the two capabilities were not equally unblocked on the way.** Confirming
+an ADR fixed the constraints an implementation had to satisfy; it was not authorisation to implement.
 
 - **The embedding provider is settled as a port with two modes, off by default** — a self-hosted
   model or a hosted API, the same shape `EmailOptions.Provider` and `GitHubOptions.Mode` already
@@ -1305,13 +1309,14 @@ ADR fixes the constraints an implementation must satisfy; it is not authorisatio
   out of the boundary that did not exist then needs its own. The self-hosted mode sends no text
   out and therefore has no third egress path, though a secret still may not be embedded into a
   local index either — that index is a data copy SB-27 already covers.
-- **The worker's authorization skeleton, the first job, the embedding adapter and the vector index
-  are built.** `DevBuddy.Application/Workers/` holds the two permitted job types and no third, a
-  `WorkerCaller` obtainable only by resolving a real machine token, a budget that refuses rather
-  than throttles, the `stale-record-sweep` job, and `EmbeddingGateway`. The index is
-  `PostgresEmbeddingIndex` behind `IEmbeddingIndex`, on a conditional migration that skips itself
-  where pgvector is absent. What does not exist is any **caller** for the similarity query, a
-  schedule, or an enabled provider.
+- **The worker's authorization skeleton, both jobs, the embedding adapter, the vector index, its
+  caller and the schedule are built.** `DevBuddy.Application/Workers/` holds the two permitted job
+  types and no third, a `WorkerCaller` obtainable only by resolving a real machine token, a budget
+  that refuses rather than throttles, `stale-record-sweep`, `record-embedding-sweep`, and
+  `EmbeddingGateway`. The index is `PostgresEmbeddingIndex` behind `IEmbeddingIndex`, on a
+  conditional migration that skips itself where pgvector is absent, and `search_similar_records` is
+  its caller. The console's `worker` command runs either job once or on a schedule, from Compose
+  services behind a `workers` profile, resolving its token on every pass.
 - **ADR-0013 needed an amendment, found by writing the job rather than by re-reading the ADR.**
   Pinning every worker to the AI channel was sound about the danger and too broad about the
   remedy: that channel is also an allow-list of eighteen operations, and every feature the worker
@@ -1431,9 +1436,23 @@ channel by declaring `SendsContentToAModel`, which is what bounds it: a project 
 AI is never listed to it and therefore never embedded. It indexes the published revision only, and
 re-embeds only what changed, by content hash.
 
-What nobody has written: **a schedule.** Nothing runs either job, which is the last piece of Phase
-12C and belongs beside the retention service in `docker/compose.yaml`, off unless configured. No
-provider is enabled anywhere, so today the sweep and semantic search both answer with a reason
-rather than doing anything; the hosted mode may not be switched on without the vendor named, an
-outbound allow-list entry and an acceptance of its own; and the verification matrix still owes the
-embedding egress path rows of its own.
+**The schedule landed on 2026-09-13, and Phase 12C is complete.** The console's `worker` command
+runs either job once or with `--every`, from two Compose services behind a `workers` profile that a
+plain `up -d` never starts. Each pass resolves its machine token again, enters that token's
+workspace and no other, and spends from a fresh budget; the embedding sweep must be told its budget,
+and Compose defaults it to zero. SB-34 gives the embedding egress path a control of its own, and its
+test found a real defect on the way: the sweep read a field name the history operation does not
+produce, so it had never embedded anything outside a unit test whose fake shared the mistake.
+
+The self-hosted mode then ran end to end on the owner's test installation with synthetic data and a
+real model: three published records embedded, a draft and a project nobody opened to AI left out, a
+second pass free, a revoked token refused, and semantic search ranking the right record first.
+Moving that installation's database onto the pgvector image found one more thing no document had
+said — the two images run PostgreSQL as different users, so the new one cannot open the old volume —
+and `docs/operations/deployment.md` now says it.
+
+What remains is not Phase 12 work. The hosted mode may not be switched on without the vendor named,
+an outbound allow-list entry and an acceptance of its own, and no provider or worker may run against
+real project data without a separate approval. `stale-record-sweep` needs a token whose owner
+administers the workspace, because only Administrator carries `ManageIndex`; a narrower role for that
+is a decision nobody has made.

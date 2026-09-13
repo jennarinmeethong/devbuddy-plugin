@@ -65,6 +65,7 @@ Boundary TB5. Governing principle: never send secrets to AI, and never retain th
 | SB-18 | Customer data, production data, and logs containing personal information are denied by default. Release requires sanitisation or a separately approved, bounded scope. The prohibition on secrets still applies inside any such scope. | A2, A3 | Policy test: unsanitised material is refused; an approved bounded scope returns only what it covers. | Classification depends on correct labelling of sources. |
 | SB-19 | Audit records that access happened, not the sensitive payload accessed. | A6 | Audit content test: sensitive fixture values never appear in audit rows. | None identified. |
 | SB-20 | Every record keeps provenance and revision history so a missed detection can be found and corrected after the fact. | A1, A6 | Provenance-required invariant test; correction flow test. | Correction does not recall data already sent (AL-3). |
+| SB-34 | Text sent to an embedding provider is egress in its own right (ADR-0012). Before it leaves: a project whose owner never enabled AI access contributes nothing; secrets are refused and personal data redacted as on the AI channel; drafts are never sent; a search query carrying a secret is refused with nothing sent. A hosted provider refuses to start unless its host is on the outbound allow-list. | A2, A3, A4 | End-to-end test over the real pipeline and a real pgvector database, asserting on what the provider actually received rather than on what the job reported. | AL-2 applies to the scan. A hosted provider keeps whatever it was sent; enabling one needs the vendor named and an acceptance of its own. |
 
 ## E. Availability and resource limits
 
@@ -103,3 +104,4 @@ Boundary TB1, TB3.
 | Date | Change |
 |---|---|
 | 2026-09-01 | Created in Phase 0 from the security sections of `info.md`. All controls NOT IMPLEMENTED. |
+| 2026-09-13 | SB-34 added for the embedding egress path. ADR-0012 required a control of its own rather than reading SB-17 and SB-18 as covering an embedding call, and a verification that asserts on what left rather than on what a job said it did. |

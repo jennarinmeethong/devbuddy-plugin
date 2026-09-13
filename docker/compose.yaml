@@ -74,7 +74,12 @@ services:
     # An installation that turns embeddings on needs a pgvector-capable image instead:
     #   DEVBUDDY_DB_IMAGE=pgvector/pgvector:pg17
     # Changing this is a migration of the data directory, not a restart: take a backup first, and
-    # note pgvector/pgvector is Debian-based rather than Alpine, so the image is larger.
+    # note pgvector/pgvector is Debian-based rather than Alpine, so the image is larger. It also runs
+    # PostgreSQL as uid 999 where the Alpine image uses uid 70, so pointed at a volume the default
+    # image created it fails every start with "initdb: could not access directory ... Permission
+    # denied" and restart-loops. Either restore the backup into a fresh volume, or stop the
+    # database and chown the volume to 999:999 before starting it on the new image. Found by doing
+    # it on a test installation, not by reading this file.
     image: ${DEVBUDDY_DB_IMAGE:-postgres:17-alpine}
     restart: unless-stopped
     user: postgres
@@ -176,6 +181,89 @@ services:
       database:
         condition: service_healthy
       evidence:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
+  # Background work, on a schedule, as somebody (ADR-0013). Both services are off unless asked for:
+  #
+  #   docker compose -f docker/compose.yaml --profile workers up -d
+  #
+  # A plain `up -d` never starts them, the same posture telemetry, SMTP and the embedding provider
+  # take. Unlike `retention` above, these run INSIDE the pipeline, because both jobs read project
+  # content and ADR-0013 permits such a job exactly one shape: a caller bound to a real machine token
+  # with a real membership. Each pass resolves the token again, so revoking it on the Teams screen
+  # stops the next pass without touching this file.
+  #
+  # One token per job rather than one for both. The stale-record sweep needs detect_staleness, a
+  # human-only operation reached on the internal channel; the embedding sweep needs read access on
+  # the AI channel and nothing more. Two accounts, two memberships, and neither can do the other's
+  # work.
+  stale-record-sweep:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cli
+    profiles: [workers]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    logging: *app-logging
+
+    # No default for --stale-after: how long untouched is suspect is the installation's call. Left
+    # empty, the worker refuses to start and says so.
+    command: ["worker", "stale-record-sweep", "--every", "${DEVBUDDY_STALE_SWEEP_EVERY:-24h}", "--stale-after", "${DEVBUDDY_STALE_AFTER:-}"]
+    environment:
+      <<: *console-environment
+      DEVBUDDY_WORKER_TOKEN: ${DEVBUDDY_STALE_SWEEP_TOKEN:-}
+    volumes:
+      - logs:/srv/logs
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [internal]
+
+  # Fills the derived vector index (ADR-0012). Runs on the AI channel, so a project nobody opened to
+  # AI is never listed to it and never embedded, and it indexes published revisions only.
+  #
+  # The budget defaults to zero, which embeds nothing: enabling the profile alone spends nothing.
+  # It needs a provider configured below and a pgvector-capable database image; without either, every
+  # pass is refused with the reason rather than doing anything.
+  record-embedding-sweep:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.cli
+    profiles: [workers]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    logging: *app-logging
+    command: ["worker", "record-embedding-sweep", "--every", "${DEVBUDDY_EMBEDDING_SWEEP_EVERY:-24h}", "--budget", "${DEVBUDDY_EMBEDDING_SWEEP_BUDGET:-0}"]
+    environment:
+      <<: *console-environment
+      DEVBUDDY_WORKER_TOKEN: ${DEVBUDDY_EMBEDDING_SWEEP_TOKEN:-}
+      DEVBUDDY_Embedding__Provider: ${DEVBUDDY_EMBEDDING_PROVIDER:-None}
+      DEVBUDDY_Embedding__Endpoint: ${DEVBUDDY_EMBEDDING_ENDPOINT:-}
+      DEVBUDDY_Embedding__Model: ${DEVBUDDY_EMBEDDING_MODEL:-}
+      DEVBUDDY_Embedding__ApiKey: ${DEVBUDDY_EMBEDDING_API_KEY:-}
+      DEVBUDDY_Embedding__Dimensions: ${DEVBUDDY_EMBEDDING_DIMENSIONS:-0}
+      DEVBUDDY_Embedding__BatchSize: ${DEVBUDDY_EMBEDDING_BATCH_SIZE:-32}
+    volumes:
+      - logs:/srv/logs
+    depends_on:
+      database:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
@@ -314,6 +402,17 @@ services:
       # schedule, exactly as it does for backups and exports.
       DEVBUDDY_Logging__File__Path: ${DEVBUDDY_LOG_PATH:-/srv/logs/devbuddy.log}
       DEVBUDDY_Logging__File__RetentionDays: ${DEVBUDDY_LOG_RETENTION_DAYS:-90}
+
+      # The same embedding settings the API reads. search_similar_records is on the AI surface, and
+      # this is the host that serves that surface; without these lines an installation that turned
+      # embeddings on would find semantic search working in the web interface and answering "no
+      # provider" to every assistant.
+      DEVBUDDY_Embedding__Provider: ${DEVBUDDY_EMBEDDING_PROVIDER:-None}
+      DEVBUDDY_Embedding__Endpoint: ${DEVBUDDY_EMBEDDING_ENDPOINT:-}
+      DEVBUDDY_Embedding__Model: ${DEVBUDDY_EMBEDDING_MODEL:-}
+      DEVBUDDY_Embedding__ApiKey: ${DEVBUDDY_EMBEDDING_API_KEY:-}
+      DEVBUDDY_Embedding__Dimensions: ${DEVBUDDY_EMBEDDING_DIMENSIONS:-0}
+      DEVBUDDY_Embedding__BatchSize: ${DEVBUDDY_EMBEDDING_BATCH_SIZE:-32}
     volumes:
       - ${DEVBUDDY_PROJECTS_PATH:-./projects}:/srv/projects:ro
 
