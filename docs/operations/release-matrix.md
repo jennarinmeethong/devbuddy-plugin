@@ -17,15 +17,15 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `linux-x64` | yes | **yes** | `ubuntu:24.04`, in a container. |
 | `linux-arm64` | yes | **yes** | `ubuntu:24.04` under `linux/arm64` emulation. Emulated, not hardware. |
 | `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
-| `osx-arm64` | yes | no | No macOS available. Published as-is. |
+| `osx-arm64` | yes | no | Not smoke-tested per release. Run once outside a release, on an Apple M4 Mac mini on 2026-09-13; see below. |
 | `win-arm64` | yes | no | No Windows on ARM available. Published as-is. |
 | `linux-musl-arm64` | yes | no | Not run; the x64 musl build was, so the dependency list is believed to carry over. |
 
 The three rows reading **no** are a decision rather than an omission, confirmed by the project owner
 on 2026-09-10: keep publishing them in this tier, with every release's notes saying they were never
-started, rather than acquire the hardware or stop publishing. No macOS and no Windows on ARM is
-available here. Whoever deploys on one of them is the first to run it, and nobody may describe them
-as supported.
+started, rather than acquire the hardware or stop publishing. No Windows on ARM is available here,
+and a Mac only became available on 2026-09-13. Whoever deploys on one of them is the first to run
+it, and nobody may describe them as supported.
 
 **`osx-x64` is no longer published (2026-09-13).** It was a fourth row in this tier until the owner
 removed it from the platforms this project supports. It had never been run here. The release
@@ -52,7 +52,7 @@ runtime, or ICU, and this is where "self-contained" misleads people.
 | Linux (glibc) | `libicu` | Fails at startup: *"Couldn't find a valid ICU package installed on the system."* Observed on a bare `ubuntu:24.04`. |
 | Linux (musl) | `libstdc++`, `libgcc`, `icu-libs` | Fails at startup with missing shared libraries and unresolved symbols. Observed on a bare `alpine:3`. |
 | Windows | nothing beyond the OS | — |
-| macOS | nothing beyond the OS | Not verified. |
+| macOS | nothing beyond the OS | Started on macOS 26.6.2 on 2026-09-13, on a machine that also has other software installed, so not a clean-OS check. |
 
 Setting `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` removes the ICU requirement and removes
 culture-aware behaviour with it. It is a legitimate choice for a container that only ever speaks
@@ -321,6 +321,44 @@ Emulated, not hardware, for every arm64 row above. The Compose stack and the tok
 on `linux/amd64`. Not claimed: the Compose stack from clean on arm64, and the destroy-and-restore
 drill on either architecture for this change — that one is a release check and Phase 12 is not a
 release.
+
+## What was verified on 2026-09-13 (not a release)
+
+Recorded here for the reason the Phase 12 entry above gives. These are self-contained executables
+built from `main` at `6fded95` the way `.github/workflows/release.yml` builds them —
+`dotnet publish -c Release -r <rid> --self-contained true` for all three hosts, in
+`mcr.microsoft.com/dotnet/sdk:10.0` on a Linux x64 host — and archived the same way. None of them is
+a published artefact, except the one row that says so.
+
+The check is the one this file defines: `DevBuddy.Cli operations --ai` starts and answers, and the
+names it lists are the catalogue's. At `6fded95` the catalogue marks twenty operations as available
+to AI, and every run of that build listed exactly those twenty names.
+
+| RID | Where it ran | Result |
+| --- | --- | --- |
+| `linux-x64` | A fresh `ubuntu:24.04` container on an x64 host, with `libicu74` installed as the native dependencies above require. | **Yes.** Exit 0, twenty operations, the catalogue's names, nothing on stderr. |
+| `win-x64` | Natively, on the machine this repository is developed on. | **Yes.** Exit 0, twenty operations, the catalogue's names, nothing on stderr. |
+| `osx-arm64` | Natively, on an Apple M4 Mac mini running macOS 26.6.2. Hardware, not emulation. | **Yes.** Exit 0, twenty operations, the catalogue's names, nothing on stderr. |
+| `osx-arm64`, the published `v1.1.0` archive | The same Mac mini, from the release download, its SHA-256 matching `SHA256SUMS`. | **Yes.** Exit 0 and eighteen operations, which is that release's catalogue: `search_similar_records` and `list_records` joined the AI surface on 2026-09-11, after `v1.1.0`. |
+
+Two things these runs settled rather than assumed.
+
+- **A Linux-built `osx-arm64` executable starts on Apple silicon.** macOS on arm64 refuses to run
+  an unsigned executable, and the release builds this RID on `ubuntu-latest`, so it was a fair worry
+  that the archive had never been startable at all. It is not the case: `codesign -dv` reports the
+  apphost as ad-hoc signed, for the `v1.1.0` archive and for the `6fded95` build alike, so the .NET
+  SDK signs it even when publishing from Linux.
+- **The development machine's Application Control policy did not stop `win-x64`.** The same machine
+  refused to load locally built test assemblies on 2026-09-13, citing that policy. The self-contained
+  executable ran without a refusal.
+
+**What this does not change.** The table at the top still shows `osx-arm64` in the unverified tier,
+because that tier means "not smoke-tested by hand every release", and one run outside a release is
+not that commitment. Moving it to the verified tier is the owner's decision under ADR-0008 and
+`info.md`. Not claimed: the API or MCP executables on any of these three platforms; a macOS host
+with nothing installed but the operating system, since the Mac mini also carries a system-wide .NET
+installation that a self-contained executable does not use; and any run of `win-arm64` or
+`linux-musl-arm64`.
 
 ## Verifying a release
 
