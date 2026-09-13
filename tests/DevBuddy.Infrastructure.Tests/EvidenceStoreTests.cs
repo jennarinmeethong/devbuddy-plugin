@@ -18,7 +18,10 @@ namespace DevBuddy.Infrastructure.Tests;
 /// </summary>
 public sealed class MinioFixture : IAsyncLifetime
 {
-    private readonly MinioContainer _container = new MinioBuilder("minio/minio:RELEASE.2025-04-22T22-12-26Z")
+    // The image docker/compose.yaml ships, from quay.io and pinned to its digest, because Docker Hub
+    // stopped serving minio/minio by 2026-09-13 and every test here failed on the pull.
+    private readonly MinioContainer _container = new MinioBuilder(
+        "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e")
         .WithUsername("devbuddy")
         .WithPassword("devbuddy-test-only")
         .Build();

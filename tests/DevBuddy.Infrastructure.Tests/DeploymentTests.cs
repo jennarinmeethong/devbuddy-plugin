@@ -149,6 +149,38 @@ public sealed partial class DeploymentTests
             line => line.TrimStart().StartsWith("MINIO_KMS_SECRET_KEY:", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// The object store's image comes from quay.io, is pinned to a digest, and is the one the tests
+    /// start.
+    /// <para>
+    /// Docker Hub had stopped serving <c>minio/minio</c> by 2026-09-13. Every fresh install of this
+    /// stack then failed to start its evidence store, and every CI run failed on the tests that start
+    /// a MinIO container, while a machine with a cached copy carried on as if nothing had happened.
+    /// A tag alone would also let a registry move what it points at, so the digest is required, and
+    /// the fixture must name the identical reference so the image tested is the image shipped.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void the_object_store_image_comes_from_quay_pinned_by_digest_and_is_the_one_the_tests_start()
+    {
+        string line = Assert.Single(
+            BlockFor(ComposeLines(), "evidence:"),
+            candidate => candidate.TrimStart().StartsWith("image:", StringComparison.Ordinal));
+
+        string image = line.Trim()["image:".Length..].Trim();
+
+        Assert.StartsWith("quay.io/minio/minio:", image, StringComparison.Ordinal);
+
+        int digest = image.IndexOf("@sha256:", StringComparison.Ordinal);
+        Assert.True(digest > 0, $"The object store image is not pinned to a digest: {image}");
+        Assert.Equal(64, image[(digest + "@sha256:".Length)..].Length);
+
+        string fixture = File.ReadAllText(Path.Combine(
+            RepositoryRoot().FullName, "tests", "DevBuddy.Infrastructure.Tests", "EvidenceStoreTests.cs"));
+
+        Assert.Contains($"\"{image}\"", fixture, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void the_example_environment_file_names_every_variable_the_stack_requires()
     {

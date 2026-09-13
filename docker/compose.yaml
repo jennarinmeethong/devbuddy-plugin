@@ -97,7 +97,13 @@ services:
     networks: [internal]
 
   evidence:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    # From quay.io, MinIO's own registry, and pinned to its digest. Docker Hub had stopped serving
+    # minio/minio by 2026-09-13: the repository answered 404 and every pull was refused, so this
+    # stack could not start its evidence store on any machine without a cached copy, and CI went
+    # red on every test that starts one. The digest is the one Docker Hub served for this tag, so
+    # this is the same build; pinning the digest as well as the tag means no registry can move
+    # what the tag points at. DeploymentTests fails if this goes back to Docker Hub or loses it.
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     restart: unless-stopped
 
     # No user override. The image already runs as a non-root account and its entrypoint takes

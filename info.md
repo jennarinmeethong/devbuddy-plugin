@@ -1,5 +1,21 @@
 # Project Decisions
 
+## Confirmed Taking MinIO from quay.io — 2026-09-13
+
+Docker Hub had stopped serving `minio/minio` by 2026-09-13: the repository answers 404 and a pull of
+the pinned tag is refused. CI's Ubuntu job failed on the nine tests that start a MinIO container, and
+the shipped stack could not start its evidence store on any machine without a cached copy — which
+includes an installation made from `v1.0.0`.
+
+The owner approved taking the same image from `quay.io/minio/minio`, MinIO's own registry, pinned
+to the digest `sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e`. That digest
+is the one Docker Hub served for `RELEASE.2025-04-22T22-12-26Z`, checked against a copy pulled from
+Docker Hub before it stopped serving the image, so the MinIO build does not change. Pinning the
+digest as well as the tag means a registry cannot move what the tag points at.
+
+Not decided here: whether to cut a release carrying this, although `v1.0.0`'s Compose file still
+names the image Docker Hub no longer serves.
+
 ## Confirmed the Worker Schedule, and a Self-Hosted Embedding Trial on a Test Installation — 2026-09-13
 
 The owner was shown what remained of Phase 12C — the schedule, an end-to-end run with a self-hosted

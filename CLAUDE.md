@@ -83,7 +83,7 @@ restriction — and a secret is still refused even inside an approved scope, per
 
 **SB-27, retention, is enforced for audit events, evidence, backups, and exports.**
 `dotnet run -- retention` is a console command, outside the pipeline for the same reason `restore`
-is, run on whatever schedule the operator's own cron provides. `export_project` now writes an
+is; since Phase 12B the stack runs it on a schedule, below. `export_project` now writes an
 actual copy — records, work items, and evidence bytes — instead of only a manifest, so there is
 something for the sweep to purge. A deleted project is purged immediately by `delete_project`
 itself rather than by a lagging sweep. Application log retention is enforced here too, by the
@@ -124,7 +124,7 @@ architecture**, because a manifest list can hold one image that drops root and o
 stay in the built-but-unverified tier with every release's notes saying they were never started.
 Confirmed as a decision, not left as a gap. Nobody may describe them as supported.
 
-**Phase 12C's ADRs are confirmed and everything but the schedule is written.** ADR-0012 (embeddings and vector
+**Phase 12C's ADRs are confirmed and all of it is written.** ADR-0012 (embeddings and vector
 search) and ADR-0013 (the `knowledge-ai-worker`) were confirmed in `info.md` on 2026-09-10, so
 their constraints are binding: **embedding text is egress**, so SB-17 and SB-18 apply before text
 leaves and the verification matrix gains rows of its own rather than being read as covered; and **a
@@ -142,8 +142,8 @@ copy SB-27 covers.
 
 **The worker exists in `DevBuddy.Application/Workers/`: two job types and no third,
 `WorkerCaller` (private constructor, one factory taking a resolved machine token), `WorkerBudget`
-(refuses rather than throttles, all-or-nothing spends, zero is a legitimate off switch), the
-`stale-record-sweep` job, and `EmbeddingGateway`.** The installation shape's reach is enforced by
+(refuses rather than throttles, all-or-nothing spends, zero is a legitimate off switch), both
+jobs, and `EmbeddingGateway`.** The installation shape's reach is enforced by
 **allow-list** and mutation-checked against a job that deliberately reaches too far.
 
 **A worker's channel follows whether the job sends content to a model — not whether it is a
@@ -254,8 +254,8 @@ of a `run` result, so that output is not machine-parseable.
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports
 OTLP traces and metrics; `docker/compose.observability.yaml` is an optional overlay carrying a
 collector, Prometheus, Loki, Tempo, and Grafana with a provisioned security-controls dashboard.
-Log export is a *separate* opt-in that stays false while `EmailOptions.Provider` is `Log`, because
-setup and recovery tokens are in those logs by design. The tagging rule — operation name, outcome,
+Log export is a *separate* opt-in, false in code; the observability overlay turns it on, which it
+could not do while setup and recovery tokens were written into those logs. The tagging rule — operation name, outcome,
 channel, scanner rule name, and nothing else, ever — is stated in `DevBuddyTelemetry` and enforced
 by tests; it is why database instrumentation is absent and why URL paths are scrubbed from spans.
 **`OpenTelemetry.Instrumentation.AspNetCore` must not go in Infrastructure**: its framework
@@ -297,10 +297,9 @@ still the zero-membership case with nobody to authorise. There is no installatio
 concept anywhere in this system.
 
 **Setup and recovery tokens are delivered by `IEmailSender`.** `EmailOptions.Provider` defaults to
-`Log`: no SMTP configured means the token is logged, the same "an operator completes this by hand"
-behaviour this system always had — fixed, not just kept, since the equivalent code before this
-port existed logged a warning claiming the token was written to the log without actually including
-it. Setting `Provider` to `Smtp` (MailKit) delivers it for real, to the account's own address.
+`Log`, which since Phase 12B records that a message could not be delivered and writes the token
+nowhere unless `Email:AllowTokensInLog` is set; see above. Setting `Provider` to `Smtp` (MailKit)
+delivers it for real, to the account's own address.
 
 **A release is a `v*` tag, and the workflow signs what it publishes.**
 `.github/workflows/release.yml` gates on the full suite, then builds every RID in
@@ -318,9 +317,7 @@ the path is set, because the containers run read-only and a default that wrote f
 every plain `docker run`. **`Serilog.AspNetCore` must not be used**: same framework-reference trap
 as the OpenTelemetry ASP.NET instrumentation, and `Serilog.Extensions.Hosting` is what
 Infrastructure takes instead. `docs/operations/logging.md` has the three options and what each
-costs, plus the part that matters more than the window: with no SMTP configured,
-`EmailOptions.Provider` stays `Log` and setup and recovery tokens are written into the log on
-purpose.
+costs, and option 2 is the one in force.
 
 **Restore is a console command, not an operation.** Every operation is authorised against a
 membership, and a restore from total loss runs against a database with no memberships in it, so
@@ -395,6 +392,10 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 - **`CR` is banned.** Change Request and Code Review are separate record types. Write
   `change_request` and `code_review` in full, in code, schema, API, and UI.
 - **No SQLite.** PostgreSQL in development and production, and in tests via Testcontainers.
+- **MinIO comes from `quay.io`, pinned by digest.** Docker Hub had stopped serving `minio/minio` by
+  2026-09-13, so a reference to it fails on every machine without a cached copy. `docker/compose.yaml`
+  and `EvidenceStoreTests` name the same image, and `DeploymentTests` fails if the stack goes back to
+  Docker Hub or loses the digest.
 - **Embeddings and vector search are post-v1, off by default, and gated.** v1 shipped full-text
   search and structured filters alone, and an installation that configures no provider still runs
   exactly that. The derived vector index (ADR-0012) is opt-in and needs the pgvector extension the
