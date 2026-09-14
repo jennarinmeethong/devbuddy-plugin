@@ -195,9 +195,14 @@ one RID fewer is published.
 | A prerelease draft is marked as one | **Yes.** `prerelease=true`, and `v1.1.0` stayed Latest. |
 | The moving tag is not hijacked | **Yes.** No `1.2` tag exists for any of the three images. `1.1` still resolves to the same digest as `1.1.0` for all three, for the API `sha256:05645a37…`. |
 
-The rc tag and its draft are deleted; its GHCR image tags are left. None of this is the `v1.2.0`
-checklist: it proves the workflow, not the release, and no smoke test, Compose run or drill was
-performed against it.
+The rc tag and its draft are deleted. **Its GHCR image versions were deleted too**, on 2026-09-14,
+at the owner's instruction, unlike rc.1 and rc.2 above whose image tags are still there. The version
+tagged `1.2.0-rc.1` was removed from each of the three packages. Two checks came first: the rc
+index digest is not referenced by `1.2.0`'s manifest, and the two share no child manifest. Two
+checks came after: `1.2.0` resolves to the same digest for all three, and its provenance and SBOM
+attestations still verify. The rc's untagged child manifests and its attestation versions are left.
+None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
+Compose run or drill was performed against it.
 
 ## What was verified for v1.2.0
 
