@@ -206,7 +206,8 @@ Compose run or drill was performed against it.
 
 ## What was verified for v1.2.1
 
-**Not tagged yet.** A security fix: the evidence store no longer runs as root. Since `v1.2.0`,
+**Tagged from `56a4c2a`; draft, not published.** A security fix: the evidence store no longer runs
+as root. Since `v1.2.0`,
 nothing under `src` or `web` has changed. The changes are:
 - the evidence service in `docker/compose.yaml`;
 - `docker/evidence/Dockerfile`;
@@ -259,16 +260,43 @@ two artefacts. The backup came to 12,573 bytes and was copied off its volume bef
 A second restore was refused with "This installation already has data. Restore into an empty
 database." An access token issued before the disaster still answered 200 on `/me`, as documented.
 
-**Still owed.** These need the tag:
-- attestations and SBOMs verified from outside the workflow;
-- both architectures present in every manifest;
-- smoke tests of `win-x64`, `linux-x64`, `linux-arm64`, `linux-musl-x64` and `osx-arm64` from the
-  published archives;
-- all three images started on both architectures;
-- release notes stating what was run for `win-arm64` and `linux-musl-arm64`.
+### Against the release's own artefacts
 
-The published images are the three application images; the evidence image is built by Compose
-where it runs.
+Tag `v1.2.1` pushed from `56a4c2a`, run 34819658557, 2026-09-14. The release is a **draft, not
+published**.
+
+**The run failed once, and the failure was transient.** On the first attempt the `Push and attest
+mcp` job failed in its `Set up Buildx` step, before building anything. The runner could not pull
+`moby/buildkit` from Docker Hub: `connection reset by peer`. The api and cli jobs had already
+pushed `1.2.1`, so the moving `1.2` tag briefly pointed at 1.2.1 for those two and 1.2.0 for mcp,
+and no draft existed. Only the failed job and its dependent were re-run, as attempt 2, and both
+passed. The latest attempt carries no annotations.
+
+| Check | When | Result |
+| --- | --- | --- |
+| The draft carries exactly the published RIDs | Re-run | **Yes.** Seven archives, `SHA256SUMS` and the three SBOMs; `prerelease=false`, and `v1.2.0` stayed Latest while it was a draft. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and all seven archives: provenance names `refs/tags/v1.2.1` and `56a4c2a`. A deliberately wrong `--owner` is refused for an image and for an archive. |
+| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all seven downloaded from the draft, and again on every machine an archive was copied to. |
+| SBOM attached per image | Re-run | **Yes.** CycloneDX: 36, 38 and 56 components for the API, the MCP server and the console. |
+| Both architectures in every manifest | Re-run | **Yes.** `linux/amd64` and `linux/arm64` for all three images. `1.2.1`, `1.2` and `v1.2.1` resolve to one digest per image, mcp included once attempt 2 had pushed it. `1.2.0` still resolves to its own. |
+| Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp: pulled as `1.2.1` and confirmed against the published digest; `amd64`; user `1654`. The console applied seven migrations and listed the twenty catalogue names. The API answered 200, 401 and 200. The MCP server answered 401, against a 404 control. |
+| Images **started** on `linux/arm64` | Re-run, against the published images | **Yes, on hardware:** the Mac mini's Docker Desktop Linux VM on the Apple M4. The same checks and results, with `arm64` and the same digests. |
+| `win-x64` smoke test | Re-run | **Not run natively; run under emulation.** The development machine is Windows 11 Pro 10.0.26200 on AMD64, and Smart App Control **blocked this archive**. `DevBuddy.Cli.exe` could not load `DevBuddy.Cli.dll` (`0x800711C7`, "An Application Control policy has blocked this file"). Code Integrity logged events 3033 and 3077 under policy `{0283ac0f-fff1-49ae-ada1-8a933130cad6}`, for not meeting the signing level. The `v1.2.0` archive had run on the same machine. The assemblies are unsigned in both, and Smart App Control decides on reputation, which a new build does not have. The setting was left on. The same archive then ran **under x64 emulation** on Windows on ARM, in a VMware guest on Apple silicon. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. So for this release the row's "Run" is **not native**. |
+| `linux-x64` smoke test | Re-run | **Yes.** `ubuntu:24.04` with `libicu74`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively on the Apple M4 Mac mini, macOS 26.6.2. Twenty operations, identical; `--every 24` refused; the apphost is ad-hoc signed. |
+| `linux-arm64` smoke test | Re-run | **Yes, twice.** First in `ubuntu:24.04` (24.04.5) in Docker Desktop's Linux VM on the Apple M4. Then natively on Ubuntu 26.04.1 in a VMware guest on arm64. Twenty operations, identical, both times. |
+| `win-arm64` smoke test | Run for this release, not required | **Yes, in a VM.** Natively on Windows on ARM in a VMware guest on Apple silicon. Twenty operations, identical, exit 0; `--every 24` refused; `migrate` with no connection string reached the refusal inside Infrastructure. The RID stays built but unverified. |
+| `linux-musl-arm64` smoke test | Run for this release, not required | **Yes, in a container on a VM.** `alpine:3` (3.24) in Docker on the Ubuntu 26.04 VMware guest, `aarch64`. Twenty operations, identical; `--every 24` refused. The RID stays built but unverified. |
+
+The published images are the three application images. The evidence image is built by Compose
+where it runs, and was verified above: before the tag, on amd64 and arm64.
+
+**What this release teaches the checklist.** A native `win-x64` smoke test on the development
+machine can no longer be assumed. Smart App Control may refuse any new unsigned build there, and
+switching it off is not this project's call. Until the assemblies are signed, or another Windows x64
+machine without it is available, the row can be run only under emulation. Every release has to say
+so.
 
 ## What was verified for v1.2.0
 
