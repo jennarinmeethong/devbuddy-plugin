@@ -92,6 +92,19 @@ It commits to what every verified row commits to: a smoke test by hand before ea
 recorded per release, and a release for which it cannot be run records its "Run" column as no. The
 middle tier is now `win-arm64` and `linux-musl-arm64`.
 
+## Amendment — 2026-09-14
+
+**The middle tier is no longer "never run".** Both of its RIDs were started for the first time
+against the `v1.2.0` draft's archives. `win-arm64` ran in a VMware virtual machine on Apple silicon.
+`linux-musl-arm64` ran in `alpine:3` inside Docker Desktop's Linux VM on the Apple M4 Mac mini. Both
+listed the catalogue's AI operations; `docs/operations/release-matrix.md` records the runs.
+
+The project owner kept both in the middle tier (`info.md`, 2026-09-14). One run in a VM or a
+container does not commit anyone to a smoke test before every release, and that commitment is what
+the verified tier means. The table's "never run" now reads as "not smoke-tested per release".
+Release notes say what was run for these two for that release, rather than that they were never
+started.
+
 ## Consequences
 
 - The middle tier is the honest part of this decision: those artifacts are useful and untested, and

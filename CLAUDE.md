@@ -48,14 +48,14 @@ ran for the tag. The results are in `docs/operations/release-matrix.md`:
 - five smoke tests, `osx-arm64` included;
 - `linux-arm64` and all three images on arm64 hardware for the first time.
 
-The draft still needs release notes stating the two unrun RIDs verbatim, and publishing is the
-owner's.
+Its release notes are on the draft, including what was run for the two unverified RIDs. Publishing
+it is the owner's.
 
 What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
 operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images
 are built and started, and the log facts are decided rather than deferred — the sweep is scheduled
-and tokens are no longer written to a log by default. Two unrun platforms remain, now as an
-accepted decision rather than a gap: on 2026-09-13 `osx-x64` was dropped and `osx-arm64` moved to
+and tokens are no longer written to a log by default. Two unverified platforms remain, as an
+accepted decision rather than a gap, each started once since: on 2026-09-13 `osx-x64` was dropped and `osx-arm64` moved to
 the verified tier. `docs/security/release-readiness.md` is the current statement
 of what is accepted and by whom.
 
@@ -135,9 +135,12 @@ Desktop's Linux VM on the owner's Apple M4. That is still not a server-class hos
 stack has never been run from clean on arm64. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
-**The two unrun RIDs keep shipping.** `win-arm64` and `linux-musl-arm64` stay in the
-built-but-unverified tier with every release's notes saying they were never started. Confirmed as a
-decision, not left as a gap. Nobody may describe them as supported. **`osx-arm64` is verified since
+**The two unverified RIDs keep shipping.** `win-arm64` and `linux-musl-arm64` stay in the
+built-but-unverified tier, confirmed as a decision and not left as a gap. Each has been started
+once, for `v1.2.0` on 2026-09-14: `win-arm64` in a VMware VM on Apple silicon, and
+`linux-musl-arm64` in Alpine on the Mac mini. The owner kept both in the tier that day. So there is
+no per-release smoke test for them, every release's notes say exactly what was and was not run,
+and nobody may describe them as supported. **`osx-arm64` is verified since
 2026-09-13**: it ran natively on the owner's Apple M4 Mac mini, including the Linux-built archive,
 which the SDK ad-hoc signs, so every release now owes a smoke test of it on that machine. **`osx-x64` is not published at
 all since 2026-09-13**: the owner dropped it, the release workflow no longer builds it, and it must

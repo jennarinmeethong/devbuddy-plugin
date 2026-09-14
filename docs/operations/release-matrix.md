@@ -18,13 +18,16 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `linux-arm64` | yes | **yes** | `ubuntu:24.04` under `linux/arm64` emulation. Emulated, not hardware. |
 | `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
 | `osx-arm64` | yes | **yes** | Natively, on an Apple M4 Mac mini running macOS 26.6.2. Hardware, not emulation. First run 2026-09-13, outside a release; see below. |
-| `win-arm64` | yes | no | No Windows on ARM available. Published as-is. |
-| `linux-musl-arm64` | yes | no | Not run; the x64 musl build was, so the dependency list is believed to carry over. |
+| `win-arm64` | yes | once | **Not in the verified tier.** Started once, for `v1.2.0` on 2026-09-14, in a VMware guest on Apple silicon. Not smoke-tested per release. |
+| `linux-musl-arm64` | yes | once | **Not in the verified tier.** Started once, for `v1.2.0` on 2026-09-14, in `alpine:3` on an Apple M4. Not smoke-tested per release. |
 
-The two rows reading **no** are a decision rather than an omission, confirmed by the project owner
-on 2026-09-10: keep publishing them in this tier, with every release's notes saying they were never
-started, rather than acquire the hardware or stop publishing. No Windows on ARM is available here.
-Whoever deploys on one of them is the first to run it, and nobody may describe them as supported.
+The two rows reading **once** are a decision rather than an omission. They are published in this
+tier without the per-release smoke test the rows reading yes get, as confirmed by the project owner
+on 2026-09-10. Until 2026-09-14 neither had ever been started. That day both ran for `v1.2.0`:
+`win-arm64` in a VMware virtual machine on Apple silicon, and `linux-musl-arm64` in an Alpine
+container on the Mac mini. The owner confirmed that they stay in this tier (`info.md`, 2026-09-14).
+One run in a VM or a container is not a per-release commitment. Every release's notes say plainly
+what was and was not run for these two, and nobody may describe them as supported.
 
 **`osx-arm64` moved to the verified tier (2026-09-13).** The owner moved it after a Mac mini became
 available and the build was run on it. From the next release on it is smoke-tested by hand on that
@@ -271,7 +274,9 @@ it. All 13 jobs passed, with no annotations.
 | `linux-arm64` smoke test | Re-run | **Yes, on hardware, for the first time.** `ubuntu:24.04` (24.04.5) with `libicu74`, `aarch64`, inside Docker Desktop's Linux VM on the same Apple M4. This is a virtual machine on an arm64 CPU, not QEMU. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. |
 | Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp. Each image was pulled as `1.2.0` and confirmed against the published digest, and each reports `amd64` and user `1654`. Against a throwaway `postgres:17-alpine`: the console applied all seven migrations and listed the twenty catalogue names. The API answered `/health` 200, `/operations` 401 and the UI 200 at the root. The MCP server refused `POST /` with 401, against a control showing an unmapped path answers 404. |
 | Images **started** on `linux/arm64` | Re-run, against the published images | **Yes, on hardware, for the first time.** The same checks on the Mac mini's Docker Desktop, whose Linux VM runs on the Apple M4. All three report `arm64` and user `1654` at the same digests. The console applied all seven migrations against `postgres:17-alpine` and listed the twenty names. The API answered 200, 401 and 200, and the MCP server answered 401 against a 404 control. |
-| `win-arm64`, `linux-musl-arm64` | — | **Not run.** Built and published as-is, per the 2026-09-10 decision. The release notes must say so verbatim. |
+| `win-arm64` smoke test | **First run ever, 2026-09-14**, after the tag | **Yes, in a VM.** Windows 10.0.26200 on ARM64 in a VMware guest (`VMware20,1`) whose processor reports "Apple silicon", from the published archive, its SHA-256 matching `SHA256SUMS`. Twenty operations, identical to the catalogue, exit 0 with nothing on stderr; `--every 24` refused; `migrate` with no connection string reached the missing-connection-string refusal inside Infrastructure. The RID **stays in the built-but-unverified tier**. Moving it is the owner's decision, and this was one run in a VM rather than a native Windows on ARM device. |
+| `linux-musl-arm64` smoke test | **First run ever, 2026-09-14**, after the tag | **Yes, on hardware.** `alpine:3` (3.24) with `libstdc++`, `libgcc` and `icu-libs`, `aarch64`, in Docker Desktop's Linux VM on the Apple M4, from the published archive. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. This confirms the dependency list the x64 musl run implied. The RID **stays in the built-but-unverified tier** until the owner decides otherwise. |
+| `linux-arm64`, second run | 2026-09-14 | **Yes.** Natively on Ubuntu 26.04.1 (kernel 7.0, ICU 78) in a VMware guest on arm64, from the same archive. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. The first ICU 78 system any archive has run on. |
 
 Two things these runs changed about what the matrix can say.
 - **`linux/arm64` has now started on arm64 hardware**, for both the native `linux-arm64` archive and
@@ -282,8 +287,9 @@ Two things these runs changed about what the matrix can say.
   host kernel, which is a change to that machine rather than a test run on it. It was not done. The
   Mac mini made it unnecessary.
 
-**The draft is publishable** once its release notes state verbatim that `win-arm64` and
-`linux-musl-arm64` were never run.
+**The draft is publishable.** Its release notes state that `win-arm64` and `linux-musl-arm64`
+stay unsupported and in the built-but-unverified tier, and say that each was started once for this
+release: one in a VM, the other in a container.
 
 ## What was verified for v1.1.0
 

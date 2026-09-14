@@ -1,5 +1,26 @@
 # Project Decisions
 
+## Confirmed win-arm64 and linux-musl-arm64 Stay Unverified After Their First Runs — 2026-09-14
+
+Both RIDs were started for the first time on 2026-09-14, against the `v1.2.0` draft's own
+archives. `win-arm64` ran on the user's Windows on ARM machine, a VMware guest on Apple silicon.
+`linux-musl-arm64` ran in `alpine:3` inside Docker Desktop's Linux VM on the Apple M4 Mac mini.
+Both listed exactly the catalogue's twenty AI operations and refused `--every 24`.
+`docs/operations/release-matrix.md` records the runs.
+
+The owner chose to keep both in the built-but-unverified tier rather than move them to verified.
+
+- **No per-release obligation.** Neither is smoke-tested before every release. A release that does
+  run one records it; a release that does not says so.
+- **Release notes say what was run, not "never run".** From `v1.2.0` on, the notes state for each
+  of the two whether it was started for that release and on what kind of machine. Neither is ever
+  described as supported.
+- **Why not verified.** One run in a VM or a container is not the standard the verified rows hold.
+  Those rows are smoke-tested by hand, every release, on a named machine.
+
+This supersedes the "never started" wording of the 2026-09-10 and 2026-09-13 entries below; the
+tier they placed the two RIDs in is unchanged.
+
 ## Confirmed Cutting v1.2.0 from main — 2026-09-13
 
 The owner decided the next release is `v1.2.0`, cut from `main`.

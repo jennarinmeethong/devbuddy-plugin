@@ -190,9 +190,10 @@ Consequences worth stating, since a closed risk that quietly breaks a workflow i
   precisely because tokens were in those logs. An operator who turns the token opt-in on should
   turn log export back off.
 
-**2. The unrun platforms — accepted, and they keep shipping.** Four when accepted, two today; the
-narrowing is below. `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` were built and published for `v1.0.0` without ever being
-started, because no macOS and no Windows on ARM is available here. The owner's decision is to keep
+**2. The unverified platforms — accepted, and they keep shipping.** Four when accepted, two today;
+the narrowing is below. `osx-arm64`, `osx-x64`, `win-arm64` and `linux-musl-arm64` were built and
+published for `v1.0.0` without ever being started, because no macOS and no Windows on ARM was
+available here. The owner's decision is to keep
 publishing them in the built-but-unverified tier with every release's notes saying so verbatim,
 rather than to acquire the hardware or to stop publishing. Whoever deploys on one of them is the
 first to run it, and nobody may describe them as supported.
@@ -205,6 +206,13 @@ remain as they were released, unverified.
 **Narrowed again the same day: two platforms.** `osx-arm64` moved to the verified tier after it was
 run natively on an Apple M4 Mac mini, so it is smoke-tested before every release rather than
 accepted as unrun. `win-arm64` and `linux-musl-arm64` remain on the terms above.
+
+**Run once, and still unverified: 2026-09-14.** Both remaining RIDs were started for the first time,
+against the `v1.2.0` draft's archives. `win-arm64` ran in a VMware VM on Apple silicon, and
+`linux-musl-arm64` in an Alpine container on the Apple M4. Both passed the smoke test. The owner
+kept them in the built-but-unverified tier (`info.md`, 2026-09-14). The acceptance above stands,
+with one change of wording: release notes now say what was run for these two, not that they were
+never started. Nobody may describe them as supported.
 
 **Closed rather than accepted: `linux/arm64` container images.** This section, ADR-0008 and the
 release matrix all said they were not built and not claimed. They are built now, published under
