@@ -296,6 +296,27 @@ Two things these runs changed about what the matrix can say.
 `win-arm64` and `linux-musl-arm64` stay unsupported and in the built-but-unverified tier. They also
 say that each was started once for this release: one in a VM, the other in a container.
 
+### The Compose stack from clean on `linux/arm64`, after publication
+
+Run on 2026-09-14 from the `v1.2.0` tag at `7512240`, in an Ubuntu 26.04.1 VMware guest on arm64
+(2 CPUs, 5.3 GB of memory). The machine ran Docker 29.1.3 and Compose 2.40.3. It used the
+**published images**, not a build. An override replaced every `build:` with the
+`ghcr.io/…:1.2.0` image, and nothing else in `docker/compose.yaml` changed. A build from source
+was not attempted on a machine that size. This is the first run of the stack on arm64.
+
+| Check | Result |
+| --- | --- |
+| From clean to healthy | **Yes.** The project started with no volumes, and `up` ran with no build and no pull. All six services came up. `api` was healthy after 17 seconds, and `migrate` exited 0 having applied seven migrations. `retention` logged its first pass with all six counts. |
+| Every container on arm64 | **Yes.** All five images report `arm64`: the three application images, `postgres:17-alpine`, and the pinned MinIO digest. |
+| HTTP | **Yes.** The API answered `/health` 200, `/operations` 401 and the UI 200 at the root. The MCP server refused `POST /` with 401, against a control showing an unmapped path answers 404. |
+| Nothing else reachable from the host | **Yes.** Only `127.0.0.1:8080` and `127.0.0.1:8081` are published, and nothing listens on 5432 or 9000. |
+| Log volume | **Yes.** It came back owned by uid 1654, with a dated file in it. |
+| `down` then `up` keeps the data | **Yes.** All five volumes survived `down` without `-v`. The second `up` was healthy, and `migrate` reported "The database is already up to date." |
+| No service runs as root | **No, for the object store.** On the host, the application processes run as uid 1654 and PostgreSQL as uid 70. **MinIO runs as uid 0.** Its image sets no user, and neither does `docker/compose.yaml`. Your amd64 stack on jmhp runs the same digest and shows the same thing: MinIO as uid 0, with no user-namespace remapping. So "No service runs as root" in `docker/compose.yaml` and `deployment.md` is not true of the evidence store, and it was not true in `v1.0.0` or `v1.1.0` either. SB-31's two checks cover the three application images only: a `USER` line in each Dockerfile, and a non-root `Config.User` in each built image. Neither looks at a third-party image. MinIO publishes no port and sits on the internal network only, which limits who can reach it; it does not make it non-root. |
+
+Not claimed: a build from source on arm64, the destroy-and-restore drill on arm64, and any
+server-class arm64 host.
+
 ## What was verified for v1.1.0
 
 Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **published 2026-09-10**.

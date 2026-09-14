@@ -131,8 +131,9 @@ path) but the overlay sets it true, which it could not do while tokens were in t
 costs a release minutes rather than the hours emulating a compiler would. Nothing RUNs in a runtime
 stage, which is what makes that possible. Through `v1.1.0` they were started only under emulation.
 For `v1.2.0` all three, and the native `linux-arm64` archive, ran on arm64 hardware: Docker
-Desktop's Linux VM on the owner's Apple M4. That is still not a server-class host, and the Compose
-stack has never been run from clean on arm64. The release workflow checks the non-root user **per
+Desktop's Linux VM on the owner's Apple M4. That is still not a server-class host. On 2026-09-14
+the Compose stack of `v1.2.0` ran from clean on arm64 too, with the published images, in an
+Ubuntu 26.04 VMware guest (2 CPUs, 5.3 GB). `docs/operations/release-matrix.md` records it. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
 **The two unverified RIDs keep shipping.** `win-arm64` and `linux-musl-arm64` stay in the
