@@ -1,5 +1,23 @@
 # Project Decisions
 
+## Confirmed Cutting v1.2.1 for the Non-Root Evidence Store — 2026-09-14
+
+The owner decided the next release is `v1.2.1`, cut from `main`, to ship the non-root evidence store
+recorded in the entry below.
+
+- **A patch version, not `v1.3.0`.** Since `v1.2.0` nothing under `src` or `web` has changed. What
+  changed is the evidence service in `docker/compose.yaml`, the new `docker/evidence/Dockerfile`,
+  `DeploymentTests`, and the supply-chain workflow's image check. It fixes a security control that
+  was overstated and adds no capability.
+- **No throwaway prerelease tag.** `release.yml` is unchanged since `v1.2.0-rc.1` proved it. The
+  checklist asks for one only when that workflow changes.
+- **The checklist is still re-run in full**, with nothing carried over, as confirmed on 2026-09-10.
+  The drill uses the new evidence image. The upgrade from `v1.2.0`, including the one-time `chown`,
+  is run on amd64 as well as on arm64.
+- **Its release notes must give the upgrade step.** A stack upgraded from `v1.2.0` or earlier does
+  not start its evidence store until the volume is handed to uid 1000. The notes must also say
+  plainly that `v1.2.0` and earlier ran MinIO as root.
+
 ## Confirmed Running the Evidence Store as a Non-Root Account — 2026-09-14
 
 On 2026-09-14 the Compose run on arm64 found that MinIO ran as uid 0. The owner's jmhp stack on

@@ -204,6 +204,72 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.2.1
+
+**Not tagged yet.** A security fix: the evidence store no longer runs as root. Since `v1.2.0`,
+nothing under `src` or `web` has changed. The changes are:
+- the evidence service in `docker/compose.yaml`;
+- `docker/evidence/Dockerfile`;
+- `DeploymentTests`;
+- the supply-chain workflow's image check.
+
+`release.yml` is unchanged since `v1.2.0-rc.1` proved it, so no throwaway prerelease tag was cut.
+Nothing is carried over: the checks below ran against `fb9977b` on 2026-09-14, before the tag. The
+tag may land on a later commit only if that commit changes documentation or `plugin.json` alone.
+
+Everything below ran on jmhp. Each run used a clean clone and a Compose project of its own, and the
+owner's `devbuddy` stack was not touched. `devbuddy-v121` published on 18080 and 18081, and
+`devbuddy-up121` on 28080 and 28081. Only the port lines were overridden.
+
+| Check | When | Result |
+| --- | --- | --- |
+| `dotnet test DevBuddy.slnx -c Release` on Linux with Docker | **Against `fb9977b`, before the tag** | **Yes.** In `mcr.microsoft.com/dotnet/sdk:10.0` against the host's Docker daemon: all six test projects ran, with 658 tests passed and none failed. That includes `DevBuddy.Infrastructure.Tests` at 197 with the two new SB-31 checks. CI had run the same suite on `0bb0daa`. |
+| Compose from clean to healthy | **Against `fb9977b`, before the tag** | **Yes**, built from source, the evidence image included. All six services came up. `api` was healthy 82 seconds after the build started, `migrate` exited 0 having applied seven migrations, and `retention` logged its first pass. The API answered `/health` 200, `/operations` 401 and the UI 200. The MCP server refused `POST /` with 401, against a 404 control. Nothing listened on 5432 or 9000. |
+| No service runs as root | **Against `fb9977b`, before the tag** | **Yes**, read from the host rather than the configuration. The API, MCP server and retention ran as uid 1654, PostgreSQL as uid 70, and **MinIO as uid 1000**. The evidence container had a read-only root filesystem, every capability dropped, and its volume at `/srv/evidence`, which a fresh install gave to `1000:1000`. The log volume was owned by uid 1654. |
+| Tokens stay out of the log | **Against `fb9977b`, before the tag** | **Yes**, in both directions. With the default setting, a recovery request answered 202 and the API logged only that the message could not be delivered and its contents were not written. With the opt-in, the same request wrote the token. Across the whole log file on the volume there is one "not written" warning and exactly one token line, the opt-in's. **The first attempt was inconclusive and is not counted.** It ran before the drill had created the account, so neither request produced any line; an unknown address gets the same 202 and nothing else, by design. It was re-run once the account existed. |
+| Destroy-and-restore drill | **Run on 2026-09-14, against `fb9977b`, with the new evidence image** | **Yes**, with both the database and the evidence volumes destroyed. See below. |
+| Upgrade from `v1.2.0` | **Run on 2026-09-14, on amd64 here and on arm64 earlier** | **Yes, on both.** Starting from `v1.2.0` as shipped, with MinIO at uid 0: an artefact was captured and downloaded. The new evidence image then refused to start without the one-time `chown`, with `drive may be faulty`, as `deployment.md` says. After the `chown` it ran as uid 1000. The earlier artefact downloaded byte for byte, a new encrypted capture through the application worked, and both survived a restart with no error lines since. The same run then went from clean: the volume was owned by `1000:1000` with no manual step, capture and download worked, and every service was non-root. The arm64 run is recorded under *The non-root evidence store on `linux/arm64`* below. |
+
+### The destroy-and-restore drill for v1.2.1
+
+The same scripted drill as `v1.2.0`, against the running stack, with MinIO now built from
+`docker/evidence/Dockerfile`.
+
+**Before the disaster**, the installation held:
+- a work item;
+- a record taken through draft, submit, approve and publish, with the approval bound to content
+  hash `6443D802…`;
+- two evidence artefacts, of 232 and 64 bytes;
+- an administrator account;
+- a machine token;
+- fourteen audit entries.
+
+A file carrying a connection string and an AWS key was refused with 422 Blocked, and the store kept
+two artefacts. The backup came to 12,573 bytes and was copied off its volume before the disaster.
+
+| Row | Result |
+| --- | --- |
+| Records | **Back.** `get_record` returned exactly what it did before the disaster. |
+| Approvals | **Back, and still bound.** The history was identical, with content hash `6443D802…` both before and after. |
+| Evidence | **Back, byte for byte**, into a store running as uid 1000. The evidence volume was destroyed and recreated owned by `1000:1000`. Both artefacts downloaded at 232 and 64 bytes with matching SHA-256 hashes, so the bytes came out of the backup. |
+| Audit history | **Back.** All fourteen entries were present afterwards, including `RecordApproved/Failed` and `ContentScanned/Denied`. |
+| Accounts | **Back.** Sign-in with the same password succeeded. |
+| Plugins | **Back.** The machine token minted before the disaster answered `list_projects` identically over MCP stdio, and a bogus token was refused with "No identity was resolved for this request". |
+
+A second restore was refused with "This installation already has data. Restore into an empty
+database." An access token issued before the disaster still answered 200 on `/me`, as documented.
+
+**Still owed.** These need the tag:
+- attestations and SBOMs verified from outside the workflow;
+- both architectures present in every manifest;
+- smoke tests of `win-x64`, `linux-x64`, `linux-arm64`, `linux-musl-x64` and `osx-arm64` from the
+  published archives;
+- all three images started on both architectures;
+- release notes stating what was run for `win-arm64` and `linux-musl-arm64`.
+
+The published images are the three application images; the evidence image is built by Compose
+where it runs.
+
 ## What was verified for v1.2.0
 
 **Tagged from `7512240`, published 2026-09-14.** The first table records the checks that do not
