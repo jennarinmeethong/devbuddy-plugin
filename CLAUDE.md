@@ -39,8 +39,11 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.1.0` is published too (2026-09-10, from `4253a5b`), and `v1.2.0` is the current release**,
-published 2026-09-14 from `7512240`, as decided 2026-09-13 in `info.md`. It carries Phase 12C, the MinIO move to
+**`v1.1.0` is published too (2026-09-10, from `4253a5b`), then `v1.2.0` (2026-09-14, from `7512240`),
+and `v1.2.1` is the current release**, published 2026-09-14 from `56a4c2a`. `v1.2.1` is the
+non-root evidence store and nothing else. **An installation upgrading to it has to `chown` its
+evidence volume once** (`docs/operations/deployment.md`). `v1.2.0` was decided on 2026-09-13 in
+`info.md`. It carries Phase 12C, the MinIO move to
 `quay.io` and dropping `osx-x64`; the Compose file of both published tags names a MinIO image Docker
 Hub no longer serves. `v1.2.0-rc.1` proved the changed `release.yml` first, and the full checklist
 ran for the tag. The results are in `docs/operations/release-matrix.md`:
@@ -48,8 +51,11 @@ ran for the tag. The results are in `docs/operations/release-matrix.md`:
 - five smoke tests, `osx-arm64` included;
 - `linux-arm64` and all three images on arm64 hardware for the first time.
 
-Its release notes say what was run for the two unverified RIDs. It was published on 2026-09-14 at
-the owner's instruction and is the repository's Latest release.
+`v1.2.0`'s release notes say what was run for the two unverified RIDs, and so do `v1.2.1`'s. Both
+were published on 2026-09-14 at the owner's instruction. `v1.2.1` is the repository's Latest release.
+Its checklist, in `docs/operations/release-matrix.md`, records that Smart App Control blocked the
+unsigned `win-x64` build on the development machine. That row was run under x64 emulation on
+Windows on ARM instead, not natively.
 
 What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
 operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images

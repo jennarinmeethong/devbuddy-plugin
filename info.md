@@ -40,8 +40,9 @@ images. The owner chose to fix it.
   builds and inspects the evidence image beside the other three.
 - **Upgrading needs a one-time ownership change of the evidence volume**, documented in
   `docs/operations/deployment.md`. A fresh install needs nothing.
-- **Not released yet.** `v1.2.0` still ships the root-run MinIO. The next release's notes must say
-  so, and must give the upgrade step.
+- **Released in `v1.2.1`, published 2026-09-14.** Its notes say that `v1.2.0` and earlier ran MinIO
+  as root, and give the upgrade step. `v1.2.0` and earlier still ship the root-run MinIO for anyone
+  who stays on them.
 
 ## Confirmed win-arm64 and linux-musl-arm64 Stay Unverified After Their First Runs — 2026-09-14
 

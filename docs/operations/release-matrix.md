@@ -206,7 +206,7 @@ Compose run or drill was performed against it.
 
 ## What was verified for v1.2.1
 
-**Tagged from `56a4c2a`; draft, not published.** A security fix: the evidence store no longer runs
+**Tagged from `56a4c2a`, published 2026-09-14.** A security fix: the evidence store no longer runs
 as root. Since `v1.2.0`,
 nothing under `src` or `web` has changed. The changes are:
 - the evidence service in `docker/compose.yaml`;
@@ -262,8 +262,8 @@ database." An access token issued before the disaster still answered 200 on `/me
 
 ### Against the release's own artefacts
 
-Tag `v1.2.1` pushed from `56a4c2a`, run 34819658557, 2026-09-14. The release is a **draft, not
-published**.
+Tag `v1.2.1` pushed from `56a4c2a`, run 34819658557, 2026-09-14. The draft was **published on
+2026-09-14** at 08:28 UTC, at the owner's instruction, and is the repository's Latest release.
 
 **The run failed once, and the failure was transient.** On the first attempt the `Push and attest
 mcp` job failed in its `Set up Buildx` step, before building anything. The runner could not pull
@@ -356,7 +356,7 @@ afterwards. A restore does not revoke a stateless JWT inside its lifetime, and
 ### Against the release's own artefacts
 
 Tag `v1.2.0` was pushed from `7512240`, run 34768949931, 2026-09-13. The draft was **published on
-2026-09-14** at 03:32 UTC and is the repository's Latest release. Outside `docs/`, `7512240` is identical to `3160f61`, so the checks above stand for
+2026-09-14** at 03:32 UTC, and was the repository's Latest release until `v1.2.1` the same day. Outside `docs/`, `7512240` is identical to `3160f61`, so the checks above stand for
 it. All 13 jobs passed, with no annotations.
 
 | Check | When | Result |
@@ -411,7 +411,7 @@ was not attempted on a machine that size. This is the first run of the stack on 
 Not claimed: a build from source on arm64, the destroy-and-restore drill on arm64, and any
 server-class arm64 host.
 
-### The non-root evidence store on `linux/arm64`, 2026-09-14 (not released)
+### The non-root evidence store on `linux/arm64`, 2026-09-14 (released in `v1.2.1`)
 
 The fix for the finding above, run on the same VM before any release carries it. The evidence
 service was built from the new `docker/evidence/Dockerfile`, natively on arm64. The other services
