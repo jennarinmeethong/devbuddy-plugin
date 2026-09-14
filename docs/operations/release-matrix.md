@@ -164,8 +164,13 @@ And one thing it confirmed rather than found: **the moving container tag was not
 candidate without asking for one.
 
 Do this before the next real tag whenever `release.yml` changes. The rc tag and its draft are
-deleted afterwards; the GHCR image tags it pushes are left, because deleting a package version is
-a separate permission and not worth the reach.
+deleted afterwards. The GHCR image versions it pushes need the `delete:packages` scope, which is a
+separate grant. Until 2026-09-14 they were left. Since then every rc image version has been deleted
+at the owner's instruction, and each deletion followed the same guard. First, the rc index digest is
+confirmed not to be referenced by, and to share no child manifest with, any released tag. Next, the
+version is re-read immediately before deletion, to confirm its digest and that it carries no release
+tag. Finally, the released tags are checked to resolve to the same digests, and the latest release's
+attestations to still verify.
 
 **Both fixes were then proved the same way.** `v1.1.1-rc.2` from `3c78cb8`, run 34477446655,
 2026-09-10. All 14 jobs passed and the run carried **no annotations at all** — the `attest-sbom`
@@ -178,7 +183,11 @@ deprecation notice is gone, and so is the Node 20 one.
 | A prerelease draft is marked as one | **Yes.** `prerelease=true`, where rc.1's draft was `false`. `v1.1.0` stayed Latest throughout. |
 | The moving tag is still not hijacked | **Yes.** `1.1` still points at `sha256:05645a37…`; rc.2 got `sha256:0958e327…`. |
 
-Both rc tags and their drafts are deleted. Their GHCR image tags are left, as above.
+Both rc tags and their drafts are deleted. Their GHCR image versions were left at first, as above.
+They were deleted on 2026-09-14 at the owner's instruction, from all three packages. Before
+deleting, each rc index digest was confirmed not to be referenced by, and to share no child
+manifest with, `1.0.0`, `1.1.0`, `1.2.0` or `1.2.1`. Afterwards those four tags resolved to the same
+digests for all three images.
 
 **And again before `v1.2.0`, because `release.yml` changed after rc.2 proved it.** `6fded95`
 removed `osx-x64` from the RID matrix. `v1.2.0-rc.1` from `cc3aacb`, run 34767676557, 2026-09-13.
