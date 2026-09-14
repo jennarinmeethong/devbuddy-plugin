@@ -198,10 +198,10 @@ performed against it.
 
 ## What was verified for v1.2.0
 
-**Not tagged yet.** This section records the checks that do not need the release's artefacts. They
-were run against `3160f61` on 2026-09-13, before the tag. The tag may land on a later commit only
-if that commit changes documentation alone; if it changes anything else, these rows are re-run. The
-rows that need the published archives and images are added once the tag exists.
+**Tagged from `7512240`; draft, not published.** The first table records the checks that do not
+need the release's artefacts. They were run against `3160f61` on 2026-09-13, before the tag.
+Outside `docs/`, `7512240` is identical to `3160f61`. The checks against the published archives
+and images follow under *Against the release's own artefacts*.
 
 Everything below ran on jmhp. It used a clean clone and a Compose project of its own,
 `devbuddy-v120`. The owner's own `devbuddy` stack on that machine was not touched, and neither were
@@ -251,12 +251,39 @@ As in the `v1.1.0` drill, an access token issued before the disaster still answe
 afterwards. A restore does not revoke a stateless JWT inside its lifetime, and
 `backup-and-restore.md` already says so.
 
-**Still owed before the draft is publishable.** These need the tag:
-- smoke tests of `win-x64`, `linux-x64`, `linux-arm64`, `linux-musl-x64` and `osx-arm64` from the
-  published archives;
-- all three images started on both architectures, from GHCR by digest;
-- attestations verified from outside the workflow;
-- release notes stating verbatim that `win-arm64` and `linux-musl-arm64` were never run.
+### Against the release's own artefacts
+
+Tag `v1.2.0` was pushed from `7512240`, run 34768949931, 2026-09-13. The release is a **draft, not
+published**. Outside `docs/`, `7512240` is identical to `3160f61`, so the checks above stand for
+it. All 13 jobs passed, with no annotations.
+
+| Check | When | Result |
+| --- | --- | --- |
+| The draft carries exactly the published RIDs | Re-run | **Yes.** Seven archives, `SHA256SUMS` and the three SBOMs, and no `osx-x64`. It is marked `prerelease=false`, and `v1.1.0` stayed Latest while it was a draft. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes.** All three images, and every archive smoke-tested below. Provenance names `refs/tags/v1.2.0` and `7512240`. A deliberately wrong `--owner` is refused for an image and for an archive. |
+| `SHA256SUMS` matches the published archives | Re-run | **Yes**, for all five archives downloaded from the draft, and again on each machine they were copied to. |
+| SBOM attached per image | Re-run | **Yes.** CycloneDX: 36, 38 and 56 components for the API, the MCP server and the console. |
+| Both architectures in every manifest | Re-run | **Yes.** `linux/amd64` and `linux/arm64` for all three images. `1.2.0`, `1.2` and `v1.2.0` resolve to one digest per image. `1.1` still resolves to `v1.1.0`'s. |
+| `win-x64` smoke test | Re-run | **Yes.** Natively on Windows 11 Pro 10.0.26200, AMD64, from the published archive. `operations --ai` exited 0 with nothing on stderr and listed exactly the catalogue's twenty names. `retention --every 24` was refused with its reason. `migrate` with no connection string got as far as refusing for the missing connection string, which happens inside Infrastructure. |
+| `linux-x64` smoke test | Re-run | **Yes.** `ubuntu:24.04` with `libicu74`, `x86_64`, on jmhp. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. |
+| `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, on jmhp. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. |
+| `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively, on the Apple M4 Mac mini running macOS 26.6.2. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. `codesign -dv` reports the apphost as ad-hoc signed. |
+| `linux-arm64` smoke test | Re-run | **Yes, on hardware, for the first time.** `ubuntu:24.04` (24.04.5) with `libicu74`, `aarch64`, inside Docker Desktop's Linux VM on the same Apple M4. This is a virtual machine on an arm64 CPU, not QEMU. Twenty operations, identical to the catalogue, exit 0; `--every 24` refused. |
+| Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp. Each image was pulled as `1.2.0` and confirmed against the published digest, and each reports `amd64` and user `1654`. Against a throwaway `postgres:17-alpine`: the console applied all seven migrations and listed the twenty catalogue names. The API answered `/health` 200, `/operations` 401 and the UI 200 at the root. The MCP server refused `POST /` with 401, against a control showing an unmapped path answers 404. |
+| Images **started** on `linux/arm64` | Re-run, against the published images | **Yes, on hardware, for the first time.** The same checks on the Mac mini's Docker Desktop, whose Linux VM runs on the Apple M4. All three report `arm64` and user `1654` at the same digests. The console applied all seven migrations against `postgres:17-alpine` and listed the twenty names. The API answered 200, 401 and 200, and the MCP server answered 401 against a 404 control. |
+| `win-arm64`, `linux-musl-arm64` | — | **Not run.** Built and published as-is, per the 2026-09-10 decision. The release notes must say so verbatim. |
+
+Two things these runs changed about what the matrix can say.
+- **`linux/arm64` has now started on arm64 hardware**, for both the native `linux-arm64` archive and
+  the three images. Every earlier arm64 row was emulated. This is still a Linux VM under Docker
+  Desktop on macOS, not a Graviton or a Raspberry Pi. What it does show is that nothing was being
+  hidden by QEMU.
+- **jmhp has no arm64 emulation installed.** Installing it means registering a binfmt handler in the
+  host kernel, which is a change to that machine rather than a test run on it. It was not done. The
+  Mac mini made it unnecessary.
+
+**The draft is publishable** once its release notes state verbatim that `win-arm64` and
+`linux-musl-arm64` were never run.
 
 ## What was verified for v1.1.0
 

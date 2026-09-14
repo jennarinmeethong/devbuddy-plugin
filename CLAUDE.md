@@ -39,11 +39,17 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.1.0` is published too (2026-09-10, from `4253a5b`), and `v1.2.0` is the next tag**, decided
-2026-09-13 in `info.md`. Nothing merged since `v1.1.0` is in a release yet — Phase 12C, the MinIO
-move to `quay.io`, and dropping `osx-x64` included — and the Compose file of both published tags
-names a MinIO image Docker Hub no longer serves. `release.yml` changed after the last rc proved it,
-so `v1.2.0` needs a throwaway prerelease tag first and its full checklist, `osx-arm64` included.
+**`v1.1.0` is published too (2026-09-10, from `4253a5b`), and `v1.2.0` is tagged from `7512240`
+and still a draft**, decided 2026-09-13 in `info.md`. It carries Phase 12C, the MinIO move to
+`quay.io` and dropping `osx-x64`; the Compose file of both published tags names a MinIO image Docker
+Hub no longer serves. `v1.2.0-rc.1` proved the changed `release.yml` first, and the full checklist
+ran for the tag. The results are in `docs/operations/release-matrix.md`:
+- the drill, with both volumes destroyed;
+- five smoke tests, `osx-arm64` included;
+- `linux-arm64` and all three images on arm64 hardware for the first time.
+
+The draft still needs release notes stating the two unrun RIDs verbatim, and publishing is the
+owner's.
 
 What v1 did **not** claim was four platforms built but never run, no `linux/arm64` image, and the
 operator-side facts about application logs. Phase 12 closed two of those three: the arm64 images
@@ -123,8 +129,10 @@ path) but the overlay sets it true, which it could not do while tokens were in t
 **`linux/arm64` container images are built and started.** The Dockerfiles cross-compile —
 `--platform=$BUILDPLATFORM` on the SDK stage, `-a $TARGETARCH` for the output — so an arm64 image
 costs a release minutes rather than the hours emulating a compiler would. Nothing RUNs in a runtime
-stage, which is what makes that possible. All three were started under emulation, recorded as
-emulated rather than as hardware. The release workflow checks the non-root user **per
+stage, which is what makes that possible. Through `v1.1.0` they were started only under emulation.
+For `v1.2.0` all three, and the native `linux-arm64` archive, ran on arm64 hardware: Docker
+Desktop's Linux VM on the owner's Apple M4. That is still not a server-class host, and the Compose
+stack has never been run from clean on arm64. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
 **The two unrun RIDs keep shipping.** `win-arm64` and `linux-musl-arm64` stay in the
