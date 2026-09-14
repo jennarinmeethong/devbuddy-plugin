@@ -1,5 +1,30 @@
 # Project Decisions
 
+## Confirmed Running the Evidence Store as a Non-Root Account — 2026-09-14
+
+On 2026-09-14 the Compose run on arm64 found that MinIO ran as uid 0. The owner's jmhp stack on
+amd64 showed the same, so it had been true since Phase 10, in `v1.0.0`, `v1.1.0` and `v1.2.0`.
+`docker/compose.yaml` and `docs/operations/deployment.md` both said no service ran as root. SB-31
+was `TESTED`, but its checks only looked at the three application images.
+
+The owner was offered two options: fix it, or accept it and narrow SB-31 to the application
+images. The owner chose to fix it.
+
+- **The evidence service is built from `docker/evidence/Dockerfile`.** It starts FROM the same
+  quay.io reference pinned by digest, adds uid 1000, and keeps data at `/srv/evidence`. The path
+  moves because upstream declares `VOLUME /data`, and a build cannot change ownership there. Compose
+  runs it read-only, with every capability dropped and `no-new-privileges`, like the application
+  containers.
+- **Not by setting a Compose `user:`.** That was tried in Phase 10: a fresh volume is then owned by
+  root, and MinIO refuses to start.
+- **SB-31 is checked for every service.** `DeploymentTests` requires each service to name a
+  non-root user or build from a Dockerfile whose last `USER` is non-root. The supply-chain workflow
+  builds and inspects the evidence image beside the other three.
+- **Upgrading needs a one-time ownership change of the evidence volume**, documented in
+  `docs/operations/deployment.md`. A fresh install needs nothing.
+- **Not released yet.** `v1.2.0` still ships the root-run MinIO. The next release's notes must say
+  so, and must give the upgrade step.
+
 ## Confirmed win-arm64 and linux-musl-arm64 Stay Unverified After Their First Runs — 2026-09-14
 
 Both RIDs were started for the first time on 2026-09-14, against the `v1.2.0` draft's own

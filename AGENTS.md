@@ -168,7 +168,8 @@ an image; every secret arrives as an environment variable.
 
 `DeploymentTests` reads the Compose file and the Dockerfiles as configuration rather than trusting
 them as documentation: no host ports on the database or object store, loopback bindings on what is
-published, no Docker socket, a non-root `USER` in every image, no secret assigned a literal. A
+published, no Docker socket, every service running as a non-root user (the object store included,
+through `docker/evidence/Dockerfile`), no secret assigned a literal. A
 published database port works perfectly until somebody finds it, which is why it is a test.
 
 Restore is a **console command**, not an operation. A restore from total loss runs against a

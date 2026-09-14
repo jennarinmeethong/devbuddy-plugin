@@ -60,9 +60,12 @@ docker compose -f docker/compose.yaml exec database psql -U devbuddy devbuddy
 
 **Nothing mounts the Docker socket.** A container that can reach the daemon is root on the host.
 
-**Nothing runs as root.** The application images ship a non-root account and use it; the database
-is told which user to be; MinIO uses its own and is left alone, because overriding it leaves the
-image unable to write to a fresh volume.
+**Nothing runs as root.** The application images ship a non-root account and use it, and the
+database is told which user to be. MinIO is built from `docker/evidence/Dockerfile`, which adds the
+non-root account (uid 1000) that the upstream image lacks, and keeps its data at `/srv/evidence`.
+Until 2026-09-14 this paragraph claimed MinIO already ran as its own account, and in fact it ran as
+root; `DeploymentTests` now checks every service. An installation upgrading from an earlier stack
+has to hand its evidence volume to that account once; the upgrade steps are below.
 
 **The application containers are read-only** with all capabilities dropped and
 `no-new-privileges`, with a `tmpfs` for the one directory a .NET process needs to write to.
@@ -134,6 +137,22 @@ docker compose -f docker/compose.yaml up -d
 
 The second keeps the data in place. It was how the owner's test installation was moved on
 2026-09-13, after the first attempt restart-looped exactly as described.
+
+**Upgrading a stack from before the non-root evidence store takes one ownership change.** Until
+2026-09-14 MinIO ran as root and wrote its volume as root. The evidence service is now built from
+`docker/evidence/Dockerfile` and runs as uid 1000, so the new image cannot write to a volume the old
+one filled. MinIO then refuses to start with `file access denied, drive may be faulty`, and the API,
+which waits on it, never becomes healthy. The volume is the same one, now mounted at
+`/srv/evidence`. Hand it to the new account once, before the first start:
+
+```bash
+docker compose -f docker/compose.yaml stop evidence
+docker run --rm -v devbuddy_evidence:/d alpine chown -R 1000:1000 /d
+docker compose -f docker/compose.yaml up -d --build
+```
+
+A fresh install needs none of this. The image creates `/srv/evidence` owned by uid 1000, and a new
+volume takes that ownership.
 
 **It collects no traces or metrics on its own.** `Telemetry:Endpoint` is unset, so the
 instrumentation registers nothing. Adding a second file turns it on together with somewhere to

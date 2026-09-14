@@ -415,10 +415,22 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 - **`CR` is banned.** Change Request and Code Review are separate record types. Write
   `change_request` and `code_review` in full, in code, schema, API, and UI.
 - **No SQLite.** PostgreSQL in development and production, and in tests via Testcontainers.
-- **MinIO comes from `quay.io`, pinned by digest.** Docker Hub had stopped serving `minio/minio` by
-  2026-09-13, so a reference to it fails on every machine without a cached copy. `docker/compose.yaml`
-  and `EvidenceStoreTests` name the same image, and `DeploymentTests` fails if the stack goes back to
-  Docker Hub or loses the digest.
+- **MinIO comes from `quay.io`, pinned by digest, and is built into an image that does not run as
+  root.** Docker Hub had stopped serving `minio/minio` by 2026-09-13, so a reference to it fails on
+  every machine without a cached copy. `docker/evidence/Dockerfile` starts FROM that pinned
+  reference, `EvidenceStoreTests` starts the identical one, and `DeploymentTests` fails if either
+  goes back to Docker Hub or loses the digest. Upstream's image has no account but root. Until
+  2026-09-14 the stack ran MinIO as uid 0 while its own comments said otherwise, and SB-31's checks
+  only ever looked at the three application images.
+  - The Dockerfile adds uid 1000 and keeps data at **`/srv/evidence`, not `/data`**: upstream
+    declares `VOLUME /data`, and a build discards any change to a declared volume path.
+  - Compose runs the service read-only, with every capability dropped and `no-new-privileges`.
+  - `DeploymentTests.every_service_in_the_stack_runs_as_a_non_root_user` checks every service. It
+    was mutation-checked against the old file.
+  - **An upgraded stack needs a one-time `chown -R 1000:1000` of its evidence volume**, or MinIO
+    refuses to start with `drive may be faulty`. `docs/operations/deployment.md` has the command.
+  - Do not put the volume back at `/data`, and do not set a Compose `user:` instead. Phase 10 tried
+    the latter; a fresh volume is then owned by root.
 - **Embeddings and vector search are post-v1, off by default, and gated.** v1 shipped full-text
   search and structured filters alone, and an installation that configures no provider still runs
   exactly that. The derived vector index (ADR-0012) is opt-in and needs the pgvector extension the

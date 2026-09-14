@@ -163,11 +163,13 @@ public sealed partial class DeploymentTests
     [Fact]
     public void the_object_store_image_comes_from_quay_pinned_by_digest_and_is_the_one_the_tests_start()
     {
-        string line = Assert.Single(
-            BlockFor(ComposeLines(), "evidence:"),
-            candidate => candidate.TrimStart().StartsWith("image:", StringComparison.Ordinal));
+        // The stack builds the evidence store from docker/evidence/Dockerfile, so the reference that
+        // matters is its FROM line. Compose must not name an image of its own beside the build.
+        string from = Assert.Single(
+            File.ReadAllLines(Path.Combine(DockerDirectory().FullName, "evidence", "Dockerfile")),
+            line => line.StartsWith("FROM ", StringComparison.Ordinal));
 
-        string image = line.Trim()["image:".Length..].Trim();
+        string image = from["FROM ".Length..].Trim();
 
         Assert.StartsWith("quay.io/minio/minio:", image, StringComparison.Ordinal);
 
@@ -175,10 +177,132 @@ public sealed partial class DeploymentTests
         Assert.True(digest > 0, $"The object store image is not pinned to a digest: {image}");
         Assert.Equal(64, image[(digest + "@sha256:".Length)..].Length);
 
+        Assert.DoesNotContain(
+            BlockFor(ComposeLines(), "evidence:"),
+            line => line.TrimStart().StartsWith("image:", StringComparison.Ordinal));
+
         string fixture = File.ReadAllText(Path.Combine(
             RepositoryRoot().FullName, "tests", "DevBuddy.Infrastructure.Tests", "EvidenceStoreTests.cs"));
 
         Assert.Contains($"\"{image}\"", fixture, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Control SB-31, checked for every service in the stack, not only for every Dockerfile.
+    /// <para>
+    /// <see cref="every_application_image_runs_as_a_non_root_user"/> covered the three images this
+    /// repository builds. It could not see a service that used a third-party image and set no user,
+    /// and that is how MinIO ran as root from Phase 10 until 2026-09-14 while this file's own
+    /// comment said otherwise. Here each service must name a non-root user itself, or build from a
+    /// Dockerfile whose last <c>USER</c> is non-root. A service that does neither runs as whatever
+    /// its image says, and for most third-party images that is root.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void every_service_in_the_stack_runs_as_a_non_root_user()
+    {
+        string[] lines = ComposeLines();
+        string[] services = [.. ServiceNames(lines)];
+
+        foreach (string expected in (string[])["database", "evidence", "migrate", "retention", "api", "mcp"])
+        {
+            Assert.Contains(expected, services);
+        }
+
+        List<string> findings = [];
+
+        foreach (string service in services)
+        {
+            string[] block = BlockFor(lines, service + ":");
+
+            string? user = ValueOf(block, "user:");
+
+            if (user is null && ValueOf(block, "dockerfile:") is { } dockerfile)
+            {
+                user = LastUser(Path.Combine(RepositoryRoot().FullName, dockerfile));
+            }
+            else if (user is null && ValueOf(block, "context:") is { } context)
+            {
+                user = LastUser(Path.Combine(DockerDirectory().FullName, context, "Dockerfile"));
+            }
+
+            if (user is null || IsRoot(user))
+            {
+                findings.Add($"{service} runs as '{user ?? "whatever its image says"}'.");
+            }
+        }
+
+        Assert.Empty(findings);
+    }
+
+    /// <summary>
+    /// The object store is confined the way the application containers are, and keeps its data at
+    /// the path its image makes writable. A volume mounted back at <c>/data</c> would be owned by
+    /// root on a fresh install and fail as "drive may be faulty".
+    /// </summary>
+    [Fact]
+    public void the_object_store_is_confined_like_the_application_containers()
+    {
+        string[] block = [.. BlockFor(ComposeLines(), "evidence:").Select(line => line.Trim())];
+
+        Assert.Contains("read_only: true", block);
+        Assert.Contains("- no-new-privileges:true", block);
+        Assert.Contains("- ALL", block);
+        Assert.Contains("command: server /srv/evidence", block);
+        Assert.Contains("- evidence:/srv/evidence", block);
+    }
+
+    /// <summary>The top-level service names, in file order.</summary>
+    private static IEnumerable<string> ServiceNames(string[] lines)
+    {
+        int start = Array.FindIndex(lines, line => string.Equals(line, "services:", StringComparison.Ordinal));
+        Assert.True(start >= 0, "compose.yaml has no services section.");
+
+        for (int index = start + 1; index < lines.Length; index++)
+        {
+            string line = lines[index];
+
+            if (line.Trim().Length == 0 || line.TrimStart().StartsWith('#'))
+            {
+                continue;
+            }
+
+            if (!line.StartsWith(' '))
+            {
+                yield break;
+            }
+
+            if (line.StartsWith("  ", StringComparison.Ordinal)
+                && !line.StartsWith("   ", StringComparison.Ordinal)
+                && line.TrimEnd().EndsWith(':'))
+            {
+                yield return line.Trim()[..^1];
+            }
+        }
+    }
+
+    /// <summary>The value after <paramref name="key"/> on the first line of the block that starts with it.</summary>
+    private static string? ValueOf(string[] block, string key) =>
+        block
+            .Select(line => line.Trim())
+            .FirstOrDefault(line => line.StartsWith(key, StringComparison.Ordinal))?[key.Length..]
+            .Trim()
+            .Trim('"');
+
+    /// <summary>The account a Dockerfile's last <c>USER</c> instruction names, or null if it has none.</summary>
+    private static string? LastUser(string dockerfile) =>
+        File.ReadAllLines(dockerfile)
+            .Select(line => line.Trim())
+            .LastOrDefault(line => line.StartsWith("USER ", StringComparison.Ordinal))?["USER ".Length..]
+            .Trim();
+
+    private static bool IsRoot(string user)
+    {
+        string account = user.Split(':')[0].Trim();
+
+        return account.Length == 0
+            || string.Equals(account, "root", StringComparison.Ordinal)
+            || string.Equals(account, "0", StringComparison.Ordinal);
     }
 
     [Fact]

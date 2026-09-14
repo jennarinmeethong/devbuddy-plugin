@@ -8,8 +8,10 @@
 #   - Nothing mounts the Docker socket. A container that can talk to the daemon is root on the
 #     host, and no part of this system has any reason to.
 #   - No service runs as root. The application images ship with a non-root account and use it; the
-#     database is told which one; the object store already uses its own and is left alone, because
-#     overriding it leaves the image unable to write to a fresh volume.
+#     database is told which one; the object store is built from docker/evidence/Dockerfile, which
+#     adds the non-root account the upstream MinIO image does not have. Until 2026-09-14 this line
+#     claimed MinIO ran as its own account, and it ran as root. DeploymentTests now checks every
+#     service.
 #   - There is no TLS here. This stack is meant to sit behind a reverse proxy that terminates it,
 #     and pretending otherwise with a self-signed certificate would teach the wrong shape. See
 #     docs/operations/deployment.md.
@@ -97,19 +99,27 @@ services:
     networks: [internal]
 
   evidence:
-    # From quay.io, MinIO's own registry, and pinned to its digest. Docker Hub had stopped serving
-    # minio/minio by 2026-09-13: the repository answered 404 and every pull was refused, so this
-    # stack could not start its evidence store on any machine without a cached copy, and CI went
-    # red on every test that starts one. The digest is the one Docker Hub served for this tag, so
-    # this is the same build; pinning the digest as well as the tag means no registry can move
-    # what the tag points at. DeploymentTests fails if this goes back to Docker Hub or loses it.
-    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
+    # Built from docker/evidence/Dockerfile: the quay.io MinIO image pinned to its digest, plus the
+    # non-root account upstream does not have. Why it is pinned, and why the data lives at
+    # /srv/evidence rather than /data, are both explained there. Until 2026-09-14 this service
+    # used the upstream image directly, and MinIO ran as root.
+    build:
+      context: evidence
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      # Home for MinIO's certificates directory and mc's configuration, owned by the account the
+      # image runs as.
+      - /tmp:uid=1000,gid=1000
 
-    # No user override. The image already runs as a non-root account and its entrypoint takes
-    # ownership of the data directory; pinning a uid here left it unable to write to a fresh
-    # volume, which fails as "drive may be faulty" and is not that.
-    command: server /data
+      # The upstream image declares VOLUME /data, and nothing is stored there any more. A small
+      # tmpfs stops Docker creating an anonymous volume nobody uses every time this is recreated.
+      - /data:size=1m
+    command: server /srv/evidence
     environment:
       MINIO_ROOT_USER: ${DEVBUDDY_EVIDENCE_ACCESS_KEY:?set DEVBUDDY_EVIDENCE_ACCESS_KEY in docker/.env}
       MINIO_ROOT_PASSWORD: ${DEVBUDDY_EVIDENCE_SECRET_KEY:?set DEVBUDDY_EVIDENCE_SECRET_KEY in docker/.env}
@@ -125,7 +135,10 @@ services:
       # application, because the application only ever asks for AES256 and lets the store arrange it.
       MINIO_KMS_SECRET_KEY: ${DEVBUDDY_EVIDENCE_KMS_KEY:?set DEVBUDDY_EVIDENCE_KMS_KEY in docker/.env}
     volumes:
-      - evidence:/data
+      # The same named volume as before 2026-09-14, now mounted at /srv/evidence. A stack upgraded
+      # from the root-run image has to hand it to uid 1000 once; docs/operations/deployment.md has
+      # the command.
+      - evidence:/srv/evidence
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s

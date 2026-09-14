@@ -317,6 +317,26 @@ was not attempted on a machine that size. This is the first run of the stack on 
 Not claimed: a build from source on arm64, the destroy-and-restore drill on arm64, and any
 server-class arm64 host.
 
+### The non-root evidence store on `linux/arm64`, 2026-09-14 (not released)
+
+The fix for the finding above, run on the same VM before any release carries it. The evidence
+service was built from the new `docker/evidence/Dockerfile`, natively on arm64. The other services
+used the published `1.2.0` images, as above. The run started from the `v1.2.0` stack itself, with
+MinIO as uid 0 and an artefact already stored.
+
+| Check | Result |
+| --- | --- |
+| Before: an artefact stored by the root-run MinIO | **Yes.** 4,096 random bytes captured through the API with 200, and downloaded byte for byte. |
+| The new image without the one-time ownership change | **Refuses, as documented.** The service restart-loops unhealthy with `file access denied, drive may be faulty`. |
+| After `chown -R 1000:1000` of the existing volume | **Yes.** Healthy; MinIO runs as uid 1000 on the host, on a read-only root filesystem, with every capability dropped. |
+| Old artefact after the upgrade | **Yes**, byte for byte. |
+| A new artefact through the application | **Yes.** Captured with 200 and downloaded byte for byte. The application asks for AES256 on every object, and a store without its key refuses the write with a 500, so the store accepted the encrypted write. |
+| Both artefacts after restarting the evidence store | **Yes**, byte for byte. There were no error lines in MinIO's log since the ownership change. |
+| From clean | **Yes.** After `down -v` and `up`: the new evidence volume is owned by `1000:1000` with no manual step. Capture and download work. Every service is non-root on the host: API, MCP server and retention at 1654, PostgreSQL at 70, MinIO at 1000. |
+
+Not claimed: this on amd64, where the change is identical but was not run, the destroy-and-restore
+drill with the new image, and a release carrying it.
+
 ## What was verified for v1.1.0
 
 Built from `4253a5b`. Tag `v1.1.0`, run 34468792224, **published 2026-09-10**.
