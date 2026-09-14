@@ -201,7 +201,7 @@ performed against it.
 
 ## What was verified for v1.2.0
 
-**Tagged from `7512240`; draft, not published.** The first table records the checks that do not
+**Tagged from `7512240`, published 2026-09-14.** The first table records the checks that do not
 need the release's artefacts. They were run against `3160f61` on 2026-09-13, before the tag.
 Outside `docs/`, `7512240` is identical to `3160f61`. The checks against the published archives
 and images follow under *Against the release's own artefacts*.
@@ -256,8 +256,8 @@ afterwards. A restore does not revoke a stateless JWT inside its lifetime, and
 
 ### Against the release's own artefacts
 
-Tag `v1.2.0` was pushed from `7512240`, run 34768949931, 2026-09-13. The release is a **draft, not
-published**. Outside `docs/`, `7512240` is identical to `3160f61`, so the checks above stand for
+Tag `v1.2.0` was pushed from `7512240`, run 34768949931, 2026-09-13. The draft was **published on
+2026-09-14** at 03:32 UTC and is the repository's Latest release. Outside `docs/`, `7512240` is identical to `3160f61`, so the checks above stand for
 it. All 13 jobs passed, with no annotations.
 
 | Check | When | Result |
@@ -287,9 +287,9 @@ Two things these runs changed about what the matrix can say.
   host kernel, which is a change to that machine rather than a test run on it. It was not done. The
   Mac mini made it unnecessary.
 
-**The draft is publishable.** Its release notes state that `win-arm64` and `linux-musl-arm64`
-stay unsupported and in the built-but-unverified tier, and say that each was started once for this
-release: one in a VM, the other in a container.
+**The draft was publishable, and was published on 2026-09-14.** Its release notes state that
+`win-arm64` and `linux-musl-arm64` stay unsupported and in the built-but-unverified tier. They also
+say that each was started once for this release: one in a VM, the other in a container.
 
 ## What was verified for v1.1.0
 

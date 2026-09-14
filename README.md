@@ -10,9 +10,9 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**v1 is released, and Phase 12 followed it.** `v1.0.0` (2026-09-06) and `v1.1.0` (2026-09-10) are
-published, signed, with an SBOM per image; `v1.2.0` is the next tag. 58 operations behind one
-pipeline plus two streaming evidence routes, PostgreSQL with full-text search, MinIO evidence
+**v1 is released, and Phase 12 followed it.** `v1.0.0` (2026-09-06), `v1.1.0` (2026-09-10) and
+`v1.2.0` (2026-09-14, the current release) are published, signed, with an SBOM per image. 58
+operations behind one pipeline plus two streaming evidence routes, PostgreSQL with full-text search, MinIO evidence
 storage, the product's own sign-in with lockout and rotating tokens, tenant isolation enforced
 server-side on every request, a draft-to-published path whose audit history records who approved
 exactly which revision, read-only analysis that provably executes nothing, a secret scanner that
@@ -28,9 +28,10 @@ exist and are off by default; no hosted embedding provider is enabled anywhere, 
 worker has run against real project data. The owner's acceptance for connecting real project data
 is in `docs/security/release-readiness.md`.
 
-**Do not deploy from the `v1.0.0` or `v1.1.0` tag's Compose file.** Both name `minio/minio` on
-Docker Hub, which no longer serves it, so the evidence store cannot start without a cached image.
-`main` takes it from `quay.io`, pinned by digest, and `v1.2.0` will be the first release that does.
+**Deploy from `v1.2.0` or later, not from the `v1.0.0` or `v1.1.0` tag's Compose file.** Both of
+those name `minio/minio` on Docker Hub, which no longer serves it, so the evidence store cannot
+start without a cached image. `v1.2.0` is the first release that takes it from `quay.io`, pinned by
+digest.
 
 ## Documents
 
