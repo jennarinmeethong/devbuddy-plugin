@@ -68,6 +68,13 @@ internal sealed class GitFixture
     public void SetBranch(string name, string commitId) =>
         File.WriteAllText(Path.Combine(_gitDirectory, "refs", "heads", name), commitId + "\n");
 
+    /// <summary>Points a lightweight tag at a commit.</summary>
+    public void SetTag(string name, string commitId)
+    {
+        Directory.CreateDirectory(Path.Combine(_gitDirectory, "refs", "tags"));
+        File.WriteAllText(Path.Combine(_gitDirectory, "refs", "tags", name), commitId + "\n");
+    }
+
     /// <summary>Writes a packed-refs file, the form a repository takes after `git gc`.</summary>
     public void SetPackedRefs(IReadOnlyDictionary<string, string> references)
     {

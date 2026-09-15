@@ -96,6 +96,7 @@ public class SecurityFixture : IAsyncLifetime
                 evidence.Provider = EvidenceStoreProvider.FileSystem;
                 evidence.RootPath = Path.Combine(Path.GetTempPath(), "devbuddy-security-" + Guid.NewGuid().ToString("N"));
             },
+            configureAnalysis: analysis => analysis.RootPath = AnalysisRoot,
             configureBackup: backup => backup.RootPath = BackupRoot,
             configureExport: export => export.RootPath = ExportRoot,
 
@@ -134,7 +135,19 @@ public class SecurityFixture : IAsyncLifetime
         }
 
         await _container.DisposeAsync();
+
+        if (Directory.Exists(AnalysisRoot))
+        {
+            Directory.Delete(AnalysisRoot, recursive: true);
+        }
     }
+
+    /// <summary>
+    /// Where working copies are mounted for analysis. Empty until a test writes one, which is the
+    /// same answer the default gives every project that has none.
+    /// </summary>
+    public string AnalysisRoot { get; } =
+        Path.Combine(Path.GetTempPath(), "devbuddy-security-analysis-" + Guid.NewGuid().ToString("N"));
 
     /// <summary>
     /// A scope with its tenant context already entered, the way a host would set it from the

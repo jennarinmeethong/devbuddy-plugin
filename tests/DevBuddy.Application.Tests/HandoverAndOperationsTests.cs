@@ -108,7 +108,7 @@ public sealed class HandoverAndOperationsTests
         var harness = new Harness();
 
         ChangeImpactResponse response = await harness.SucceedAsync(
-            new AnalyzeChangeImpactUseCase(harness.Ports, harness.Ports),
+            new AnalyzeChangeImpactUseCase(harness.Ports, harness.Ports, harness.Ports),
             new AnalyzeChangeImpactRequest(TestData.Scope, TestData.Repository, "abc123"));
 
         Assert.Equal("abc123", response.CommitOrRange);
@@ -123,7 +123,7 @@ public sealed class HandoverAndOperationsTests
         var harness = new Harness();
 
         UseCaseResult<ChangeImpactResponse> result = await harness.RunAsync(
-            new AnalyzeChangeImpactUseCase(harness.Ports, harness.Ports),
+            new AnalyzeChangeImpactUseCase(harness.Ports, harness.Ports, harness.Ports),
             new AnalyzeChangeImpactRequest(TestData.Scope, TestData.Repository, "  "));
 
         Assert.Equal(ExecutionOutcome.Invalid, result.Outcome);

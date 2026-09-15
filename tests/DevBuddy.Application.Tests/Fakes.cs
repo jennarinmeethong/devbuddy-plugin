@@ -96,6 +96,9 @@ internal sealed class FakePorts :
 
     public List<KnowledgeRecord> RecordsForWorkItem { get; } = [];
 
+    /// <summary>More records for the project listing, after <see cref="Record"/>.</summary>
+    public List<KnowledgeRecord> Records { get; } = [];
+
     public List<EvidenceObject> Evidence { get; } = [];
 
     public Membership? Membership { get; set; }
@@ -168,7 +171,9 @@ internal sealed class FakePorts :
         ProjectScope scope, IReadOnlyList<RecordStatus>? statuses, CancellationToken cancellationToken)
     {
         Touch();
-        return Task.FromResult<IReadOnlyList<KnowledgeRecord>>(Record is null ? [] : [Record]);
+        List<KnowledgeRecord> all = Record is null ? [] : [Record];
+        all.AddRange(Records);
+        return Task.FromResult<IReadOnlyList<KnowledgeRecord>>(all);
     }
 
     public Task AddWorkItemAsync(WorkItem workItem, CancellationToken cancellationToken)
@@ -311,6 +316,15 @@ internal sealed class FakePorts :
             kind,
             "Summary mentioning SECRET",
             [new AnalysisObservation("importer", "Detail mentioning SECRET", "src/importer.cs")]));
+    }
+
+    public Task<IReadOnlyList<AnalysisObservation>> AnalyzeChangedPathsAsync(
+        ProjectScope scope, SourceRepositoryId repositoryId, IReadOnlyList<string> changedPaths,
+        CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<AnalysisObservation>>(
+            [.. changedPaths.Select(path => new AnalysisObservation("project", "Detail mentioning SECRET", path))]);
     }
 
     public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken)

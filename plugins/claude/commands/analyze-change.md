@@ -6,7 +6,8 @@ argument-hint: [commit, range, or what you are about to change]
 Work out the impact of `$ARGUMENTS`.
 
 1. `analyze_change_impact` for the commit or range, to find affected modules, APIs, tests, and
-   documents.
+   documents, and the published records whose provenance or front matter cite a changed path.
+   A cited record is named by identifier only; read it with `get_record`.
 2. `search_knowledge` for records covering what it touches — a decision that constrains this area
    is exactly what you would otherwise walk into.
 3. `find_missing_evidence` if a claim about the change has nothing behind it.

@@ -79,7 +79,7 @@ internal sealed class UseCaseRegistry
         Add(new AnalyzeWorkItemsUseCase(ports), analysisRequest);
         Add(new AnalyzeTestEvidenceUseCase(ports), analysisRequest);
 
-        Add(new AnalyzeChangeImpactUseCase(ports, ports),
+        Add(new AnalyzeChangeImpactUseCase(ports, ports, ports),
             new AnalyzeChangeImpactRequest(TestData.Scope, TestData.Repository, "abc123"));
 
         var workItemRequest = new WorkItemScopedRequest(TestData.Scope, TestData.WorkItem);

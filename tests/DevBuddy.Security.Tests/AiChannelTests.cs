@@ -214,5 +214,12 @@ public sealed class AiChannelTests(SecurityFixture fixture)
             string? target,
             CancellationToken cancellationToken) =>
             Task.FromResult(new AnalysisReport(kind, "stub", []));
+
+        public Task<IReadOnlyList<AnalysisObservation>> AnalyzeChangedPathsAsync(
+            Domain.Tenancy.ProjectScope scope,
+            SourceRepositoryId repositoryId,
+            IReadOnlyList<string> changedPaths,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<AnalysisObservation>>([]);
     }
 }

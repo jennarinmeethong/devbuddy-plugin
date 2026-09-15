@@ -135,6 +135,11 @@ internal sealed class NullPorts :
         CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<IReadOnlyList<AnalysisObservation>> AnalyzeChangedPathsAsync(
+        ProjectScope scope, SourceRepositoryId repositoryId, IReadOnlyList<string> changedPaths,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
