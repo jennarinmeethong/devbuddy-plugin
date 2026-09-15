@@ -241,11 +241,21 @@ export type CompareSnapshotsArguments = {
 };
 
 export type CompareSnapshotsResult = {
+  earlier: {
+    reference: string;
+    commitId: string;
+  };
+  later: {
+    reference: string;
+    commitId: string;
+  };
   differences: Array<{
       subject: string;
       before: string;
       after: string;
     }>;
+  changedPaths: Array<string> | null;
+  changedPathsUnavailable: string | null;
 };
 
 export type ListEvidenceArguments = {
