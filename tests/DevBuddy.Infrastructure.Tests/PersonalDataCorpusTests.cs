@@ -171,9 +171,9 @@ public sealed class PersonalDataCorpusTests
             "reported by mailto:j.smith@corp.local"
         },
 
-        // A local part that is itself a mobile number. The address has to go whole: if the mobile
-        // rule ran first it would take the digits and leave the domain behind, and this row is
-        // what fails when the rule order in PersonalDataRules.All is wrong.
+        // A local part that is itself a mobile number. That the address goes whole, rather than
+        // losing its digits and keeping its domain, is asserted exactly in
+        // an_address_whose_local_part_is_a_mobile_number_is_removed_whole; this row cannot see it.
         {
             "email-address",
             "0812345678@devbuddy-fixture.co.th",
@@ -320,8 +320,9 @@ public sealed class PersonalDataCorpusTests
     /// The scanner and the redactor share one rule set, and this is what holding them to it looks
     /// like: text is altered exactly when something was found, and nothing the scanner can still
     /// find survives redaction. It does not catch a redactor that removes only part of a value —
-    /// what is left no longer looks like anything — which is why every positive row also asserts
-    /// its whole value is gone.
+    /// what is left no longer looks like anything — and neither does a positive row, which proves
+    /// only that the value no longer appears in one piece. Where partial removal is the risk, a
+    /// test of its own compares the exact output.
     /// </summary>
     [Theory]
     [MemberData(nameof(Everything))]
@@ -428,6 +429,20 @@ public sealed class PersonalDataCorpusTests
         Assert.Equal(Reserved, Redactor.Redact(Reserved));
 
         Assert.True((await Scanner.ScanAsync(real, CancellationToken.None)).HasFindings);
+    }
+
+    [Fact]
+    public async Task an_address_whose_local_part_is_a_mobile_number_is_removed_whole()
+    {
+        // The rule order in PersonalDataRules.All is what this guards. With the mobile rule ahead
+        // of the email rule the digits go, the email rule no longer matches what is left, and the
+        // domain is released: "signed in as [REDACTED]@devbuddy-fixture.co.th".
+        const string Content = "signed in as 0812345678@devbuddy-fixture.co.th";
+
+        Assert.Equal("signed in as [REDACTED]", Redactor.Redact(Content));
+        Assert.Contains(
+            (await Scanner.ScanAsync(Content, CancellationToken.None)).Findings,
+            finding => finding.RuleName == "email-address");
     }
 
     [Fact]
