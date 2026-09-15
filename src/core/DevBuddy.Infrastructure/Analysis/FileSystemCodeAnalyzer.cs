@@ -37,6 +37,8 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
 
     private static readonly string[] TestEvidenceExtensions = [".trx", ".xml", ".json"];
 
+    private const string GitMetadataName = ".git";
+
     private readonly IKnowledgeRepository _knowledge;
     private readonly AnalysisOptions _options;
 
@@ -166,6 +168,13 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
                     break;
                 }
 
+                // A worktree or submodule checkout has a .git file pointing at metadata kept
+                // elsewhere. It is no more project content than the directory it stands in for.
+                if (string.Equals(Path.GetFileName(file), GitMetadataName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 if (guard.IsInside(file))
                 {
                     files.Add(Describe(file, guard));
@@ -239,11 +248,13 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
 
         List<AnalysisObservation> observations =
         [
+            // Ranked, not judged. These are the largest source files in this working copy, and a
+            // project whose biggest file is 172 B still has twenty of them, none of which is large.
             .. code
                 .OrderByDescending(file => file.SizeBytes)
                 .Take(20)
                 .Select(file => new AnalysisObservation(
-                    "large-file", $"{Bytes(file.SizeBytes)}", file.RelativePath))
+                    "largest-source-file", $"{Bytes(file.SizeBytes)}", file.RelativePath))
         ];
 
         return new AnalysisReport(
@@ -317,7 +328,18 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
     /// </summary>
     private AnalysisReport GitHistory(PathGuard guard, CancellationToken cancellationToken)
     {
-        string gitDirectory = Path.Combine(guard.Root, ".git");
+        string gitDirectory = Path.Combine(guard.Root, GitMetadataName);
+
+        if (File.Exists(gitDirectory))
+        {
+            // Not followed: the path it names is outside the working copy, which is exactly where
+            // the path guard stops a read (SB-05). Saying there is no metadata would be untrue.
+            return new AnalysisReport(
+                AnalysisKind.GitHistory,
+                "The working copy's git metadata is kept outside it, as in a worktree or submodule "
+                + "checkout, so there are no references here to read.",
+                []);
+        }
 
         if (!Directory.Exists(gitDirectory))
         {

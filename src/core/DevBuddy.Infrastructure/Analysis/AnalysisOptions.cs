@@ -51,9 +51,14 @@ public sealed class AnalysisOptions
     /// </summary>
     public TimeSpan QueueTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
-    /// <summary>Directories never walked. Build output and dependency caches are noise.</summary>
+    /// <summary>
+    /// Directories never walked. Build output and dependency caches are noise, and so is
+    /// <c>.git</c>: its hooks, objects and refs are not project content, and counting them made a
+    /// working copy of eight files report fifty-five. The git history analysis reads that
+    /// directory by path and does not go through this list.
+    /// </summary>
     public IList<string> IgnoredDirectories { get; } =
-        ["bin", "obj", "node_modules", ".vs", ".idea", "dist", "target", "__pycache__"];
+        [".git", "bin", "obj", "node_modules", ".vs", ".idea", "dist", "target", "__pycache__"];
 
     /// <summary>
     /// Whether an analysis root has been configured at all.
