@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Infrastructure.Scanning;
 
@@ -112,7 +113,7 @@ internal sealed class GitObjectStore
 
         return EnumerateReferences().TryGetValue(reference, out string? packed)
             ? packed
-            : throw new InvalidOperationException($"The reference {reference} does not exist in this working copy.");
+            : throw new ResourceNotFoundException($"The reference {reference} does not exist in this working copy.");
     }
 
     /// <summary>
@@ -240,7 +241,7 @@ internal sealed class GitObjectStore
 
         if (!File.Exists(path) || !_guard.IsInside(path))
         {
-            throw new NotSupportedException(
+            throw new OperationUnavailableException(
                 $"Object {sha} is not stored loose in this working copy. Reading packed objects "
                 + "means implementing delta chains, and a partial implementation would look like "
                 + "missing history rather than a missing feature. Run `git unpack-objects`, or "
@@ -294,7 +295,8 @@ internal sealed class GitObjectStore
     {
         if (!_guard.IsInside(path))
         {
-            throw new UnauthorizedAccessException($"{path} is outside the working copy.");
+            throw new GuardRefusalException(
+                "path-guard", "A git metadata file resolves outside the working copy, so it was not read.");
         }
 
         return File.ReadAllText(path);

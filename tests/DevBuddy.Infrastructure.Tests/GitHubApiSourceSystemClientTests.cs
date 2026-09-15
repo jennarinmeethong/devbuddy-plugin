@@ -1,5 +1,6 @@
 using System.Net;
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Infrastructure.Analysis;
@@ -131,7 +132,7 @@ public sealed class GitHubApiSourceSystemClientTests
     {
         var handler = new FakeHandler();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<OperationUnavailableException>(
             () => Client(handler, configureRepositories: false).FetchSnapshotAsync(Repository, Scope, Ct));
 
         Assert.Empty(handler.Requested);
@@ -146,8 +147,11 @@ public sealed class GitHubApiSourceSystemClientTests
         var client = new GitHubApiSourceSystemClient(
             new HttpClient(handler), guard, Options.Create(Configured()));
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+        GuardRefusalException refusal = await Assert.ThrowsAsync<GuardRefusalException>(
             () => client.FetchSnapshotAsync(Repository, Scope, Ct));
+
+        // Named as the guard's refusal, so the pipeline records it as a denied access.
+        Assert.Equal("url-guard", refusal.RefusedBy);
 
         // Refused before the fake handler ever saw a request — the same SB-03/SB-06 guarantee
         // every other outbound call in this system gets.

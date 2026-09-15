@@ -1,5 +1,6 @@
 using System.Globalization;
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
@@ -128,7 +129,7 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
     /// </summary>
     private List<ScannedFile> Walk(PathGuard guard, string? target, CancellationToken cancellationToken)
     {
-        string start = target is null ? guard.Root : guard.Resolve(target);
+        string start = target is null ? guard.Root : ResolveTarget(guard, target);
 
         if (!Directory.Exists(start))
         {
@@ -174,6 +175,32 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
         }
 
         return files;
+    }
+
+    /// <summary>
+    /// Resolves the caller's target through the guard, and says that the guard refused when it
+    /// does (SB-05).
+    /// <para>
+    /// Translated here because this is the one place that knows the refusal came from the guard.
+    /// Left to escape, it reached the host as an unhandled exception: the escape was stopped, but
+    /// the caller got a generic error and the audit trail got no row — the wrong way round for the
+    /// event an investigation into misuse most needs to find. The message does not repeat the
+    /// target; the audit entry's resource reference already records what was asked for.
+    /// </para>
+    /// </summary>
+    private static string ResolveTarget(PathGuard guard, string target)
+    {
+        try
+        {
+            return guard.Resolve(target);
+        }
+        catch (UnauthorizedAccessException refused)
+        {
+            throw new GuardRefusalException(
+                "path-guard",
+                "The target resolves outside this project's working copy, so nothing was read.",
+                refused);
+        }
     }
 
     private static ScannedFile Describe(string path, PathGuard guard)

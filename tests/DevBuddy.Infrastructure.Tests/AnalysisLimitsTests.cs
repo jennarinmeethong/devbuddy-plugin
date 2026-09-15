@@ -1,4 +1,5 @@
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
@@ -114,6 +115,24 @@ public sealed class AnalysisLimitsTests : IDisposable
         // Depth is bounded by the same file ceiling as breadth, because the walk is iterative
         // rather than recursive: a deep tree cannot exhaust the stack.
         Assert.Contains("60 source files", report.Summary, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Not a limit, but the analyser's other controlled failure (SB-05): a target that climbs out
+    /// of the root ends in the pipeline's refusal type, naming the guard, rather than in the
+    /// guard's own exception escaping to the host with no audit row behind it.
+    /// </summary>
+    [Fact]
+    public async Task a_target_outside_the_root_is_refused_as_a_guard_refusal_without_repeating_the_path()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "sibling"));
+        File.WriteAllText(Path.Combine(_root, "sibling", "secret.cs"), "class Secret { }");
+
+        GuardRefusalException refusal = await Assert.ThrowsAsync<GuardRefusalException>(
+            () => Analyzer().AnalyzeAsync(AnalysisKind.Code, _scope, null, "../sibling", CancellationToken.None));
+
+        Assert.Equal("path-guard", refusal.RefusedBy);
+        Assert.DoesNotContain("sibling", refusal.Message, StringComparison.Ordinal);
     }
 
     private void WriteFiles(int count)

@@ -13,13 +13,19 @@ public enum ExecutionOutcome
     /// <summary>The request was malformed. Nothing was authorised and nothing ran.</summary>
     Invalid = 2,
 
-    /// <summary>No identity, no permission, or the AI channel reaching a denied use case.</summary>
+    /// <summary>
+    /// No identity, no permission, the AI channel reaching a denied use case, or a boundary guard
+    /// refusing what the request pointed at (<see cref="GuardRefusalException"/>).
+    /// </summary>
     Denied = 3,
 
     /// <summary>Authorised, but the resource does not exist within the caller scope.</summary>
     NotFound = 4,
 
-    /// <summary>Authorised and found, but a domain rule refused the operation.</summary>
+    /// <summary>
+    /// Authorised, but a domain rule refused the operation, or this installation cannot perform it
+    /// as configured (<see cref="OperationUnavailableException"/>).
+    /// </summary>
     Rejected = 5,
 
     /// <summary>

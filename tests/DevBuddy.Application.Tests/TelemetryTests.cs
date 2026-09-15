@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using DevBuddy.Application.Observability;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.UseCases;
+using DevBuddy.Application.UseCases.Analysis;
 using DevBuddy.Application.UseCases.Lifecycle;
 using DevBuddy.Application.UseCases.Reading;
 using DevBuddy.Domain.Common;
@@ -169,6 +170,30 @@ public sealed class TelemetryTests
 
         Assert.DoesNotContain(span.Tags, tag =>
             tag.Value?.Contains("approved record", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    [Fact]
+    public async Task a_guard_refusal_is_counted_as_denied_and_the_refused_path_never_reaches_telemetry()
+    {
+        // Spans only: both collectors claim the test's flow, so one test can hold only one. That a
+        // denial is counted, and that no metric tag carries caller input, have tests of their own.
+        using var spans = new SpanCollector();
+        var harness = new Harness();
+
+        const string escape = "../../../etc/passwd";
+
+        UseCaseResult<AnalysisResponse> result = await harness.RunAsync(
+            new AnalyzeCodeUseCase(new ThrowingAnalyzer(new GuardRefusalException(
+                "path-guard", "The target resolves outside this project's working copy, so nothing was read."))),
+            new AnalysisRequest(TestData.Scope, Target: escape),
+            TestData.Ai);
+
+        Assert.Equal(ExecutionOutcome.Denied, result.Outcome);
+
+        Activity span = Assert.Single(spans.Finished);
+        Assert.Equal("Denied", span.GetTagItem("devbuddy.outcome"));
+
+        Assert.DoesNotContain(span.Tags, tag => tag.Value?.Contains("etc", StringComparison.Ordinal) == true);
     }
 
     /// <summary>One measurement, flattened so a test can read its tags without generics.</summary>
