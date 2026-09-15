@@ -2,12 +2,18 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
+import type { GetRecordResult } from "../api/operations";
 import { grants, useWorkspace } from "../api/session";
 import { Alert, Badge, Button, Empty, Field, Hash, Panel, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 
 /**
- * One record: its body, its history, and the approval screen.
+ * One record: its body, its history, and every lifecycle step a person takes on it.
+ *
+ * Draft → submit for approval → approve or send back → publish, with archive available until the
+ * record is archived. Each step is offered only in the state the domain accepts it in and only to
+ * a caller holding the permission the server will check; neither is a control, and both are
+ * re-checked server-side.
  *
  * The approval screen is the reason this page is careful. It shows the exact revision being
  * approved and its content hash, and it submits that hash. There is no way from here to approve
@@ -20,6 +26,8 @@ export function RecordDetail() {
   const access = useWorkspace(workspaceId);
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
 
+  // With no revision named, the server answers the published revision when there is one. That is
+  // what readers see, and it is not necessarily what is being reviewed.
   const record = useQuery({
     queryKey: ["record", workspaceId, projectId, recordId],
     queryFn: () => invoke("get_record", { scope, recordId: recordId! }),
@@ -32,14 +40,27 @@ export function RecordDetail() {
     enabled: Boolean(workspaceId && projectId && recordId),
   });
 
-  if (history.isError) {
-    return <Failure error={history.error} />;
-  }
-
   const latest = history.data?.revisions.reduce(
     (newest, revision) => (newest && newest.number > revision.number ? newest : revision),
     history.data.revisions[0],
   );
+
+  // A published record that has been revised since: the page would otherwise show the published
+  // body above an approval that binds the newer revision's hash, so a reviewer would approve
+  // content they were never shown.
+  const unpublished = latest && record.data && latest.number !== record.data.revisionNumber ? latest : undefined;
+
+  const underWork = useQuery({
+    queryKey: ["record", workspaceId, projectId, recordId, unpublished?.number],
+    queryFn: () => invoke("get_record", { scope, recordId: recordId!, revisionNumber: unpublished!.number }),
+    enabled: Boolean(unpublished),
+  });
+
+  if (history.isError) {
+    return <Failure error={history.error} />;
+  }
+
+  const status = history.data?.status;
 
   return (
     <>
@@ -51,33 +72,44 @@ export function RecordDetail() {
       </div>
 
       <Panel
-        title="Current content"
-        actions={history.data ? <Badge>{history.data.status}</Badge> : null}
+        title={unpublished ? "Published content" : "Current content"}
+        actions={status ? <Badge>{status}</Badge> : null}
       >
         {record.isPending ? (
           <Empty>Loading…</Empty>
         ) : record.isError ? (
           <Failure error={record.error} />
         ) : (
-          <article className="space-y-3">
-            <p className="text-xs text-[var(--color-muted)]">
-              Revision {record.data.revisionNumber}
-              {record.data.provenance.isAiGenerated ? " · drafted by AI" : ""} · from{" "}
-              {record.data.provenance.sourceLocator} · recorded by {record.data.provenance.author}
-            </p>
-            <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-neutral-50 p-3 text-sm">
-              {record.data.body}
-            </pre>
-          </article>
+          <Content record={record.data} />
         )}
       </Panel>
 
-      {history.data && latest && grants(access, "ReviewRecord") && history.data.status === "PendingApproval" ? (
+      {unpublished ? (
+        <Panel title={`Revision ${unpublished.number} — not published`}>
+          {underWork.isPending ? (
+            <Empty>Loading…</Empty>
+          ) : underWork.isError ? (
+            <Failure error={underWork.error} />
+          ) : (
+            <Content record={underWork.data} />
+          )}
+        </Panel>
+      ) : null}
+
+      {latest && grants(access, "CreateDraft") && status === "Draft" ? (
+        <Submit scope={scope} recordId={recordId!} revision={latest} />
+      ) : null}
+
+      {latest && grants(access, "ReviewRecord") && status === "PendingApproval" ? (
         <Approval scope={scope} recordId={recordId!} revision={latest} />
       ) : null}
 
-      {history.data && grants(access, "PublishRecord") && history.data.status === "Approved" ? (
+      {grants(access, "PublishRecord") && status === "Approved" ? (
         <Publish scope={scope} recordId={recordId!} />
+      ) : null}
+
+      {grants(access, "ArchiveRecord") && status && status !== "Archived" ? (
+        <Archive scope={scope} recordId={recordId!} />
       ) : null}
 
       <Panel title="History">
@@ -137,23 +169,65 @@ interface Revision {
   title: string;
 }
 
-function Approval({
-  scope,
-  recordId,
-  revision,
-}: {
-  scope: { workspaceId: string; projectId: string };
-  recordId: string;
-  revision: Revision;
-}) {
-  const queries = useQueryClient();
-  const [reason, setReason] = useState("");
+type Scope = { workspaceId: string; projectId: string };
 
-  async function refresh() {
+function Content({ record }: { record: GetRecordResult }) {
+  return (
+    <article className="space-y-3">
+      <p className="text-xs text-[var(--color-muted)]">
+        Revision {record.revisionNumber}
+        {record.provenance.isAiGenerated ? " · drafted by AI" : ""} · from{" "}
+        {record.provenance.sourceLocator} · recorded by {record.provenance.author}
+      </p>
+      <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-neutral-50 p-3 text-sm">
+        {record.body}
+      </pre>
+    </article>
+  );
+}
+
+/** Every step changes the status, the revision shown, and which list the record belongs in. */
+function useRecordRefresh(scope: Scope, recordId: string): () => Promise<void> {
+  const queries = useQueryClient();
+
+  return async () => {
     await queries.invalidateQueries({ queryKey: ["record", scope.workspaceId, scope.projectId, recordId] });
     await queries.invalidateQueries({ queryKey: ["history", scope.workspaceId, scope.projectId, recordId] });
     await queries.invalidateQueries({ queryKey: ["records", scope.workspaceId, scope.projectId] });
-  }
+  };
+}
+
+function Submit({ scope, recordId, revision }: { scope: Scope; recordId: string; revision: Revision }) {
+  const refresh = useRecordRefresh(scope, recordId);
+
+  // Submission names no hash, and does not need to: it binds nothing. The approval that follows
+  // binds the exact content the reviewer reads, so a revision added after this click is caught
+  // there rather than here.
+  const submit = useMutation({
+    mutationFn: () => invoke("submit_for_approval", { scope, recordId }),
+    onSuccess: refresh,
+  });
+
+  return (
+    <Panel title="Submit for approval">
+      <div className="space-y-3">
+        <p className="text-sm text-[var(--color-muted)]">
+          Revision {revision.number} is a draft, and nobody is asked to review a draft. Submitting it
+          puts it in the review queue, where a reviewer approves this exact content or sends it back.
+          Submitting publishes nothing.
+        </p>
+        <Button variant="primary" disabled={submit.isPending} onClick={() => submit.mutate()}>
+          Submit for approval
+        </Button>
+        {submit.isError ? <Failure error={submit.error} /> : null}
+      </div>
+    </Panel>
+  );
+}
+
+function Approval({ scope, recordId, revision }: { scope: Scope; recordId: string; revision: Revision }) {
+  const refresh = useRecordRefresh(scope, recordId);
+  const [reason, setReason] = useState("");
 
   const approve = useMutation({
     // The hash of the revision on screen, never a request for "the latest". If the record moved
@@ -217,21 +291,12 @@ function Approval({
   );
 }
 
-function Publish({
-  scope,
-  recordId,
-}: {
-  scope: { workspaceId: string; projectId: string };
-  recordId: string;
-}) {
-  const queries = useQueryClient();
+function Publish({ scope, recordId }: { scope: Scope; recordId: string }) {
+  const refresh = useRecordRefresh(scope, recordId);
 
   const publish = useMutation({
     mutationFn: () => invoke("publish_record", { scope, recordId }),
-    onSuccess: async () => {
-      await queries.invalidateQueries({ queryKey: ["history", scope.workspaceId, scope.projectId, recordId] });
-      await queries.invalidateQueries({ queryKey: ["records", scope.workspaceId, scope.projectId] });
-    },
+    onSuccess: refresh,
   });
 
   return (
@@ -245,6 +310,45 @@ function Publish({
           Publish
         </Button>
         {publish.isError ? <Failure error={publish.error} /> : null}
+      </div>
+    </Panel>
+  );
+}
+
+function Archive({ scope, recordId }: { scope: Scope; recordId: string }) {
+  const refresh = useRecordRefresh(scope, recordId);
+  const [armed, setArmed] = useState(false);
+
+  const archive = useMutation({
+    mutationFn: () => invoke("archive_record", { scope, recordId }),
+    onSuccess: async () => {
+      setArmed(false);
+      await refresh();
+    },
+  });
+
+  // Confirmed rather than one click, because nothing reverses it: an archived record refuses
+  // every further change, and no operation takes it out of that state.
+  return (
+    <Panel title="Archive">
+      <div className="space-y-3">
+        <p className="text-sm text-[var(--color-muted)]">
+          Archiving takes this record out of use. An archived record cannot be revised, approved, or
+          published again, and there is no way to bring it back. Its history stays readable.
+        </p>
+        {armed ? (
+          <div className="flex gap-2">
+            <Button variant="danger" disabled={archive.isPending} onClick={() => archive.mutate()}>
+              Archive for good
+            </Button>
+            <Button onClick={() => setArmed(false)}>Cancel</Button>
+          </div>
+        ) : (
+          <Button variant="danger" onClick={() => setArmed(true)}>
+            Archive
+          </Button>
+        )}
+        {archive.isError ? <Failure error={archive.error} /> : null}
       </div>
     </Panel>
   );

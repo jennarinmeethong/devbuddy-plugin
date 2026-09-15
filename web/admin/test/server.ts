@@ -1,4 +1,4 @@
-import type { OperationName } from "../src/api/operations";
+import type { GetRecordResult, OperationName } from "../src/api/operations";
 
 /**
  * A stand-in for the API, recording what the client asked it.
@@ -56,6 +56,56 @@ const ALL_PERMISSIONS = [
 
 const CONTENT_HASH = "a".repeat(64);
 
+export type RecordStatus = GetRecordResult["status"];
+
+/** A canned result, or one computed from the request body the client sent. */
+export type Answers = Partial<Record<OperationName, unknown | ((body: never) => unknown)>>;
+
+const PROVENANCE = {
+  sourceKind: "HumanAuthored",
+  sourceLocator: "meeting/2026-09-01",
+  author: "A person",
+  recordedAt: "2026-09-01T09:00:00+00:00",
+  isAiGenerated: false,
+  evidenceCount: 0,
+};
+
+const RECORD_VIEW = {
+  recordId: RECORD,
+  kind: "Decision",
+  status: "PendingApproval",
+  revisionNumber: 2,
+  publishedRevisionNumber: null,
+  title: "Rollback is a migration, not a restore",
+  body: "Rolling back a migration is itself a migration.",
+  provenance: PROVENANCE,
+  lastUpdatedAt: "2026-09-02T10:00:00+00:00",
+};
+
+const HISTORY_VIEW = {
+  recordId: RECORD,
+  status: "PendingApproval",
+  revisions: [
+    {
+      number: 2,
+      contentHash: CONTENT_HASH,
+      title: "Rollback is a migration, not a restore",
+      createdAt: "2026-09-02T10:00:00+00:00",
+      provenance: PROVENANCE,
+      isPublished: false,
+      approval: null,
+    },
+  ],
+};
+
+/** The one record this server holds, reported in another lifecycle state. */
+export function recordIn(status: RecordStatus): Answers {
+  return {
+    get_record: { ...RECORD_VIEW, status },
+    view_record_history: { ...HISTORY_VIEW, status },
+  };
+}
+
 export interface FakeServer {
   calls: Call[];
   uploads: Upload[];
@@ -69,8 +119,10 @@ export interface FakeServer {
  * @param permissions What `/me` reports the signed-in caller holds. The navigation is built from
  *   this, so a viewer-shaped session is how the "hides what the server would refuse" behaviour is
  *   exercised from the outside.
+ * @param answers Replaces the default result of any operation, for a test that needs the server
+ *   to describe something else — a record in another state, say.
  */
-export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer {
+export function fakeServer(permissions: string[] = ALL_PERMISSIONS, answers: Answers = {}): FakeServer {
   const calls: Call[] = [];
   const original = globalThis.fetch;
   const uploads: Upload[] = [];
@@ -88,7 +140,7 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
     },
   ];
 
-  const results: Partial<Record<OperationName, unknown>> = {
+  const results: Answers = {
     list_projects: {
       projects: [
         { projectId: PROJECT, name: "Alpha", createdAt: "2026-09-01T09:00:00+00:00", aiAccessEnabled: false },
@@ -170,46 +222,8 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
       ],
     },
     list_records: { records },
-    get_record: {
-      recordId: RECORD,
-      kind: "Decision",
-      status: "PendingApproval",
-      revisionNumber: 2,
-      publishedRevisionNumber: null,
-      title: "Rollback is a migration, not a restore",
-      body: "Rolling back a migration is itself a migration.",
-      provenance: {
-        sourceKind: "HumanAuthored",
-        sourceLocator: "meeting/2026-09-01",
-        author: "A person",
-        recordedAt: "2026-09-01T09:00:00+00:00",
-        isAiGenerated: false,
-        evidenceCount: 0,
-      },
-      lastUpdatedAt: "2026-09-02T10:00:00+00:00",
-    },
-    view_record_history: {
-      recordId: RECORD,
-      status: "PendingApproval",
-      revisions: [
-        {
-          number: 2,
-          contentHash: CONTENT_HASH,
-          title: "Rollback is a migration, not a restore",
-          createdAt: "2026-09-02T10:00:00+00:00",
-          provenance: {
-            sourceKind: "HumanAuthored",
-            sourceLocator: "meeting/2026-09-01",
-            author: "A person",
-            recordedAt: "2026-09-01T09:00:00+00:00",
-            isAiGenerated: false,
-            evidenceCount: 0,
-          },
-          isPublished: false,
-          approval: null,
-        },
-      ],
-    },
+    get_record: RECORD_VIEW,
+    view_record_history: HISTORY_VIEW,
     approve_record: {
       approverId: USER,
       approvedContentHash: CONTENT_HASH,
@@ -219,6 +233,14 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
     },
     request_correction: { recordId: RECORD, status: "Draft", currentRevisionNumber: 2, publishedRevisionNumber: null },
     publish_record: { recordId: RECORD, status: "Published", currentRevisionNumber: 2, publishedRevisionNumber: 2 },
+    submit_for_approval: {
+      recordId: RECORD,
+      status: "PendingApproval",
+      currentRevisionNumber: 2,
+      publishedRevisionNumber: null,
+    },
+    archive_record: { recordId: RECORD, status: "Archived", currentRevisionNumber: 2, publishedRevisionNumber: null },
+    ...answers,
     read_audit_history: {
       entries: [
         {
@@ -339,9 +361,11 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
 
     if (path.startsWith("/operations/")) {
       const operation = path.slice("/operations/".length) as OperationName;
-      calls.push({ operation, body: init?.body ? JSON.parse(String(init.body)) : null });
+      const body = init?.body ? JSON.parse(String(init.body)) : null;
+      calls.push({ operation, body });
 
-      const result = results[operation];
+      const answer = results[operation];
+      const result = typeof answer === "function" ? (answer as (body: unknown) => unknown)(body) : answer;
 
       return result === undefined
         ? json({ title: "Not found", detail: `No operation ${operation}.` }, 404)

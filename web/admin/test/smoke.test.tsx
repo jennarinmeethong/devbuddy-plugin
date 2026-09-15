@@ -6,8 +6,8 @@ import type { ReactElement } from "react";
 import { SessionProvider } from "../src/api/session";
 import { App } from "../src/App";
 import { forgetTokens } from "../src/api/client";
-import { fakeServer, OTHER_USER, PROJECT, RECORD, TEAM, USER, WORKSPACE } from "./server";
-import type { FakeServer } from "./server";
+import { fakeServer, OTHER_USER, PROJECT, RECORD, recordIn, TEAM, USER, WORKSPACE } from "./server";
+import type { FakeServer, RecordStatus } from "./server";
 
 /**
  * The Phase 8 smoke test: every capability info.md names is reachable and does what it says.
@@ -386,6 +386,197 @@ describe("the approval screen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Request a correction" }));
 
     await waitFor(() => expect(server.called("request_correction")).toBeDefined());
+  });
+});
+
+describe("the record lifecycle", () => {
+  // What RolePermissions gives each role. Written out rather than imported, because the server is
+  // the authority and this file only needs to look like what /me would report.
+  const VIEWER = ["ReadKnowledge", "ManageOwnCredentials"];
+  const CONTRIBUTOR = [...VIEWER, "AnalyzeProject", "CreateDraft", "ManageWorkItems"];
+
+  const recordPage = `/w/${WORKSPACE}/p/${PROJECT}/records/${RECORD}`;
+
+  function serve(permissions: string[] | undefined, status: RecordStatus): void {
+    server.restore();
+    server = fakeServer(permissions, recordIn(status));
+  }
+
+  test("a draft can be submitted for approval by somebody who may draft", async () => {
+    serve(CONTRIBUTOR, "Draft");
+
+    signedIn();
+    render(mount(recordPage));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Submit for approval" }));
+
+    await waitFor(() => expect(server.called("submit_for_approval")).toBeDefined());
+
+    expect(server.called("submit_for_approval")!.body).toEqual({
+      scope: { workspaceId: WORKSPACE, projectId: PROJECT },
+      recordId: RECORD,
+    });
+
+    // The page reads the record again rather than assuming what the server did with it.
+    await waitFor(() =>
+      expect(server.calls.filter((call) => call.operation === "view_record_history").length).toBe(2),
+    );
+  });
+
+  test("a viewer opening a draft is not offered submission", async () => {
+    serve(VIEWER, "Draft");
+
+    signedIn();
+    render(mount(recordPage));
+
+    expect(await screen.findByText("Draft")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Submit for approval" })).toBeNull();
+  });
+
+  // Each state names something that must be on the page, so the absence of submission is read
+  // after the page has decided what to offer rather than before it has loaded.
+  const offeredInstead: [RecordStatus, string | null][] = [
+    ["PendingApproval", "Approve revision 2"],
+    ["Approved", "Publish"],
+    ["Published", "Archive"],
+    ["Archived", null],
+  ];
+
+  for (const [status, present] of offeredInstead) {
+    test(`a record that is ${status} is not offered submission`, async () => {
+      serve(undefined, status);
+
+      signedIn();
+      render(mount(recordPage));
+
+      if (present) {
+        expect(await screen.findByRole("button", { name: present })).toBeDefined();
+      } else {
+        expect(await screen.findByText(status)).toBeDefined();
+      }
+
+      expect(screen.queryByRole("button", { name: "Submit for approval" })).toBeNull();
+    });
+  }
+
+  test("a record is archived only after confirming", async () => {
+    serve(undefined, "Published");
+
+    signedIn();
+    render(mount(recordPage));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Archive" }));
+    expect(server.called("archive_record")).toBeUndefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive for good" }));
+
+    await waitFor(() => expect(server.called("archive_record")).toBeDefined());
+
+    expect(server.called("archive_record")!.body).toEqual({
+      scope: { workspaceId: WORKSPACE, projectId: PROJECT },
+      recordId: RECORD,
+    });
+  });
+
+  test("archiving is not offered to a contributor", async () => {
+    serve(CONTRIBUTOR, "Draft");
+
+    signedIn();
+    render(mount(recordPage));
+
+    expect(await screen.findByRole("button", { name: "Submit for approval" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
+  });
+
+  test("nothing is offered on a record that is already archived", async () => {
+    serve(undefined, "Archived");
+
+    signedIn();
+    render(mount(recordPage));
+
+    expect(await screen.findByText("Archived")).toBeDefined();
+
+    for (const name of ["Archive", "Submit for approval", "Approve revision 2", "Publish"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+  });
+});
+
+describe("approving a revision of a published record", () => {
+  const PUBLISHED_HASH = "b".repeat(64);
+  const PENDING_HASH = "a".repeat(64);
+
+  const provenance = {
+    sourceKind: "HumanAuthored",
+    sourceLocator: "meeting/2026-09-01",
+    author: "A person",
+    recordedAt: "2026-09-01T09:00:00+00:00",
+    isAiGenerated: false,
+    evidenceCount: 0,
+  };
+
+  function revision(number: number, body: string) {
+    return {
+      recordId: RECORD,
+      kind: "Decision",
+      status: "PendingApproval",
+      revisionNumber: number,
+      publishedRevisionNumber: 1,
+      title: "Rollback is a migration, not a restore",
+      body,
+      provenance,
+      lastUpdatedAt: "2026-09-02T10:00:00+00:00",
+    };
+  }
+
+  test("the reviewer is shown the revision the approval binds, not the published one (SB-23)", async () => {
+    server.restore();
+    server = fakeServer(undefined, {
+      // As the server does: no revision named means the published one.
+      get_record: (body: { revisionNumber?: number | null }) =>
+        body.revisionNumber === 2
+          ? revision(2, "Roll forward with a compensating migration.")
+          : revision(1, "Restore last night's backup."),
+      view_record_history: {
+        recordId: RECORD,
+        status: "PendingApproval",
+        revisions: [
+          {
+            number: 1,
+            contentHash: PUBLISHED_HASH,
+            title: "Rollback is a migration, not a restore",
+            createdAt: "2026-09-01T10:00:00+00:00",
+            provenance,
+            isPublished: true,
+            approval: null,
+          },
+          {
+            number: 2,
+            contentHash: PENDING_HASH,
+            title: "Rollback is a migration, not a restore",
+            createdAt: "2026-09-02T10:00:00+00:00",
+            provenance,
+            isPublished: false,
+            approval: null,
+          },
+        ],
+      },
+    });
+
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/records/${RECORD}`));
+
+    const pending = (await screen.findByRole("heading", { name: "Revision 2 — not published" })).closest("section")!;
+    expect(await within(pending).findByText("Roll forward with a compensating migration.")).toBeDefined();
+
+    // Still shown, and labelled as what readers see rather than as what is being approved.
+    const published = screen.getByRole("heading", { name: "Published content" }).closest("section")!;
+    expect(within(published).getByText("Restore last night's backup.")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve revision 2" }));
+
+    await waitFor(() => expect(server.called("approve_record")).toBeDefined());
+    expect(server.called("approve_record")!.body).toMatchObject({ approvedContentHash: PENDING_HASH });
   });
 });
 

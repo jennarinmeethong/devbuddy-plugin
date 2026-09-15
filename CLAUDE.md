@@ -65,7 +65,20 @@ accepted decision rather than a gap, each started once since: on 2026-09-13 `osx
 the verified tier. `docs/security/release-readiness.md` is the current statement
 of what is accepted and by whom.
 
-**Every operation a person needs is reachable from `web/admin`.** Team administration is the
+**Not every operation a person needs is reachable from `web/admin`.** This file said it was, and
+on 2026-09-15 a draft created through the plugin could not be moved out of Draft from any screen:
+nothing called `submit_for_approval`. The record page now carries the whole lifecycle — submit a
+draft (`CreateDraft`), approve or send back (`ReviewRecord`), publish (`PublishRecord`), archive
+behind a confirmation (`ArchiveRecord`) — and shows the unpublished revision beside the published
+one, because `get_record` with no revision answers the published one and a reviewer was being
+shown that body above an approval binding the newer revision's hash. Still **not** reachable from
+any screen, each needing a decision rather than a button: `revise_draft` (`get_record` returns
+neither front matter nor evidence references, so a UI revision would silently drop both),
+`create_draft` by a person, `grant_membership` (a role cannot be changed and an existing account
+cannot be given a second grant), `sync_sources` (no operation registers a source repository),
+`export_project`, `backup_system`, the quality sweeps and `reindex`, and a correction request's
+reason, which is kept on the record and shown nowhere. The console's `run` reaches all of them.
+Team administration is the
 `Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the
 permission, so a viewer is offered neither), and deleting a project is on the project list —
 behind typing the project's name back, because it takes records, their history, and the evidence
