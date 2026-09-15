@@ -1,6 +1,7 @@
 using System.Globalization;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Pipeline;
+using DevBuddy.Application.UseCases.Handover;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
@@ -416,30 +417,75 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
     /// Work items are knowledge, not files, so this one reads the database rather than the
     /// working copy. It reports the gaps a later owner trips over: work with no exclusions
     /// recorded, and work whose records never got published.
+    /// <para>
+    /// It starts from the work items rather than from the records, because a work item nobody
+    /// wrote anything against is the largest gap of all and a grouping of records cannot see it.
+    /// Until 2026-09-15 this asked for the records of the empty work item identifier, matched
+    /// nothing, and reported zero for every project.
+    /// </para>
     /// </summary>
     private async Task<AnalysisReport> AnalyzeWorkItemsAsync(
         ProjectScope scope, CancellationToken cancellationToken)
     {
+        IReadOnlyList<WorkItem> items = await _knowledge.ListWorkItemsAsync(scope, cancellationToken);
+
+        // One query for the whole project, grouped here, rather than one query per work item.
+        ILookup<WorkItemId, KnowledgeRecord> recordsByItem =
+            (await _knowledge.ListRecordsAsync(scope, null, cancellationToken))
+                .ToLookup(record => record.WorkItemId);
+
         List<AnalysisObservation> observations = [];
+        int withRecords = 0;
+        int withPublished = 0;
+        int withoutExclusions = 0;
 
-        IReadOnlyList<KnowledgeRecord> records =
-            await _knowledge.ListRecordsForWorkItemAsync(default, scope, cancellationToken);
-
-        foreach (IGrouping<WorkItemId, KnowledgeRecord> group in records.GroupBy(record => record.WorkItemId))
+        foreach (WorkItem item in items)
         {
-            int published = group.Count(record => record.PublishedRevisionNumber is not null);
+            KnowledgeRecord[] records = [.. recordsByItem[item.Id]];
+            int total = records.Length;
+
+            // Published once is published: an archived record keeps the revision it published,
+            // which is the same reading the handover takes.
+            int published = records.Count(record => record.PublishedRevisionNumber is not null);
+            string locator = item.Id.ToString();
 
             observations.Add(new AnalysisObservation(
                 "work-item",
-                $"{group.Count()} records, {published} published",
-                group.Key.ToString()));
+                $"{item.Key}: {Count(total, "knowledge record", "knowledge records")}, {published} published",
+                locator));
+
+            withRecords += total > 0 ? 1 : 0;
+
+            if (published > 0)
+            {
+                withPublished++;
+            }
+            else
+            {
+                observations.Add(new AnalysisObservation(
+                    "no-published-knowledge",
+                    total == 0
+                        ? $"Work item {item.Key} has no knowledge records."
+                        : $"Work item {item.Key} has {Count(total, "knowledge record", "knowledge records")} and none is published.",
+                    locator));
+            }
+
+            if (WorkItemGaps.MissingExclusions(item) is { } missingExclusions)
+            {
+                withoutExclusions++;
+                observations.Add(new AnalysisObservation("no-exclusions", missingExclusions, locator));
+            }
         }
 
         return new AnalysisReport(
             AnalysisKind.WorkItems,
-            $"{observations.Count} work items carry knowledge records in this project.",
+            $"{Count(items.Count, "work item", "work items")} in this project: {withRecords} with knowledge "
+            + $"records, {withPublished} with published knowledge, {withoutExclusions} without recorded exclusions.",
             observations);
     }
+
+    private static string Count(int value, string singular, string plural) =>
+        string.Create(CultureInfo.InvariantCulture, $"{value} {(value == 1 ? singular : plural)}");
 
     private string? FirstHeading(PathGuard guard, ScannedFile file, CancellationToken cancellationToken)
     {
