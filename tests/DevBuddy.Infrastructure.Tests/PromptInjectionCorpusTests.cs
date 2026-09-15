@@ -147,9 +147,13 @@ public sealed class PromptInjectionCorpusTests : IDisposable
     {
         // The target argument is the one thing a caller controls, so it is the one an injected
         // instruction would try to steer.
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+        // Refused as the pipeline's guard-refusal type, so the pipeline answers Denied and audits it
+        // rather than the guard's own exception escaping to the host.
+        GuardRefusalException refusal = await Assert.ThrowsAsync<GuardRefusalException>(
             () => Analyzer().AnalyzeAsync(
                 AnalysisKind.Code, _scope, null, "../../../../etc", CancellationToken.None));
+
+        Assert.IsType<UnauthorizedAccessException>(refusal.InnerException);
     }
 
     [Fact]

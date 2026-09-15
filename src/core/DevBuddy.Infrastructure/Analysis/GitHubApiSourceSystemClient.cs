@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Infrastructure.Scanning;
@@ -161,7 +162,7 @@ internal sealed class GitHubApiSourceSystemClient : ISourceSystemClient
 
     private string LocatorFor(ProjectScope scope, SourceRepositoryId repositoryId) =>
         _options.LocatorFor(scope, repositoryId)
-        ?? throw new InvalidOperationException(
+        ?? throw new OperationUnavailableException(
             $"No GitHub repository is configured for {repositoryId} in this project. "
                 + "Add its owner/repo address to GitHub:Repositories.");
 
@@ -173,7 +174,9 @@ internal sealed class GitHubApiSourceSystemClient : ISourceSystemClient
 
         if (!decision.IsAllowed)
         {
-            throw new UnauthorizedAccessException($"GitHub API access to {url} is refused: {decision.Reason}");
+            // The guard's reason names the host and the rule, which is what an operator needs. The
+            // full URL is left out: it is built from the caller's request as well as configuration.
+            throw new GuardRefusalException("url-guard", $"GitHub API access is refused: {decision.Reason}");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, decision.Target);

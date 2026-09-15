@@ -212,6 +212,39 @@ public sealed class UseCaseExecutor
             await AuditAsync(descriptor, request, caller, AuditOutcome.Failed, null, cancellationToken);
             return UseCaseResult.NotFound<TResponse>(notFound.Message);
         }
+        catch (GuardRefusalException refusal)
+        {
+            // A guard stopped the request reaching past its boundary: a path out of the project
+            // root, a destination off the allow-list. That is a denied access as surely as a
+            // missing permission is, so it is recorded under the same action and an investigation
+            // looking for one finds both. Which guard refused is recorded; what it refused is not,
+            // beyond the resource reference every entry already carries.
+            await WriteAuditAsync(
+                descriptor,
+                request,
+                caller,
+                AuditAction.AccessDenied,
+                AuditOutcome.Denied,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["refused_by"] = refusal.RefusedBy },
+                cancellationToken);
+
+            return UseCaseResult.Denied<TResponse>(refusal.Message);
+        }
+        catch (OperationUnavailableException unavailable)
+        {
+            // Authorised, but this installation cannot answer as configured. The caller is told
+            // which setting or limitation stands in the way, because "an error occurred" leaves an
+            // assistant nothing to tell its user.
+            await AuditAsync(
+                descriptor,
+                request,
+                caller,
+                AuditOutcome.Failed,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["rejection"] = Summarise(unavailable) },
+                cancellationToken);
+
+            return UseCaseResult.Rejected<TResponse>(unavailable.Message);
+        }
         catch (DomainException rejected)
         {
             // A refused domain rule is recorded with the reason. A rejected publication is
@@ -225,6 +258,31 @@ public sealed class UseCaseExecutor
                 cancellationToken);
 
             return UseCaseResult.Rejected<TResponse>(rejected.Message);
+        }
+        catch (Exception unexpected) when (!IsCallerCancellation(unexpected, cancellationToken))
+        {
+            // Still propagates. An exception nobody translated is a defect, and turning it into a
+            // tidy outcome would hide one. But an authorised caller attempted something, and a
+            // trail with no row for it cannot answer what they tried. The type name only: the
+            // message of a failure nobody anticipated can carry a path or content read on the way.
+            try
+            {
+                await AuditAsync(
+                    descriptor,
+                    request,
+                    caller,
+                    AuditOutcome.Failed,
+                    new Dictionary<string, string>(StringComparer.Ordinal) { ["failure"] = unexpected.GetType().Name },
+                    cancellationToken);
+            }
+            catch (Exception auditFailure)
+            {
+                // Neither is allowed to hide the other: the original is the defect to fix, and the
+                // audit failure is the reason there is no row for it.
+                throw new AggregateException(unexpected, auditFailure);
+            }
+
+            throw;
         }
 
         // 7. Redact outbound free text before it leaves the boundary (SB-17, egress half).
@@ -333,8 +391,16 @@ public sealed class UseCaseExecutor
     /// revision numbers, and short hashes, and the 200-character cap in the domain refuses
     /// anything that grew beyond that.
     /// </summary>
-    private static string Summarise(DomainException rejected) =>
+    private static string Summarise(Exception rejected) =>
         rejected.Message.Length <= 200 ? rejected.Message : rejected.GetType().Name;
+
+    /// <summary>
+    /// The caller stopped waiting. Not a failure of the operation and not audited as one; the
+    /// cancelled token would refuse the audit write anyway. A cancellation nobody asked for — a
+    /// timeout inside an adapter — is a failure, and is audited like any other.
+    /// </summary>
+    private static bool IsCallerCancellation(Exception failure, CancellationToken cancellationToken) =>
+        failure is OperationCanceledException && cancellationToken.IsCancellationRequested;
 
     private Task AuditAsync(
         UseCaseDescriptor descriptor,

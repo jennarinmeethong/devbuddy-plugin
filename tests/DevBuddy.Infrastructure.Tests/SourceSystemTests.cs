@@ -1,4 +1,5 @@
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Infrastructure.Analysis;
@@ -187,7 +188,7 @@ public sealed class SourceSystemTests : IDisposable
 
         _git.PackAway(second);
 
-        NotSupportedException failure = await Assert.ThrowsAsync<NotSupportedException>(
+        OperationUnavailableException failure = await Assert.ThrowsAsync<OperationUnavailableException>(
             () => Client().FetchChangeSetAsync(_repository, _scope, second, Ct));
 
         // The failure names the limitation and what to do about it. Returning an empty change set
@@ -258,10 +259,40 @@ public sealed class SourceSystemTests : IDisposable
     {
         var elsewhere = new ProjectScope(WorkspaceId.New(), ProjectId.New());
 
-        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(
+        // The pipeline's not-found type, so the caller is told what to mount and the attempt is
+        // audited, instead of the host reporting a generic error with no row behind it.
+        ResourceNotFoundException failure = await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => Client().FetchSnapshotAsync(_repository, elsewhere, Ct));
 
         Assert.Contains("no working copy", failure.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task an_installation_with_no_analysis_root_names_the_setting()
+    {
+        var client = new WorkingCopySourceSystemClient(
+            Options.Create(new AnalysisOptions { RootPath = " " }), new FixedClock());
+
+        OperationUnavailableException failure = await Assert.ThrowsAsync<OperationUnavailableException>(
+            () => client.FetchSnapshotAsync(_repository, _scope, Ct));
+
+        Assert.Contains("Analysis:RootPath", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task a_reference_that_does_not_exist_is_not_found()
+    {
+        string commit = _git.Commit(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["a.txt"] = "one",
+        });
+
+        _git.SetBranch("main", commit);
+
+        ResourceNotFoundException failure = await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => Client().FetchChangeSetAsync(_repository, _scope, "no-such-branch", Ct));
+
+        Assert.Contains("refs/heads/no-such-branch", failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -272,7 +303,7 @@ public sealed class SourceSystemTests : IDisposable
         Directory.CreateDirectory(Path.Combine(
             _root, _scope.ProjectId.Value.ToString(), otherRepository.Value.ToString()));
 
-        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(
+        ResourceNotFoundException failure = await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => Client().FetchSnapshotAsync(otherRepository, _scope, Ct));
 
         Assert.Contains("git metadata", failure.Message, StringComparison.OrdinalIgnoreCase);

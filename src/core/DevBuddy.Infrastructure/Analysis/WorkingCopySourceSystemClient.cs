@@ -1,4 +1,5 @@
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Infrastructure.Scanning;
@@ -231,14 +232,23 @@ internal sealed class WorkingCopySourceSystemClient : ISourceSystemClient
 
     private GitObjectStore Open(ProjectScope scope, SourceRepositoryId repositoryId)
     {
+        // Thrown as the pipeline's own types, so each becomes an answer the caller can act on and a
+        // row in the audit trail, rather than a generic error from the host and no row at all.
+        // An unconfigured root is about the installation; a missing directory is about this
+        // repository. The distinction is what tells a caller whether to ask an operator or to
+        // check which repository they named.
+        if (!_options.IsConfigured)
+        {
+            throw new OperationUnavailableException(
+                "Analysis:RootPath is not configured for this installation, so no repository "
+                + "has a working copy to read.");
+        }
+
         if (!_options.IsAnalysable(scope, repositoryId))
         {
-            throw new InvalidOperationException(
-                _options.IsConfigured
-                    ? "No working copy is mounted for this repository, so there is nothing to read. "
-                      + "Mount it read-only under the analysis root."
-                    : "Analysis:RootPath is not configured for this installation, so no repository "
-                      + "has a working copy to read.");
+            throw new ResourceNotFoundException(
+                "No working copy is mounted for this repository, so there is nothing to read. "
+                + "Mount it read-only under the analysis root.");
         }
 
         PathGuard guard = _options.GuardFor(scope, repositoryId).Create();
@@ -246,6 +256,6 @@ internal sealed class WorkingCopySourceSystemClient : ISourceSystemClient
 
         return store.Exists
             ? store
-            : throw new InvalidOperationException("The mounted working copy has no git metadata.");
+            : throw new ResourceNotFoundException("The mounted working copy has no git metadata.");
     }
 }
