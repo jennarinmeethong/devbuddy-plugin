@@ -42,6 +42,11 @@ public sealed class PersonalDataCorpusTests
     // an_address_at_a_reserved_documentation_domain_is_not_flagged.
     private const string EmailAddress = "somchai.testperson@devbuddy-fixture.co.th";
 
+    private static readonly string[] ThaiNoteRules =
+        ["thai-national-id", "thai-mobile-number", "email-address", "labelled-personal-data"];
+
+    private static readonly int[] ThaiNoteLines = [1, 2, 3, 4];
+
     public static TheoryData<string, string, string> Positives() => new()
     {
         {
@@ -166,6 +171,15 @@ public sealed class PersonalDataCorpusTests
             "reported by mailto:j.smith@corp.local"
         },
 
+        // A local part that is itself a mobile number. The address has to go whole: if the mobile
+        // rule ran first it would take the digits and leave the domain behind, and this row is
+        // what fails when the rule order in PersonalDataRules.All is wrong.
+        {
+            "email-address",
+            "0812345678@devbuddy-fixture.co.th",
+            "signed in as 0812345678@devbuddy-fixture.co.th"
+        },
+
         // Thai labels, and the English ones Thai engineering text uses for the same fields.
         {
             "labelled-personal-data",
@@ -209,7 +223,7 @@ public sealed class PersonalDataCorpusTests
     /// every mention of an ID field makes the system unusable, and the whole point of a project
     /// owner approving a bounded scope is that ordinary engineering knowledge should not need one.
     /// </summary>
-    public static TheoryData<string> Negatives() =>
+    private static readonly string[] NegativeContent =
     [
         "The migration ran on 2026-09-01 without incident.",
         "Build 1234567890123456 failed on the arm64 runner.",
@@ -242,6 +256,18 @@ public sealed class PersonalDataCorpusTests
         "The วันเกิด field is required on the form.",
     ];
 
+    public static TheoryData<string> Negatives()
+    {
+        TheoryData<string> data = [];
+
+        foreach (string content in NegativeContent)
+        {
+            data.Add(content);
+        }
+
+        return data;
+    }
+
     /// <summary>Every piece of text in the corpus, positive and negative, for the parity test.</summary>
     public static TheoryData<string> Everything()
     {
@@ -252,9 +278,9 @@ public sealed class PersonalDataCorpusTests
             all.Add((string)row[2]);
         }
 
-        foreach (object[] row in Negatives())
+        foreach (string content in NegativeContent)
         {
-            all.Add((string)row[0]);
+            all.Add(content);
         }
 
         return all;
@@ -293,8 +319,9 @@ public sealed class PersonalDataCorpusTests
     /// <summary>
     /// The scanner and the redactor share one rule set, and this is what holding them to it looks
     /// like: text is altered exactly when something was found, and nothing the scanner can still
-    /// find survives redaction. A rule order in the redactor that took half of a match and left
-    /// the other half — digits out of an address, leaving its domain — fails the second assertion.
+    /// find survives redaction. It does not catch a redactor that removes only part of a value —
+    /// what is left no longer looks like anything — which is why every positive row also asserts
+    /// its whole value is gone.
     /// </summary>
     [Theory]
     [MemberData(nameof(Everything))]
@@ -455,10 +482,8 @@ public sealed class PersonalDataCorpusTests
 
         PersonalDataScanResult result = await Scanner.ScanAsync(content, CancellationToken.None);
 
-        Assert.Equal(
-            new[] { "thai-national-id", "thai-mobile-number", "email-address", "labelled-personal-data" },
-            result.Findings.Select(finding => finding.RuleName));
-        Assert.Equal(new[] { 1, 2, 3, 4 }, result.Findings.Select(finding => finding.LineNumber));
+        Assert.Equal(ThaiNoteRules, result.Findings.Select(finding => finding.RuleName));
+        Assert.Equal(ThaiNoteLines, result.Findings.Select(finding => finding.LineNumber));
 
         string redacted = Redactor.Redact(content);
         Assert.DoesNotContain(ThaiNationalId, redacted, StringComparison.Ordinal);
