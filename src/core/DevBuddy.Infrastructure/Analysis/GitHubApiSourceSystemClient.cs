@@ -91,6 +91,39 @@ internal sealed class GitHubApiSourceSystemClient : ISourceSystemClient
     }
 
     /// <summary>
+    /// The commit GitHub resolves a reference to.
+    /// <para>
+    /// The commits endpoint takes a branch name, a tag name, or an identifier, and follows an
+    /// annotated tag itself, so a full <c>refs/heads/</c> or <c>refs/tags/</c> name is shortened to
+    /// the part it accepts. The reference is reported as given: GitHub does not say whether a bare
+    /// name matched a tag or a branch, and this does not guess.
+    /// </para>
+    /// </summary>
+    public async Task<ResolvedReference> ResolveReferenceAsync(
+        SourceRepositoryId repositoryId,
+        ProjectScope scope,
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        Guard.NotBlank(reference, nameof(reference));
+
+        string locator = LocatorFor(scope, repositoryId);
+        string trimmed = reference.Trim();
+
+        string name =
+            trimmed.StartsWith("refs/heads/", StringComparison.Ordinal) ? trimmed["refs/heads/".Length..]
+            : trimmed.StartsWith("refs/tags/", StringComparison.Ordinal) ? trimmed["refs/tags/".Length..]
+            : trimmed;
+
+        string escaped = string.Join('/', name.Split('/').Select(Uri.EscapeDataString));
+
+        CommitShaJson commit = await GetAsync<CommitShaJson>(
+            $"repos/{locator}/commits/{escaped}", cancellationToken);
+
+        return new ResolvedReference(trimmed, commit.Sha);
+    }
+
+    /// <summary>
     /// A metadata diff between two already-fetched snapshots, the same way
     /// <see cref="WorkingCopySourceSystemClient"/> does it — no repository locator is available
     /// here to make a further API call with, and none is needed for this comparison.
@@ -202,6 +235,8 @@ internal sealed record RefObjectJson([property: JsonPropertyName("sha")] string 
 internal sealed record CommitJson(
     [property: JsonPropertyName("commit")] CommitMetaJson Commit,
     [property: JsonPropertyName("files")] IReadOnlyList<CommitFileJson>? Files);
+
+internal sealed record CommitShaJson([property: JsonPropertyName("sha")] string Sha);
 
 internal sealed record CommitMetaJson([property: JsonPropertyName("author")] CommitAuthorJson Author);
 

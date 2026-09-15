@@ -68,6 +68,38 @@ internal sealed class GitFixture
     public void SetBranch(string name, string commitId) =>
         File.WriteAllText(Path.Combine(_gitDirectory, "refs", "heads", name), commitId + "\n");
 
+    /// <summary>Points a lightweight tag at a commit.</summary>
+    public void SetTag(string name, string objectId)
+    {
+        string directory = Path.Combine(_gitDirectory, "refs", "tags");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, name), objectId + "\n");
+    }
+
+    /// <summary>
+    /// Writes an annotated tag — a tag object naming the commit — points the tag at that object,
+    /// and returns the tag object's id, which is not the commit's. That difference is the point: a
+    /// reader that forgets to follow the tag reads a tag object as though it were a commit.
+    /// </summary>
+    public string AnnotatedTag(string name, string commitId, string tagger = "Jennarin")
+    {
+        string stamp = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{tagger} <{tagger.ToLowerInvariant()}@example.com> 1780000000 +0000");
+
+        var payload = new StringBuilder();
+        payload.Append("object ").Append(commitId).Append('\n');
+        payload.Append("type commit\n");
+        payload.Append("tag ").Append(name).Append('\n');
+        payload.Append("tagger ").Append(stamp).Append('\n');
+        payload.Append("\na release\n");
+
+        string tag = WriteObject("tag", Encoding.UTF8.GetBytes(payload.ToString()));
+        SetTag(name, tag);
+
+        return tag;
+    }
+
     /// <summary>Writes a packed-refs file, the form a repository takes after `git gc`.</summary>
     public void SetPackedRefs(IReadOnlyDictionary<string, string> references)
     {

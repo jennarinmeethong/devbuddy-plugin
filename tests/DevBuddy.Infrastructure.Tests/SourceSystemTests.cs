@@ -1,4 +1,5 @@
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Infrastructure.Analysis;
@@ -171,6 +172,95 @@ public sealed class SourceSystemTests : IDisposable
         ChangeSet changes = await Client().FetchChangeSetAsync(_repository, _scope, "main", Ct);
 
         Assert.Single(changes.ChangedPaths);
+    }
+
+    [Fact]
+    public async Task a_bare_tag_name_resolves_to_the_commit_it_tags()
+    {
+        string first = _git.Commit(new Dictionary<string, string>(StringComparer.Ordinal) { ["a.txt"] = "one" });
+        string second = _git.Commit(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["a.txt"] = "two" }, parent: first);
+
+        _git.SetBranch("main", second);
+        _git.SetTag("v0.1.0", first);
+
+        ResolvedReference resolved = await Client().ResolveReferenceAsync(_repository, _scope, "v0.1.0", Ct);
+
+        // Only refs/heads/ was tried before, so this name was not found at all.
+        Assert.Equal("refs/tags/v0.1.0", resolved.Reference);
+        Assert.Equal(first, resolved.CommitId);
+    }
+
+    [Fact]
+    public async Task an_annotated_tag_is_followed_to_its_commit()
+    {
+        string commit = _git.Commit(new Dictionary<string, string>(StringComparer.Ordinal) { ["a.txt"] = "one" });
+        string tagObject = _git.AnnotatedTag("v1.0", commit);
+
+        WorkingCopySourceSystemClient client = Client();
+        ResolvedReference resolved = await client.ResolveReferenceAsync(_repository, _scope, "refs/tags/v1.0", Ct);
+
+        Assert.NotEqual(commit, tagObject);
+        Assert.Equal(commit, resolved.CommitId);
+
+        // And a change set named by the tag reads the commit rather than failing on a tag object.
+        Assert.Single((await client.FetchChangeSetAsync(_repository, _scope, "v1.0", Ct)).ChangedPaths);
+    }
+
+    [Fact]
+    public async Task a_name_that_is_both_a_tag_and_a_branch_resolves_to_the_tag_and_says_so()
+    {
+        string first = _git.Commit(new Dictionary<string, string>(StringComparer.Ordinal) { ["a.txt"] = "one" });
+        string second = _git.Commit(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["a.txt"] = "two" }, parent: first);
+
+        _git.SetBranch("release", second);
+        _git.SetTag("release", first);
+
+        WorkingCopySourceSystemClient client = Client();
+
+        // git rev-parse picks the tag. Returning the matched name keeps that choice visible.
+        ResolvedReference bare = await client.ResolveReferenceAsync(_repository, _scope, "release", Ct);
+        Assert.Equal("refs/tags/release", bare.Reference);
+        Assert.Equal(first, bare.CommitId);
+
+        ResolvedReference branch = await client.ResolveReferenceAsync(_repository, _scope, "refs/heads/release", Ct);
+        Assert.Equal(second, branch.CommitId);
+    }
+
+    [Fact]
+    public async Task head_and_a_packed_tag_resolve()
+    {
+        string commit = _git.Commit(new Dictionary<string, string>(StringComparer.Ordinal) { ["a.txt"] = "one" });
+
+        _git.SetBranch("main", commit);
+        _git.SetPackedRefs(new Dictionary<string, string>(StringComparer.Ordinal) { ["refs/tags/v2"] = commit });
+
+        WorkingCopySourceSystemClient client = Client();
+
+        ResolvedReference head = await client.ResolveReferenceAsync(_repository, _scope, "HEAD", Ct);
+        Assert.Equal("refs/heads/main", head.Reference);
+        Assert.Equal(commit, head.CommitId);
+
+        ResolvedReference packed = await client.ResolveReferenceAsync(_repository, _scope, "v2", Ct);
+        Assert.Equal("refs/tags/v2", packed.Reference);
+    }
+
+    [Theory]
+    [InlineData("v9.9.9")]
+    [InlineData("refs/tags/v9.9.9")]
+    [InlineData("refs/heads/../../HEAD")]
+    public async Task a_reference_that_does_not_exist_is_not_found(string reference)
+    {
+        string commit = _git.Commit(new Dictionary<string, string>(StringComparer.Ordinal) { ["a.txt"] = "one" });
+        _git.SetBranch("main", commit);
+
+        // Not found, which the pipeline reports as such, rather than a fault. The last case is a
+        // name shaped like a path: it is looked up among the references, never opened as a file.
+        ResourceNotFoundException failure = await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => Client().ResolveReferenceAsync(_repository, _scope, reference, Ct));
+
+        Assert.Contains(reference, failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]

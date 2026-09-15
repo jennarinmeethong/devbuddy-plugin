@@ -278,20 +278,50 @@ public sealed record CompareSnapshotsRequest(
     }
 }
 
-public sealed record SnapshotComparisonResponse(IReadOnlyList<SnapshotDifference> Differences)
-    : IRedactableResponse<SnapshotComparisonResponse>
+/// <summary>
+/// Where each reference points, what moved between them, and the paths that differ.
+/// <para>
+/// <see cref="ChangedPaths"/> is null, with <see cref="ChangedPathsUnavailable"/> saying why, when
+/// the source system cannot read the trees — a packed object in a working copy, today. The commit
+/// move is still reported: it was read, and an empty list would claim that nothing changed.
+/// </para>
+/// </summary>
+public sealed record SnapshotComparisonResponse(
+    ResolvedReference Earlier,
+    ResolvedReference Later,
+    IReadOnlyList<SnapshotDifference> Differences,
+    IReadOnlyList<string>? ChangedPaths,
+    string? ChangedPathsUnavailable) : IRedactableResponse<SnapshotComparisonResponse>
 {
     public SnapshotComparisonResponse Redact(IRedactor redactor) =>
-        new([.. Differences.Select(difference => difference with
+        this with
         {
-            Before = redactor.Redact(difference.Before),
-            After = redactor.Redact(difference.After),
-        })]);
+            Earlier = Earlier with { Reference = redactor.Redact(Earlier.Reference) },
+            Later = Later with { Reference = redactor.Redact(Later.Reference) },
+            Differences =
+            [
+                .. Differences.Select(difference => difference with
+                {
+                    Before = redactor.Redact(difference.Before),
+                    After = redactor.Redact(difference.After),
+                }),
+            ],
+            ChangedPaths = ChangedPaths is null ? null : [.. ChangedPaths.Select(path => redactor.Redact(path))],
+            ChangedPathsUnavailable =
+                ChangedPathsUnavailable is null ? null : redactor.Redact(ChangedPathsUnavailable),
+        };
 }
 
 /// <summary>
-/// Compares two source snapshots so a record can be checked against its origin. Divergence is
-/// reported for a human to interpret, never resolved automatically (ADR-0010).
+/// Compares two references of one repository so a record can be checked against its origin.
+/// Divergence is reported for a human to interpret, never resolved automatically (ADR-0010).
+/// <para>
+/// Each reference is resolved against the source system as it is now, and the paths are read
+/// between the two commits. Not two stored snapshots: nothing writes <c>source_snapshots</c> —
+/// <c>sync_sources</c> returns its snapshot and stores none — so there would be nothing to compare.
+/// Until 2026-09-15 this fetched one snapshot and relabelled it with both references, so the two
+/// sides always carried the same commit and the only difference it could report was the name.
+/// </para>
 /// </summary>
 public sealed class CompareSnapshotsUseCase(ISourceSystemClient sourceSystem)
     : UseCase<CompareSnapshotsRequest, SnapshotComparisonResponse>
@@ -303,16 +333,32 @@ public sealed class CompareSnapshotsUseCase(ISourceSystemClient sourceSystem)
     protected internal override async Task<SnapshotComparisonResponse> HandleAsync(
         CompareSnapshotsRequest request, CallerContext caller, CancellationToken cancellationToken)
     {
-        SourceSnapshot current =
-            await _sourceSystem.FetchSnapshotAsync(request.RepositoryId, request.Scope, cancellationToken);
+        ResolvedReference earlier = await _sourceSystem.ResolveReferenceAsync(
+            request.RepositoryId, request.Scope, request.EarlierReference, cancellationToken);
 
-        SourceSnapshot earlier = current with { Reference = request.EarlierReference };
-        SourceSnapshot later = current with { Reference = request.LaterReference };
+        ResolvedReference later = await _sourceSystem.ResolveReferenceAsync(
+            request.RepositoryId, request.Scope, request.LaterReference, cancellationToken);
 
-        IReadOnlyList<SnapshotDifference> differences =
-            await _sourceSystem.CompareAsync(earlier, later, cancellationToken);
+        if (string.Equals(earlier.CommitId, later.CommitId, StringComparison.Ordinal))
+        {
+            return new SnapshotComparisonResponse(earlier, later, [], [], null);
+        }
 
-        return new SnapshotComparisonResponse(differences);
+        SnapshotDifference moved = new("commit", earlier.CommitId, later.CommitId);
+
+        try
+        {
+            // The resolved identifiers, not the names: a reference that moves between these calls
+            // must not make the paths describe a different pair of commits from the one reported.
+            ChangeSet changes = await _sourceSystem.FetchChangeSetAsync(
+                request.RepositoryId, request.Scope, $"{earlier.CommitId}..{later.CommitId}", cancellationToken);
+
+            return new SnapshotComparisonResponse(earlier, later, [moved], changes.ChangedPaths, null);
+        }
+        catch (NotSupportedException unsupported)
+        {
+            return new SnapshotComparisonResponse(earlier, later, [moved], null, unsupported.Message);
+        }
     }
 }
 

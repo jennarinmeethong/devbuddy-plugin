@@ -401,6 +401,19 @@ Three things worth knowing:
 has no implementation until Phase 6. The use case and its authorization are covered; the source
 system it talks to is not.
 
+**Corrected 2026-09-15: `compare_snapshots` compared nothing.** Observed against `v1.2.1`: the use
+case fetched one current snapshot and relabelled it with both references, so the two sides always
+carried the same commit and the only difference it could ever report was the renamed reference.
+A unit test passed throughout because the fake answered in the same shape. It now resolves each
+reference against the source system through `ISourceSystemClient.ResolveReferenceAsync` and reports
+the commit each points at, the move between them, and the paths that differ between the two
+commits. That is two references against the source as it is now, not two stored snapshots, because
+nothing writes `source_snapshots` — `sync_sources` returns its snapshot and stores none. A bare name
+resolves in `git rev-parse` order (tags, then branches, then remote-tracking branches) and the
+answer names the reference matched; `HEAD` and annotated tags resolve too. Until then a bare name was
+tried only as `refs/heads/<name>`, which affected `analyze_change_impact` as well. The request is
+unchanged; the response gained fields.
+
 ---
 
 ## Phase 6 — Analysis, sources, and safety scanners
