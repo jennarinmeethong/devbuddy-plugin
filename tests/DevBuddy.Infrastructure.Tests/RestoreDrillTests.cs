@@ -104,6 +104,11 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture min
                     record.CurrentRevision.ContentHash.Value,
                     record.ApprovalForCurrentRevision!.ApprovedContentHash.Value);
 
+                // Who wrote it survived too. A restore that forgot an AI drafted this would hand a
+                // later owner a record that looks like a person's word.
+                Assert.True(record.CurrentRevision.Provenance.IsAiGenerated);
+                Assert.Equal(ProvenanceSourceKind.RepositoryAnalysis, record.CurrentRevision.Provenance.SourceKind);
+
                 Assert.NotEmpty(await restored.Users.AsNoTracking().ToListAsync(Ct));
                 Assert.NotEmpty(await restored.AuditEvents.IgnoreQueryFilters().AsNoTracking().ToListAsync(Ct));
 
@@ -203,7 +208,11 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture min
             "Rollback is a migration, not a restore",
             "Rolling back a migration is itself a migration, and is planned as one.",
             frontMatter: null,
-            new Provenance(ProvenanceSourceKind.HumanAuthored, "meeting/2026-09-01", "a person", Seed.Now),
+            // Drafted by an assistant from the repository, then approved by a person. The source
+            // kind says nothing about who wrote it, so only the stored flag can survive the drill.
+            new Provenance(
+                ProvenanceSourceKind.RepositoryAnalysis, "src/Migrations", "an assistant", Seed.Now,
+                isAiGenerated: true),
             Seed.Now, seed.Author);
 
         record.SubmitForApproval(Seed.Now.AddMinutes(1));

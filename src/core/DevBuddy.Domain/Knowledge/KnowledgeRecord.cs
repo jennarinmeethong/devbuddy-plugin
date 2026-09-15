@@ -201,6 +201,11 @@ public sealed class KnowledgeRecord
     /// Appends a revision and returns the record to Draft. An earlier approval stays in the
     /// history but no longer covers the current content, so publication is blocked until a human
     /// reviews the new text.
+    /// <para>
+    /// A revision of AI-written content is still AI-written content. A person editing an AI draft
+    /// has not made it theirs, and the reviewer of the edit needs to know what they are reading as
+    /// much as the reviewer of the original did, so the mark carries forward.
+    /// </para>
     /// </summary>
     public RecordRevision AddRevision(
         string title,
@@ -211,6 +216,12 @@ public sealed class KnowledgeRecord
         UserId createdBy)
     {
         RequireNotArchived();
+        Guard.NotNull(provenance, nameof(provenance));
+
+        if (CurrentRevision.Provenance.IsAiGenerated)
+        {
+            provenance = provenance.AsAiGenerated();
+        }
 
         var revision = new RecordRevision(
             CurrentRevision.Number + 1, title, body, frontMatter, provenance, createdAt, createdBy);

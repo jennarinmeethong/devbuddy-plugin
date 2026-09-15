@@ -114,7 +114,7 @@ public sealed class ReadingAndLifecycleTests
             new CreateDraftUseCase(harness.Ports, harness.Ports),
             new CreateDraftRequest(
                 TestData.Scope, TestData.WorkItem, RecordKind.Handover,
-                "What is left", "Two migrations remain.", TestData.Provenance));
+                "What is left", "Two migrations remain.", TestData.Draft));
 
         Assert.Equal(RecordStatus.Draft, result.Status);
         Assert.Null(result.PublishedRevisionNumber);
@@ -207,7 +207,7 @@ public sealed class ReadingAndLifecycleTests
         LifecycleResult revised = await harness.SucceedAsync(
             new ReviseDraftUseCase(harness.Ports, harness.Ports),
             new ReviseDraftRequest(
-                TestData.Scope, record.Id, "Title", "Now with a rollback step.", TestData.Provenance));
+                TestData.Scope, record.Id, "Title", "Now with a rollback step.", TestData.Draft));
 
         Assert.Equal(2, revised.CurrentRevisionNumber);
         Assert.Null(record.ApprovalForCurrentRevision);

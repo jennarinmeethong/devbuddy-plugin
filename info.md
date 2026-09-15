@@ -1,5 +1,28 @@
 # Project Decisions
 
+## Confirmed Whether an AI Wrote a Record Comes from the Channel — 2026-09-15
+
+Found while testing the Claude plugin against the `v1.2.1` installation on the owner's test machine.
+A draft written over MCP named `RepositoryAnalysis` as its source and `isAiGenerated: true`. It was
+stored, approved and published as a person's work. `IsAiGenerated` was computed from
+`SourceKind == AiDraft`, and the request's own flag was silently discarded. The web review screen
+showed no AI marker.
+
+- **The channel decides, not the request.** Anything created or revised on `AccessChannel.Ai` is
+  stored as AI-generated, whatever `sourceKind` it names. `sourceKind` still records what the AI
+  analysed. `isAiGenerated` is gone from the request schema.
+- **A person's revision of an AI draft stays marked as AI-generated.** The owner confirmed this
+  choice on 2026-09-15: editing AI text does not make it the person's own work.
+- **A person who declares `AiDraft` is honoured.**
+- **Rows written before this change cannot be corrected.** Nothing recorded which channel a draft
+  arrived on, so they keep the old rule. That includes the test record published on the owner's
+  installation on 2026-09-15.
+- **Not decided here, and held back from the same merge for discussion:**
+  - recording the channel on audit entries, as its own column;
+  - `get_record` answering not found for a never-published record when no revision is named;
+  - `compare_snapshots` resolving references in the source system.
+- **Deferred:** a web screen for `revise_draft`.
+
 ## Confirmed Cutting v1.2.1 for the Non-Root Evidence Store — 2026-09-14
 
 The owner decided the next release is `v1.2.1`, cut from `main`, to ship the non-root evidence store

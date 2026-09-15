@@ -374,6 +374,18 @@ internal sealed class ProvenanceJson
     public DateTimeOffset RecordedAt { get; set; }
 
     public List<EvidenceReferenceJson> Evidence { get; set; } = [];
+
+    /// <summary>
+    /// Absent, and so false, on every row written before 2026-09-15. Those rows are read with
+    /// the rule that applied when they were written — AI-generated only if the source kind said
+    /// AiDraft — because nothing recorded the channel a draft arrived on, so no stored row can be
+    /// corrected after the fact.
+    /// </summary>
+    public bool IsAiGenerated { get; set; }
+
+    /// <summary>The domain's rule, for the queries that read rows without mapping them.</summary>
+    public bool DescribesAiContent() =>
+        IsAiGenerated || SourceKind == (int)Domain.Knowledge.ProvenanceSourceKind.AiDraft;
 }
 
 internal sealed class EvidenceReferenceJson

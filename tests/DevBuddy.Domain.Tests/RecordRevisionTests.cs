@@ -1,5 +1,6 @@
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Knowledge;
+using DevBuddy.Domain.Work;
 
 namespace DevBuddy.Domain.Tests;
 
@@ -98,6 +99,48 @@ public sealed class RecordRevisionTests
         // A reviewer approving this must be able to see where it came from.
         Assert.True(revision.Provenance.IsAiGenerated);
         Assert.False(Fixtures.HumanProvenance().IsAiGenerated);
+    }
+
+    [Fact]
+    public void whether_an_ai_wrote_it_is_a_fact_of_its_own_and_not_read_from_the_source_kind()
+    {
+        var analysed = new Provenance(
+            ProvenanceSourceKind.RepositoryAnalysis,
+            sourceLocator: "src/Importer.cs",
+            author: "an assistant",
+            recordedAt: Fixtures.Now,
+            isAiGenerated: true);
+
+        // An AI that analysed a repository wrote this. Both halves are kept.
+        Assert.True(analysed.IsAiGenerated);
+        Assert.Equal(ProvenanceSourceKind.RepositoryAnalysis, analysed.SourceKind);
+
+        // And a declared AI draft cannot be declared back into a person's work.
+        Assert.True(new Provenance(
+            ProvenanceSourceKind.AiDraft, "mcp/create_draft", "Claude", Fixtures.Now, isAiGenerated: false).IsAiGenerated);
+
+        Assert.True(Fixtures.HumanProvenance().AsAiGenerated().IsAiGenerated);
+    }
+
+    [Fact]
+    public void a_revision_of_an_ai_draft_is_still_ai_generated_whoever_writes_it()
+    {
+        KnowledgeRecord drafted = KnowledgeRecord.CreateDraft(
+            KnowledgeRecordId.New(), Fixtures.AlphaScope, WorkItemId.New(), RecordKind.Decision,
+            "Title", "Written by an assistant.", null,
+            Fixtures.HumanProvenance().AsAiGenerated(), Fixtures.Now, Fixtures.Author);
+
+        drafted.AddRevision(
+            "Title", "Tidied by a person.", null, Fixtures.HumanProvenance(), Fixtures.Now.AddHours(1), Fixtures.Reviewer);
+
+        Assert.True(drafted.CurrentRevision.Provenance.IsAiGenerated);
+        Assert.Equal(ProvenanceSourceKind.HumanAuthored, drafted.CurrentRevision.Provenance.SourceKind);
+
+        // The mark follows AI content forward; it does not appear on a person's own record.
+        KnowledgeRecord written = Fixtures.Draft(body: "Written by a person.");
+        written.AddRevision("Title", "Still a person.", null, Fixtures.HumanProvenance(), Fixtures.Now, Fixtures.Author);
+
+        Assert.False(written.CurrentRevision.Provenance.IsAiGenerated);
     }
 
     [Fact]

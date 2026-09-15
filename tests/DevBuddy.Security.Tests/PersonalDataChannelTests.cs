@@ -25,7 +25,10 @@ namespace DevBuddy.Security.Tests;
 [Collection(SecurityCollection.Name)]
 public sealed class PersonalDataChannelTests(SecurityFixture fixture)
 {
-    private static readonly Provenance Source =
+    private static readonly DraftProvenance Source =
+        new(ProvenanceSourceKind.HumanAuthored, "handover/2026-09-01", "Jennarin", World.Now);
+
+    private static readonly Provenance Seeded =
         new(ProvenanceSourceKind.HumanAuthored, "handover/2026-09-01", "Jennarin", World.Now);
 
     private readonly SecurityFixture _fixture = fixture;
@@ -112,7 +115,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
         KnowledgeRecord record = KnowledgeRecord.CreateDraft(
             KnowledgeRecordId.New(), ground.World.Alpha, ground.WorkItem.Id, RecordKind.TechnicalKnowledge,
             "Legacy escalation", "Customer date of birth: 1990-04-12, recorded for verification.",
-            frontMatter: null, Source, World.Now, ground.Actor);
+            frontMatter: null, Seeded, World.Now, ground.Actor);
 
         await ground.Repository.AddRecordAsync(record, CancellationToken.None);
 
@@ -138,7 +141,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
         KnowledgeRecord record = KnowledgeRecord.CreateDraft(
             KnowledgeRecordId.New(), ground.World.Alpha, ground.WorkItem.Id, RecordKind.TechnicalKnowledge,
             "Legacy escalation", "Customer date of birth: 1990-04-12, recorded for verification.",
-            frontMatter: null, Source, World.Now, ground.Actor);
+            frontMatter: null, Seeded, World.Now, ground.Actor);
 
         await ground.Repository.AddRecordAsync(record, CancellationToken.None);
 
@@ -158,7 +161,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
         KnowledgeRecord record = KnowledgeRecord.CreateDraft(
             KnowledgeRecordId.New(), ground.World.Alpha, ground.WorkItem.Id, RecordKind.TechnicalKnowledge,
             "Legacy escalation", "Customer date of birth: 1990-04-12, recorded for verification.",
-            frontMatter: null, Source, World.Now, ground.Actor);
+            frontMatter: null, Seeded, World.Now, ground.Actor);
 
         await ground.Repository.AddRecordAsync(record, CancellationToken.None);
 

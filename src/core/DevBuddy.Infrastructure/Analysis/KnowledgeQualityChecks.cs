@@ -152,7 +152,7 @@ internal sealed class KnowledgeQualityChecks(DevBuddyDbContext db) : IKnowledgeQ
                     row.ContentHash,
                     row.Provenance.SourceLocator,
                     row.Provenance.Evidence.Count,
-                    row.Provenance.SourceKind == (int)ProvenanceSourceKind.AiDraft))
+                    row.Provenance.DescribesAiContent()))
         ];
     }
 

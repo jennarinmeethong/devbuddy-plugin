@@ -1,5 +1,6 @@
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Security;
+using DevBuddy.Application.UseCases.Lifecycle;
 using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Auditing;
 using DevBuddy.Domain.Common;
@@ -41,6 +42,10 @@ internal static class TestData
     public static CallerContext Anonymous => new(default, AccessChannel.Human, "req-anonymous");
 
     public static Provenance Provenance =>
+        new(ProvenanceSourceKind.HumanAuthored, "handover/2026-09-01", "Jennarin", Now);
+
+    /// <summary>The same provenance, in the shape a caller sends it with a draft.</summary>
+    public static DraftProvenance Draft =>
         new(ProvenanceSourceKind.HumanAuthored, "handover/2026-09-01", "Jennarin", Now);
 
     public static WorkItem NewWorkItem() =>

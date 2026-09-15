@@ -447,6 +447,14 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 - **Warnings are errors.** Fix them rather than suppressing them.
 - **AI access is denied by default per project.** Nothing reaches the MCP tool surface unless it is
   added to the allow-list on purpose.
+- **Whether an AI wrote a record comes from the channel, never from the request.** Since
+  2026-09-15 `Provenance.IsAiGenerated` is stored, not computed from `SourceKind`. `create_draft`
+  and `revise_draft` take `DraftProvenance`, which has no such field. `ForCaller` marks anything
+  arriving on `AccessChannel.Ai`. A person declaring `AiDraft` is honoured, and a revision of AI
+  content stays marked. Until then, a draft written over MCP that named `RepositoryAnalysis` was
+  published as a person's work. **Rows written before the fix cannot be corrected**, because
+  nothing recorded the channel a draft came from. Do not put the domain `Provenance` back on a
+  request record.
 - **Never execute repository scripts** — no builds, restores, or tests — while analysing a
   repository under study. Analysis is read-only.
 - **`IMPLEMENTED` is not `TESTED`.** In `docs/security/verification-matrix.md`, a row moves to
