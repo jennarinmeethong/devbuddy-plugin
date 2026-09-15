@@ -492,7 +492,6 @@ export type CreateDraftArguments = {
         evidenceObjectId: string;
         description: string;
       }> | null;
-    isAiGenerated?: boolean;
   };
   frontMatter?: Record<string, string> | null;
   scope: {
@@ -521,7 +520,6 @@ export type ReviseDraftArguments = {
         evidenceObjectId: string;
         description: string;
       }> | null;
-    isAiGenerated?: boolean;
   };
   frontMatter?: Record<string, string> | null;
   scope: {

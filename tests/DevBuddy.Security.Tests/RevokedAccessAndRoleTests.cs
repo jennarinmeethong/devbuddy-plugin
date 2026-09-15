@@ -93,7 +93,7 @@ public sealed class RevokedAccessAndRoleTests(SecurityFixture fixture)
             new CreateDraftUseCase(repository, clock),
             new CreateDraftRequest(
                 world.Alpha, item.Id, RecordKind.Handover, "Title", "Body",
-                new Provenance(ProvenanceSourceKind.HumanAuthored, "test", "viewer", World.Now)),
+                new DraftProvenance(ProvenanceSourceKind.HumanAuthored, "test", "viewer", World.Now)),
             caller)).Outcome);
 
         Assert.Equal(ExecutionOutcome.Denied, (await session.RunAsync(
@@ -128,7 +128,7 @@ public sealed class RevokedAccessAndRoleTests(SecurityFixture fixture)
             new CreateDraftUseCase(repository, clock),
             new CreateDraftRequest(
                 world.Alpha, item.Id, RecordKind.Decision, "Their draft", "Their words.",
-                new Provenance(ProvenanceSourceKind.HumanAuthored, "test", "contributor", World.Now)),
+                new DraftProvenance(ProvenanceSourceKind.HumanAuthored, "test", "contributor", World.Now)),
             caller);
 
         Assert.True(draft.IsSuccess);
@@ -164,7 +164,7 @@ public sealed class RevokedAccessAndRoleTests(SecurityFixture fixture)
             new CreateDraftUseCase(repository, clock),
             new CreateDraftRequest(
                 world.Alpha, item.Id, RecordKind.Decision, "Self approved", "Reviewed by its author.",
-                new Provenance(ProvenanceSourceKind.HumanAuthored, "test", "reviewer", World.Now)),
+                new DraftProvenance(ProvenanceSourceKind.HumanAuthored, "test", "reviewer", World.Now)),
             caller);
 
         await session.RunAsync(

@@ -202,6 +202,124 @@ public sealed class AiChannelTests(SecurityFixture fixture)
     }
 
     /// <summary>
+    /// The defect observed against v1.2.1 on 2026-09-15, end to end: a draft written over the AI
+    /// channel naming a repository as its source was stored, reviewed and published as a person's
+    /// work, and the only signal a reviewer had — the AI marker — was never shown.
+    /// </summary>
+    [Fact]
+    public async Task a_draft_written_over_the_ai_channel_is_recorded_as_ai_generated_whatever_source_it_names()
+    {
+        (World world, UserId user, KnowledgeRecordId recordId) = await DraftOverTheAiChannelAsync("CRQ-AI5");
+
+        // A fresh session, so what is read back is what PostgreSQL holds.
+        using Session session = _fixture.OpenSession(world.Workspace);
+        var repository = session.Resolve<IKnowledgeRepository>();
+
+        UseCaseResult<RecordHistoryResponse> history = await session.RunAsync(
+            new ViewRecordHistoryUseCase(repository),
+            new ViewRecordHistoryRequest(world.Alpha, recordId),
+            World.Human(user));
+
+        ProvenanceView shown = Assert.Single(history.Value!.Revisions).Provenance;
+        Assert.True(shown.IsAiGenerated);
+        Assert.Equal(ProvenanceSourceKind.RepositoryAnalysis, shown.SourceKind);
+
+        // And the sweep that exists to catch an AI draft nobody reviewed now catches this one.
+        IReadOnlyList<QualityFinding> findings = await session.Resolve<IKnowledgeQualityChecks>()
+            .ValidateProvenanceAsync(world.Alpha, CancellationToken.None);
+
+        Assert.Contains(findings, finding => finding.RecordId == recordId && finding.Rule == "unreviewed-ai-draft");
+    }
+
+    [Fact]
+    public async Task a_person_revising_an_ai_draft_does_not_turn_it_into_their_own_work()
+    {
+        (World world, UserId user, KnowledgeRecordId recordId) = await DraftOverTheAiChannelAsync("CRQ-AI6");
+
+        using (Session revising = _fixture.OpenSession(world.Workspace))
+        {
+            UseCaseResult<LifecycleResult> revised = await revising.RunAsync(
+                new ReviseDraftUseCase(revising.Resolve<IKnowledgeRepository>(), revising.Resolve<IClock>()),
+                new ReviseDraftRequest(
+                    world.Alpha, recordId, "Import order", "Tidied by a person.",
+                    new DraftProvenance(ProvenanceSourceKind.HumanAuthored, "review/2026-09-15", "a reviewer", World.Now)),
+                World.Human(user));
+
+            Assert.True(revised.IsSuccess, revised.Reason);
+        }
+
+        using Session session = _fixture.OpenSession(world.Workspace);
+        KnowledgeRecord? record = await session.Resolve<IKnowledgeRepository>()
+            .FindRecordAsync(recordId, world.Alpha, CancellationToken.None);
+
+        Assert.NotNull(record);
+        Assert.Equal(2, record.Revisions.Count);
+        Assert.All(record.Revisions, revision => Assert.True(revision.Provenance.IsAiGenerated));
+    }
+
+    [Fact]
+    public async Task a_draft_a_person_writes_is_not_marked_as_ai_generated()
+    {
+        World world = await _fixture.CreateWorldAsync();
+        UserId user = await _fixture.CreateUserAsync($"ai-human-{Guid.NewGuid():N}@example.com");
+        await _fixture.GrantAsync(world.Workspace, user, Role.Reviewer, world.AlphaId);
+        await _fixture.EnableAiAccessAsync(world.Alpha, world.Founder);
+
+        WorkItem item = await _fixture.SeedWorkItemAsync(world.Alpha, "CRQ-AI7", world.Founder);
+
+        KnowledgeRecordId recordId;
+
+        using (Session drafting = _fixture.OpenSession(world.Workspace))
+        {
+            // AI access is on for the project. That changes nothing about a person's own draft.
+            UseCaseResult<LifecycleResult> draft = await drafting.RunAsync(
+                new CreateDraftUseCase(drafting.Resolve<IKnowledgeRepository>(), drafting.Resolve<IClock>()),
+                new CreateDraftRequest(
+                    world.Alpha, item.Id, RecordKind.Decision, "Import order", "Decided in the design review.",
+                    new DraftProvenance(ProvenanceSourceKind.HumanAuthored, "meeting/2026-09-15", "a person", World.Now)),
+                World.Human(user));
+
+            Assert.True(draft.IsSuccess, draft.Reason);
+            recordId = draft.Value!.RecordId;
+        }
+
+        using Session session = _fixture.OpenSession(world.Workspace);
+        KnowledgeRecord? record = await session.Resolve<IKnowledgeRepository>()
+            .FindRecordAsync(recordId, world.Alpha, CancellationToken.None);
+
+        Assert.NotNull(record);
+        Assert.False(record.CurrentRevision.Provenance.IsAiGenerated);
+    }
+
+    /// <summary>
+    /// A reviewer on Alpha, AI access on, and a draft written over the AI channel that names a
+    /// repository as its source rather than admitting to being an AI draft.
+    /// </summary>
+    private async Task<(World World, UserId User, KnowledgeRecordId RecordId)> DraftOverTheAiChannelAsync(string key)
+    {
+        World world = await _fixture.CreateWorldAsync();
+        UserId user = await _fixture.CreateUserAsync($"ai-prov-{Guid.NewGuid():N}@example.com");
+        await _fixture.GrantAsync(world.Workspace, user, Role.Reviewer, world.AlphaId);
+        await _fixture.EnableAiAccessAsync(world.Alpha, world.Founder);
+
+        WorkItem item = await _fixture.SeedWorkItemAsync(world.Alpha, key, world.Founder);
+
+        using Session session = _fixture.OpenSession(world.Workspace);
+
+        UseCaseResult<LifecycleResult> draft = await session.RunAsync(
+            new CreateDraftUseCase(session.Resolve<IKnowledgeRepository>(), session.Resolve<IClock>()),
+            new CreateDraftRequest(
+                world.Alpha, item.Id, RecordKind.Decision, "Import order", "The importer normalises first.",
+                new DraftProvenance(
+                    ProvenanceSourceKind.RepositoryAnalysis, "src/Importer.cs", "an assistant", World.Now,
+                    [new EvidenceReference(EvidenceObjectId.New(), "The importer source.")])),
+            World.Ai(user));
+
+        Assert.True(draft.IsSuccess, draft.Reason);
+        return (world, user, draft.Value!.RecordId);
+    }
+
+    /// <summary>
     /// Stands in for the Phase 6 analyser. These tests are about who may run an analysis, not
     /// about what one produces.
     /// </summary>

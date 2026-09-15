@@ -2,6 +2,7 @@ using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
 using DevBuddy.Domain.Common;
+using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
@@ -18,13 +19,64 @@ namespace DevBuddy.Application.UseCases.Lifecycle;
 // save; when the aggregate refuses, the exception becomes a Rejected result rather than being
 // swallowed here.
 
+/// <summary>
+/// Provenance as a caller states it: what the content was drawn from, who wrote it down, when,
+/// and what supports it.
+/// <para>
+/// Deliberately not the domain's <see cref="Provenance"/>. That type also records whether an AI
+/// wrote the content, and that is the one thing about provenance the writer cannot be trusted to
+/// say. Until 2026-09-15 both requests took the domain type directly: the generated schema
+/// offered <c>isAiGenerated</c> as an input, the value was discarded, and a draft written over
+/// the AI channel that named any source kind but <c>AiDraft</c> was reviewed and published as a
+/// person's work. The fact now comes from the channel, in <see cref="ForCaller"/>, and there is
+/// no field here for a caller to set.
+/// </para>
+/// </summary>
+public sealed record DraftProvenance(
+    ProvenanceSourceKind SourceKind,
+    string SourceLocator,
+    string Author,
+    DateTimeOffset RecordedAt,
+    IReadOnlyList<EvidenceReference>? Evidence = null)
+{
+    /// <summary>
+    /// The provenance to store for this caller. Anything arriving on the AI channel was written by
+    /// an AI, whatever it says it analysed; the source kind it names is kept as that, and only
+    /// that. A person may still declare <see cref="ProvenanceSourceKind.AiDraft"/> for text they
+    /// brought from an assistant, and that declaration is honoured.
+    /// </summary>
+    public Provenance ForCaller(CallerContext caller) =>
+        Build(isAiGenerated: Guard.NotNull(caller, nameof(caller)).Channel == AccessChannel.Ai);
+
+    /// <summary>
+    /// What the domain would refuse about this provenance, as validation messages, so a blank
+    /// locator is reported as invalid input before anything is loaded rather than as a rejection
+    /// after.
+    /// </summary>
+    internal IReadOnlyList<string> Problems()
+    {
+        try
+        {
+            Build(isAiGenerated: false);
+            return [];
+        }
+        catch (DomainValidationException invalid)
+        {
+            return [invalid.Message];
+        }
+    }
+
+    private Provenance Build(bool isAiGenerated) =>
+        new(SourceKind, SourceLocator, Author, RecordedAt, Evidence, isAiGenerated);
+}
+
 public sealed record CreateDraftRequest(
     ProjectScope Scope,
     WorkItemId WorkItemId,
     RecordKind Kind,
     string Title,
     string Body,
-    Provenance Provenance,
+    DraftProvenance Provenance,
     IReadOnlyDictionary<string, string>? FrontMatter = null) : ProjectRequest(Scope), IScannableRequest
 {
     public override string ResourceReference => WorkItemId.ToString();
@@ -73,6 +125,10 @@ public sealed record CreateDraftRequest(
             // exception into a readable validation message for the caller.
             errors.Add("A draft needs provenance: where this came from, who wrote it, and when.");
         }
+        else
+        {
+            errors.AddRange(Provenance.Problems());
+        }
 
         return errors;
     }
@@ -105,7 +161,7 @@ public sealed class CreateDraftUseCase(IKnowledgeRepository repository, IClock c
             request.Title,
             request.Body,
             request.FrontMatter,
-            request.Provenance,
+            request.Provenance.ForCaller(caller),
             _clock.UtcNow,
             caller.UserId);
 
@@ -122,7 +178,7 @@ public sealed record ReviseDraftRequest(
     KnowledgeRecordId RecordId,
     string Title,
     string Body,
-    Provenance Provenance,
+    DraftProvenance Provenance,
     IReadOnlyDictionary<string, string>? FrontMatter = null) : ProjectRequest(Scope), IScannableRequest
 {
     public override string ResourceReference => RecordId.ToString();
@@ -146,8 +202,26 @@ public sealed record ReviseDraftRequest(
         }
     }
 
-    public override IReadOnlyList<string> Validate() =>
-        string.IsNullOrWhiteSpace(Title) ? ["A revision needs a title."] : [];
+    public override IReadOnlyList<string> Validate()
+    {
+        List<string> errors = [];
+
+        if (string.IsNullOrWhiteSpace(Title))
+        {
+            errors.Add("A revision needs a title.");
+        }
+
+        if (Provenance is null)
+        {
+            errors.Add("A revision needs provenance: where this came from, who wrote it, and when.");
+        }
+        else
+        {
+            errors.AddRange(Provenance.Problems());
+        }
+
+        return errors;
+    }
 }
 
 /// <summary>
@@ -169,8 +243,15 @@ public sealed class ReviseDraftUseCase(IKnowledgeRepository repository, IClock c
         KnowledgeRecord record = await LifecycleSupport.LoadAsync(
             _repository, request.RecordId, request.Scope, cancellationToken);
 
+        // Not reachable over the AI channel today, and set from the channel anyway: the rule
+        // belongs to what a draft is, not to which operations happen to be exposed.
         record.AddRevision(
-            request.Title, request.Body, request.FrontMatter, request.Provenance, _clock.UtcNow, caller.UserId);
+            request.Title,
+            request.Body,
+            request.FrontMatter,
+            request.Provenance.ForCaller(caller),
+            _clock.UtcNow,
+            caller.UserId);
 
         await _repository.UpdateRecordAsync(record, cancellationToken);
         return CreateDraftUseCase.Describe(record);

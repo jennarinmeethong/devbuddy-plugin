@@ -95,6 +95,33 @@ public sealed class KnowledgeQualityTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task an_ai_draft_that_named_another_source_is_still_reported_for_review()
+    {
+        Seed seed = await Seed.CreateAsync(_fixture);
+        WorkItem item = await seed.AddWorkItemAsync(_fixture, seed.Alpha, "QLT-3B");
+
+        var provenance = new Provenance(
+            ProvenanceSourceKind.RepositoryAnalysis, "src/Importer.cs", "an assistant", Seed.Now,
+            [new EvidenceReference(EvidenceObjectId.New(), "Analysis output.")],
+            isAiGenerated: true);
+
+        KnowledgeRecord record = KnowledgeRecord.CreateDraft(
+            KnowledgeRecordId.New(), seed.Alpha, item.Id, RecordKind.Decision,
+            "Drafted by AI", "Body.", null, provenance, Seed.Now, seed.Author);
+
+        await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
+        await new KnowledgeRepository(context).AddRecordAsync(record, Ct);
+
+        IReadOnlyList<QualityFinding> findings =
+            await new KnowledgeQualityChecks(context).ValidateProvenanceAsync(seed.Alpha, Ct);
+
+        // This sweep reads rows rather than mapping them, so it applies the rule itself. It read
+        // the source kind alone until 2026-09-15, which let exactly this draft through.
+        Assert.Contains(findings, finding =>
+            finding.RecordId == record.Id && finding.Rule == "unreviewed-ai-draft");
+    }
+
+    [Fact]
     public async Task duplicate_detection_finds_two_records_with_identical_content()
     {
         Seed seed = await Seed.CreateAsync(_fixture);

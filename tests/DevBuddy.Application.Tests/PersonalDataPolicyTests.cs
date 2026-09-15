@@ -16,7 +16,7 @@ namespace DevBuddy.Application.Tests;
 public sealed class PersonalDataPolicyTests
 {
     private static CreateDraftRequest DraftContaining(string body) =>
-        new(TestData.Scope, TestData.WorkItem, RecordKind.Decision, "Title", body, TestData.Provenance);
+        new(TestData.Scope, TestData.WorkItem, RecordKind.Decision, "Title", body, TestData.Draft);
 
     [Fact]
     public async Task the_ai_channel_with_no_bounded_scope_blocks_personal_data_in_a_draft()

@@ -90,11 +90,11 @@ internal sealed class UseCaseRegistry
         Add(new CreateDraftUseCase(ports, ports),
             new CreateDraftRequest(
                 TestData.Scope, TestData.WorkItem, RecordKind.Decision,
-                "Title", "Body", TestData.Provenance));
+                "Title", "Body", TestData.Draft));
 
         Add(new ReviseDraftUseCase(ports, ports),
             new ReviseDraftRequest(
-                TestData.Scope, KnowledgeRecordId.New(), "Title", "Body", TestData.Provenance));
+                TestData.Scope, KnowledgeRecordId.New(), "Title", "Body", TestData.Draft));
 
         var recordAction = new RecordActionRequest(TestData.Scope, KnowledgeRecordId.New());
         Add(new SubmitForApprovalUseCase(ports, ports), recordAction);

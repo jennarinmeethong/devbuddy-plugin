@@ -98,12 +98,16 @@ public sealed class StdioPluginTests(ApiFixture fixture)
                 kind = "Decision",
                 title = "Rolling back a migration is itself a migration",
                 body = "Written by an assistant through the plugin, awaiting a person.",
+                // Naming what it analysed rather than admitting to being an AI draft, and sending
+                // the flag the schema used to advertise. This is the draft that was approved and
+                // published as a person's work against v1.2.1.
                 provenance = new
                 {
-                    sourceKind = "AiDraft",
+                    sourceKind = "RepositoryAnalysis",
                     sourceLocator = "plugin-walkthrough",
                     author = "an assistant",
                     recordedAt = DateTimeOffset.UtcNow,
+                    isAiGenerated = false,
                 },
             });
 
@@ -121,11 +125,22 @@ public sealed class StdioPluginTests(ApiFixture fixture)
             UseCaseCatalog.ListRecords.Name,
             new { scope, statuses = Draft });
 
-        Assert.Contains(
-            "Rolling back a migration is itself a migration",
-            queue.GetProperty("records").EnumerateArray()
-                .Select(record => record.GetProperty("title").GetString()),
-            StringComparer.Ordinal);
+        Guid recordId = queue.GetProperty("records").EnumerateArray()
+            .Single(record => record.GetProperty("title").GetString()
+                == "Rolling back a migration is itself a migration")
+            .GetProperty("recordId")
+            .GetGuid();
+
+        // What the reviewer is shown. The flag comes from the channel the draft arrived on, so
+        // neither the source kind it named nor the false it sent can hide who wrote it.
+        JsonElement history = await Post(
+            reviewer,
+            UseCaseCatalog.ViewRecordHistory.Name,
+            new { scope, recordId });
+
+        JsonElement provenance = history.GetProperty("revisions")[0].GetProperty("provenance");
+        Assert.True(provenance.GetProperty("isAiGenerated").GetBoolean());
+        Assert.Equal("RepositoryAnalysis", provenance.GetProperty("sourceKind").GetString());
     }
 
     [Fact]

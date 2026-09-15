@@ -74,7 +74,7 @@ public sealed class TelemetryTests
             new CreateDraftUseCase(harness.Ports, harness.Ports),
             new CreateDraftRequest(
                 TestData.Scope, TestData.WorkItem, RecordKind.Decision,
-                "Title", "token=SECRET", TestData.Provenance));
+                "Title", "token=SECRET", TestData.Draft));
 
         Measurement blocked = Assert.Single(
             metrics.Measurements, measurement => measurement.Instrument == "devbuddy.content.blocked");

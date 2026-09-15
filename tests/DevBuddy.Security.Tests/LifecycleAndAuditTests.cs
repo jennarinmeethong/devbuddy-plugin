@@ -25,7 +25,7 @@ namespace DevBuddy.Security.Tests;
 [Collection(SecurityCollection.Name)]
 public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
 {
-    private static readonly Provenance Source =
+    private static readonly DraftProvenance Source =
         new(ProvenanceSourceKind.HumanAuthored, "handover/2026-09-01", "Jennarin", World.Now);
 
     private readonly SecurityFixture _fixture = fixture;

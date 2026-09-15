@@ -114,6 +114,36 @@ public sealed class PersistenceTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task whether_an_ai_wrote_a_revision_is_stored_rather_than_recomputed_from_its_source_kind()
+    {
+        Seed seed = await Seed.CreateAsync(_fixture);
+        WorkItem item = await seed.AddWorkItemAsync(_fixture, seed.Alpha, "CRQ-AI");
+
+        var analysed = new Provenance(
+            ProvenanceSourceKind.RepositoryAnalysis, "src/Importer.cs", "an assistant", Seed.Now,
+            isAiGenerated: true);
+
+        KnowledgeRecord written = KnowledgeRecord.CreateDraft(
+            KnowledgeRecordId.New(), seed.Alpha, item.Id, RecordKind.Decision,
+            "Import order", "Drafted over MCP.", null, analysed, Seed.Now, seed.Author);
+
+        await using (DevBuddyDbContext writeContext = _fixture.CreateContext(seed.Workspace))
+        {
+            await new KnowledgeRepository(writeContext).AddRecordAsync(written, Ct);
+        }
+
+        await using DevBuddyDbContext readContext = _fixture.CreateContext(seed.Workspace);
+        KnowledgeRecord? read = await new KnowledgeRepository(readContext)
+            .FindRecordAsync(written.Id, seed.Alpha, Ct);
+
+        // Until 2026-09-15 only the source kind reached the jsonb column, and the flag was
+        // recomputed from it on load, so this came back false.
+        Assert.NotNull(read);
+        Assert.True(read.CurrentRevision.Provenance.IsAiGenerated);
+        Assert.Equal(ProvenanceSourceKind.RepositoryAnalysis, read.CurrentRevision.Provenance.SourceKind);
+    }
+
+    [Fact]
     public async Task the_stored_content_hash_matches_the_hash_recomputed_on_load()
     {
         Seed seed = await Seed.CreateAsync(_fixture);
