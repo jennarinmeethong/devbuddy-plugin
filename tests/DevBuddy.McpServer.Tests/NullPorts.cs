@@ -217,7 +217,7 @@ internal sealed class NullPorts :
 
     public Task<IReadOnlyList<AuditEvent>> QueryAsync(
         ProjectScope scope, DateTimeOffset occurredFrom, DateTimeOffset occurredUntil,
-        UserId? actorId, CancellationToken cancellationToken) =>
+        UserId? actorId, AuditChannel? channel, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
     public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken) =>

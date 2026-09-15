@@ -197,9 +197,16 @@ internal static class TypeScriptClient
             string[] members =
             [
                 .. enumeration.EnumerateArray()
-                    .Select(member => member.ValueKind == JsonValueKind.String
-                        ? $"\"{member.GetString()}\""
-                        : member.ToString())
+                    .Select(member => member.ValueKind switch
+                    {
+                        JsonValueKind.String => $"\"{member.GetString()}\"",
+
+                        // A nullable enum lists null among its members. JsonElement renders null
+                        // as an empty string, which emitted a dangling "|" and a client that did
+                        // not compile.
+                        JsonValueKind.Null => "null",
+                        _ => member.ToString(),
+                    })
             ];
 
             return members.Length == 0 ? "never" : string.Join(" | ", members);

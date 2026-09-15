@@ -819,6 +819,7 @@ export type ReadAuditHistoryArguments = {
   occurredFrom: string;
   occurredUntil: string;
   actorId?: string | null;
+  channel?: "Human" | "Ai" | "InternalSystem" | null;
   scope: {
     workspaceId: string;
     projectId: string;
@@ -831,6 +832,7 @@ export type ReadAuditHistoryResult = {
       workspaceId: string | null;
       projectId: string | null;
       actorId: string;
+      channel: "Human" | "Ai" | "InternalSystem" | null;
       action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded" | "EvidenceCaptured" | "EvidenceListed";
       outcome: "Succeeded" | "Denied" | "Failed";
       resourceReference: string;

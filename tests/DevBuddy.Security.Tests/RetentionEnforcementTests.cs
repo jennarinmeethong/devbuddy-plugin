@@ -37,13 +37,13 @@ public sealed class RetentionEnforcementTests(SecurityFixture fixture)
 
         await sink.WriteAsync(
             AuditEvent.ForWorkspace(
-                AuditEventId.New(), world.Workspace, world.Founder, AuditAction.RecordViewed,
+                AuditEventId.New(), world.Workspace, world.Founder, AuditChannel.Human, AuditAction.RecordViewed,
                 AuditOutcome.Succeeded, oldReference, new DateTimeOffset(2015, 1, 1, 0, 0, 0, TimeSpan.Zero)),
             CancellationToken.None);
 
         await sink.WriteAsync(
             AuditEvent.ForWorkspace(
-                AuditEventId.New(), world.Workspace, world.Founder, AuditAction.RecordViewed,
+                AuditEventId.New(), world.Workspace, world.Founder, AuditChannel.Human, AuditAction.RecordViewed,
                 AuditOutcome.Succeeded, recentReference, World.Now),
             CancellationToken.None);
 

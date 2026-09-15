@@ -553,7 +553,7 @@ internal sealed class FakePorts :
 
     public Task<IReadOnlyList<AuditEvent>> QueryAsync(
         ProjectScope scope, DateTimeOffset occurredFrom, DateTimeOffset occurredUntil, UserId? actorId,
-        CancellationToken cancellationToken)
+        AuditChannel? channel, CancellationToken cancellationToken)
     {
         Touch();
         return Task.FromResult<IReadOnlyList<AuditEvent>>([]);

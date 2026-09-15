@@ -379,6 +379,7 @@ internal sealed class AuditStore(DevBuddyDbContext db) : IAuditSink, IAuditReade
         DateTimeOffset occurredFrom,
         DateTimeOffset occurredUntil,
         UserId? actorId,
+        AuditChannel? channel,
         CancellationToken cancellationToken)
     {
         IQueryable<AuditEventRow> query = _db.AuditEvents
@@ -390,6 +391,14 @@ internal sealed class AuditStore(DevBuddyDbContext db) : IAuditSink, IAuditReade
         if (actorId is { } actor)
         {
             query = query.Where(entry => entry.ActorId == actor.Value);
+        }
+
+        // Equality in SQL never matches null, so a row from before channels were recorded is left
+        // out of every channel filter rather than being counted as any one of them.
+        if (channel is { } recorded)
+        {
+            int value = (int)recorded;
+            query = query.Where(entry => entry.Channel == value);
         }
 
         List<AuditEventRow> rows = await query

@@ -323,6 +323,13 @@ internal sealed class AuditEventRow
 
     public Guid ActorId { get; set; }
 
+    /// <summary>
+    /// The channel the request arrived on. Null for every row written before the column existed,
+    /// and deliberately left null by the migration rather than backfilled: nothing recorded which
+    /// channel wrote those rows, so any value put there would be invented.
+    /// </summary>
+    public int? Channel { get; set; }
+
     public int Action { get; set; }
 
     public int Outcome { get; set; }

@@ -119,9 +119,12 @@ internal sealed class InstallationBootstrapper(
 
         await credentials.SetPasswordAsync(administratorId, password, cancellationToken);
 
+        // InternalSystem: the bootstrap is a console command run before anybody exists to be a
+        // caller, which is why it sits outside the pipeline in the first place.
         await audit.WriteAsync(
             AuditEvent.ForWorkspace(
-                AuditEventId.New(), workspaceId, administratorId, AuditAction.MembershipGranted,
+                AuditEventId.New(), workspaceId, administratorId, AuditChannel.InternalSystem,
+                AuditAction.MembershipGranted,
                 AuditOutcome.Succeeded, $"workspace:{workspaceId.Value}", now,
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {

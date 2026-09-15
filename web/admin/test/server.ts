@@ -226,6 +226,7 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS): FakeServer 
           workspaceId: WORKSPACE,
           projectId: PROJECT,
           actorId: USER,
+          channel: "Ai",
           action: "RecordApproved",
           outcome: "Succeeded",
           resourceReference: RECORD,
