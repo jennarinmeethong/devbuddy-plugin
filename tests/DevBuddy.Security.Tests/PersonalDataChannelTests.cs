@@ -150,6 +150,61 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
         Assert.Contains("1990-04-12", view.Body, StringComparison.Ordinal);
     }
 
+    // The reproduction from 2026-09-15, with the two changes the rules require: an ID whose check
+    // digit is right, and an address at a domain that is not reserved for documentation.
+    private const string ThaiCustomerNote =
+        "ลูกค้า 1-1037-01234-56-3 โทร 081-234-5678 อีเมล somchai.testperson@devbuddy-fixture.co.th";
+
+    [Fact]
+    public async Task the_ai_channel_is_refused_thai_personal_data_when_no_bounded_scope_is_approved()
+    {
+        Ground ground = await Ground.CreateAsync(_fixture);
+        await _fixture.EnableAiAccessAsync(ground.World.Alpha, ground.World.Founder);
+
+        UseCaseResult<LifecycleResult> blocked = await ground.RunAsync(
+            new CreateDraftUseCase(ground.Repository, ground.Clock),
+            new CreateDraftRequest(
+                ground.World.Alpha, ground.WorkItem.Id, RecordKind.Decision,
+                "Customer escalation", ThaiCustomerNote, Source),
+            World.Ai(ground.Actor));
+
+        Assert.Equal(ExecutionOutcome.Blocked, blocked.Outcome);
+
+        string errors = string.Join(" ", blocked.ValidationErrors);
+        Assert.Contains("personal-data:thai-national-id", errors, StringComparison.Ordinal);
+        Assert.Contains("personal-data:thai-mobile-number", errors, StringComparison.Ordinal);
+        Assert.Contains("personal-data:email-address", errors, StringComparison.Ordinal);
+
+        int stored = await ground.Session.Db.KnowledgeRecords
+            .CountAsync(record => record.ProjectId == ground.World.AlphaId.Value);
+        Assert.Equal(0, stored);
+    }
+
+    [Fact]
+    public async Task a_read_over_the_ai_channel_redacts_thai_personal_data_when_no_bounded_scope_is_approved()
+    {
+        Ground ground = await Ground.CreateAsync(_fixture);
+        await _fixture.EnableAiAccessAsync(ground.World.Alpha, ground.World.Founder);
+
+        KnowledgeRecord record = KnowledgeRecord.CreateDraft(
+            KnowledgeRecordId.New(), ground.World.Alpha, ground.WorkItem.Id, RecordKind.TechnicalKnowledge,
+            "Legacy escalation", ThaiCustomerNote, frontMatter: null, Source, World.Now, ground.Actor);
+
+        await ground.Repository.AddRecordAsync(record, CancellationToken.None);
+
+        KnowledgeRecordView view = await ground.SucceedAsync(
+            new GetRecordUseCase(ground.Repository),
+            new GetRecordRequest(ground.World.Alpha, record.Id),
+            World.Ai(ground.Actor));
+
+        Assert.DoesNotContain("1-1037-01234-56-3", view.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("081-234-5678", view.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("devbuddy-fixture.co.th", view.Body, StringComparison.Ordinal);
+
+        // The surrounding Thai text is left as it was.
+        Assert.StartsWith("ลูกค้า [REDACTED] โทร [REDACTED] อีเมล [REDACTED]", view.Body, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task a_human_read_is_never_redacted_for_personal_data()
     {
