@@ -5,7 +5,8 @@ using DevBuddy.Application.Abstractions;
 namespace DevBuddy.Infrastructure.Scanning;
 
 /// <summary>
-/// Finds government ID numbers, payment card numbers, and explicitly labelled personal fields.
+/// Finds government ID numbers, payment card numbers, email addresses, Thai mobile numbers, and
+/// explicitly labelled personal fields.
 /// <para>
 /// Control SB-18. Unlike the secret scanner, whether a finding here blocks anything depends on
 /// where the pipeline is — the AI channel and whether the project has an approved bounded scope —
