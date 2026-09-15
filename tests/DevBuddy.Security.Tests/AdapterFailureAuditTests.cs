@@ -82,7 +82,8 @@ public sealed class AdapterFailureAuditTests(SecurityFixture fixture) : IDisposa
         var repository = SourceRepositoryId.New();
 
         UseCaseResult<ChangeImpactResponse> result = await session.RunAsync(
-            new AnalyzeChangeImpactUseCase(SourceSystem(session), Analyzer(session)),
+            new AnalyzeChangeImpactUseCase(
+                SourceSystem(session), Analyzer(session), session.Resolve<IKnowledgeRepository>()),
             new AnalyzeChangeImpactRequest(world.Alpha, repository, "main"),
             World.Ai(user));
 

@@ -71,7 +71,7 @@ public sealed class AdapterFailureTests
         var sourceSystem = new ThrowingSourceSystem(new OperationUnavailableException(reason));
 
         UseCaseResult<ChangeImpactResponse> result = await harness.RunAsync(
-            new AnalyzeChangeImpactUseCase(sourceSystem, harness.Ports),
+            new AnalyzeChangeImpactUseCase(sourceSystem, harness.Ports, harness.Ports),
             new AnalyzeChangeImpactRequest(TestData.Scope, TestData.Repository, "main"),
             TestData.Ai);
 
@@ -149,6 +149,11 @@ internal sealed class ThrowingAnalyzer(Exception failure) : ICodeAnalyzer
         AnalysisKind kind, ProjectScope scope, SourceRepositoryId? repositoryId, string? target,
         CancellationToken cancellationToken) =>
         Task.FromException<AnalysisReport>(failure);
+
+    public Task<IReadOnlyList<AnalysisObservation>> AnalyzeChangedPathsAsync(
+        ProjectScope scope, SourceRepositoryId repositoryId, IReadOnlyList<string> changedPaths,
+        CancellationToken cancellationToken) =>
+        Task.FromException<IReadOnlyList<AnalysisObservation>>(failure);
 }
 
 /// <summary>A source-system client whose every call fails with one exception.</summary>
