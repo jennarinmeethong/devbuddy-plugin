@@ -90,11 +90,9 @@ public sealed class GenerateHandoverUseCase(IKnowledgeRepository repository, ICl
     {
         List<string> questions = [];
 
-        if (item.Exclusions is null)
+        if (WorkItemGaps.MissingExclusions(item) is { } missingExclusions)
         {
-            // The most expensive question a later owner asks is what this work deliberately
-            // left out, so its absence is itself an open question.
-            questions.Add($"Work item {item.Key} does not record what is out of scope.");
+            questions.Add(missingExclusions);
         }
 
         questions.AddRange(records
@@ -119,6 +117,26 @@ public sealed class GenerateHandoverUseCase(IKnowledgeRepository repository, ICl
                 $"Record {record.Id} ({record.Kind}) cites no evidence for revision "
                 + $"{record.CurrentRevision.Number}.")
     ];
+}
+
+/// <summary>
+/// Gaps in a work item, worded once. The open questions for one work item and the analysis of a
+/// whole project's work items report the same gap, and they should not drift into saying it two
+/// different ways.
+/// </summary>
+public static class WorkItemGaps
+{
+    /// <summary>The open question a work item raises by not recording its exclusions, or null.</summary>
+    public static string? MissingExclusions(WorkItem item)
+    {
+        Guard.NotNull(item, nameof(item));
+
+        // The most expensive question a later owner asks is what this work deliberately left out,
+        // so its absence is itself an open question.
+        return item.Exclusions is null
+            ? $"Work item {item.Key} does not record what is out of scope."
+            : null;
+    }
 }
 
 public sealed record OpenQuestionsResponse(IReadOnlyList<string> Questions)
