@@ -157,4 +157,44 @@ corpus rows.
 
 ## Verification
 
-Filled in after the run on the Linux test machine; see below.
+Run on 2026-09-15 on the owner's Linux test machine, through `dotnetd` (the .NET SDK container),
+against a separate clone of this branch. `/data/devbuddy`, the checkout behind the running stack,
+was not touched.
+
+**At `a88044b`: 766 tests passed, 0 failed.** `dotnet format --verify-no-changes` was clean.
+
+| Project | Passed |
+|---|---|
+| DevBuddy.Infrastructure.Tests | 303, including 123 in `PersonalDataCorpusTests` |
+| DevBuddy.Application.Tests | 214 |
+| DevBuddy.Security.Tests | 115, including the two new real-pipeline tests below |
+| DevBuddy.Domain.Tests | 54 |
+| DevBuddy.Api.Tests | 49 |
+| DevBuddy.McpServer.Tests | 31 |
+
+New in `PersonalDataChannelTests`, over real PostgreSQL through the real pipeline:
+
+- **`the_ai_channel_is_refused_thai_personal_data_when_no_bounded_scope_is_approved`.** A draft
+  holding a Thai ID, a mobile number and an email address is Blocked, with nothing stored. It names
+  all three rules.
+- **`a_read_over_the_ai_channel_redacts_thai_personal_data_when_no_bounded_scope_is_approved`.**
+  `get_record` returns `ลูกค้า [REDACTED] โทร [REDACTED] อีเมล [REDACTED]…`.
+
+### Mutation checks
+
+Each guard was broken on purpose, the corpus tests were run, and the change was reverted.
+
+| Mutation | Result |
+|---|---|
+| Accept any 13-digit grouping without the mod-11 check | 3 failed: both 13-digit negatives, and the observed invented ID |
+| Drop the RFC 2606 exemption | 2 failed |
+| Remove the `@2x` asset guard | 1 failed |
+| Move `email-address` after `thai-mobile-number` | **First run: 0 failed.** The corpus row asserted only that the address no longer appeared whole, and the domain was being released. A test comparing the exact output was added (`a88044b`), and the mutation then failed 1 |
+
+### Not verified
+
+- **The manual MCP reproduction was not re-run** against a built image of this branch. The
+  real-pipeline tests cover the same path.
+- **The embedding sweep** was not run against the new rules.
+- **No measurement of false positives on real engineering text** was made. The false-positive
+  cases above come from the corpus, not from a sample of this installation's records.
