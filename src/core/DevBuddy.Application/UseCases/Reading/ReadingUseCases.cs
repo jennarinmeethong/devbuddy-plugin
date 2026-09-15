@@ -81,8 +81,10 @@ public sealed record GetRecordRequest(ProjectScope Scope, KnowledgeRecordId Reco
 }
 
 /// <summary>
-/// Reads one record. Defaults to the published revision when there is one, so a caller who does
-/// not ask for a specific revision never accidentally reads unapproved text (SB-26).
+/// Reads one record. Without a revision number it reads the published revision and nothing else,
+/// so a caller who does not ask for a specific revision never accidentally reads unapproved text
+/// (SB-26). A record that has never been published has no such revision and answers not found;
+/// reading one of its drafts takes asking for that revision by number.
 /// </summary>
 public sealed class GetRecordUseCase(IKnowledgeRepository repository)
     : UseCase<GetRecordRequest, KnowledgeRecordView>
@@ -110,7 +112,13 @@ public sealed class GetRecordUseCase(IKnowledgeRepository repository)
                 ?? throw new ResourceNotFoundException($"Revision {number} does not exist on this record.");
         }
 
-        return record.PublishedRevision ?? record.CurrentRevision;
+        // No fallback to the newest revision. A record that was never published holds nothing a
+        // reader is entitled to by default, and serving its draft instead is exactly the
+        // accidental read this default exists to prevent. Asking by number is the deliberate
+        // read: the review screen makes it, and so does the embedding sweep.
+        return record.PublishedRevision
+            ?? throw new ResourceNotFoundException(
+                $"Record {record.Id} has no published revision. Ask for a revision number to read an unpublished one.");
     }
 }
 

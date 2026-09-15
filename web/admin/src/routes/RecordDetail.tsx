@@ -20,26 +20,30 @@ export function RecordDetail() {
   const access = useWorkspace(workspaceId);
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
 
-  const record = useQuery({
-    queryKey: ["record", workspaceId, projectId, recordId],
-    queryFn: () => invoke("get_record", { scope, recordId: recordId! }),
-    enabled: Boolean(workspaceId && projectId && recordId),
-  });
-
   const history = useQuery({
     queryKey: ["history", workspaceId, projectId, recordId],
     queryFn: () => invoke("view_record_history", { scope, recordId: recordId! }),
     enabled: Boolean(workspaceId && projectId && recordId),
   });
 
-  if (history.isError) {
-    return <Failure error={history.error} />;
-  }
-
   const latest = history.data?.revisions.reduce(
     (newest, revision) => (newest && newest.number > revision.number ? newest : revision),
     history.data.revisions[0],
   );
+
+  // The newest revision, asked for by number. Without one, get_record serves the published
+  // revision and nothing else, and a record never published answers not found (SB-26). A review
+  // screen relying on that default would show a reviewer something other than the revision the
+  // approval below binds to, or nothing at all.
+  const record = useQuery({
+    queryKey: ["record", workspaceId, projectId, recordId, latest?.number],
+    queryFn: () => invoke("get_record", { scope, recordId: recordId!, revisionNumber: latest!.number }),
+    enabled: Boolean(workspaceId && projectId && recordId && latest),
+  });
+
+  if (history.isError) {
+    return <Failure error={history.error} />;
+  }
 
   return (
     <>
@@ -51,7 +55,7 @@ export function RecordDetail() {
       </div>
 
       <Panel
-        title="Current content"
+        title="Latest revision"
         actions={history.data ? <Badge>{history.data.status}</Badge> : null}
       >
         {record.isPending ? (
@@ -62,6 +66,11 @@ export function RecordDetail() {
           <article className="space-y-3">
             <p className="text-xs text-[var(--color-muted)]">
               Revision {record.data.revisionNumber}
+              {record.data.publishedRevisionNumber == null
+                ? " · never published"
+                : record.data.publishedRevisionNumber === record.data.revisionNumber
+                  ? " · published"
+                  : ` · not published, readers see revision ${record.data.publishedRevisionNumber}`}
               {record.data.provenance.isAiGenerated ? " · drafted by AI" : ""} · from{" "}
               {record.data.provenance.sourceLocator} · recorded by {record.data.provenance.author}
             </p>

@@ -170,7 +170,7 @@ public sealed class RetentionAndEgressTests(SecurityFixture fixture)
 
         KnowledgeRecordView view = await ground.SucceedAsync(
             new GetRecordUseCase(ground.Repository),
-            new GetRecordRequest(ground.World.Alpha, record.Id));
+            new GetRecordRequest(ground.World.Alpha, record.Id, RevisionNumber: 1));
 
         // The egress half catches what the retention half never saw.
         Assert.DoesNotContain("AKIAIOSFODNN7EXAMPLE", view.Body, StringComparison.Ordinal);

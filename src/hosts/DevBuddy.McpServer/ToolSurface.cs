@@ -47,8 +47,10 @@ public static class ToolSurface
                 + "get_record. Optional filters by status. Use it to see what a project holds "
                 + "before searching it.",
             ["get_record"] =
-                "Reads one knowledge record. Returns the published revision unless a specific "
-                + "revision number is asked for, so unapproved drafts are not served by accident.",
+                "Reads one knowledge record. Without a revision number it returns the published "
+                + "revision and nothing else, so unapproved drafts are not served by accident: a "
+                + "record that has never been published answers not found. Ask for a specific "
+                + "revision number to read that revision, published or not.",
             ["get_work_item"] =
                 "Reads work identity: type, title, goal, what is in scope, what is deliberately "
                 + "excluded, and the stakeholders.",
