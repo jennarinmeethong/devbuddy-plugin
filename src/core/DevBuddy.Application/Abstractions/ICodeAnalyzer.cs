@@ -19,6 +19,22 @@ public interface ICodeAnalyzer
         SourceRepositoryId? repositoryId,
         string? target,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// What a set of changed paths touches in the working copy: the project each belongs to, the
+    /// projects that depend on those, and which paths are tests, test results, documents, or API
+    /// contracts.
+    /// <para>
+    /// A list rather than a target, because every path is resolved through the guard on its own.
+    /// A path the change deleted is not on disk, and that is an ordinary answer rather than a
+    /// failure.
+    /// </para>
+    /// </summary>
+    Task<IReadOnlyList<AnalysisObservation>> AnalyzeChangedPathsAsync(
+        ProjectScope scope,
+        SourceRepositoryId repositoryId,
+        IReadOnlyList<string> changedPaths,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>Which read-only analysis to run. One member per analyse tool on the MCP surface.</summary>

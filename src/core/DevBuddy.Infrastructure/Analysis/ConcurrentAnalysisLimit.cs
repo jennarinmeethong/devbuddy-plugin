@@ -63,19 +63,37 @@ internal sealed class ConcurrentAnalysisLimit : ICodeAnalyzer
         _slots = Guard.NotNull(slots, nameof(slots));
     }
 
-    public async Task<AnalysisReport> AnalyzeAsync(
+    public Task<AnalysisReport> AnalyzeAsync(
         AnalysisKind kind,
         ProjectScope scope,
         SourceRepositoryId? repositoryId,
         string? target,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        RunAsync(
+            kind.ToString(),
+            token => _inner.AnalyzeAsync(kind, scope, repositoryId, target, token),
+            cancellationToken);
+
+    /// <summary>The same slot as every other analysis: it walks the same working copy.</summary>
+    public Task<IReadOnlyList<AnalysisObservation>> AnalyzeChangedPathsAsync(
+        ProjectScope scope,
+        SourceRepositoryId repositoryId,
+        IReadOnlyList<string> changedPaths,
+        CancellationToken cancellationToken) =>
+        RunAsync(
+            "ChangeImpact",
+            token => _inner.AnalyzeChangedPathsAsync(scope, repositoryId, changedPaths, token),
+            cancellationToken);
+
+    private async Task<T> RunAsync<T>(
+        string kind, Func<CancellationToken, Task<T>> analysis, CancellationToken cancellationToken)
     {
         if (!await _slots.WaitAsync(cancellationToken))
         {
             // Refused rather than queued indefinitely. A caller waiting forever behind a queue is
             // a caller who cannot tell a busy system from a broken one, and an assistant that got
             // no answer will simply ask again.
-            DevBuddyTelemetry.RecordAnalysisRejected(kind.ToString());
+            DevBuddyTelemetry.RecordAnalysisRejected(kind);
 
             throw new AnalysisBusyException(
                 "Too many analyses are already running. Try again shortly.");
@@ -85,12 +103,12 @@ internal sealed class ConcurrentAnalysisLimit : ICodeAnalyzer
 
         try
         {
-            return await _inner.AnalyzeAsync(kind, scope, repositoryId, target, cancellationToken);
+            return await analysis(cancellationToken);
         }
         finally
         {
             _slots.Release();
-            DevBuddyTelemetry.RecordAnalysis(kind.ToString(), Stopwatch.GetElapsedTime(started));
+            DevBuddyTelemetry.RecordAnalysis(kind, Stopwatch.GetElapsedTime(started));
         }
     }
 }

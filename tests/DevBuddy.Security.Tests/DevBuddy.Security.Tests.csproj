@@ -14,6 +14,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Real git objects for the change-impact scenario, written rather than produced by running
+         git. One copy of the writer, so both suites read the format the same way. -->
+    <Compile Include="..\DevBuddy.Infrastructure.Tests\GitFixture.cs" Link="GitFixture.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />

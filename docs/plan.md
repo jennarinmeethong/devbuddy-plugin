@@ -472,6 +472,34 @@ Source synchronisation, closed after the phase was first reported:
 - **A provider API adapter is still worth having** for pull requests, issues, and review threads,
   which a working copy does not carry. ADR-0010 is unchanged and the port is unchanged.
 
+`analyze_change_impact` reported no impact until 2026-09-15, found over MCP against `v1.2.1`. The
+changed paths were right. The use case then joined them with semicolons and handed the analyser
+that one string as a target, and the analyser resolved it as a single path that did not exist. It
+answered `impact: []` for every call, even with a published record citing the changed file. The
+unit test passed throughout because its fake analyser ignored the target. What it reports now:
+
+- **Where each changed path sits.** Every path is resolved through `PathGuard` on its own:
+  - the nearest project or package manifest above it, as `project`, or `no-project` when there is
+    none;
+  - `path-refused` for a path that climbs out of the working copy;
+  - for a path the change deleted, the directories that still exist are walked, and nothing throws.
+- **What depends on it.** Every project that references an affected .NET project, directly or
+  through another one, is reported as `dependent-project`. This is read from `ProjectReference`
+  with the same string scanning `analyze_architecture` uses.
+- **What kind of file it is.** `test`, `test-evidence` (the `analyze_test_evidence` rule),
+  `document`, and `api-contract` — `.proto`, GraphQL, WSDL, `openapi.*`, `swagger.*` — come from
+  the name alone, so they are answered even with no working copy mounted, which says so.
+- **What recorded knowledge cites it.** A `knowledge-record` is a record whose **published**
+  revision cites the path, in its provenance source locator or a front-matter value:
+  - the path may be exact or followed by `@ref`, `#fragment` or `:line`;
+  - drafts, a newer draft on top of a published revision, archived records and other projects never
+    appear (SB-26);
+  - the record is named by identifier, kind and revision, never by title or body, because the
+    operation is authorised on `AnalyzeProject` and `get_record` is the door to content.
+
+Not covered: the public API surface of source files, since there is no parsing, and a citation in
+a record body or in a URL form of the path.
+
 ---
 
 ## Phase 7 — Entry points: API, MCP server, console

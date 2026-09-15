@@ -39,6 +39,19 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
 
     private static readonly string[] TestEvidenceExtensions = [".trx", ".xml", ".json"];
 
+    /// <summary>
+    /// Project files, as distinct from solutions. A solution contains projects; it is not the
+    /// module a file belongs to, and treating one as such would claim every file beneath it.
+    /// </summary>
+    private static readonly string[] ProjectFileExtensions = [".csproj", ".fsproj", ".vbproj"];
+
+    private static readonly string[] TestDirectoryNames = ["test", "tests", "__tests__", "spec", "specs"];
+
+    private static readonly string[] ContractExtensions = [".proto", ".graphql", ".gql", ".wsdl"];
+
+    /// <summary>Ceiling on dependent projects reported for one change, for the same reason as the file ceiling.</summary>
+    private const int MaxDependents = 200;
+
     private readonly IKnowledgeRepository _knowledge;
     private readonly AnalysisOptions _options;
 
@@ -57,20 +70,7 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
     {
         Guard.Defined(kind, nameof(kind));
 
-        // Its own deadline, so one pathological repository cannot hold a request open (SB-22).
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        if (_options.Timeout <= TimeSpan.Zero)
-        {
-            // A non-positive budget means no time, not unlimited time. Failing closed on a
-            // misconfiguration is the whole point of having a limit, and it makes the limit
-            // testable without racing a timer.
-            await deadline.CancelAsync();
-        }
-        else
-        {
-            deadline.CancelAfter(_options.Timeout);
-        }
+        using CancellationTokenSource deadline = await StartDeadlineAsync(cancellationToken);
 
         if (kind == AnalysisKind.WorkItems)
         {
@@ -122,6 +122,312 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
                 + "incomplete. Narrow the target or raise the limit.",
                 []);
         }
+    }
+
+    public async Task<IReadOnlyList<AnalysisObservation>> AnalyzeChangedPathsAsync(
+        ProjectScope scope,
+        SourceRepositoryId repositoryId,
+        IReadOnlyList<string> changedPaths,
+        CancellationToken cancellationToken)
+    {
+        Guard.NotNull(changedPaths, nameof(changedPaths));
+
+        using CancellationTokenSource deadline = await StartDeadlineAsync(cancellationToken);
+
+        string[] paths =
+        [
+            .. changedPaths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => path.Replace('\\', '/'))
+                .Distinct(StringComparer.Ordinal)
+        ];
+
+        // What a path is needs only its name, so it is answered whether or not anything is mounted.
+        List<AnalysisObservation> observations = [.. paths.SelectMany(Classify)];
+
+        if (!_options.IsAnalysable(scope, repositoryId))
+        {
+            observations.Add(new AnalysisObservation(
+                "working-copy",
+                _options.IsConfigured
+                    ? "No working copy is mounted for this repository, so the changed paths were not mapped to projects."
+                    : "Analysis:RootPath is not configured for this installation, so the changed paths were not mapped to projects.",
+                repositoryId.ToString()));
+
+            return observations;
+        }
+
+        PathGuard guard = _options.GuardFor(scope, repositoryId).Create();
+
+        try
+        {
+            var affectedProjects = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (string path in paths)
+            {
+                deadline.Token.ThrowIfCancellationRequested();
+                string resolved;
+
+                try
+                {
+                    // One path at a time. The names come from git objects somebody else wrote, so
+                    // a crafted tree entry that climbs out is refused and said to be, not read.
+                    resolved = guard.Resolve(path);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    observations.Add(new AnalysisObservation(
+                        "path-refused", "This path resolves outside the working copy and was not read.", path));
+                    continue;
+                }
+
+                string[] manifests = NearestManifests(guard, resolved, deadline.Token);
+
+                if (manifests.Length == 0)
+                {
+                    observations.Add(new AnalysisObservation(
+                        "no-project", "No project or package manifest encloses this path.", path));
+                    continue;
+                }
+
+                foreach (string manifest in manifests)
+                {
+                    observations.Add(new AnalysisObservation("project", manifest, path));
+                    affectedProjects.Add(manifest);
+                }
+            }
+
+            observations.AddRange(Dependents(guard, affectedProjects, deadline.Token));
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // What was found before the deadline is still true; it is returned with a line saying
+            // it stops short, rather than discarded or passed off as the whole answer (SB-22).
+            observations.Add(new AnalysisObservation(
+                "incomplete",
+                $"The analysis was stopped after {_options.Timeout.TotalSeconds:0.###} seconds, so this "
+                + "impact is incomplete. Narrow the range or raise the limit.",
+                repositoryId.ToString()));
+        }
+
+        return observations;
+    }
+
+    /// <summary>Its own deadline, so one pathological repository cannot hold a request open (SB-22).</summary>
+    private async Task<CancellationTokenSource> StartDeadlineAsync(CancellationToken cancellationToken)
+    {
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        if (_options.Timeout <= TimeSpan.Zero)
+        {
+            // A non-positive budget means no time, not unlimited time. Failing closed on a
+            // misconfiguration is the whole point of having a limit, and it makes the limit
+            // testable without racing a timer.
+            await deadline.CancelAsync();
+        }
+        else
+        {
+            deadline.CancelAfter(_options.Timeout);
+        }
+
+        return deadline;
+    }
+
+    /// <summary>
+    /// What kind of file a changed path is, from its name alone. The test-evidence rule is the one
+    /// <c>analyze_test_evidence</c> uses, so the two analyses cannot disagree about a file.
+    /// </summary>
+    private static IEnumerable<AnalysisObservation> Classify(string path)
+    {
+        string name = path[(path.LastIndexOf('/') + 1)..];
+        string extension = Path.GetExtension(name).ToLowerInvariant();
+
+        if (IsTestSource(path, extension))
+        {
+            yield return new AnalysisObservation("test", "Test source", path);
+        }
+        else if (IsTestEvidence(path, extension))
+        {
+            yield return new AnalysisObservation("test-evidence", "Test result file", path);
+        }
+
+        if (DocumentExtensions.Contains(extension, StringComparer.Ordinal))
+        {
+            yield return new AnalysisObservation("document", "Document", path);
+        }
+
+        if (ContractExtensions.Contains(extension, StringComparer.Ordinal)
+            || (extension is ".json" or ".yaml" or ".yml"
+                && (name.StartsWith("openapi", StringComparison.OrdinalIgnoreCase)
+                    || name.StartsWith("swagger", StringComparison.OrdinalIgnoreCase))))
+        {
+            yield return new AnalysisObservation("api-contract", "API contract or schema definition", path);
+        }
+    }
+
+    private static bool IsTestEvidence(string relativePath, string extension) =>
+        TestEvidenceExtensions.Contains(extension, StringComparer.Ordinal)
+        && (relativePath.Contains("test", StringComparison.OrdinalIgnoreCase) || extension == ".trx");
+
+    /// <summary>
+    /// Source code in a test directory or test project, or named the way test runners find tests.
+    /// By segment and suffix rather than by substring, so <c>src/Attestation/Signer.cs</c> is not a test.
+    /// </summary>
+    private static bool IsTestSource(string relativePath, string extension)
+    {
+        if (!CodeExtensions.Contains(extension, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        string[] segments = relativePath.Split('/');
+        string stem = Path.GetFileNameWithoutExtension(segments[^1]);
+
+        return segments[..^1].Any(segment =>
+                TestDirectoryNames.Contains(segment, StringComparer.OrdinalIgnoreCase)
+                || segment.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase)
+                || segment.EndsWith(".Test", StringComparison.OrdinalIgnoreCase))
+            || stem.EndsWith("Tests", StringComparison.Ordinal)
+            || stem.EndsWith("Test", StringComparison.Ordinal)
+            || stem.EndsWith(".test", StringComparison.OrdinalIgnoreCase)
+            || stem.EndsWith(".spec", StringComparison.OrdinalIgnoreCase)
+            || stem.StartsWith("test_", StringComparison.Ordinal)
+            || stem.EndsWith("_test", StringComparison.Ordinal);
+    }
+
+    private static bool IsManifest(string fileName) =>
+        ManifestNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
+        || IsProjectFile(fileName);
+
+    private static bool IsProjectFile(string path) =>
+        ProjectFileExtensions.Contains(Path.GetExtension(path).ToLowerInvariant(), StringComparer.Ordinal);
+
+    /// <summary>
+    /// The manifests in the nearest directory above a path that has any, relative to the root.
+    /// <para>
+    /// Upward from the path's own directory, which the change may have deleted along with the
+    /// file. A directory that is not there is passed over rather than read, so a deleted path
+    /// still maps to the project that held it when that project survives.
+    /// </para>
+    /// </summary>
+    private static string[] NearestManifests(PathGuard guard, string resolved, CancellationToken cancellationToken)
+    {
+        string? directory = Path.GetDirectoryName(resolved);
+
+        while (directory is not null && guard.IsInside(directory))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (Directory.Exists(directory))
+            {
+                string[] manifests =
+                [
+                    .. SafeEnumerate(directory, Directory.EnumerateFiles)
+                        .Where(file => IsManifest(Path.GetFileName(file)) && guard.IsInside(file))
+                        .Select(file => Path.GetRelativePath(guard.Root, file).Replace('\\', '/'))
+                        .Order(StringComparer.Ordinal)
+                ];
+
+                if (manifests.Length > 0)
+                {
+                    return manifests;
+                }
+            }
+
+            // Inside the root and no longer than it: this is the root, and there is no further up.
+            if (directory.Length <= guard.Root.Length)
+            {
+                break;
+            }
+
+            directory = Path.GetDirectoryName(directory);
+        }
+
+        return [];
+    }
+
+    /// <summary>
+    /// Projects that reference an affected project, directly or through another one.
+    /// <para>
+    /// Read from ProjectReference elements with the string scanning the architecture analysis
+    /// uses, and every referenced path is resolved through the guard, so a reference climbing out
+    /// of the working copy names nothing. Only .NET project references are followed; a package
+    /// manifest's dependencies name registry packages, not paths in this working copy.
+    /// </para>
+    /// </summary>
+    private List<AnalysisObservation> Dependents(
+        PathGuard guard, IReadOnlySet<string> affected, CancellationToken cancellationToken)
+    {
+        List<AnalysisObservation> observations = [];
+
+        if (!affected.Any(IsProjectFile))
+        {
+            return observations;
+        }
+
+        var referencedBy = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+        foreach (ScannedFile project in Walk(guard, target: null, cancellationToken).Where(file => IsProjectFile(file.FullPath)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string? text = TryRead(guard, project, cancellationToken);
+            string? directory = Path.GetDirectoryName(project.FullPath);
+
+            if (text is null || directory is null)
+            {
+                continue;
+            }
+
+            foreach (string include in ExtractIncludes(text, "ProjectReference"))
+            {
+                string referenced;
+
+                try
+                {
+                    referenced = guard.Resolve(Path.Combine(directory, include.Replace('\\', '/')));
+                }
+                catch (Exception exception) when (exception is UnauthorizedAccessException
+                    or DomainValidationException or ArgumentException)
+                {
+                    continue;
+                }
+
+                string key = Path.GetRelativePath(guard.Root, referenced).Replace('\\', '/');
+
+                if (!referencedBy.TryGetValue(key, out List<string>? dependents))
+                {
+                    referencedBy[key] = dependents = [];
+                }
+
+                dependents.Add(project.RelativePath);
+            }
+        }
+
+        // Breadth first, so a direct dependent is reported before one that depends on it, and a
+        // project already named — affected itself, or reached another way — is named once.
+        var seen = new HashSet<string>(affected, StringComparer.Ordinal);
+        var pending = new Queue<string>(affected.Where(IsProjectFile).Order(StringComparer.Ordinal));
+
+        while (pending.Count > 0 && observations.Count < MaxDependents)
+        {
+            string current = pending.Dequeue();
+
+            if (!referencedBy.TryGetValue(current, out List<string>? dependents))
+            {
+                continue;
+            }
+
+            foreach (string dependent in dependents.Order(StringComparer.Ordinal))
+            {
+                if (observations.Count < MaxDependents && seen.Add(dependent))
+                {
+                    observations.Add(new AnalysisObservation("dependent-project", dependent, current));
+                    pending.Enqueue(dependent);
+                }
+            }
+        }
+
+        return observations;
     }
 
     /// <summary>
@@ -394,10 +700,7 @@ internal sealed class FileSystemCodeAnalyzer : ICodeAnalyzer
     {
         ScannedFile[] candidates =
         [
-            .. files.Where(file =>
-                TestEvidenceExtensions.Contains(file.Extension, StringComparer.Ordinal)
-                && (file.RelativePath.Contains("test", StringComparison.OrdinalIgnoreCase)
-                    || file.Extension == ".trx"))
+            .. files.Where(file => IsTestEvidence(file.RelativePath, file.Extension))
         ];
 
         return new AnalysisReport(
