@@ -61,8 +61,11 @@ public static class ToolSurface
                 "Every revision of one record, with its content hash and the approval that covers "
                 + "it. Use this to see what was approved and what was not.",
             ["compare_snapshots"] =
-                "Compares two source-system snapshots of a repository and reports which references "
-                + "moved. Reports differences; does not resolve them.",
+                "Compares two references of a repository and reports the commit each points at, "
+                + "whether the commit moved between them, and the paths that differ. A reference is "
+                + "a full name such as refs/tags/v1.0, a bare tag or branch name (tags are tried "
+                + "first, as git does, and the answer names the one matched), HEAD, or a full "
+                + "40-character commit id. Reports differences; does not resolve them.",
             ["analyze_project"] =
                 "Read-only survey of a project working copy: file types, sizes, and manifests.",
             ["analyze_code"] =

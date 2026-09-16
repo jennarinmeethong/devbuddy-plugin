@@ -14,4 +14,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Writes real git objects rather than running git. Shared, not copied, so the host test of
+         compare_snapshots reads the same format the reader's own tests prove it can read. -->
+    <Compile Include="..\DevBuddy.Infrastructure.Tests\GitFixture.cs" Link="GitFixture.cs" />
+  </ItemGroup>
+
 </Project>

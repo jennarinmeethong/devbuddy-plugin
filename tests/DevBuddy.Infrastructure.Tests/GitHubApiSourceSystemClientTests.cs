@@ -69,6 +69,24 @@ public sealed class GitHubApiSourceSystemClientTests
         Assert.Equal(["src/api.cs"], changeSet.ChangedPaths);
     }
 
+    [Theory]
+    [InlineData("v0.1.0")]
+    [InlineData("refs/tags/v0.1.0")]
+    public async Task a_reference_resolves_to_the_commit_github_reports_for_it(string reference)
+    {
+        var handler = new FakeHandler();
+        handler.Respond("/repos/acme/widgets/commits/v0.1.0", """
+            { "sha": "34c8f7a000000000000000000000000000000000",
+              "commit": { "author": { "name": "Jennarin", "date": "2026-09-01T09:00:00Z" } } }
+            """);
+
+        ResolvedReference resolved = await Client(handler).ResolveReferenceAsync(Repository, Scope, reference, Ct);
+
+        // The commits endpoint takes the short name and follows an annotated tag itself.
+        Assert.Equal("34c8f7a000000000000000000000000000000000", resolved.CommitId);
+        Assert.Equal(reference, resolved.Reference);
+    }
+
     [Fact]
     public async Task pull_requests_are_read_and_the_issues_endpoint_filters_out_pull_requests()
     {

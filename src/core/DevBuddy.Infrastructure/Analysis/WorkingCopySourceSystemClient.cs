@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Pipeline;
 using DevBuddy.Domain.Common;
@@ -54,6 +55,18 @@ internal sealed class WorkingCopySourceSystemClient : ISourceSystemClient
             repositoryId, head.Reference, head.CommitId, _clock.UtcNow, links));
     }
 
+    /// <inheritdoc/>
+    public Task<ResolvedReference> ResolveReferenceAsync(
+        SourceRepositoryId repositoryId,
+        ProjectScope scope,
+        string reference,
+        CancellationToken cancellationToken)
+    {
+        Guard.NotBlank(reference, nameof(reference));
+
+        return Task.FromResult(ResolveRevision(Open(scope, repositoryId), reference));
+    }
+
     /// <summary>
     /// The paths a commit or a range touched.
     /// <para>
@@ -73,11 +86,11 @@ internal sealed class WorkingCopySourceSystemClient : ISourceSystemClient
         GitObjectStore store = Open(scope, repositoryId);
         (string? fromRevision, string toRevision) = SplitRange(commitOrRange);
 
-        GitCommit target = store.ReadCommit(Resolve(store, toRevision));
+        GitCommit target = store.ReadCommit(ResolveRevision(store, toRevision).CommitId);
 
         string? baseTree = fromRevision is null
             ? target.Parents.Count > 0 ? store.ReadCommit(target.Parents[0]).TreeSha : null
-            : store.ReadCommit(Resolve(store, fromRevision)).TreeSha;
+            : store.ReadCommit(ResolveRevision(store, fromRevision).CommitId).TreeSha;
 
         IReadOnlyDictionary<string, string> after = store.FlattenTree(target.TreeSha, cancellationToken);
 
@@ -205,13 +218,85 @@ internal sealed class WorkingCopySourceSystemClient : ISourceSystemClient
             : (commitOrRange[..separator].Trim(), commitOrRange[(separator + 2)..].Trim());
     }
 
-    /// <summary>A full object identifier, or a reference name resolved to one.</summary>
-    private static string Resolve(GitObjectStore store, string revision) =>
-        revision.Length == 40 && revision.All(Uri.IsHexDigit)
-            ? revision.ToLowerInvariant()
-            : store.ResolveReference(revision.StartsWith("refs/", StringComparison.Ordinal)
-                ? revision
-                : $"refs/heads/{revision}");
+    /// <summary>
+    /// A revision, resolved to the reference it matched and the commit it ends at.
+    /// <para>
+    /// A full object identifier stands for itself, <c>HEAD</c> for whatever HEAD is on, and a name
+    /// beginning <c>refs/</c> for exactly that reference. A bare name is looked up in the order
+    /// <c>git rev-parse</c> uses — tags, then branches, then remote-tracking branches — so the
+    /// answer is the one a person checking by hand would get, and the name it matched is returned
+    /// so that choice is visible rather than silent. Until 2026-09-15 only <c>refs/heads/</c> was
+    /// tried, so a bare tag name was not found.
+    /// </para>
+    /// <para>
+    /// Names are looked up among the references the store enumerated, never turned into a path,
+    /// so a revision shaped like <c>refs/../HEAD</c> matches nothing rather than reading a file.
+    /// </para>
+    /// </summary>
+    private static ResolvedReference ResolveRevision(GitObjectStore store, string revision)
+    {
+        string trimmed = revision.Trim();
+
+        if (trimmed.Length == 40 && trimmed.All(Uri.IsHexDigit))
+        {
+            string id = trimmed.ToLowerInvariant();
+            return new ResolvedReference(id, store.PeelToCommit(id));
+        }
+
+        if (string.Equals(trimmed, "HEAD", StringComparison.Ordinal))
+        {
+            GitHead head = store.ReadHead();
+            return new ResolvedReference(head.Reference, store.PeelToCommit(head.CommitId));
+        }
+
+        IReadOnlyDictionary<string, string> references = store.EnumerateReferences();
+
+        string[] candidates = trimmed.StartsWith("refs/", StringComparison.Ordinal)
+            ? [trimmed]
+            : [$"refs/tags/{trimmed}", $"refs/heads/{trimmed}", $"refs/remotes/{trimmed}", $"refs/remotes/{trimmed}/HEAD"];
+
+        foreach (string candidate in candidates)
+        {
+            if (TryFollow(references, candidate, out string? target))
+            {
+                return new ResolvedReference(candidate, store.PeelToCommit(target));
+            }
+        }
+
+        throw new ResourceNotFoundException(
+            trimmed.StartsWith("refs/", StringComparison.Ordinal)
+                ? $"The reference {trimmed} does not exist in this working copy."
+                : $"No tag, branch, or remote-tracking branch named {trimmed} exists in this working copy.");
+    }
+
+    /// <summary>
+    /// The object a reference names, following a symbolic reference (<c>ref: refs/...</c>, the
+    /// form <c>refs/remotes/origin/HEAD</c> takes) a bounded number of times.
+    /// </summary>
+    private static bool TryFollow(
+        IReadOnlyDictionary<string, string> references, string name, [NotNullWhen(true)] out string? target)
+    {
+        string current = name;
+
+        for (int depth = 0; depth < 5; depth++)
+        {
+            if (!references.TryGetValue(current, out string? value))
+            {
+                break;
+            }
+
+            if (!value.StartsWith("ref:", StringComparison.Ordinal))
+            {
+                target = value;
+                return true;
+            }
+
+            current = value["ref:".Length..].Trim();
+        }
+
+        target = null;
+        return false;
+    }
 
     private static Dictionary<string, string> ToMap(IReadOnlyList<string> links)
     {

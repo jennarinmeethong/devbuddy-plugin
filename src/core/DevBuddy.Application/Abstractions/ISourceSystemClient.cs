@@ -23,8 +23,25 @@ public interface ISourceSystemClient
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Compares a stored snapshot against the origin and reports what moved. Divergence is
-    /// surfaced for a human to interpret, never resolved automatically.
+    /// The commit one reference points at now, and the name it was resolved through. An annotated
+    /// tag is followed to the commit it tags. Throws <c>ResourceNotFoundException</c> when the
+    /// reference does not exist, so a caller is told that rather than handed a fault.
+    /// </summary>
+    Task<ResolvedReference> ResolveReferenceAsync(
+        SourceRepositoryId repositoryId,
+        ProjectScope scope,
+        string reference,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Compares two snapshots of one repository taken at different times and reports what moved.
+    /// Divergence is surfaced for a human to interpret, never resolved automatically.
+    /// <para>
+    /// Two <em>moments</em>, not two references: both arguments must have come from
+    /// <see cref="FetchSnapshotAsync"/>. Relabelling one snapshot with two reference names gives two
+    /// sides with the same commit, which is how <c>compare_snapshots</c> reported nothing but a
+    /// renamed reference until 2026-09-15. Two references are <see cref="ResolveReferenceAsync"/>.
+    /// </para>
     /// </summary>
     Task<IReadOnlyList<SnapshotDifference>> CompareAsync(
         SourceSnapshot earlier, SourceSnapshot later, CancellationToken cancellationToken);
@@ -59,6 +76,12 @@ public sealed record SourceSnapshot(
     string CommitId,
     DateTimeOffset CapturedAt,
     IReadOnlyList<string> Links);
+
+/// <summary>
+/// A reference as the source system resolved it: the name it matched — the full reference name
+/// where the client can tell, the identifier itself when one was given — and the commit it points at.
+/// </summary>
+public sealed record ResolvedReference(string Reference, string CommitId);
 
 /// <summary>The files a commit or diff touched. Input to change-impact analysis.</summary>
 public sealed record ChangeSet(

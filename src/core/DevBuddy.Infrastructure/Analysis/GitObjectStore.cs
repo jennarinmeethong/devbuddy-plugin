@@ -117,6 +117,46 @@ internal sealed class GitObjectStore
     }
 
     /// <summary>
+    /// The commit an object identifier ends at. A branch or a lightweight tag already names a
+    /// commit; an annotated tag names a tag object, whose <c>object</c> header names what it tags —
+    /// possibly another tag. Bounded, because a repository under study can be shaped to make an
+    /// unbounded walk run forever.
+    /// </summary>
+    public string PeelToCommit(string sha)
+    {
+        const int maxTagDepth = 10;
+        string current = sha;
+
+        for (int depth = 0; depth < maxTagDepth; depth++)
+        {
+            (string type, byte[] payload) = ReadObject(current);
+
+            if (type == "commit")
+            {
+                return current;
+            }
+
+            if (type != "tag")
+            {
+                throw new InvalidOperationException($"Object {sha} leads to a {type}, not a commit.");
+            }
+
+            string? target = Encoding.UTF8.GetString(payload)
+                .Split('\n')
+                .TakeWhile(line => line.Length > 0)
+                .Where(line => line.StartsWith("object ", StringComparison.Ordinal))
+                .Select(line => line["object ".Length..].Trim())
+                .FirstOrDefault();
+
+            current = target
+                ?? throw new InvalidOperationException($"Tag object {current} names no object.");
+        }
+
+        throw new InvalidOperationException(
+            $"Object {sha} is a chain of more than {maxTagDepth} tags, which is not followed.");
+    }
+
+    /// <summary>
     /// A commit, parsed from its object. The header is text up to the first blank line; the rest
     /// is the message.
     /// </summary>

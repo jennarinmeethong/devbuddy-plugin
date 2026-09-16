@@ -1,4 +1,5 @@
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Pipeline;
 using DevBuddy.Application.Security;
 using DevBuddy.Application.UseCases.Lifecycle;
 using DevBuddy.Domain.Access;
@@ -263,11 +264,38 @@ internal sealed class FakePorts :
         return Task.FromResult(new SourceSnapshot(repositoryId, "main", "abc123", TestData.Now, ["link"]));
     }
 
+    /// <summary>The last commit or range a change set was asked for.</summary>
+    public string? LastCommitOrRange { get; private set; }
+
+    /// <summary>True simulates a working copy whose objects are packed, so no tree can be read.</summary>
+    public bool ChangeSetsUnsupported { get; set; }
+
     public Task<ChangeSet> FetchChangeSetAsync(
         SourceRepositoryId repositoryId, ProjectScope scope, string commitOrRange, CancellationToken cancellationToken)
     {
         Touch();
-        return Task.FromResult(new ChangeSet(commitOrRange, ["src/importer.cs"], "Jennarin", TestData.Now));
+        LastCommitOrRange = commitOrRange;
+
+        return ChangeSetsUnsupported
+            ? throw new NotSupportedException("fake: the objects are packed")
+            : Task.FromResult(new ChangeSet(commitOrRange, ["src/importer.cs"], "Jennarin", TestData.Now));
+    }
+
+    /// <summary>What each reference resolves to. A name missing from here is not found.</summary>
+    public Dictionary<string, string> References { get; } = new(StringComparer.Ordinal)
+    {
+        ["v1"] = "1111111111111111111111111111111111111111",
+        ["v2"] = "2222222222222222222222222222222222222222",
+    };
+
+    public Task<ResolvedReference> ResolveReferenceAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, string reference, CancellationToken cancellationToken)
+    {
+        Touch();
+
+        return References.TryGetValue(reference, out string? commit)
+            ? Task.FromResult(new ResolvedReference($"refs/tags/{reference}", commit))
+            : throw new ResourceNotFoundException($"fake: no reference named {reference}");
     }
 
     public Task<IReadOnlyList<SnapshotDifference>> CompareAsync(

@@ -114,6 +114,11 @@ internal sealed class NullPorts :
         CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<ResolvedReference> ResolveReferenceAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, string reference,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<IReadOnlyList<SnapshotDifference>> CompareAsync(
         SourceSnapshot earlier, SourceSnapshot later, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
