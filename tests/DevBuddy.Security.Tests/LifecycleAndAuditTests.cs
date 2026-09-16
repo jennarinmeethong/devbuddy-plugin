@@ -305,6 +305,36 @@ public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
     }
 
     [Fact]
+    public async Task a_record_never_published_is_not_read_unless_a_revision_is_named()
+    {
+        Stage stage = await Stage.CreateAsync(_fixture, Role.Reviewer);
+
+        LifecycleResult draft = await stage.SucceedAsync(
+            new CreateDraftUseCase(stage.Repository, stage.Clock),
+            new CreateDraftRequest(
+                stage.World.Alpha, stage.WorkItem.Id, RecordKind.Decision, "Title",
+                "Unreviewed text that was never published.", Source));
+
+        UseCaseResult<KnowledgeRecordView> unnamed = await stage.RunAsync(
+            new GetRecordUseCase(stage.Repository),
+            new GetRecordRequest(stage.World.Alpha, draft.RecordId));
+
+        // Control SB-26. Against v1.2.1 this call returned the draft, because the default fell
+        // back to the newest revision whenever no published one existed.
+        Assert.Equal(ExecutionOutcome.NotFound, unnamed.Outcome);
+        Assert.Null(unnamed.Value);
+        Assert.DoesNotContain("Unreviewed", unnamed.Reason, StringComparison.Ordinal);
+
+        KnowledgeRecordView named = await stage.SucceedAsync(
+            new GetRecordUseCase(stage.Repository),
+            new GetRecordRequest(stage.World.Alpha, draft.RecordId, RevisionNumber: 1));
+
+        Assert.Equal("Unreviewed text that was never published.", named.Body);
+        Assert.Equal(RecordStatus.Draft, named.Status);
+        Assert.Null(named.PublishedRevisionNumber);
+    }
+
+    [Fact]
     public async Task an_archived_record_refuses_further_changes_and_the_refusal_is_audited()
     {
         Stage stage = await Stage.CreateAsync(_fixture, Role.Reviewer);

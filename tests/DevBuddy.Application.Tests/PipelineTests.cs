@@ -68,7 +68,7 @@ public sealed class PipelineTests
         var useCase = new GetRecordUseCase(harness.Ports);
 
         KnowledgeRecordView view = await harness.SucceedAsync(
-            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id));
+            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1));
 
         // Redaction touches prose, not identity. A pipeline that redacted every string would
         // make records unciteable.
@@ -84,7 +84,7 @@ public sealed class PipelineTests
         harness.Ports.Record = TestData.NewDraft();
         var useCase = new GetRecordUseCase(harness.Ports);
 
-        await harness.SucceedAsync(useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id));
+        await harness.SucceedAsync(useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1));
 
         AuditEvent entry = Assert.Single(harness.Audit.Entries);
         Assert.Equal(AuditAction.RecordViewed, entry.Action);
@@ -101,7 +101,7 @@ public sealed class PipelineTests
         harness.Ports.Record = TestData.NewDraft("A body containing SECRET material.");
         var useCase = new GetRecordUseCase(harness.Ports);
 
-        await harness.SucceedAsync(useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id));
+        await harness.SucceedAsync(useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1));
 
         AuditEvent entry = Assert.Single(harness.Audit.Entries);
         Assert.StartsWith("get_record:", entry.ResourceReference, StringComparison.Ordinal);

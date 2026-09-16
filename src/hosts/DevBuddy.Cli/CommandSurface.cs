@@ -182,7 +182,7 @@ internal static class CommandSurface
         Argument<Guid> recordId = new("record-id") { Description = "The knowledge record identifier." };
 
         Option<int?> revision =
-            new("--revision") { Description = "A specific revision number. Defaults to the published one." };
+            new("--revision") { Description = "A specific revision number. Defaults to the published one; a record never published needs one." };
 
         Command command = new("record", "Reads one knowledge record.");
         command.Add(recordId);

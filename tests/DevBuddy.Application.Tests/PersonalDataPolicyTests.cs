@@ -84,7 +84,7 @@ public sealed class PersonalDataPolicyTests
         var useCase = new GetRecordUseCase(harness.Ports);
 
         KnowledgeRecordView view = await harness.SucceedAsync(
-            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id), TestData.Ai);
+            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1), TestData.Ai);
 
         Assert.DoesNotContain("PII", view.Body, StringComparison.Ordinal);
         Assert.Contains("[REDACTED]", view.Body, StringComparison.Ordinal);
@@ -99,7 +99,7 @@ public sealed class PersonalDataPolicyTests
         var useCase = new GetRecordUseCase(harness.Ports);
 
         KnowledgeRecordView view = await harness.SucceedAsync(
-            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id), TestData.Ai);
+            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1), TestData.Ai);
 
         Assert.Contains("PII", view.Body, StringComparison.Ordinal);
     }
@@ -112,7 +112,7 @@ public sealed class PersonalDataPolicyTests
         var useCase = new GetRecordUseCase(harness.Ports);
 
         KnowledgeRecordView view = await harness.SucceedAsync(
-            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id), TestData.Human);
+            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1), TestData.Human);
 
         Assert.Contains("PII", view.Body, StringComparison.Ordinal);
     }
@@ -126,7 +126,7 @@ public sealed class PersonalDataPolicyTests
         var useCase = new GetRecordUseCase(harness.Ports);
 
         KnowledgeRecordView view = await harness.SucceedAsync(
-            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id), TestData.Ai);
+            useCase, new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1), TestData.Ai);
 
         // The bounded scope excuses personal data, not secrets: SB-17 has no exception.
         Assert.DoesNotContain("SECRET", view.Body, StringComparison.Ordinal);

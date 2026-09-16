@@ -134,7 +134,10 @@ describe("workspace, project, and membership administration", () => {
     render(mount(`/w/${WORKSPACE}/members`));
 
     expect(await screen.findByText("Reviewer")).toBeDefined();
-    expect(server.called("list_memberships")).toBeDefined();
+
+    // Waited for rather than read at once: the role picker says "Reviewer" before the list has
+    // been asked for, so an immediate check passes or fails on scheduling alone.
+    await waitFor(() => expect(server.called("list_memberships")).toBeDefined());
   });
 
   test("somebody can be onboarded and their setup token is shown once", async () => {
@@ -352,8 +355,27 @@ describe("work and knowledge", () => {
     const history = await screen.findByRole("heading", { name: "History" });
     const panel = history.closest("section")!;
 
-    expect(within(panel).getByText(/Revision 2/)).toBeDefined();
+    // The heading is drawn while the history is still loading, so wait for what it lists.
+    expect(await within(panel).findByText(/Revision 2/)).toBeDefined();
     expect(within(panel).getByText("a".repeat(64))).toBeDefined();
+  });
+
+  test("a record's body is read by revision number and labelled with whether it is published", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/records/${RECORD}`));
+
+    expect(await screen.findByText("Rolling back a migration is itself a migration.")).toBeDefined();
+
+    // Without a number get_record serves the published revision only, and this record has none.
+    // The screen asks for the revision it offers for approval instead of relying on a default
+    // (SB-26).
+    expect(server.called("get_record")!.body).toEqual({
+      scope: { workspaceId: WORKSPACE, projectId: PROJECT },
+      recordId: RECORD,
+      revisionNumber: 2,
+    });
+
+    expect(screen.getByText(/never published/)).toBeDefined();
   });
 });
 
@@ -585,7 +607,11 @@ describe("audit and health", () => {
     signedIn();
     render(mount(`/w/${WORKSPACE}/audit`));
 
-    fireEvent.change(await screen.findByRole("combobox", { name: "Project" }), {
+    // The list of projects arrives after the picker is drawn, and choosing a value that has no
+    // option yet selects nothing.
+    await screen.findByRole("option", { name: "Alpha" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Project" }), {
       target: { value: PROJECT },
     });
 
@@ -714,8 +740,9 @@ describe("evidence", () => {
 
     await screen.findByRole("heading", { name: "Attached to this project" });
 
-    // What the server sent, rendered.
-    expect(screen.getByText("text/plain")).toBeDefined();
+    // What the server sent, rendered. Waited for: the panel heading is drawn before the list
+    // arrives.
+    expect(await screen.findByText("text/plain")).toBeDefined();
     expect(screen.getByText("2 KB")).toBeDefined();
 
     const file = new File(["a build log"], "build.log", { type: "text/plain" });
@@ -749,7 +776,7 @@ describe("evidence", () => {
 
     // Reading is offered; attaching is not. The server refuses it either way, which is proved in
     // DevBuddy.Security.Tests against real PostgreSQL rather than here.
-    expect(screen.getAllByRole("button", { name: "Download" }).length).toBe(2);
+    expect((await screen.findAllByRole("button", { name: "Download" })).length).toBe(2);
     expect(screen.queryByRole("heading", { name: "Attach an artefact" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Attach" })).toBeNull();
   });
@@ -762,7 +789,7 @@ describe("evidence", () => {
 
     // Two rows: one cleared, one still NotScanned. The server refuses to release the second, and
     // the screen must not invite a click that is going to be refused.
-    const buttons = screen.getAllByRole("button", { name: "Download" });
+    const buttons = await screen.findAllByRole("button", { name: "Download" });
 
     expect(buttons.length).toBe(2);
     expect(buttons[0].hasAttribute("disabled")).toBe(false);

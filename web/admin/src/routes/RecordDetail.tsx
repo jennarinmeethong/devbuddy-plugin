@@ -26,14 +26,6 @@ export function RecordDetail() {
   const access = useWorkspace(workspaceId);
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
 
-  // With no revision named, the server answers the published revision when there is one. That is
-  // what readers see, and it is not necessarily what is being reviewed.
-  const record = useQuery({
-    queryKey: ["record", workspaceId, projectId, recordId],
-    queryFn: () => invoke("get_record", { scope, recordId: recordId! }),
-    enabled: Boolean(workspaceId && projectId && recordId),
-  });
-
   const history = useQuery({
     queryKey: ["history", workspaceId, projectId, recordId],
     queryFn: () => invoke("view_record_history", { scope, recordId: recordId! }),
@@ -45,10 +37,24 @@ export function RecordDetail() {
     history.data.revisions[0],
   );
 
+  const published = history.data?.revisions.find((revision) => revision.isPublished);
+
+  // Every revision this page shows is asked for by number. With no number, get_record answers the
+  // published revision and nothing else, and a record never published answers not found (SB-26), so
+  // neither panel may lean on that default. The first panel is what readers see when something is
+  // published, and the newest revision when nothing is.
+  const shown = published ?? latest;
+
+  const record = useQuery({
+    queryKey: ["record", workspaceId, projectId, recordId, shown?.number],
+    queryFn: () => invoke("get_record", { scope, recordId: recordId!, revisionNumber: shown!.number }),
+    enabled: Boolean(workspaceId && projectId && recordId && shown),
+  });
+
   // A published record that has been revised since: the page would otherwise show the published
   // body above an approval that binds the newer revision's hash, so a reviewer would approve
   // content they were never shown.
-  const unpublished = latest && record.data && latest.number !== record.data.revisionNumber ? latest : undefined;
+  const unpublished = published && latest && latest.number !== published.number ? latest : undefined;
 
   const underWork = useQuery({
     queryKey: ["record", workspaceId, projectId, recordId, unpublished?.number],
@@ -176,6 +182,11 @@ function Content({ record }: { record: GetRecordResult }) {
     <article className="space-y-3">
       <p className="text-xs text-[var(--color-muted)]">
         Revision {record.revisionNumber}
+        {record.publishedRevisionNumber == null
+          ? " · never published"
+          : record.publishedRevisionNumber === record.revisionNumber
+            ? " · published"
+            : ` · not published, readers see revision ${record.publishedRevisionNumber}`}
         {record.provenance.isAiGenerated ? " · drafted by AI" : ""} · from{" "}
         {record.provenance.sourceLocator} · recorded by {record.provenance.author}
       </p>

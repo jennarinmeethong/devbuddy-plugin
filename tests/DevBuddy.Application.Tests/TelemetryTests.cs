@@ -32,7 +32,7 @@ public sealed class TelemetryTests
 
         await harness.SucceedAsync(
             new GetRecordUseCase(harness.Ports),
-            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id));
+            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1));
 
         Measurement counted = Assert.Single(
             metrics.Measurements, measurement => measurement.Instrument == "devbuddy.operations");
@@ -100,7 +100,7 @@ public sealed class TelemetryTests
 
         await harness.SucceedAsync(
             new GetRecordUseCase(harness.Ports),
-            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id));
+            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1));
 
         string[] identifiers =
         [
@@ -129,7 +129,7 @@ public sealed class TelemetryTests
 
         await harness.SucceedAsync(
             new GetRecordUseCase(harness.Ports),
-            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id));
+            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1));
 
         Activity span = Assert.Single(spans.Finished);
 

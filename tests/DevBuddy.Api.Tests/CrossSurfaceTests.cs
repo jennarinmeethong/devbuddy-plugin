@@ -189,6 +189,60 @@ public sealed class CrossSurfaceTests(ApiFixture fixture)
     }
 
     /// <summary>
+    /// Control SB-26 on the AI channel for a record that has never been published. Observed
+    /// against v1.2.1 on 2026-09-15 with a valid machine token: <c>get_record</c> with no revision
+    /// number returned a fresh draft's whole title and body, because with no published revision
+    /// to default to it fell back to the newest one.
+    /// </summary>
+    [Fact]
+    public async Task a_draft_never_published_is_not_served_to_the_ai_channel_by_default()
+    {
+        UserId reader = await fixture.CreateUserAsync($"ai-draft-reader-{Guid.NewGuid():N}@example.test");
+        await fixture.GrantAsync(reader, Role.Contributor);
+        await fixture.EnableAiAccessAsync(fixture.Scope);
+
+        WorkItemId workItem = await fixture.SeedWorkItemAsync(fixture.Scope, $"CRQ-{Guid.NewGuid():N}"[..12]);
+        object scope = new { workspaceId = fixture.Workspace.Value, projectId = fixture.Project.Value };
+
+        using HttpClient client = await fixture.SignInAsAdministratorAsync();
+
+        JsonElement draft = await PostAsync(
+            client,
+            UseCaseCatalog.CreateDraft.Name,
+            new
+            {
+                scope,
+                workItemId = workItem.Value,
+                kind = nameof(RecordKind.Decision),
+                title = "NEVERPUBLISHED title",
+                body = "NEVERPUBLISHED body nobody has reviewed.",
+                provenance = new
+                {
+                    sourceKind = nameof(ProvenanceSourceKind.HumanAuthored),
+                    sourceLocator = "meeting/2026-09-15",
+                    author = "integration test",
+                    recordedAt = DateTimeOffset.UtcNow,
+                },
+            });
+
+        Guid recordId = draft.GetProperty("recordId").GetGuid();
+
+        CallToolResult unnamed = await CallToolAsync(
+            reader, UseCaseCatalog.GetRecord.Name, new { scope, recordId });
+
+        Assert.True(unnamed.IsError, Rendered(unnamed));
+        Assert.DoesNotContain("NEVERPUBLISHED", Rendered(unnamed), StringComparison.Ordinal);
+
+        // Asking for the revision by number is the deliberate read, and it is still permitted.
+        // What the call above refused was the default, not the record.
+        CallToolResult named = await CallToolAsync(
+            reader, UseCaseCatalog.GetRecord.Name, new { scope, recordId, revisionNumber = 1 });
+
+        Assert.False(named.IsError, Rendered(named));
+        Assert.Contains("NEVERPUBLISHED body", Rendered(named), StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Drives one record from draft to published over HTTP as the administrator, and returns its
     /// identifier.
     /// </summary>

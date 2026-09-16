@@ -31,6 +31,59 @@ public sealed class ReadingAndLifecycleTests
         Assert.Equal("Approved text.", view.Body);
         Assert.Equal(1, view.RevisionNumber);
         Assert.Equal(1, view.PublishedRevisionNumber);
+
+        // The newer text is there to be read, deliberately. What kept it out above was the
+        // default, not its absence.
+        KnowledgeRecordView asked = await harness.SucceedAsync(
+            new GetRecordUseCase(harness.Ports), new GetRecordRequest(TestData.Scope, record.Id, RevisionNumber: 2));
+
+        Assert.Equal("Unapproved draft text.", asked.Body);
+        Assert.Equal(1, asked.PublishedRevisionNumber);
+    }
+
+    [Fact]
+    public async Task get_record_without_a_revision_number_serves_nothing_from_a_record_never_published()
+    {
+        var harness = new Harness();
+        KnowledgeRecord record = TestData.NewDraft("Unapproved draft text.");
+        harness.Ports.Record = record;
+
+        UseCaseResult<KnowledgeRecordView> draft = await harness.RunAsync(
+            new GetRecordUseCase(harness.Ports), new GetRecordRequest(TestData.Scope, record.Id));
+
+        // Control SB-26. There is no published revision to default to, and the newest draft is
+        // not a substitute for one. Observed against v1.2.1 on 2026-09-15, when it was.
+        Assert.Equal(ExecutionOutcome.NotFound, draft.Outcome);
+        Assert.Null(draft.Value);
+        Assert.Contains("no published revision", draft.Reason, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unapproved", draft.Reason, StringComparison.Ordinal);
+
+        // Submitted for approval is still unapproved.
+        record.SubmitForApproval(TestData.Now);
+
+        UseCaseResult<KnowledgeRecordView> pending = await harness.RunAsync(
+            new GetRecordUseCase(harness.Ports), new GetRecordRequest(TestData.Scope, record.Id));
+
+        Assert.Equal(ExecutionOutcome.NotFound, pending.Outcome);
+        Assert.Null(pending.Value);
+    }
+
+    [Fact]
+    public async Task get_record_serves_an_unpublished_revision_to_a_caller_who_names_it()
+    {
+        var harness = new Harness();
+        KnowledgeRecord record = TestData.NewDraft("Draft text under review.");
+        record.SubmitForApproval(TestData.Now);
+        harness.Ports.Record = record;
+
+        KnowledgeRecordView view = await harness.SucceedAsync(
+            new GetRecordUseCase(harness.Ports), new GetRecordRequest(TestData.Scope, record.Id, RevisionNumber: 1));
+
+        // The deliberate read a reviewer makes. The view says what it is, so nobody can take it
+        // for published knowledge.
+        Assert.Equal("Draft text under review.", view.Body);
+        Assert.Equal(RecordStatus.PendingApproval, view.Status);
+        Assert.Null(view.PublishedRevisionNumber);
     }
 
     [Fact]

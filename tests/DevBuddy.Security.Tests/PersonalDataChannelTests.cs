@@ -121,7 +121,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
 
         KnowledgeRecordView view = await ground.SucceedAsync(
             new GetRecordUseCase(ground.Repository),
-            new GetRecordRequest(ground.World.Alpha, record.Id),
+            new GetRecordRequest(ground.World.Alpha, record.Id, RevisionNumber: 1),
             World.Ai(ground.Actor));
 
         Assert.DoesNotContain("1990-04-12", view.Body, StringComparison.Ordinal);
@@ -147,7 +147,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
 
         KnowledgeRecordView view = await ground.SucceedAsync(
             new GetRecordUseCase(ground.Repository),
-            new GetRecordRequest(ground.World.Alpha, record.Id),
+            new GetRecordRequest(ground.World.Alpha, record.Id, RevisionNumber: 1),
             World.Ai(ground.Actor));
 
         Assert.Contains("1990-04-12", view.Body, StringComparison.Ordinal);
@@ -167,7 +167,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
 
         KnowledgeRecordView view = await ground.SucceedAsync(
             new GetRecordUseCase(ground.Repository),
-            new GetRecordRequest(ground.World.Alpha, record.Id),
+            new GetRecordRequest(ground.World.Alpha, record.Id, RevisionNumber: 1),
             World.Human(ground.Actor));
 
         Assert.Contains("1990-04-12", view.Body, StringComparison.Ordinal);
