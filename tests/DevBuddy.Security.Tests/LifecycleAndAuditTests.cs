@@ -8,6 +8,7 @@ using DevBuddy.Application.UseCases.Reading;
 using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Auditing;
 using DevBuddy.Domain.Common;
+using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Work;
 using DevBuddy.Infrastructure.Persistence;
@@ -490,6 +491,100 @@ public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
 
             Assert.DoesNotContain(filtered.Entries, entry => entry.Id.Value == legacyId);
         }
+    }
+
+    /// <summary>
+    /// What the web draft editor does, over real PostgreSQL:
+    /// <list type="number">
+    /// <item>Read why the record was sent back.</item>
+    /// <item>Read the newest revision by number.</item>
+    /// <item>Change the text.</item>
+    /// <item>Send back unchanged the front matter and evidence it was given.</item>
+    /// </list>
+    /// Until 2026-09-16 the read carried neither, so this path would have stored a revision
+    /// without them, and nothing would have looked wrong.
+    /// </summary>
+    [Fact]
+    public async Task a_revision_made_from_what_the_editor_reads_keeps_the_front_matter_and_the_evidence()
+    {
+        Stage stage = await Stage.CreateAsync(_fixture, Role.Reviewer);
+
+        var cited = new EvidenceReference(new EvidenceObjectId(Guid.NewGuid()), "Import run log, 2026-09-01");
+        var frontMatter = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["owner"] = "Platform team",
+            ["area"] = "import",
+        };
+
+        LifecycleResult draft = await stage.SucceedAsync(
+            new CreateDraftUseCase(stage.Repository, stage.Clock),
+            new CreateDraftRequest(
+                stage.World.Alpha, stage.WorkItem.Id, RecordKind.Decision,
+                "Why the import runs first", "First attempt.", Source with { Evidence = [cited] }, frontMatter));
+
+        await stage.SucceedAsync(
+            new SubmitForApprovalUseCase(stage.Repository, stage.Clock),
+            new RecordActionRequest(stage.World.Alpha, draft.RecordId));
+
+        await stage.SucceedAsync(
+            new RequestCorrectionUseCase(stage.Repository, stage.Clock),
+            new RequestCorrectionRequest(stage.World.Alpha, draft.RecordId, "Say what happens to a failed batch."));
+
+        RecordHistoryResponse history = await stage.SucceedAsync(
+            new ViewRecordHistoryUseCase(stage.Repository),
+            new ViewRecordHistoryRequest(stage.World.Alpha, draft.RecordId));
+
+        CorrectionView correction = Assert.Single(history.Corrections);
+        Assert.Equal("Say what happens to a failed batch.", correction.Reason);
+        Assert.Equal(1, correction.TargetRevisionNumber);
+        Assert.Equal(stage.Actor, correction.RequestedBy);
+
+        int latest = history.Revisions.Max(revision => revision.Number);
+
+        KnowledgeRecordView read = await stage.SucceedAsync(
+            new GetRecordUseCase(stage.Repository),
+            new GetRecordRequest(stage.World.Alpha, draft.RecordId, RevisionNumber: latest));
+
+        Assert.Equal(
+            frontMatter.OrderBy(entry => entry.Key, StringComparer.Ordinal),
+            read.FrontMatter.OrderBy(entry => entry.Key, StringComparer.Ordinal));
+
+        // The request the editor sends: new text, and everything else as it was read.
+        await stage.SucceedAsync(
+            new ReviseDraftUseCase(stage.Repository, stage.Clock),
+            new ReviseDraftRequest(
+                stage.World.Alpha,
+                draft.RecordId,
+                read.Title,
+                "Second attempt: a failed batch is retried five times.",
+                new DraftProvenance(
+                    read.Provenance.SourceKind,
+                    read.Provenance.SourceLocator,
+                    "A person",
+                    World.Now,
+                    [.. read.Evidence.Select(reference => new EvidenceReference(reference.EvidenceObjectId, reference.Description))]),
+                read.FrontMatter));
+
+        KnowledgeRecordView revised = await stage.SucceedAsync(
+            new GetRecordUseCase(stage.Repository),
+            new GetRecordRequest(stage.World.Alpha, draft.RecordId, RevisionNumber: latest + 1));
+
+        Assert.Equal("Second attempt: a failed batch is retried five times.", revised.Body);
+        Assert.Equal(
+            frontMatter.OrderBy(entry => entry.Key, StringComparer.Ordinal),
+            revised.FrontMatter.OrderBy(entry => entry.Key, StringComparer.Ordinal));
+
+        EvidenceReferenceView kept = Assert.Single(revised.Evidence);
+        Assert.Equal(cited.EvidenceObjectId, kept.EvidenceObjectId);
+        Assert.Equal(cited.Description, kept.Description);
+
+        // The stored revision, not only the view of it: this is what the next approval hashes.
+        KnowledgeRecord stored = await stage.LoadAsync(draft.RecordId);
+        Assert.Equal(2, stored.CurrentRevision.Number);
+        Assert.Equal(
+            frontMatter.OrderBy(entry => entry.Key, StringComparer.Ordinal),
+            stored.CurrentRevision.FrontMatter.OrderBy(entry => entry.Key, StringComparer.Ordinal));
+        Assert.Equal(cited, Assert.Single(stored.CurrentRevision.Provenance.Evidence));
     }
 
     /// <summary>

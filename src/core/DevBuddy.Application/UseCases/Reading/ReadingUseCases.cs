@@ -210,13 +210,23 @@ public sealed record ViewRecordHistoryRequest(ProjectScope Scope, KnowledgeRecor
     public override string ResourceReference => RecordId.ToString();
 }
 
+/// <summary>
+/// Every revision, and every time a reviewer sent the record back with the reason they gave. The
+/// reasons were kept on the record and shown nowhere until 2026-09-16, so whoever wrote the next
+/// revision could not read why it was needed.
+/// </summary>
 public sealed record RecordHistoryResponse(
     KnowledgeRecordId RecordId,
     RecordStatus Status,
-    IReadOnlyList<RevisionSummary> Revisions) : IRedactableResponse<RecordHistoryResponse>
+    IReadOnlyList<RevisionSummary> Revisions,
+    IReadOnlyList<CorrectionView> Corrections) : IRedactableResponse<RecordHistoryResponse>
 {
     public RecordHistoryResponse Redact(IRedactor redactor) =>
-        this with { Revisions = [.. Revisions.Select(revision => revision.Redact(redactor))] };
+        this with
+        {
+            Revisions = [.. Revisions.Select(revision => revision.Redact(redactor))],
+            Corrections = [.. Corrections.Select(correction => correction.Redact(redactor))],
+        };
 }
 
 /// <summary>
@@ -261,7 +271,11 @@ public sealed class ViewRecordHistoryUseCase(IKnowledgeRepository repository)
                         approval.ApproverWasDraftCreator)));
         }
 
-        return new RecordHistoryResponse(record.Id, record.Status, revisions);
+        return new RecordHistoryResponse(
+            record.Id,
+            record.Status,
+            revisions,
+            [.. record.CorrectionRequests.Select(CorrectionView.From)]);
     }
 }
 

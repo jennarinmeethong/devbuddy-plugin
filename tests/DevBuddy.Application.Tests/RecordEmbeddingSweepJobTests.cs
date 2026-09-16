@@ -388,18 +388,21 @@ public sealed class RecordEmbeddingSweepJobTests
                 [
                     Revision(publishedRevision - 1, "older", isPublished: false),
                     Revision(publishedRevision, contentHash, isPublished: true),
-                ]));
+                ],
+                Corrections: []));
 
         public void HistoryWithNoPublishedRevision() =>
             Answer("view_record_history", new RecordHistoryResponse(
                 new KnowledgeRecordId(Guid.NewGuid()),
                 RecordStatus.Draft,
-                [Revision(1, "draft", isPublished: false)]));
+                [Revision(1, "draft", isPublished: false)],
+                Corrections: []));
 
         public void Record(string title, string body) =>
             Answer("get_record", new KnowledgeRecordView(
                 new KnowledgeRecordId(Guid.NewGuid()), RecordKind.Decision, RecordStatus.Published,
-                RevisionNumber: 1, PublishedRevisionNumber: 1, title, body, SeedProvenance, Now));
+                RevisionNumber: 1, PublishedRevisionNumber: 1, title, body, SeedProvenance, Now,
+                FrontMatter: new Dictionary<string, string>(StringComparer.Ordinal), Evidence: []));
 
         private static RevisionSummary Revision(int number, string contentHash, bool isPublished) =>
             new(number, contentHash, "Title", Now, SeedProvenance, isPublished, Approval: null);

@@ -1,25 +1,26 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
-import type { GetRecordResult } from "../api/operations";
-import { grants, useWorkspace } from "../api/session";
-import { Alert, Badge, Button, Empty, Field, Hash, Panel, TextArea, When } from "../components/ui";
+import type { GetRecordResult, ViewRecordHistoryResult } from "../api/operations";
+import { grants, useSession, useWorkspace } from "../api/session";
+import { Alert, Badge, Button, Empty, Field, Hash, Input, Panel, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 
 /**
  * One record: its body, its history, and every lifecycle step a person takes on it.
  *
- * Draft → submit for approval → approve or send back → publish, with archive available until the
- * record is archived. Each step is offered only in the state the domain accepts it in and only to
- * a caller holding the permission the server will check; neither is a control, and both are
- * re-checked server-side.
+ * Draft → revise → submit for approval → approve or send back → publish, with archive available
+ * until the record is archived. Each step is offered only in the state the domain accepts it in and
+ * only to a caller holding the permission the server will check; neither is a control, and both
+ * are re-checked server-side.
  *
  * The approval screen is the reason this page is careful. It shows the exact revision being
  * approved and its content hash, and it submits that hash. There is no way from here to approve
  * "the latest": if somebody revises the record while a reviewer is reading it, the hash they read
  * no longer matches and the server rejects the approval. That is control SB-23, and the UI is
- * built so a reviewer cannot route around it by accident.
+ * built so a reviewer cannot route around it by accident. The front matter is part of that hash,
+ * so it is shown with the body rather than left for the reviewer to take on trust.
  */
 export function RecordDetail() {
   const { workspaceId, projectId, recordId } = useParams();
@@ -67,6 +68,7 @@ export function RecordDetail() {
   }
 
   const status = history.data?.status;
+  const corrections = history.data?.corrections ?? [];
 
   return (
     <>
@@ -100,6 +102,15 @@ export function RecordDetail() {
             <Content record={underWork.data} />
           )}
         </Panel>
+      ) : null}
+
+      {latest && grants(access, "CreateDraft") && status === "Draft" ? (
+        <Revise
+          scope={scope}
+          recordId={recordId!}
+          revisionNumber={latest.number}
+          sentBack={corrections.filter((correction) => correction.targetRevisionNumber === latest.number)}
+        />
       ) : null}
 
       {latest && grants(access, "CreateDraft") && status === "Draft" ? (
@@ -160,6 +171,16 @@ export function RecordDetail() {
                   ) : (
                     <p className="mt-2 text-xs text-[var(--color-muted)]">No approval covers this revision.</p>
                   )}
+
+                  {corrections
+                    .filter((correction) => correction.targetRevisionNumber === revision.number)
+                    .map((correction, index) => (
+                      <p key={`${correction.requestedAt}-${index}`} className="mt-2 text-xs">
+                        Sent back <When value={correction.requestedAt} /> by{" "}
+                        <span className="font-mono">{correction.requestedBy}</span>:{" "}
+                        <span>{correction.reason}</span>
+                      </p>
+                    ))}
                 </li>
               ))}
           </ol>
@@ -177,7 +198,13 @@ interface Revision {
 
 type Scope = { workspaceId: string; projectId: string };
 
+type Correction = ViewRecordHistoryResult["corrections"][number];
+
 function Content({ record }: { record: GetRecordResult }) {
+  const fields = Object.entries(record.frontMatter).sort(([left], [right]) =>
+    left < right ? -1 : left > right ? 1 : 0,
+  );
+
   return (
     <article className="space-y-3">
       <p className="text-xs text-[var(--color-muted)]">
@@ -190,9 +217,32 @@ function Content({ record }: { record: GetRecordResult }) {
         {record.provenance.isAiGenerated ? " · drafted by AI" : ""} · from{" "}
         {record.provenance.sourceLocator} · recorded by {record.provenance.author}
       </p>
+
+      {/* Part of what an approval binds to, so it is shown rather than taken on trust. */}
+      {fields.length > 0 ? (
+        <dl aria-label="Front matter" className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-xs">
+          {fields.map(([key, value]) => (
+            <Fragment key={key}>
+              <dt className="font-mono">{key}</dt>
+              <dd>{value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      ) : null}
+
       <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-neutral-50 p-3 text-sm">
         {record.body}
       </pre>
+
+      {record.evidence.length > 0 ? (
+        <ul aria-label="Evidence" className="space-y-1 text-xs">
+          {record.evidence.map((reference) => (
+            <li key={reference.evidenceObjectId}>
+              Evidence: {reference.description} <span className="font-mono">{reference.evidenceObjectId}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </article>
   );
 }
@@ -206,6 +256,190 @@ function useRecordRefresh(scope: Scope, recordId: string): () => Promise<void> {
     await queries.invalidateQueries({ queryKey: ["history", scope.workspaceId, scope.projectId, recordId] });
     await queries.invalidateQueries({ queryKey: ["records", scope.workspaceId, scope.projectId] });
   };
+}
+
+/**
+ * Writing the next revision of a draft.
+ *
+ * It starts from the newest revision, asked for by number, and sends back everything it was given
+ * that the person did not change. A revision stores exactly what the request carries, so an
+ * editor that forgot the front matter or the evidence would drop them without anybody noticing,
+ * and the front matter is part of what the next approval binds to.
+ */
+function Revise({
+  scope,
+  recordId,
+  revisionNumber,
+  sentBack,
+}: {
+  scope: Scope;
+  recordId: string;
+  revisionNumber: number;
+  sentBack: Correction[];
+}) {
+  const [editing, setEditing] = useState(false);
+
+  const record = useQuery({
+    queryKey: ["record", scope.workspaceId, scope.projectId, recordId, revisionNumber],
+    queryFn: () => invoke("get_record", { scope, recordId, revisionNumber }),
+  });
+
+  return (
+    <Panel title="Revise this draft">
+      <div className="space-y-3">
+        {sentBack.map((correction, index) => (
+          <Alert key={`${correction.requestedAt}-${index}`} tone="error">
+            Sent back <When value={correction.requestedAt} />: {correction.reason}
+          </Alert>
+        ))}
+
+        {!editing ? (
+          <Button onClick={() => setEditing(true)}>Edit this draft</Button>
+        ) : record.isPending ? (
+          <Empty>Loading…</Empty>
+        ) : record.isError ? (
+          <Failure error={record.error} />
+        ) : (
+          <ReviseForm
+            key={record.data.revisionNumber}
+            scope={scope}
+            recordId={recordId}
+            record={record.data}
+            onDone={() => setEditing(false)}
+          />
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+interface FrontMatterRow {
+  key: string;
+  value: string;
+}
+
+function ReviseForm({
+  scope,
+  recordId,
+  record,
+  onDone,
+}: {
+  scope: Scope;
+  recordId: string;
+  record: GetRecordResult;
+  onDone: () => void;
+}) {
+  const refresh = useRecordRefresh(scope, recordId);
+  const { user } = useSession();
+
+  const [title, setTitle] = useState(record.title);
+  const [body, setBody] = useState(record.body);
+  const [rows, setRows] = useState<FrontMatterRow[]>(() =>
+    Object.entries(record.frontMatter).map(([key, value]) => ({ key, value })),
+  );
+
+  const names = rows.map((row) => row.key.trim()).filter((name) => name !== "");
+  const duplicated = names.find((name, index) => names.indexOf(name) !== index);
+
+  const revise = useMutation({
+    mutationFn: () =>
+      invoke("revise_draft", {
+        scope,
+        recordId,
+        title,
+        body,
+        frontMatter: Object.fromEntries(
+          rows.filter((row) => row.key.trim() !== "").map((row) => [row.key.trim(), row.value]),
+        ),
+        // Where the content came from has not changed, so it is carried over. Whether an AI wrote
+        // it is not the page's to say: the server sets that from the channel, and a revision of AI
+        // content stays marked.
+        provenance: {
+          sourceKind: record.provenance.sourceKind,
+          sourceLocator: record.provenance.sourceLocator,
+          author: user?.displayName || user?.email || "A person",
+          recordedAt: new Date().toISOString(),
+          evidence: record.evidence,
+        },
+      }),
+    onSuccess: async () => {
+      onDone();
+      await refresh();
+    },
+  });
+
+  function update(index: number, change: Partial<FrontMatterRow>): void {
+    setRows((current) => current.map((row, at) => (at === index ? { ...row, ...change } : row)));
+  }
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        revise.mutate();
+      }}
+    >
+      <p className="text-sm text-[var(--color-muted)]">
+        Editing revision {record.revisionNumber}. Saving adds revision {record.revisionNumber + 1}; this one
+        stays in the history as it is.
+      </p>
+
+      <Field label="Title">
+        <Input required value={title} onChange={(event) => setTitle(event.target.value)} />
+      </Field>
+
+      <Field label="Body">
+        <TextArea rows={8} value={body} onChange={(event) => setBody(event.target.value)} />
+      </Field>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">Front matter</legend>
+        {rows.map((row, index) => (
+          <div key={index} className="flex gap-2">
+            <Input
+              aria-label={`Field ${index + 1} name`}
+              value={row.key}
+              onChange={(event) => update(index, { key: event.target.value })}
+            />
+            <Input
+              aria-label={`Field ${index + 1} value`}
+              value={row.value}
+              onChange={(event) => update(index, { value: event.target.value })}
+            />
+            <Button
+              aria-label={`Remove field ${index + 1}`}
+              onClick={() => setRows((current) => current.filter((_, at) => at !== index))}
+            >
+              Remove
+            </Button>
+          </div>
+        ))}
+        <Button onClick={() => setRows((current) => [...current, { key: "", value: "" }])}>Add a field</Button>
+        {duplicated ? <Alert tone="error">The field “{duplicated}” is named twice.</Alert> : null}
+      </fieldset>
+
+      {record.evidence.length > 0 ? (
+        <div className="text-sm">
+          <p className="font-medium">Evidence, kept with the new revision</p>
+          <ul className="text-xs">
+            {record.evidence.map((reference) => (
+              <li key={reference.evidenceObjectId}>{reference.description}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary" disabled={revise.isPending || Boolean(duplicated)}>
+          Save as a new revision
+        </Button>
+        <Button onClick={onDone}>Cancel</Button>
+      </div>
+
+      {revise.isError ? <Failure error={revise.error} /> : null}
+    </form>
+  );
 }
 
 function Submit({ scope, recordId, revision }: { scope: Scope; recordId: string; revision: Revision }) {
@@ -282,7 +516,7 @@ function Approval({ scope, recordId, revision }: { scope: Scope; recordId: strin
             correct.mutate();
           }}
         >
-          <Field label="Or send it back" hint="The reason is kept on the record.">
+          <Field label="Or send it back" hint="The reason is kept on the record and shown to whoever revises it.">
             <TextArea
               required
               rows={2}

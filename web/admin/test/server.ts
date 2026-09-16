@@ -80,6 +80,8 @@ const RECORD_VIEW = {
   body: "Rolling back a migration is itself a migration.",
   provenance: PROVENANCE,
   lastUpdatedAt: "2026-09-02T10:00:00+00:00",
+  frontMatter: {},
+  evidence: [],
 };
 
 const HISTORY_VIEW = {
@@ -96,6 +98,7 @@ const HISTORY_VIEW = {
       approval: null,
     },
   ],
+  corrections: [],
 };
 
 /** The one record this server holds, reported in another lifecycle state. */

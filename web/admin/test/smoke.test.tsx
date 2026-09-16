@@ -6,7 +6,7 @@ import type { ReactElement } from "react";
 import { SessionProvider } from "../src/api/session";
 import { App } from "../src/App";
 import { forgetTokens } from "../src/api/client";
-import { fakeServer, OTHER_USER, PROJECT, RECORD, recordIn, TEAM, USER, WORKSPACE } from "./server";
+import { EVIDENCE, fakeServer, OTHER_USER, PROJECT, RECORD, recordIn, TEAM, USER, WORKSPACE } from "./server";
 import type { FakeServer, RecordStatus } from "./server";
 
 /**
@@ -548,6 +548,8 @@ describe("approving a revision of a published record", () => {
       body,
       provenance,
       lastUpdatedAt: "2026-09-02T10:00:00+00:00",
+      frontMatter: {},
+      evidence: [],
     };
   }
 
@@ -582,6 +584,7 @@ describe("approving a revision of a published record", () => {
             approval: null,
           },
         ],
+        corrections: [],
       },
     });
 
@@ -813,5 +816,171 @@ describe("evidence", () => {
 
     expect(screen.getByText("Clean")).toBeDefined();
     expect(screen.getByText("NotScanned")).toBeDefined();
+  });
+});
+
+describe("editing a draft", () => {
+  const VIEWER = ["ReadKnowledge", "ManageOwnCredentials"];
+  const CONTRIBUTOR = [...VIEWER, "AnalyzeProject", "CreateDraft", "ManageWorkItems"];
+  const recordPage = `/w/${WORKSPACE}/p/${PROJECT}/records/${RECORD}`;
+  const REASON = "Say what happens to a failed batch.";
+
+  function serveDraft(permissions: string[] | undefined, status: RecordStatus = "Draft"): void {
+    const base = recordIn(status);
+
+    server.restore();
+    server = fakeServer(permissions, {
+      get_record: {
+        ...(base.get_record as object),
+        frontMatter: { owner: "Platform team", area: "import" },
+        evidence: [{ evidenceObjectId: EVIDENCE, description: "Import run log" }],
+      },
+      view_record_history: {
+        ...(base.view_record_history as object),
+        corrections: [
+          {
+            requestedBy: OTHER_USER,
+            targetRevisionNumber: 2,
+            reason: REASON,
+            requestedAt: "2026-09-02T12:00:00+00:00",
+          },
+        ],
+      },
+      revise_draft: { recordId: RECORD, status: "Draft", currentRevisionNumber: 3, publishedRevisionNumber: null },
+    });
+  }
+
+  test("the newest revision is edited and its front matter and evidence are sent back with it", async () => {
+    serveDraft(CONTRIBUTOR);
+
+    signedIn();
+    render(mount(recordPage));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit this draft" }));
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Body" }), {
+      target: { value: "Failed batches are retried five times." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Field 1 value" }), {
+      target: { value: "Import team" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save as a new revision" }));
+
+    await waitFor(() => expect(server.called("revise_draft")).toBeDefined());
+
+    expect(server.called("revise_draft")!.body).toMatchObject({
+      scope: { workspaceId: WORKSPACE, projectId: PROJECT },
+      recordId: RECORD,
+      title: "Rollback is a migration, not a restore",
+      body: "Failed batches are retried five times.",
+      frontMatter: { owner: "Import team", area: "import" },
+      provenance: {
+        sourceKind: "HumanAuthored",
+        sourceLocator: "meeting/2026-09-01",
+        author: "An Administrator",
+        evidence: [{ evidenceObjectId: EVIDENCE, description: "Import run log" }],
+      },
+    });
+
+    // Nothing the editor read leaned on get_record's default, which serves only a published
+    // revision (SB-26).
+    const reads = server.calls.filter((call) => call.operation === "get_record");
+    expect(reads.length).toBeGreaterThan(0);
+    for (const read of reads) {
+      expect((read.body as { revisionNumber?: number }).revisionNumber).toBe(2);
+    }
+  });
+
+  test("a front matter field can be removed and another added", async () => {
+    serveDraft(CONTRIBUTOR);
+
+    signedIn();
+    render(mount(recordPage));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit this draft" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove field 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add a field" }));
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Field 2 name" }), { target: { value: "reviewed-by" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Field 2 value" }), { target: { value: "Jennarin" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save as a new revision" }));
+
+    await waitFor(() => expect(server.called("revise_draft")).toBeDefined());
+
+    expect((server.called("revise_draft")!.body as { frontMatter: unknown }).frontMatter).toEqual({
+      owner: "Platform team",
+      "reviewed-by": "Jennarin",
+    });
+  });
+
+  test("a field named twice cannot be saved", async () => {
+    serveDraft(CONTRIBUTOR);
+
+    signedIn();
+    render(mount(recordPage));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit this draft" }));
+    fireEvent.change(await screen.findByRole("textbox", { name: "Field 2 name" }), { target: { value: "owner" } });
+
+    expect(screen.getByText(/is named twice/)).toBeDefined();
+    expect((screen.getByRole("button", { name: "Save as a new revision" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  test("a viewer opening a draft is not offered the editor, but reads why it was sent back", async () => {
+    serveDraft(VIEWER);
+
+    signedIn();
+    render(mount(recordPage));
+
+    expect((await screen.findAllByText(REASON)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Edit this draft" })).toBeNull();
+  });
+
+  const offeredInstead: [RecordStatus, string | null][] = [
+    ["PendingApproval", "Approve revision 2"],
+    ["Approved", "Publish"],
+    ["Published", "Archive"],
+    ["Archived", null],
+  ];
+
+  for (const [status, present] of offeredInstead) {
+    test(`a record that is ${status} is not offered the editor`, async () => {
+      serveDraft(undefined, status);
+
+      signedIn();
+      render(mount(recordPage));
+
+      if (present) {
+        expect(await screen.findByRole("button", { name: present })).toBeDefined();
+      } else {
+        expect(await screen.findByText(status)).toBeDefined();
+      }
+
+      expect(screen.queryByRole("button", { name: "Edit this draft" })).toBeNull();
+    });
+  }
+
+  test("the person revising is told why the draft came back", async () => {
+    serveDraft(CONTRIBUTOR);
+
+    signedIn();
+    render(mount(recordPage));
+
+    const editor = (await screen.findByRole("heading", { name: "Revise this draft" })).closest("section")!;
+    expect(await within(editor).findByText(new RegExp(REASON))).toBeDefined();
+  });
+
+  test("a reviewer is shown the front matter and evidence of what they are approving", async () => {
+    serveDraft(undefined, "PendingApproval");
+
+    signedIn();
+    render(mount(recordPage));
+
+    const matter = (await screen.findByText("owner")).closest("dl")!;
+    expect(within(matter).getByText("Platform team")).toBeDefined();
+    expect(within(matter).getByText("import")).toBeDefined();
+    expect(screen.getByText(/Import run log/)).toBeDefined();
   });
 });
