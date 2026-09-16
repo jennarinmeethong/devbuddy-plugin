@@ -213,6 +213,99 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.3.0
+
+**Not tagged yet.** This release carries:
+- the fixes from the 2026-09-15 plugin test round;
+- the audit channel column;
+- the Thai SB-18 rules;
+- the draft editor.
+
+`release.yml`, `docker` and `.github` are unchanged since `v1.2.1`, so no throwaway prerelease tag
+was cut (`info.md`, 2026-09-16). Nothing is carried over. The checks below ran against `84ee6d5` on
+2026-09-16, before the tag. The tag may land on a later commit only if that commit changes
+documentation alone.
+
+Everything below ran on jmhp. Each run used a clean clone from GitHub and a Compose project of its
+own, and the owner's `devbuddy` stack was not touched:
+- `devbuddy-v130` published on 127.0.0.1:18080 and 18081;
+- `devbuddy-up130` published on 127.0.0.1:28080 and 28081.
+
+Only the port lines were overridden. The secrets were generated for these stacks alone.
+
+| Check | When | Result |
+| --- | --- | --- |
+| `dotnet test DevBuddy.slnx -c Release` on Linux with Docker | **Against `84ee6d5`, before the tag** | **Yes.** In `mcr.microsoft.com/dotnet/sdk:10.0` against the host's Docker daemon, all six test projects ran: 867 passed and none failed. By project: Domain 61, Infrastructure 332, McpServer 31, Application 261, Security 127, Api 55. The format check exited 0. The web client built, and its suite passed 57 of 57 in `oven/bun:1`. CI had passed on `f451a30`, the same source. |
+| `dotnet publish`, `linux-x64` console | **Against `84ee6d5`, before the tag** | **Yes**, self-contained. Run on the Ubuntu 24.04 host, it listed the twenty AI operations. The other RIDs are built by the workflow. |
+| Compose from clean to healthy | **Against `84ee6d5`, before the tag** | **Yes**, built from source. All six services came up:<br>• `api` was healthy 80 seconds after the build started.<br>• `migrate` exited 0 having applied **eight** migrations, the last being `AuditEventChannel`, which adds `audit_events.channel` as a nullable integer.<br>• `retention` logged its first pass.<br>• The API answered `/health` 200, `/operations` 401 and the UI 200.<br>• The MCP server refused `POST /` with 401, against a 404 control.<br>• Nothing listened on 5432 or 9000. |
+| No service runs as root | **Against `84ee6d5`, before the tag** | **Yes**, read from the host:<br>• The API, MCP server and retention ran as uid 1654, each read-only with every capability dropped.<br>• PostgreSQL ran as uid 70.<br>• The evidence store ran as uid 1000, read-only with every capability dropped.<br>• A fresh install gave the evidence volume to `1000:1000` and the log volume to `1654:1654`. |
+| Tokens stay out of the log | **Against `84ee6d5`, before the tag** | **Yes**, in both directions, and run after the drill had created the account:<br>• With the default setting, a recovery request answered 202. The API logged only that the message could not be delivered and its contents were not written.<br>• With the opt-in, the same request wrote the token.<br>• The whole log file on the volume holds one "could not be delivered" warning and exactly one token line, the opt-in's.<br>• None of the opt-in's long values appear in the default capture.<br>• The API was put back on the default afterwards. |
+| Destroy-and-restore drill | **Run on 2026-09-16, against `84ee6d5`** | **Yes**, with both the database and the evidence volumes destroyed. See below. |
+| Upgrade from `v1.2.1` on amd64 | **Run on 2026-09-16, against `84ee6d5`** | **Yes.** See below. |
+| Upgrade from `v1.2.1` on arm64 | — | **Not run yet.** |
+
+### The destroy-and-restore drill for v1.3.0
+
+This is the `v1.2.1` drill with the draft editor's data added. The record went through these steps:
+1. It was created with front matter.
+2. It was submitted and sent back with a reason.
+3. It was revised with more front matter and two evidence references.
+4. It was submitted, approved and published at revision 2.
+
+**Before the disaster**, the installation held:
+- a work item;
+- that record, whose approval was bound to content hash `62AEEA43…`;
+- two evidence artefacts, of 232 and 64 bytes;
+- an administrator account;
+- a machine token;
+- eighteen audit entries, all on the `Human` channel.
+
+Two attempts were refused, as they should be:
+- A file carrying a connection string and an AWS key was refused with 422 Blocked, and the store kept
+  two artefacts.
+- Reading the record with no revision number while it was still unpublished was refused, and so was
+  approving it before it was submitted. Both are in the audit trail as `RecordViewed/Failed` and
+  `RecordApproved/Failed`.
+
+The backup came to 15,583 bytes and was copied off its volume before the disaster.
+
+| Row | Result |
+| --- | --- |
+| Records | **Back.** `get_record` returned exactly what it did before the disaster, including the front matter and both evidence references. |
+| Approvals | **Back, and still bound.** The history was identical, correction and reason included, with content hash `62AEEA43…` both before and after. |
+| Evidence | **Back, byte for byte**, into a store running as uid 1000 on a recreated volume owned by `1000:1000`. Both artefacts downloaded at 232 and 64 bytes with matching SHA-256 hashes. |
+| Audit history | **Back, channel included.** All eighteen entries were present afterwards and unchanged, among them `ContentScanned/Denied`. |
+| Accounts | **Back.** Sign-in with the same password succeeded. |
+| Plugins | **Back.** The machine token minted before the disaster answered `list_projects` identically over MCP stdio. A bogus token was refused with "No identity was resolved for this request". |
+
+A second restore was refused with "This installation already has data. Restore into an empty
+database." An access token issued before the disaster still answered 200 on `/me`, as documented.
+
+### The upgrade from v1.2.1 on amd64
+
+The run started from `v1.2.1` as shipped: the published `1.2.1` images for the API, the MCP server
+and the console, and that tag's Compose file.
+- **Seeded on `v1.2.1`:** a published record, a record still in Draft, an evidence artefact, a
+  machine token, and twelve audit entries, whose response had no channel field. `v1.2.1` served the
+  draft to `get_record` with no revision number.
+- **The upgrade:** only the Compose file and the images changed, to `84ee6d5` built from source. The
+  volumes and `.env` stayed the same. **No manual step was needed.**
+
+| Check | Result |
+| --- | --- |
+| Migration | `migrate` exited 0 having applied **one** migration, `AuditEventChannel`. Eight migrations are now in the history table. |
+| Old audit entries | All twelve are present, and every one reads `channel: null`. None was backfilled. In the database, sixteen rows are null: every row written before the upgrade, including the `v1.2.1` read of the audit history and entries outside the project's scope. They were not itemised. |
+| New audit entries | Written with `channel: Human`. Filtering on `Human` returned only `Human` entries. |
+| Published record | Identical, apart from the new `frontMatter: {}` and `evidence: []`. The history was identical apart from the new `corrections: []`. |
+| The never-published draft | **Now refused** with no revision number, with "has no published revision. Ask for a revision number to read an unpublished one." It was audited as `RecordViewed/Failed` and read normally as revision 1. This is the behaviour change the release notes must state. |
+| Evidence | The artefact from `v1.2.1` downloaded byte for byte. A new capture and download worked. Both still answered 200 after the API, the MCP server and the evidence store were restarted, and the evidence store logged no error lines. |
+| Identity | Sign-in with the same password worked. The machine token minted on `v1.2.1` answered `list_projects` identically over MCP stdio. |
+| Users | The API, MCP server and retention ran as uid 1654, PostgreSQL as 70, and the evidence store as 1000. The API logged no error lines. |
+
+### Against the release's own artefacts
+
+Not run yet. This section is filled in after the tag, as for `v1.2.1`.
+
 ## What was verified for v1.2.1
 
 **Tagged from `56a4c2a`, published 2026-09-14.** A security fix: the evidence store no longer runs
