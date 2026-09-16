@@ -1,5 +1,26 @@
 # Project Decisions
 
+## Confirmed Cutting v1.3.0 for the Plugin Test Round's Fixes and the Draft Editor — 2026-09-16
+
+The owner decided the next release is `v1.3.0`, cut from `main` once the draft editor was merged,
+to ship everything the 2026-09-15 plugin test round fixed and the decisions in the entry below.
+
+- **A minor version, not `v1.2.2`.** It adds capability: the draft editor on the record page, the
+  lifecycle buttons, correction reasons, and the four Thai SB-18 rules. It changes responses:
+  `get_record` gains `frontMatter` and `evidence`, `view_record_history` gains `corrections`,
+  `compare_snapshots` answers in a new shape, and `get_record` with no revision number now answers
+  not found for a never-published record. It adds a migration, `AuditEventChannel`.
+- **No throwaway prerelease tag.** `release.yml` is unchanged since `v1.2.1`, and nothing under
+  `docker` or `.github` changed either. The checklist asks for one only when that workflow changes.
+- **The checklist is still re-run in full**, with nothing carried over, as confirmed on 2026-09-10.
+  The upgrade from `v1.2.1` is run on amd64 and on arm64, and must show the migration applied and
+  audit rows written before it left with a null channel.
+- **Its release notes must say what a caller will notice.** A client that read a draft through
+  `get_record` without a revision number now gets not found. On a project with no bounded AI scope,
+  AI drafts carrying an email address, a Thai national ID or a Thai mobile number are refused.
+  Records written over MCP before this release may be marked as a person's work and cannot be
+  corrected. No manual upgrade step is needed: `migrate` applies the new column.
+
 ## Confirmed the Held Fixes, Thai Personal Data, Self-Hosted Embeddings on devbox, and a Draft Editor — 2026-09-16
 
 On 2026-09-16 the owner answered what the 2026-09-15 plugin test round had left open. This entry
