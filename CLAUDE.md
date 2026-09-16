@@ -30,11 +30,11 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 861 .NET tests and 47 web tests exist, and all of them passed on 2026-09-16 — the
+enforcement. 867 .NET tests and 57 web tests exist, and all of them passed on 2026-09-16 — the
 .NET suite in the SDK container on the owner's Linux test machine, the web suite in a Bun
 container there — count them rather than trusting this sentence, which has been stale three times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, and at 672 and 36 until the 2026-09-16 merge. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, and at 861 and 47 until the draft editor landed. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -71,13 +71,27 @@ nothing called `submit_for_approval`. The record page now carries the whole life
 draft (`CreateDraft`), approve or send back (`ReviewRecord`), publish (`PublishRecord`), archive
 behind a confirmation (`ArchiveRecord`) — and shows the unpublished revision beside the published
 one, because `get_record` with no revision answers the published one and a reviewer was being
-shown that body above an approval binding the newer revision's hash. Still **not** reachable from
-any screen, each needing a decision rather than a button: `revise_draft` (`get_record` returns
-neither front matter nor evidence references, so a UI revision would silently drop both),
-`create_draft` by a person, `grant_membership` (a role cannot be changed and an existing account
-cannot be given a second grant), `sync_sources` (no operation registers a source repository),
-`export_project`, `backup_system`, the quality sweeps and `reindex`, and a correction request's
-reason, which is kept on the record and shown nowhere. The console's `run` reaches all of them.
+shown that body above an approval binding the newer revision's hash.
+
+**Since 2026-09-16 a draft can also be revised there, and a reviewer's reason for sending one back
+is shown.**
+- **What made it possible:** `get_record` returns the revision's front matter and evidence
+  references, redacted like its other text, and `view_record_history` returns every correction
+  with its reason.
+- **How the editor works:** it reads the newest revision by number and sends the front matter and
+  evidence back with the new text. A revision stores exactly what the request carries, so an editor
+  that forgot either would drop it silently. The front matter is also part of the hash an approval
+  binds, which is why the page shows it.
+
+Still **not** reachable from any screen, each needing a decision rather than a button:
+- `create_draft` by a person;
+- `grant_membership` (a role cannot be changed, and an existing account cannot be given a second
+  grant);
+- `sync_sources` (no operation registers a source repository);
+- `export_project` and `backup_system`;
+- the quality sweeps and `reindex`.
+
+The console's `run` reaches all of them.
 Team administration is the
 `Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the
 permission, so a viewer is offered neither), and deleting a project is on the project list —

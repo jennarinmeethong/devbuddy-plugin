@@ -160,6 +160,11 @@ export type GetRecordResult = {
     evidenceCount: number;
   };
   lastUpdatedAt: string;
+  frontMatter: Record<string, string>;
+  evidence: Array<{
+      evidenceObjectId: string;
+      description: string;
+    }>;
 };
 
 export type GetWorkItemArguments = {
@@ -227,6 +232,12 @@ export type ViewRecordHistoryResult = {
         approvedAt: string;
         approverWasDraftCreator: boolean;
       } | null;
+    }>;
+  corrections: Array<{
+      requestedBy: string;
+      targetRevisionNumber: number;
+      reason: string;
+      requestedAt: string;
     }>;
 };
 
