@@ -44,7 +44,7 @@ public sealed class AuditChannelTests
 
         await harness.SucceedAsync(
             new GetRecordUseCase(harness.Ports),
-            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id),
+            new GetRecordRequest(TestData.Scope, harness.Ports.Record.Id, RevisionNumber: 1),
             new CallerContext(TestData.Author, channel, $"req-{channel}"));
 
         AuditEvent entry = Assert.Single(harness.Audit.Entries);

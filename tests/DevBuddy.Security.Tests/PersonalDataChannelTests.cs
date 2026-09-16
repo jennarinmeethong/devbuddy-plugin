@@ -197,7 +197,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
 
         KnowledgeRecordView view = await ground.SucceedAsync(
             new GetRecordUseCase(ground.Repository),
-            new GetRecordRequest(ground.World.Alpha, record.Id),
+            new GetRecordRequest(ground.World.Alpha, record.Id, RevisionNumber: 1),
             World.Ai(ground.Actor));
 
         Assert.DoesNotContain("1-1037-01234-56-3", view.Body, StringComparison.Ordinal);
