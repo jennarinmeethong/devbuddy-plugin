@@ -163,6 +163,10 @@ internal sealed class ThrowingSourceSystem(Exception failure) : ISourceSystemCli
         SourceRepositoryId repositoryId, ProjectScope scope, CancellationToken cancellationToken) =>
         Task.FromException<SourceSnapshot>(failure);
 
+    public Task<ResolvedReference> ResolveReferenceAsync(
+        SourceRepositoryId repositoryId, ProjectScope scope, string reference, CancellationToken cancellationToken) =>
+        Task.FromException<ResolvedReference>(failure);
+
     public Task<ChangeSet> FetchChangeSetAsync(
         SourceRepositoryId repositoryId, ProjectScope scope, string commitOrRange, CancellationToken cancellationToken) =>
         Task.FromException<ChangeSet>(failure);

@@ -404,7 +404,7 @@ public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
             createDraft,
             new CreateDraftRequest(
                 stage.World.Alpha, stage.WorkItem.Id, RecordKind.Decision, "Drafted", "Drafted by an assistant.",
-                new Provenance(ProvenanceSourceKind.AiDraft, "session/2026-09-15", "assistant", World.Now)),
+                new DraftProvenance(ProvenanceSourceKind.AiDraft, "session/2026-09-15", "assistant", World.Now)),
             World.Ai(stage.Actor));
 
         Assert.True(byAssistant.IsSuccess, $"{byAssistant.Outcome}: {byAssistant.Reason}");

@@ -1,5 +1,72 @@
 # Project Decisions
 
+## Confirmed the Held Fixes, Thai Personal Data, Self-Hosted Embeddings on devbox, and a Draft Editor — 2026-09-16
+
+On 2026-09-16 the owner answered what the 2026-09-15 plugin test round had left open. This entry
+supersedes the "not decided here" list in the entry below.
+
+### The three held fixes
+
+- **`get_record` with no revision number answers not found for a record that was never
+  published.** A draft is read only by naming its revision (SB-26). The web record page asks for
+  every revision by number.
+- **Every audit entry records its channel, as its own column, `audit_events.channel`.** Rows written
+  before the migration stay null, meaning "not recorded", and are never backfilled with a guess.
+- **`compare_snapshots` resolves both references in the source system and reports the commit
+  move**, rather than comparing stored snapshots, which nothing writes. A bare name resolves as a
+  tag first, then a branch, then a remote-tracking branch. `analyze_change_impact` uses the same
+  lookup.
+
+### Thai personal data in SB-18
+
+The four rules proposed in `docs/security/proposal-sb-18-thai-personal-data.md` are approved as
+implemented. The owner chose each proposal's first option.
+- **`thai-national-id`:** the mod-11 check digit is required, with or without separators. The known
+  cost is that about one bare millisecond timestamp in ten matches.
+- **`thai-mobile-number`:** prefixes 06, 08 and 09, including `+66` forms. Fixed lines match only
+  when labelled.
+- **`email-address`:** with the RFC 2606 exemption, and `.local` deliberately not exempt. The owner
+  accepted that this is the highest-volume rule. On a project with no bounded scope, AI drafts that
+  quote trailers, authors or bot addresses will be refused.
+- **Labels:** Thai and English ID labels are added, and a day, month name and year label value is
+  redacted whole.
+
+The AL-2 wording, "catches known shapes", still describes the rule set. Records embedded before
+this change are not re-embedded until they are revised.
+
+### Self-hosted embeddings on the devbox installation
+
+This is the separate approval the 2026-09-10 rule requires. The 2026-09-13 trial approval covered
+synthetic data only and does not carry over.
+
+- **Approved:** the self-hosted embedding provider on the installation at 192.168.1.150, reachable
+  on the LAN only. It uses `qwen3-embedding:0.6b` (1024 dimensions), served by Ollama inside the
+  stack. Ollama publishes no port, runs as uid 1000, is read-only, and is pinned by digest. The
+  database is `pgvector/pgvector:pg17`, pinned by digest. No project text leaves the host.
+- **Data:** real project data that contains no customer, production or personal data. No bounded
+  scope is approved, so SB-18 stays fully in force on the AI channel.
+- **What is indexed:** only projects whose owner enabled AI access, and only published revisions.
+- **The worker:** `record-embedding-sweep` runs as its own account, holding the Viewer role in the
+  one workspace, with a token that account minted. It sends at most **50** record texts per pass,
+  every 24h. Revoking the token stops the next pass.
+- **The stale-record sweep is not enabled.**
+- **Not approved:** the hosted provider mode anywhere, any other installation, moving this one off
+  the LAN, and any generative model.
+- **Why this model:** it scores above `bge-m3` on MMTEB and takes longer inputs. DevBuddy sends no
+  query instruction, so retrieval is somewhat below the published figure. Ollama embeds only the
+  first 4096 tokens of a record.
+
+### An editor for drafts
+
+`revise_draft` gets a web screen, built the way that loses nothing:
+- `get_record` is to return a revision's front matter and evidence references, through the same
+  redaction as its other fields.
+- The editor round-trips both.
+- The reason a reviewer gave when sending a draft back is to be shown on the record.
+
+Until that ships, a draft revised through the API still drops any front matter and evidence the
+request leaves out.
+
 ## Confirmed Whether an AI Wrote a Record Comes from the Channel — 2026-09-15
 
 Found while testing the Claude plugin against the `v1.2.1` installation on the owner's test machine.

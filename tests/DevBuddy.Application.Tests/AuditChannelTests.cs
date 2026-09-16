@@ -81,7 +81,7 @@ public sealed class AuditChannelTests
         UseCaseResult<LifecycleResult> result = await harness.RunAsync(
             new CreateDraftUseCase(harness.Ports, harness.Ports),
             new CreateDraftRequest(
-                TestData.Scope, TestData.WorkItem, RecordKind.Decision, "Title", "api key: SECRET", TestData.Provenance),
+                TestData.Scope, TestData.WorkItem, RecordKind.Decision, "Title", "api key: SECRET", TestData.Draft),
             TestData.Ai);
 
         Assert.Equal(ExecutionOutcome.Blocked, result.Outcome);

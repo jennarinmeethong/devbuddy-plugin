@@ -191,7 +191,7 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
 
         KnowledgeRecord record = KnowledgeRecord.CreateDraft(
             KnowledgeRecordId.New(), ground.World.Alpha, ground.WorkItem.Id, RecordKind.TechnicalKnowledge,
-            "Legacy escalation", ThaiCustomerNote, frontMatter: null, Source, World.Now, ground.Actor);
+            "Legacy escalation", ThaiCustomerNote, frontMatter: null, Seeded, World.Now, ground.Actor);
 
         await ground.Repository.AddRecordAsync(record, CancellationToken.None);
 

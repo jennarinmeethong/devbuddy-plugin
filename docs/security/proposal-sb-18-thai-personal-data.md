@@ -1,9 +1,9 @@
 # Proposal: Thai personal data in the SB-18 rule set
 
-**Status: proposed, awaiting the project owner's decision.** Nothing here is confirmed. `info.md`
-records no decision about it, and the SB-18 row in `verification-matrix.md` is unchanged. If the
-owner approves all or part of this, the owner records the decision in `info.md`, and the matrix row
-gains the new evidence only once the tests below pass on the approved version.
+**Status: approved as implemented, 2026-09-16.** The owner approved all four rules with the first
+option in each case below. The decision is recorded in `info.md`. The SB-18 row in
+`verification-matrix.md` gains the new evidence once the tests below pass on the merged version.
+The rest of this document is the proposal as it was put to the owner.
 
 Branch: `claude/sb-18-thai-personal-data`. Written 2026-09-15 against `v1.2.1`.
 

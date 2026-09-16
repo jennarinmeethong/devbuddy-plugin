@@ -369,7 +369,7 @@ public sealed class SourceSystemTests : IDisposable
     }
 
     [Fact]
-    public async Task a_reference_that_does_not_exist_is_not_found()
+    public async Task a_change_set_for_a_reference_that_does_not_exist_is_not_found()
     {
         string commit = _git.Commit(new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -381,7 +381,9 @@ public sealed class SourceSystemTests : IDisposable
         ResourceNotFoundException failure = await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => Client().FetchChangeSetAsync(_repository, _scope, "no-such-branch", Ct));
 
-        Assert.Contains("refs/heads/no-such-branch", failure.Message, StringComparison.Ordinal);
+        // A bare name is tried as a tag, a branch and a remote-tracking branch, so the message names
+        // what was asked for rather than one of the places it was looked for.
+        Assert.Contains("no-such-branch", failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]
