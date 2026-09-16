@@ -30,11 +30,11 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 672 .NET tests and 36 web tests exist, and all of them passed on 2026-09-15 — the
+enforcement. 861 .NET tests and 47 web tests exist, and all of them passed on 2026-09-16 — the
 .NET suite in the SDK container on the owner's Linux test machine, the web suite in a Bun
 container there — count them rather than trusting this sentence, which has been stale three times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, and at 655 and 36 until the audit channel landed. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, and at 672 and 36 until the 2026-09-16 merge. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
