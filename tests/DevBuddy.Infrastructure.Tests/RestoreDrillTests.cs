@@ -110,7 +110,16 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture min
                 Assert.Equal(ProvenanceSourceKind.RepositoryAnalysis, record.CurrentRevision.Provenance.SourceKind);
 
                 Assert.NotEmpty(await restored.Users.AsNoTracking().ToListAsync(Ct));
-                Assert.NotEmpty(await restored.AuditEvents.IgnoreQueryFilters().AsNoTracking().ToListAsync(Ct));
+                // The entry came back with the channel it was written on. A restore that dropped the
+                // column would return every entry as unrecorded, and the question it answers — did
+                // an assistant or a person do this — would be lost with nothing looking wrong.
+                List<AuditEventRow> auditRows =
+                    await restored.AuditEvents.IgnoreQueryFilters().AsNoTracking().ToListAsync(Ct);
+
+                AuditEventRow published =
+                    Assert.Single(auditRows, row => row.ResourceReference == recordId.ToString());
+
+                Assert.Equal((int)AuditChannel.Ai, published.Channel);
 
                 EvidenceObject? evidence = await new EvidenceMetadataStore(restored)
                     .FindAsync(evidenceId, seed.Alpha, Ct);
@@ -229,7 +238,7 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture min
         // approved what.
         await new AuditStore(context).WriteAsync(
             AuditEvent.ForProject(
-                AuditEventId.New(), seed.Alpha, seed.Author, AuditAction.RecordPublished,
+                AuditEventId.New(), seed.Alpha, seed.Author, AuditChannel.Ai, AuditAction.RecordPublished,
                 AuditOutcome.Succeeded, record.Id.ToString(), Seed.Now.AddMinutes(3)),
             Ct);
 

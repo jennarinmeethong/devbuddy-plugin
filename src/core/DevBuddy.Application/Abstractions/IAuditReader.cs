@@ -10,10 +10,16 @@ namespace DevBuddy.Application.Abstractions;
 /// </summary>
 public interface IAuditReader
 {
+    /// <summary>
+    /// Entries in one project and window, newest first. A channel narrows the answer to entries
+    /// recorded on that channel; an entry written before channels were recorded matches no channel
+    /// filter, because it cannot say which one it was.
+    /// </summary>
     Task<IReadOnlyList<AuditEvent>> QueryAsync(
         ProjectScope scope,
         DateTimeOffset occurredFrom,
         DateTimeOffset occurredUntil,
         UserId? actorId,
+        AuditChannel? channel,
         CancellationToken cancellationToken);
 }

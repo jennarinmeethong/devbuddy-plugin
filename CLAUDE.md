@@ -30,11 +30,11 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 655 .NET tests and 36 web tests exist, and all of them passed on 2026-09-13 — the
+enforcement. 672 .NET tests and 36 web tests exist, and all of them passed on 2026-09-15 — the
 .NET suite in the SDK container on the owner's Linux test machine, the web suite in a Bun
 container there — count them rather than trusting this sentence, which has been stale three times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, and at 655 and 36 until the audit channel landed. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -369,6 +369,30 @@ exists. Backup is still an operation, because that one has a caller.
 **A backup carries rows and artefacts.** It is logical rather than `pg_dump`, because running an
 external program from product code would break the no-execution guard. Sessions are not restored;
 passwords and machine tokens are.
+
+**Every audit entry records the channel its request arrived on (2026-09-15).** A machine token's
+owner is an ordinary user, so an assistant's `create_draft` over MCP and the same person's in the
+web UI used to leave identical rows. That mattered on 2026-09-15, when drafts created over the AI
+channel before a fix were stored as not AI-generated and could not be re-marked, because nothing
+said which channel wrote them. Things that are easy to get wrong:
+
+- **It is a column, `audit_events.channel`, not a detail entry.** Investigations filter on it, and
+  a detail is optional metadata an entry can be written without. The domain has its own
+  `AuditChannel` enum, because Domain references nothing, with the same numbers as `AccessChannel`.
+  The executor maps between them exhaustively, so a fourth channel fails loudly rather than being
+  recorded as one of the three.
+- **Rows from before the migration are null, and must stay null.** Null means "not recorded". It is
+  never `Human`, no filter matches it, and the UI shows it as not recorded. Backfilling a guess
+  would be exactly the untrustworthy record this was added to avoid. The `AuditEvent` factories
+  take a non-null channel, so only rehydrating an old row can produce one without.
+- **The bootstrap writes `InternalSystem`.** It is outside the pipeline because nobody exists yet
+  to be a caller.
+- `read_audit_history` returns the channel and takes an optional `channel` filter. It was the
+  first nullable enum on the wire, and it found a bug in the TypeScript client generator: a `null`
+  enum member emitted a dangling `|`. That is fixed in `TypeScriptClient`.
+
+SB-19's row in `docs/security/verification-matrix.md` names the tests. They passed on jmhp on
+2026-09-15 and were mutation-checked there. Not yet run in CI.
 
 **Identity over MCP stdio is a machine token in `DEVBUDDY_TOKEN`, bound to one user and one
 workspace.** `DEVBUDDY_ACTOR` is gone: it let anybody who could start the process start it as

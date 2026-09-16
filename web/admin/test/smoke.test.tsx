@@ -617,6 +617,22 @@ describe("audit and health", () => {
 
     await waitFor(() => expect(server.called("read_audit_history")).toBeDefined());
     expect(await screen.findByText("RecordApproved")).toBeDefined();
+
+    // The channel is shown beside the actor, because the actor alone cannot say whether an
+    // assistant or the person holding the token made the call.
+    expect(await screen.findByText("Assistant")).toBeDefined();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Channel" }), { target: { value: "Ai" } });
+
+    await waitFor(() =>
+      expect(
+        server.calls.some(
+          (call) =>
+            call.operation === "read_audit_history" &&
+            (call.body as { channel?: string } | null)?.channel === "Ai",
+        ),
+      ).toBe(true),
+    );
   });
 
   test("component health is shown", async () => {

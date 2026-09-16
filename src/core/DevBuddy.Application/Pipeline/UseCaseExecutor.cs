@@ -423,11 +423,17 @@ public sealed class UseCaseExecutor
         // The reference identifies what was acted on. The content itself never appears here.
         string reference = $"{descriptor.Name}:{request.ResourceReference}";
 
+        // The channel is recorded beside the actor because the actor alone does not say it. A
+        // machine token's owner is an ordinary user, so an assistant's call and that person's own
+        // call are otherwise the same row.
+        AuditChannel channel = ToAuditChannel(caller.Channel);
+
         AuditEvent entry = request.ProjectId is { } projectId
             ? AuditEvent.ForProject(
                 AuditEventId.New(),
                 new ProjectScope(request.WorkspaceId, projectId),
                 caller.UserId,
+                channel,
                 action,
                 outcome,
                 reference,
@@ -437,6 +443,7 @@ public sealed class UseCaseExecutor
                 AuditEventId.New(),
                 request.WorkspaceId,
                 caller.UserId,
+                channel,
                 action,
                 outcome,
                 reference,
@@ -445,6 +452,18 @@ public sealed class UseCaseExecutor
 
         return _auditSink.WriteAsync(entry, cancellationToken);
     }
+
+    /// <summary>
+    /// Exhaustive rather than cast. A channel added later must fail here, visibly, rather than be
+    /// written into the audit trail as whichever existing channel happens to share its number.
+    /// </summary>
+    private static AuditChannel ToAuditChannel(AccessChannel channel) => channel switch
+    {
+        AccessChannel.Human => AuditChannel.Human,
+        AccessChannel.Ai => AuditChannel.Ai,
+        AccessChannel.InternalSystem => AuditChannel.InternalSystem,
+        _ => throw new InvalidOperationException($"The access channel {channel} has no audit channel."),
+    };
 }
 
 /// <summary>

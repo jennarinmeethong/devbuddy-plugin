@@ -166,12 +166,29 @@ public sealed record ReadAuditHistoryRequest(
     ProjectScope Scope,
     DateTimeOffset OccurredFrom,
     DateTimeOffset OccurredUntil,
-    UserId? ActorId = null) : ProjectRequest(Scope)
+    UserId? ActorId = null,
+    AuditChannel? Channel = null) : ProjectRequest(Scope)
 {
     public override string ResourceReference => "audit";
 
-    public override IReadOnlyList<string> Validate() =>
-        OccurredUntil <= OccurredFrom ? ["The audit window must end after it starts."] : [];
+    public override IReadOnlyList<string> Validate()
+    {
+        List<string> errors = [];
+
+        if (OccurredUntil <= OccurredFrom)
+        {
+            errors.Add("The audit window must end after it starts.");
+        }
+
+        // The wire accepts a number as well as a name, and a number no channel carries would
+        // otherwise read as "nothing happened on it".
+        if (Channel is { } channel && !Enum.IsDefined(channel))
+        {
+            errors.Add("The channel is not one the audit trail records.");
+        }
+
+        return errors;
+    }
 }
 
 public sealed record AuditHistoryResponse(IReadOnlyList<AuditEvent> Entries);
@@ -191,7 +208,12 @@ public sealed class ReadAuditHistoryUseCase(IAuditReader reader)
         ReadAuditHistoryRequest request, CallerContext caller, CancellationToken cancellationToken)
     {
         IReadOnlyList<AuditEvent> entries = await _reader.QueryAsync(
-            request.Scope, request.OccurredFrom, request.OccurredUntil, request.ActorId, cancellationToken);
+            request.Scope,
+            request.OccurredFrom,
+            request.OccurredUntil,
+            request.ActorId,
+            request.Channel,
+            cancellationToken);
 
         return new AuditHistoryResponse(entries);
     }

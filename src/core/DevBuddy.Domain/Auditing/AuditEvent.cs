@@ -23,6 +23,7 @@ public sealed class AuditEvent
         WorkspaceId? workspaceId,
         ProjectId? projectId,
         UserId actorId,
+        AuditChannel? channel,
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
@@ -38,6 +39,7 @@ public sealed class AuditEvent
         WorkspaceId = workspaceId;
         ProjectId = projectId;
         ActorId = actorId;
+        Channel = channel is { } recorded ? Guard.Defined(recorded, nameof(channel)) : null;
         Action = Guard.Defined(action, nameof(action));
         Outcome = Guard.Defined(outcome, nameof(outcome));
         ResourceReference = Guard.NotLongerThan(
@@ -53,6 +55,19 @@ public sealed class AuditEvent
     public ProjectId? ProjectId { get; }
 
     public UserId ActorId { get; }
+
+    /// <summary>
+    /// The channel the request arrived on, or null for an entry written before the channel was
+    /// recorded at all (before 2026-09-15).
+    /// <para>
+    /// Null is not a fourth channel and must never be read as <see cref="AuditChannel.Human"/>:
+    /// those entries genuinely do not know, and a guess written back into them would be a record
+    /// nobody could trust. The factories below take a channel that cannot be null, so every entry
+    /// written from now on carries one; only rehydrating an old row reaches this constructor
+    /// without one.
+    /// </para>
+    /// </summary>
+    public AuditChannel? Channel { get; }
 
     public AuditAction Action { get; }
 
@@ -79,34 +94,37 @@ public sealed class AuditEvent
         AuditEventId id,
         ProjectScope scope,
         UserId actorId,
+        AuditChannel channel,
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
         DateTimeOffset occurredAt,
         IReadOnlyDictionary<string, string>? details = null) =>
-        new(id, scope.WorkspaceId, scope.ProjectId, actorId, action, outcome, resourceReference, occurredAt, details);
+        new(id, scope.WorkspaceId, scope.ProjectId, actorId, channel, action, outcome, resourceReference, occurredAt, details);
 
     public static AuditEvent ForWorkspace(
         AuditEventId id,
         WorkspaceId workspaceId,
         UserId actorId,
+        AuditChannel channel,
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
         DateTimeOffset occurredAt,
         IReadOnlyDictionary<string, string>? details = null) =>
-        new(id, workspaceId, projectId: null, actorId, action, outcome, resourceReference, occurredAt, details);
+        new(id, workspaceId, projectId: null, actorId, channel, action, outcome, resourceReference, occurredAt, details);
 
     /// <summary>For operations above any workspace, such as a backup or a restore.</summary>
     public static AuditEvent ForSystem(
         AuditEventId id,
         UserId actorId,
+        AuditChannel channel,
         AuditAction action,
         AuditOutcome outcome,
         string resourceReference,
         DateTimeOffset occurredAt,
         IReadOnlyDictionary<string, string>? details = null) =>
-        new(id, workspaceId: null, projectId: null, actorId, action, outcome, resourceReference, occurredAt, details);
+        new(id, workspaceId: null, projectId: null, actorId, channel, action, outcome, resourceReference, occurredAt, details);
 
     /// <summary>
     /// Caps the shape of the detail bag. Refusing an oversized value is better than truncating

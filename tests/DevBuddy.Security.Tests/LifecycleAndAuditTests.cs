@@ -10,6 +10,7 @@ using DevBuddy.Domain.Auditing;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Work;
+using DevBuddy.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace DevBuddy.Security.Tests;
@@ -381,6 +382,117 @@ public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
     }
 
     /// <summary>
+    /// The same person creates a draft twice: once themselves, once through an assistant holding
+    /// their machine token. The actor, the operation, the outcome and the resource reference are
+    /// identical, so the channel is the only thing that can tell the two apart — and before it was
+    /// recorded, nothing did.
+    /// </summary>
+    [Fact]
+    public async Task an_ai_call_and_a_human_call_by_the_same_person_leave_distinguishable_audit_rows()
+    {
+        Stage stage = await Stage.CreateAsync(_fixture, Role.Administrator);
+        await _fixture.EnableAiAccessAsync(stage.World.Alpha, stage.World.Founder);
+
+        var createDraft = new CreateDraftUseCase(stage.Repository, stage.Clock);
+
+        await stage.SucceedAsync(
+            createDraft,
+            new CreateDraftRequest(
+                stage.World.Alpha, stage.WorkItem.Id, RecordKind.Decision, "Typed", "Typed by a person.", Source));
+
+        UseCaseResult<LifecycleResult> byAssistant = await stage.Session.RunAsync(
+            createDraft,
+            new CreateDraftRequest(
+                stage.World.Alpha, stage.WorkItem.Id, RecordKind.Decision, "Drafted", "Drafted by an assistant.",
+                new Provenance(ProvenanceSourceKind.AiDraft, "session/2026-09-15", "assistant", World.Now)),
+            World.Ai(stage.Actor));
+
+        Assert.True(byAssistant.IsSuccess, $"{byAssistant.Outcome}: {byAssistant.Reason}");
+
+        // Read back through read_audit_history, the operation a person investigating would use,
+        // rather than straight from the store: the channel has to survive the response too.
+        var readAudit = new ReadAuditHistoryUseCase(stage.Session.Resolve<IAuditReader>());
+        DateTimeOffset from = World.Now.AddDays(-1);
+        DateTimeOffset until = DateTimeOffset.UtcNow.AddDays(1);
+
+        AuditHistoryResponse history = await stage.SucceedAsync(
+            readAudit, new ReadAuditHistoryRequest(stage.World.Alpha, from, until));
+
+        AuditEvent[] drafts = [.. history.Entries.Where(entry => entry.Action == AuditAction.DraftCreated)];
+        Assert.Equal(2, drafts.Length);
+
+        AuditEvent typed = Assert.Single(drafts, entry => entry.Channel == AuditChannel.Human);
+        AuditEvent drafted = Assert.Single(drafts, entry => entry.Channel == AuditChannel.Ai);
+
+        // Everything else about the two rows is the same, which is the problem the channel solves.
+        Assert.Equal(stage.Actor, typed.ActorId);
+        Assert.Equal(stage.Actor, drafted.ActorId);
+        Assert.Equal(typed.Outcome, drafted.Outcome);
+        Assert.Equal(typed.ResourceReference, drafted.ResourceReference);
+
+        // An investigation filters on it.
+        AuditHistoryResponse onlyAi = await stage.SucceedAsync(
+            readAudit, new ReadAuditHistoryRequest(stage.World.Alpha, from, until, Channel: AuditChannel.Ai));
+
+        Assert.Contains(onlyAi.Entries, entry => entry.Id == drafted.Id);
+        Assert.DoesNotContain(onlyAi.Entries, entry => entry.Id == typed.Id);
+        Assert.All(onlyAi.Entries, entry => Assert.Equal(AuditChannel.Ai, entry.Channel));
+
+        // And the column holds it as metadata of its own, not as a detail value an entry could
+        // be written without (SB-19 keeps details for metadata about the action, capped).
+        int stored = await stage.Session.Db.Database
+            .SqlQuery<int>($"select channel as \"Value\" from audit_events where id = {drafted.Id.Value}")
+            .SingleAsync();
+
+        Assert.Equal((int)AuditChannel.Ai, stored);
+        Assert.DoesNotContain(drafted.Details.Keys, key => key.Contains("channel", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task an_entry_written_before_channels_were_recorded_reads_as_unrecorded_and_matches_no_filter()
+    {
+        Stage stage = await Stage.CreateAsync(_fixture, Role.Administrator);
+
+        // Planted as a row, because that is the shape an upgraded installation's existing history
+        // is in: the migration adds the column and leaves every earlier row null.
+        var legacyId = Guid.NewGuid();
+
+        stage.Session.Db.AuditEvents.Add(new AuditEventRow
+        {
+            Id = legacyId,
+            WorkspaceId = stage.World.Workspace.Value,
+            ProjectId = stage.World.AlphaId.Value,
+            ActorId = stage.Actor.Value,
+            Channel = null,
+            Action = (int)AuditAction.DraftCreated,
+            Outcome = (int)AuditOutcome.Succeeded,
+            ResourceReference = "create_draft:before-channels",
+            OccurredAt = World.Now,
+        });
+
+        await stage.Session.Db.SaveChangesAsync();
+
+        var readAudit = new ReadAuditHistoryUseCase(stage.Session.Resolve<IAuditReader>());
+        DateTimeOffset from = World.Now.AddDays(-1);
+        DateTimeOffset until = DateTimeOffset.UtcNow.AddDays(1);
+
+        AuditHistoryResponse all = await stage.SucceedAsync(
+            readAudit, new ReadAuditHistoryRequest(stage.World.Alpha, from, until));
+
+        Assert.Null(Assert.Single(all.Entries, entry => entry.Id.Value == legacyId).Channel);
+
+        // Not counted as a person's action, nor as anybody else's. Guessing is exactly what the
+        // 2026-09-15 drafts could not be corrected by.
+        foreach (AuditChannel channel in Enum.GetValues<AuditChannel>())
+        {
+            AuditHistoryResponse filtered = await stage.SucceedAsync(
+                readAudit, new ReadAuditHistoryRequest(stage.World.Alpha, from, until, Channel: channel));
+
+            Assert.DoesNotContain(filtered.Entries, entry => entry.Id.Value == legacyId);
+        }
+    }
+
+    /// <summary>
     /// A world, a signed-in actor with a role on Alpha, a work item, and an open session. Every
     /// test here needs all five, and repeating them would bury what each test is actually about.
     /// </summary>
@@ -481,6 +593,7 @@ public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
                     World.Now.AddDays(-1),
                     DateTimeOffset.UtcNow.AddDays(1),
                     actorId: null,
+                    channel: null,
                     CancellationToken.None);
 
             return entries.FirstOrDefault(entry => entry.Action == action)
