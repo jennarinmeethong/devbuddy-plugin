@@ -242,7 +242,7 @@ Only the port lines were overridden. The secrets were generated for these stacks
 | Tokens stay out of the log | **Against `84ee6d5`, before the tag** | **Yes**, in both directions, and run after the drill had created the account:<br>• With the default setting, a recovery request answered 202. The API logged only that the message could not be delivered and its contents were not written.<br>• With the opt-in, the same request wrote the token.<br>• The whole log file on the volume holds one "could not be delivered" warning and exactly one token line, the opt-in's.<br>• None of the opt-in's long values appear in the default capture.<br>• The API was put back on the default afterwards. |
 | Destroy-and-restore drill | **Run on 2026-09-16, against `84ee6d5`** | **Yes**, with both the database and the evidence volumes destroyed. See below. |
 | Upgrade from `v1.2.1` on amd64 | **Run on 2026-09-16, against `84ee6d5`** | **Yes.** See below. |
-| Upgrade from `v1.2.1` on arm64 | — | **Not run yet.** |
+| Upgrade from `v1.2.1` on arm64 | **Run on 2026-09-16, against `84ee6d5`** | **Yes, on arm64:** the Ubuntu 26.04.1 VMware guest on the Apple M4, with 2 CPUs. The same run as on amd64, with the published `1.2.1` arm64 images and `84ee6d5` built natively there. Every result matched. See below. |
 
 ### The destroy-and-restore drill for v1.3.0
 
@@ -301,6 +301,26 @@ and the console, and that tag's Compose file.
 | Evidence | The artefact from `v1.2.1` downloaded byte for byte. A new capture and download worked. Both still answered 200 after the API, the MCP server and the evidence store were restarted, and the evidence store logged no error lines. |
 | Identity | Sign-in with the same password worked. The machine token minted on `v1.2.1` answered `list_projects` identically over MCP stdio. |
 | Users | The API, MCP server and retention ran as uid 1654, PostgreSQL as 70, and the evidence store as 1000. The API logged no error lines. |
+
+### The upgrade from v1.2.1 on arm64
+
+The script was the amd64 one, run on the Ubuntu 26.04.1 VMware guest (`aarch64`, 2 CPUs, Docker
+29.1.3). Its images:
+- the published `1.2.1` images, pulled for `linux/arm64`;
+- `84ee6d5`, built on the guest, whose API and MCP images report `arm64`.
+
+That host has no curl. HTTP calls therefore ran in a `curlimages/curl` container joined to the
+stack's own bridge network, not to the host network.
+
+Every row of the amd64 table came out the same:
+- `migrate` applied `AuditEventChannel` alone, and eight migrations are now in the history table.
+- All twelve entries written on `v1.2.1` read `channel: null`, and new entries read `Human`.
+- The published record and its history are identical apart from the new fields.
+- The never-published draft is refused without a revision number and read as revision 1.
+- The `v1.2.1` artefact downloads byte for byte, and a new capture works.
+- Both artefacts still answer 200 after a restart.
+- The `v1.2.1` machine token answers identically over MCP stdio.
+- No service runs as root, and the API and the evidence store logged no errors.
 
 ### Against the release's own artefacts
 
