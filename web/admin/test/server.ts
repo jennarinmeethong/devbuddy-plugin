@@ -32,6 +32,7 @@ export const OTHER_USER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 export const NEW_WORKSPACE = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 export const EVIDENCE = "dddddddd-dddd-dddd-dddd-dddddddddddd";
 export const UNSCANNED_EVIDENCE = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+export const REPOSITORY = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 
 const ALL_PERMISSIONS = [
   "ReadKnowledge",
@@ -243,6 +244,104 @@ export function fakeServer(permissions: string[] = ALL_PERMISSIONS, answers: Ans
       publishedRevisionNumber: null,
     },
     archive_record: { recordId: RECORD, status: "Archived", currentRevisionNumber: 2, publishedRevisionNumber: null },
+    get_work_item: {
+      workItemId: WORK_ITEM,
+      key: "CRQ-101",
+      type: "ChangeRequest",
+      title: "Normalise identifiers on import",
+      goal: "Identifiers are compared the same way everywhere.",
+      inScope: "The importer.",
+      exclusions: null,
+      stakeholders: ["Platform team"],
+      recordCount: 1,
+    },
+    create_draft: { recordId: RECORD, status: "Draft", currentRevisionNumber: 1, publishedRevisionNumber: null },
+    generate_handover: {
+      workItemId: WORK_ITEM,
+      title: "Handover: Normalise identifiers on import",
+      sections: [{ kind: "Decision", content: "Identifiers are normalised before validation.", recordCount: 1 }],
+      openQuestions: ["Who owns the importer after the move?"],
+      missingEvidence: [],
+      generatedAt: "2026-09-02T12:00:00+00:00",
+    },
+    find_open_questions: { questions: ["Who owns the importer after the move?"] },
+    find_missing_evidence: { gaps: ["The decision cites no test run."] },
+    search_knowledge: {
+      hits: [
+        {
+          recordId: RECORD,
+          kind: "Decision",
+          status: "Published",
+          title: "Rollback is a migration, not a restore",
+          snippet: "Rolling back a migration is itself a migration.",
+          rank: 0.8,
+        },
+      ],
+    },
+    // Semantic search on an installation with no provider answers with its reason.
+    search_similar_records: {
+      hits: [],
+      unavailable: "This installation has no embedding provider configured, so there is nothing to compare against.",
+    },
+    list_source_repositories: { repositories: [{ repositoryId: REPOSITORY, locator: "acme/importer" }] },
+    ...Object.fromEntries(
+      [
+        "analyze_project",
+        "analyze_code",
+        "analyze_documents",
+        "analyze_architecture",
+        "analyze_git_history",
+        "analyze_work_items",
+        "analyze_test_evidence",
+      ].map((name) => [
+        name,
+        {
+          report: {
+            kind: "Code",
+            summary: "Twelve source files, two projects.",
+            observations: [{ subject: "Largest source file", detail: "Importer.cs, 4 KB", sourceLocator: "src/Importer.cs" }],
+          },
+        },
+      ]),
+    ),
+    analyze_change_impact: {
+      commitOrRange: "main..feature",
+      changedPaths: ["src/Importer.cs"],
+      impact: [{ subject: "Importer", detail: "Cited by one record.", sourceLocator: "src/Importer.cs" }],
+    },
+    compare_snapshots: {
+      earlier: { reference: "v1", commitId: "1111111" },
+      later: { reference: "v2", commitId: "2222222" },
+      differences: [{ subject: "Commit", before: "1111111", after: "2222222" }],
+      changedPaths: null,
+      changedPathsUnavailable: "Pack files are not read.",
+    },
+    sync_sources: {
+      repositoryId: REPOSITORY,
+      commitId: "2222222",
+      capturedAt: "2026-09-02T12:00:00+00:00",
+      linkCount: 3,
+      openPullRequestCount: null,
+      openIssueCount: null,
+    },
+    validate_provenance: {
+      sweep: "validate_provenance",
+      findings: [{ recordId: RECORD, rule: "missing-locator", detail: "No source locator." }],
+    },
+    detect_duplicates: { sweep: "detect_duplicates", findings: [] },
+    detect_staleness: { sweep: "detect_staleness", findings: [] },
+    reindex: { documentsIndexed: 7 },
+    detect_secrets: { hasFindings: true, findings: [{ ruleName: "aws-access-key", lineNumber: 2, length: 20 }] },
+    redact_sensitive_data: { redactedContent: "key: [REDACTED]", findingCount: 1 },
+    export_project: {
+      reference: "export-20260902",
+      recordCount: 4,
+      evidenceCount: 1,
+      createdAt: "2026-09-02T12:00:00+00:00",
+      expiresAt: "2026-10-02T12:00:00+00:00",
+    },
+    backup_system: { reference: "backup-20260902", sizeBytes: 52358, createdAt: "2026-09-02T12:00:00+00:00" },
+    grant_membership: { membershipId: "abababab-abab-abab-abab-abababababab", role: "Administrator", isActive: true },
     ...answers,
     read_audit_history: {
       entries: [

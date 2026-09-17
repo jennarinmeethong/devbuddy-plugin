@@ -5,6 +5,7 @@ import { invoke } from "../api/client";
 import type { ListRecordsArguments } from "../api/operations";
 import { Badge, Empty, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { ProjectNav } from "../components/ProjectNav";
 
 type Status = NonNullable<ListRecordsArguments["statuses"]>[number];
 
@@ -43,12 +44,10 @@ export function Records() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Knowledge records</h1>
-        <Link className="text-sm underline" to="..">
-          Work items
-        </Link>
-      </div>
+      <ProjectNav title="Knowledge records" />
+      <p className="text-sm text-[var(--color-muted)]">
+        A new draft is written from its work item, because every record belongs to one.
+      </p>
 
       <Panel
         title="Records"

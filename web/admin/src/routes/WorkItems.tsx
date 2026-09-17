@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ProjectNav } from "../components/ProjectNav";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import { grants, useWorkspace } from "../api/session";
@@ -35,17 +36,7 @@ export function WorkItems() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Work</h1>
-        <div className="flex gap-4">
-          <Link className="text-sm underline" to="records">
-            Knowledge records
-          </Link>
-          <Link className="text-sm underline" to="evidence">
-            Evidence
-          </Link>
-        </div>
-      </div>
+      <ProjectNav title="Work" />
 
       <Panel title="Work items">
         {items.isPending ? (
@@ -60,7 +51,11 @@ export function WorkItems() {
               <tr key={item.workItemId} className="border-b border-[var(--color-line)] last:border-0">
                 <td className="px-2 py-2 font-mono text-xs">{item.key}</td>
                 <td className="px-2 py-2">{TYPE_LABELS[item.type]}</td>
-                <td className="px-2 py-2">{item.title}</td>
+                <td className="px-2 py-2">
+                  <Link className="underline" to={`work/${item.workItemId}`}>
+                    {item.title}
+                  </Link>
+                </td>
                 <td className="px-2 py-2 text-xs">
                   <When value={item.createdAt} />
                 </td>

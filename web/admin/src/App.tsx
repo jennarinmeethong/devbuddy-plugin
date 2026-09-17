@@ -15,6 +15,10 @@ import { RecordDetail } from "./routes/RecordDetail";
 import { Audit } from "./routes/Audit";
 import { Health } from "./routes/Health";
 import { PluginAccess } from "./routes/PluginAccess";
+import { WorkItemDetail } from "./routes/WorkItemDetail";
+import { Search } from "./routes/Search";
+import { Analysis } from "./routes/Analysis";
+import { Maintenance } from "./routes/Maintenance";
 
 /**
  * Routes.
@@ -62,6 +66,10 @@ export function App() {
         <Route path="p/:projectId/evidence" element={<Evidence />} />
         <Route path="p/:projectId/records" element={<Records />} />
         <Route path="p/:projectId/records/:recordId" element={<RecordDetail />} />
+        <Route path="p/:projectId/work/:workItemId" element={<WorkItemDetail />} />
+        <Route path="p/:projectId/search" element={<Search />} />
+        <Route path="p/:projectId/analysis" element={<Analysis />} />
+        <Route path="p/:projectId/maintenance" element={<Maintenance />} />
       </Route>
       <Route path="*" element={<Missing />} />
     </Routes>
