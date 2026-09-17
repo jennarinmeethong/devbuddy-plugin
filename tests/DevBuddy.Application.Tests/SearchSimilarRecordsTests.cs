@@ -105,7 +105,7 @@ public sealed class SearchSimilarRecordsTests
     public async Task a_hit_carries_its_title_and_kind_from_the_record_and_not_from_the_index()
     {
         Harness harness = new();
-        KnowledgeRecord record = TestData.NewDraft();
+        KnowledgeRecord record = Published();
         harness.Ports.Record = record;
 
         SearchSimilarRecordsResponse response = await RunAsync(
@@ -138,6 +138,71 @@ public sealed class SearchSimilarRecordsTests
 
         Assert.Empty(response.Hits);
         Assert.Null(response.Unavailable);
+    }
+
+    /// <summary>
+    /// An archived record keeps its published revision, and the worker removes its row only on
+    /// its next pass. Until then the index still ranks it, and the answer must not.
+    /// </summary>
+    [Fact]
+    public async Task a_hit_whose_record_was_archived_drops_out()
+    {
+        Harness harness = new();
+        KnowledgeRecord record = Published();
+        record.Archive(TestData.Now.AddMinutes(10));
+        harness.Ports.Record = record;
+
+        SearchSimilarRecordsResponse response = await RunAsync(
+            harness,
+            new EmbeddingGateway(harness.Ports, new CountingProvider()),
+            new IndexReturning([new SimilarRevision(record.Id, 1, 0.01)]));
+
+        Assert.Empty(response.Hits);
+        Assert.Null(response.Unavailable);
+    }
+
+    /// <summary>
+    /// A row left behind for a revision that is no longer the published one describes text a
+    /// reader would not be shown. Only the live revision is an answer.
+    /// </summary>
+    [Fact]
+    public async Task a_hit_for_a_revision_that_is_no_longer_published_drops_out()
+    {
+        Harness harness = new();
+        KnowledgeRecord record = Published();
+        record.AddRevision(
+            "Why the import runs first", "Revised.", null, TestData.Provenance, TestData.Now.AddMinutes(4), TestData.Author);
+        record.SubmitForApproval(TestData.Now.AddMinutes(5));
+        record.Approve(TestData.Reviewer, record.CurrentRevision.ContentHash, TestData.Now.AddMinutes(6));
+        record.Publish(TestData.Now.AddMinutes(7));
+        harness.Ports.Record = record;
+
+        SearchSimilarRecordsResponse response = await RunAsync(
+            harness,
+            new EmbeddingGateway(harness.Ports, new CountingProvider()),
+            new IndexReturning(
+            [
+                new SimilarRevision(record.Id, 1, 0.01),
+                new SimilarRevision(record.Id, 2, 0.02),
+            ]));
+
+        SimilarRecordHit hit = Assert.Single(response.Hits);
+        Assert.Equal(2, hit.RevisionNumber);
+    }
+
+    [Fact]
+    public async Task a_hit_for_a_record_that_was_never_published_drops_out()
+    {
+        Harness harness = new();
+        KnowledgeRecord record = TestData.NewDraft();
+        harness.Ports.Record = record;
+
+        SearchSimilarRecordsResponse response = await RunAsync(
+            harness,
+            new EmbeddingGateway(harness.Ports, new CountingProvider()),
+            new IndexReturning([new SimilarRevision(record.Id, 1, 0.01)]));
+
+        Assert.Empty(response.Hits);
     }
 
     /// <summary>
@@ -186,6 +251,15 @@ public sealed class SearchSimilarRecordsTests
         Assert.Equal(AiExposure.Allowed, UseCaseCatalog.SearchSimilarRecords.AiExposure);
         Assert.Equal(PermissionKind.ReadKnowledge, UseCaseCatalog.SearchSimilarRecords.Permission);
         Assert.True(UseCaseCatalog.SearchSimilarRecords.RedactsOutput);
+    }
+
+    private static KnowledgeRecord Published()
+    {
+        KnowledgeRecord record = TestData.NewDraft();
+        record.SubmitForApproval(TestData.Now.AddMinutes(1));
+        record.Approve(TestData.Reviewer, record.CurrentRevision.ContentHash, TestData.Now.AddMinutes(2));
+        record.Publish(TestData.Now.AddMinutes(3));
+        return record;
     }
 
     private static async Task<SearchSimilarRecordsResponse> RunAsync(
@@ -240,6 +314,10 @@ public sealed class SearchSimilarRecordsTests
         public Task<IReadOnlySet<string>> IndexedContentHashesAsync(
             ProjectScope scope, string model, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.Ordinal));
+
+        public Task<int> RemoveRecordAsync(
+            ProjectScope scope, KnowledgeRecordId recordId, CancellationToken cancellationToken) =>
+            Task.FromResult(0);
 
         public Task<int> PurgeProjectAsync(ProjectScope scope, CancellationToken cancellationToken) =>
             Task.FromResult(0);

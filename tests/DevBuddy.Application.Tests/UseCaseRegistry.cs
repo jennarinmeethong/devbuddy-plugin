@@ -278,6 +278,10 @@ internal sealed class NoEmbeddingIndex : IEmbeddingIndex
         ProjectScope scope, string model, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.Ordinal));
 
+    public Task<int> RemoveRecordAsync(
+        ProjectScope scope, KnowledgeRecordId recordId, CancellationToken cancellationToken) =>
+        Task.FromResult(0);
+
     public Task<int> PurgeProjectAsync(ProjectScope scope, CancellationToken cancellationToken) =>
         Task.FromResult(0);
 }

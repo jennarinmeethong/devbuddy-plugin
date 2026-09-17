@@ -75,6 +75,15 @@ public interface IEmbeddingIndex
         ProjectScope scope, string model, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Drops every row one record has in this project, whatever its revision or model. Called when
+    /// a record is archived, because an archived record is no longer knowledge in use and a
+    /// semantic search must not keep surfacing it, and before a newer published revision is
+    /// written, so the one it replaces does not keep ranking beside it.
+    /// </summary>
+    Task<int> RemoveRecordAsync(
+        ProjectScope scope, KnowledgeRecordId recordId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Drops everything this project has indexed. Called when the project is deleted, and
     /// available to an operator who wants to rebuild from nothing.
     /// </summary>

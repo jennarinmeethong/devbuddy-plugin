@@ -182,6 +182,87 @@ public sealed class RecordEmbeddingSweepJobTests
         Assert.Empty(provider.Texts);
         Assert.Empty(index.Written);
         Assert.Equal(1, Assert.Single(job.Summaries).Skipped);
+
+        // And the vector of whatever was published before stays where it was: a refused embedding
+        // is not a reason to drop the record from search.
+        Assert.Empty(index.Removed);
+    }
+
+    /// <summary>
+    /// A newer published revision replaces the row of the one before it, rather than ranking
+    /// beside it with text a reader is no longer shown. The removal comes first, and only once the
+    /// new vector is in hand.
+    /// </summary>
+    [Fact]
+    public async Task a_newly_published_revision_replaces_the_records_older_rows()
+    {
+        Guid record = Guid.NewGuid();
+
+        RecordingDispatcher recorder = new();
+        recorder.Projects(Guid.NewGuid());
+        recorder.Records(record);
+        recorder.History(publishedRevision: 2, contentHash: "HASH-2");
+        recorder.Record("Title", "Body");
+
+        FakeIndex index = new() { Indexed = new HashSet<string>(["HASH-1"], StringComparer.Ordinal) };
+
+        await Run(Job(recorder, Configured(), index));
+
+        Assert.Equal([$"remove {record}", $"upsert {record} 2"], index.Events);
+    }
+
+    /// <summary>
+    /// An archived record keeps its published revision, so a sweep that only looked at that would
+    /// keep it in the index, and semantic search would keep offering knowledge somebody retired.
+    /// Removing it sends nothing and costs no budget, so it happens even when the budget is spent.
+    /// </summary>
+    [Fact]
+    public async Task an_archived_record_is_removed_from_the_index_and_not_embedded()
+    {
+        Guid archived = Guid.NewGuid();
+
+        RecordingDispatcher recorder = new();
+        recorder.Projects(Guid.NewGuid());
+        recorder.RecordsWithStatus((archived, RecordStatus.Archived));
+        recorder.History(publishedRevision: 1, contentHash: "HASH-1");
+        recorder.Record("Title", "Body");
+
+        FakeIndex index = new()
+        {
+            Indexed = new HashSet<string>(["HASH-1"], StringComparer.Ordinal),
+            Rows = { archived },
+        };
+        CountingProvider provider = new();
+
+        RecordEmbeddingSweepJob job = Job(recorder, Configured(provider), index);
+        WorkerRunReport report = await Run(job, new WorkerBudget(0));
+
+        Assert.False(report.Refused);
+        Assert.Equal([archived], index.Removed.Select(id => id.Value));
+        Assert.Empty(index.Written);
+        Assert.Empty(provider.Texts);
+
+        // Its history and body are not even read.
+        Assert.DoesNotContain("view_record_history", recorder.Invoked);
+        Assert.DoesNotContain("get_record", recorder.Invoked);
+
+        EmbeddingSweepSummary summary = Assert.Single(job.Summaries);
+        Assert.Equal(1, summary.Removed);
+        Assert.Equal(0, summary.AlreadyCurrent);
+        Assert.Equal(0, summary.Skipped);
+    }
+
+    [Fact]
+    public async Task an_archived_record_that_was_never_indexed_is_not_counted_as_removed()
+    {
+        RecordingDispatcher recorder = new();
+        recorder.Projects(Guid.NewGuid());
+        recorder.RecordsWithStatus((Guid.NewGuid(), RecordStatus.Archived));
+
+        RecordEmbeddingSweepJob job = Job(recorder, Configured(), new FakeIndex());
+        await Run(job);
+
+        Assert.Equal(0, Assert.Single(job.Summaries).Removed);
     }
 
     [Fact]
@@ -315,6 +396,13 @@ public sealed class RecordEmbeddingSweepJobTests
 
         public List<EmbeddedRevision> Written { get; } = [];
 
+        /// <summary>Records that currently have rows, so a removal can say whether it removed any.</summary>
+        public HashSet<Guid> Rows { get; } = [];
+
+        public List<KnowledgeRecordId> Removed { get; } = [];
+
+        public List<string> Events { get; } = [];
+
         public ProjectScope? LastScope { get; private set; }
 
         public string? LastModel { get; private set; }
@@ -331,7 +419,22 @@ public sealed class RecordEmbeddingSweepJobTests
             LastScope = scope;
             LastModel = model;
             Written.AddRange(entries);
+
+            foreach (EmbeddedRevision entry in entries)
+            {
+                Rows.Add(entry.RecordId.Value);
+                Events.Add($"upsert {entry.RecordId.Value} {entry.RevisionNumber}");
+            }
+
             return Task.FromResult(entries.Count);
+        }
+
+        public Task<int> RemoveRecordAsync(
+            ProjectScope scope, KnowledgeRecordId recordId, CancellationToken cancellationToken)
+        {
+            Removed.Add(recordId);
+            Events.Add($"remove {recordId.Value}");
+            return Task.FromResult(Rows.Remove(recordId.Value) ? 1 : 0);
         }
 
         public Task<IReadOnlyList<SimilarRevision>> FindSimilarAsync(
@@ -376,10 +479,13 @@ public sealed class RecordEmbeddingSweepJobTests
                 [.. ids.Select(id => new ProjectSummary(new ProjectId(id), "Project", Now, AiAccessEnabled: true))]));
 
         public void Records(params Guid[] ids) =>
+            RecordsWithStatus([.. ids.Select(id => (id, RecordStatus.Published))]);
+
+        public void RecordsWithStatus(params (Guid Id, RecordStatus Status)[] records) =>
             Answer("list_records", new ListRecordsResponse(
-                [.. ids.Select(id => new RecordSummary(
-                    new KnowledgeRecordId(id), new WorkItemId(Guid.NewGuid()), RecordKind.Decision,
-                    RecordStatus.Published, "Title", CurrentRevisionNumber: 1, PublishedRevisionNumber: 1, Now))]));
+                [.. records.Select(record => new RecordSummary(
+                    new KnowledgeRecordId(record.Id), new WorkItemId(Guid.NewGuid()), RecordKind.Decision,
+                    record.Status, "Title", CurrentRevisionNumber: 1, PublishedRevisionNumber: 1, Now))]));
 
         public void History(int publishedRevision, string contentHash) =>
             Answer("view_record_history", new RecordHistoryResponse(

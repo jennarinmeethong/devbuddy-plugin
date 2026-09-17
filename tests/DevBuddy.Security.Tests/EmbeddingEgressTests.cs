@@ -126,6 +126,40 @@ public sealed class EmbeddingEgressTests(EmbeddingEgressFixture fixture)
     }
 
     /// <summary>
+    /// An archived record keeps its published revision. The first pass after archiving takes its
+    /// row out of the index, sends nothing, and semantic search stops offering it — found on the
+    /// owner's installation on 2026-09-17, where an archived test record kept coming back.
+    /// </summary>
+    [Fact]
+    public async Task an_archived_record_leaves_the_index_and_is_not_sent_again()
+    {
+        Ground ground = await Ground.CreateAsync(_fixture);
+        await _fixture.EnableAiAccessAsync(ground.World.Alpha, ground.World.Founder);
+
+        KnowledgeRecord record = await ground.PublishAsync(
+            ground.World.Alpha, ground.AlphaItem, "Retired retry policy", "Retries used to stop after five attempts.");
+
+        await ground.SweepAsync();
+        Assert.Single(await ground.IndexedAsync(ground.World.Alpha));
+
+        DispatchResult before = await ground.SearchAsync(ground.World.Alpha, "retry policy");
+        Assert.Equal(1, before.Payload!.Value.GetProperty("hits").GetArrayLength());
+
+        await ground.ArchiveAsync(ground.World.Alpha, record.Id);
+        _fixture.Recorder.Clear();
+
+        WorkerRunReport report = await ground.SweepAsync();
+
+        Assert.False(report.Refused);
+        Assert.Empty(_fixture.Recorder.Texts);
+        Assert.Empty(await ground.IndexedAsync(ground.World.Alpha));
+
+        DispatchResult after = await ground.SearchAsync(ground.World.Alpha, "retry policy");
+        Assert.True(after.IsSuccess);
+        Assert.Equal(0, after.Payload!.Value.GetProperty("hits").GetArrayLength());
+    }
+
+    /// <summary>
     /// The other caller that sends text out: a semantic search query. A credential pasted into the
     /// search box is refused before anything is sent.
     /// </summary>
@@ -244,6 +278,16 @@ public sealed class EmbeddingEgressTests(EmbeddingEgressFixture fixture)
 
             using Session session = _fixture.OpenSession(scope.WorkspaceId);
             await session.Resolve<IKnowledgeRepository>().AddRecordAsync(draft, CancellationToken.None);
+        }
+
+        public async Task ArchiveAsync(ProjectScope scope, KnowledgeRecordId recordId)
+        {
+            using Session session = _fixture.OpenSession(scope.WorkspaceId);
+            IKnowledgeRepository repository = session.Resolve<IKnowledgeRepository>();
+
+            KnowledgeRecord record = (await repository.FindRecordAsync(recordId, scope, CancellationToken.None))!;
+            record.Archive(World.Now.AddMinutes(30));
+            await repository.UpdateRecordAsync(record, CancellationToken.None);
         }
 
         /// <summary>

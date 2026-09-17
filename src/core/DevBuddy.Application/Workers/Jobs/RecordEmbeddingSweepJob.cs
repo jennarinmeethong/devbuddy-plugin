@@ -2,6 +2,7 @@ using System.Text.Json;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Domain.Common;
+using DevBuddy.Domain.Knowledge;
 using DevBuddy.Domain.Tenancy;
 
 namespace DevBuddy.Application.Workers.Jobs;
@@ -130,7 +131,7 @@ public sealed class RecordEmbeddingSweepJob(
         {
             // A project the credential reaches for listing but not for reading, or one whose AI
             // policy closed between the two calls. Reported, not thrown.
-            return new EmbeddingSweepSummary(scope.ProjectId.Value, 0, 0, 0, records.Reason);
+            return new EmbeddingSweepSummary(scope.ProjectId.Value, 0, 0, 0, 0, records.Reason);
         }
 
         IReadOnlySet<string> alreadyIndexed =
@@ -139,10 +140,24 @@ public sealed class RecordEmbeddingSweepJob(
         int embedded = 0;
         int current = 0;
         int skipped = 0;
+        int removed = 0;
 
-        foreach (Guid recordId in RecordIdsIn(records.Payload))
+        foreach ((Guid recordId, string? status) in RecordsIn(records.Payload))
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // An archived record keeps its published revision, so without this it would stay in
+            // the index, and semantic search would keep offering knowledge somebody retired.
+            // Removing costs no budget and sends nothing, so it runs even when the budget is spent.
+            if (status == nameof(RecordStatus.Archived))
+            {
+                if (await _index.RemoveRecordAsync(scope, new KnowledgeRecordId(recordId), cancellationToken) > 0)
+                {
+                    removed++;
+                }
+
+                continue;
+            }
 
             if (budget.IsExhausted)
             {
@@ -178,7 +193,7 @@ public sealed class RecordEmbeddingSweepJob(
             embedded++;
         }
 
-        return new EmbeddingSweepSummary(scope.ProjectId.Value, embedded, current, skipped, null);
+        return new EmbeddingSweepSummary(scope.ProjectId.Value, embedded, current, skipped, removed, null);
     }
 
     /// <summary>
@@ -228,6 +243,11 @@ public sealed class RecordEmbeddingSweepJob(
         {
             return false;
         }
+
+        // A new published revision replaces the row of the one before it rather than ranking
+        // beside it. Removed only now, once the replacement is in hand, so a refused embedding
+        // leaves the older vector where it was.
+        await _index.RemoveRecordAsync(scope, new KnowledgeRecordId(recordId), cancellationToken);
 
         await _index.UpsertAsync(
             scope,
@@ -319,8 +339,25 @@ public sealed class RecordEmbeddingSweepJob(
     private static IEnumerable<Guid> ProjectIdsIn(JsonElement? payload) =>
         IdentifiersIn(payload, "projects", "projectId");
 
-    private static IEnumerable<Guid> RecordIdsIn(JsonElement? payload) =>
-        IdentifiersIn(payload, "records", "recordId");
+    private static IEnumerable<(Guid RecordId, string? Status)> RecordsIn(JsonElement? payload)
+    {
+        if (payload is not { } value
+            || !value.TryGetProperty("records", out JsonElement items)
+            || items.ValueKind != JsonValueKind.Array)
+        {
+            yield break;
+        }
+
+        foreach (JsonElement item in items.EnumerateArray())
+        {
+            if (item.TryGetProperty("recordId", out JsonElement id) && id.TryGetGuid(out Guid parsed))
+            {
+                yield return (
+                    parsed,
+                    item.TryGetProperty("status", out JsonElement status) ? status.GetString() : null);
+            }
+        }
+    }
 
     private static IEnumerable<Guid> IdentifiersIn(
         JsonElement? payload, string arrayName, string propertyName)
@@ -354,4 +391,5 @@ public sealed record EmbeddingSweepSummary(
     int Embedded,
     int AlreadyCurrent,
     int Skipped,
+    int Removed,
     string? Refusal);
