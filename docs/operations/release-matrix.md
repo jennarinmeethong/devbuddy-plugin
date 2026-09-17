@@ -326,7 +326,8 @@ Every row of the amd64 table came out the same:
 ### Against the release's own artefacts
 
 Tag `v1.3.0` pushed from `c850275`, run 35184238100, 2026-09-17. Every job passed on the first
-attempt, and the run carries no annotations. Between `84ee6d5` and `c850275` only `CLAUDE.md`, the
+attempt, and the run carries no annotations. The draft was **published on 2026-09-17** at 05:32
+UTC, at the owner's instruction, and is the repository's Latest release. Between `84ee6d5` and `c850275` only `CLAUDE.md`, the
 Thai handbook and its generator, and this file changed.
 
 | Check | When | Result |

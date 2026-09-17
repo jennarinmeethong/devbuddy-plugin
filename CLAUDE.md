@@ -39,8 +39,15 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
+**`v1.3.0` is the current release**, published 2026-09-17 from `c850275` at the owner's
+instruction. It carries the 2026-09-15 plugin test round's fixes, the audit channel column, the
+Thai SB-18 rules and the draft editor. Its source was verified at `84ee6d5`, and `c850275` adds
+documentation only. **Upgrading from `v1.2.1` needs no manual step.** Its checklist in
+`docs/operations/release-matrix.md` ran `win-x64` natively, but `linux-arm64` only in Docker Desktop's
+Linux VM, because the Ubuntu arm64 guest was off.
+
 **`v1.1.0` is published too (2026-09-10, from `4253a5b`), then `v1.2.0` (2026-09-14, from `7512240`),
-and `v1.2.1` is the current release**, published 2026-09-14 from `56a4c2a`. `v1.2.1` is the
+and `v1.2.1`**, published 2026-09-14 from `56a4c2a`. `v1.2.1` is the
 non-root evidence store and nothing else. **An installation upgrading to it has to `chown` its
 evidence volume once** (`docs/operations/deployment.md`). `v1.2.0` was decided on 2026-09-13 in
 `info.md`. It carries Phase 12C, the MinIO move to
@@ -52,7 +59,7 @@ ran for the tag. The results are in `docs/operations/release-matrix.md`:
 - `linux-arm64` and all three images on arm64 hardware for the first time.
 
 `v1.2.0`'s release notes say what was run for the two unverified RIDs, and so do `v1.2.1`'s. Both
-were published on 2026-09-14 at the owner's instruction. `v1.2.1` is the repository's Latest release.
+were published on 2026-09-14 at the owner's instruction. `v1.2.1` was Latest until `v1.3.0`.
 Its checklist, in `docs/operations/release-matrix.md`, records that Smart App Control blocked the
 unsigned `win-x64` build on the development machine. That row was run under x64 emulation on
 Windows on ARM instead, not natively.

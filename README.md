@@ -11,7 +11,7 @@ the source of truth, AI access denied by default and enabled per project.
 ## Status
 
 **v1 is released, and Phase 12 followed it.** `v1.0.0` (2026-09-06), `v1.1.0` (2026-09-10), `v1.2.0`
-(2026-09-14) and `v1.2.1` (2026-09-14, the current release) are published, signed, with an SBOM per
+(2026-09-14), `v1.2.1` (2026-09-14) and `v1.3.0` (2026-09-17, the current release) are published, signed, with an SBOM per
 image. 58 operations behind one pipeline plus two streaming evidence routes, PostgreSQL with full-text search, MinIO evidence
 storage, the product's own sign-in with lockout and rotating tokens, tenant isolation enforced
 server-side on every request, a draft-to-published path whose audit history records who approved
