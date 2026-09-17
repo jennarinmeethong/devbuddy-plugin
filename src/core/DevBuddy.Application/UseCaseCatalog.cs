@@ -163,6 +163,14 @@ public static class UseCaseCatalog
         "sync_sources", PermissionKind.ManageSources, AiExposure.Denied,
         AuditAction.SourcesSynchronized, redactsOutput: false);
 
+    /// <summary>
+    /// The repositories a project can be synchronised and analysed from. Added on 2026-09-17 so
+    /// the web client can offer a choice rather than an identifier field. Human-only.
+    /// </summary>
+    public static UseCaseDescriptor ListSourceRepositories { get; } = new(
+        "list_source_repositories", PermissionKind.AnalyzeProject, AiExposure.Denied,
+        AuditAction.RecordViewed, redactsOutput: false);
+
     public static UseCaseDescriptor ValidateProvenance { get; } = QualitySweep("validate_provenance");
 
     public static UseCaseDescriptor DetectDuplicates { get; } = QualitySweep("detect_duplicates");
@@ -339,7 +347,7 @@ public static class UseCaseCatalog
         GenerateHandover, FindOpenQuestions, FindMissingEvidence,
         CreateDraft,
         ReviseDraft, SubmitForApproval, ApproveRecord, RequestCorrection, PublishRecord, ArchiveRecord,
-        SyncSources, ValidateProvenance, DetectDuplicates, DetectStaleness, Reindex,
+        SyncSources, ListSourceRepositories, ValidateProvenance, DetectDuplicates, DetectStaleness, Reindex,
         DetectSecrets, RedactSensitiveData,
         ExportProject, BackupSystem, CheckSystemHealth,
         GrantMembership, RevokeMembership, EnableProjectAiAccess, DisableProjectAiAccess,

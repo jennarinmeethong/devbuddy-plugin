@@ -76,6 +76,46 @@ public sealed class SyncSourcesUseCase(ISourceSystemClient sourceSystem)
     }
 }
 
+public sealed record ListSourceRepositoriesRequest(ProjectScope Scope) : ProjectRequest(Scope)
+{
+    public override string ResourceReference => "source-repositories";
+}
+
+public sealed record SourceRepositorySummary(SourceRepositoryId RepositoryId, string? Locator);
+
+public sealed record ListSourceRepositoriesResponse(IReadOnlyList<SourceRepositorySummary> Repositories);
+
+/// <summary>
+/// The repositories this project can be synchronised and analysed from, as the installation is
+/// configured.
+/// <para>
+/// Needs the permission analysis needs, because choosing a repository to analyse is what it is
+/// for. Not exposed to AI: the tool surface is a deliberate list, and it did not grow for this.
+/// </para>
+/// </summary>
+public sealed class ListSourceRepositoriesUseCase(ISourceRepositoryCatalog catalog)
+    : UseCase<ListSourceRepositoriesRequest, ListSourceRepositoriesResponse>
+{
+    private readonly ISourceRepositoryCatalog _catalog = Guard.NotNull(catalog, nameof(catalog));
+
+    public override UseCaseDescriptor Descriptor => UseCaseCatalog.ListSourceRepositories;
+
+    protected internal override async Task<ListSourceRepositoriesResponse> HandleAsync(
+        ListSourceRepositoriesRequest request, CallerContext caller, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AvailableRepository> repositories =
+            await _catalog.ListAsync(request.Scope, cancellationToken);
+
+        return new ListSourceRepositoriesResponse(
+        [
+            .. repositories
+                .OrderBy(repository => repository.Locator ?? string.Empty, StringComparer.Ordinal)
+                .ThenBy(repository => repository.RepositoryId.Value)
+                .Select(repository => new SourceRepositorySummary(repository.RepositoryId, repository.Locator)),
+        ]);
+    }
+}
+
 public sealed record QualitySweepRequest(ProjectScope Scope) : ProjectRequest(Scope)
 {
     public override string ResourceReference => "project";

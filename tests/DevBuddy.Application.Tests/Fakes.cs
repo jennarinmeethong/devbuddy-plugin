@@ -72,6 +72,7 @@ internal sealed class FakePorts :
     ISearchIndex,
     IEvidenceStore,
     ISourceSystemClient,
+    ISourceRepositoryCatalog,
     ICodeAnalyzer,
     ISecretScanner,
     IRedactor,
@@ -255,6 +256,14 @@ internal sealed class FakePorts :
         Touch();
         evidence.RecordScanResult(state, TestData.Now);
         return Task.FromResult(evidence);
+    }
+
+    public Task<IReadOnlyList<AvailableRepository>> ListAsync(
+        ProjectScope scope, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<AvailableRepository>>(
+            [new AvailableRepository(TestData.Repository, "acme/importer")]);
     }
 
     public Task<SourceSnapshot> FetchSnapshotAsync(

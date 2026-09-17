@@ -159,6 +159,8 @@ public static class DependencyInjection
                 : provider.GetRequiredService<WorkingCopySourceSystemClient>();
         });
 
+        services.AddScoped<ISourceRepositoryCatalog, ConfiguredSourceRepositoryCatalog>();
+
         services.AddSingleton<IHostResolver, DnsHostResolver>();
         services.AddSingleton<UrlGuard>();
 

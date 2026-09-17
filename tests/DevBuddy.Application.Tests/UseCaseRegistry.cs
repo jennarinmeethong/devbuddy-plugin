@@ -111,6 +111,9 @@ internal sealed class UseCaseRegistry
         Add(new SyncSourcesUseCase(ports),
             new SyncSourcesRequest(TestData.Scope, TestData.Repository));
 
+        Add(new ListSourceRepositoriesUseCase(ports),
+            new ListSourceRepositoriesRequest(TestData.Scope));
+
         var sweep = new QualitySweepRequest(TestData.Scope);
         Add(new ValidateProvenanceUseCase(ports), sweep);
         Add(new DetectDuplicatesUseCase(ports), sweep);
