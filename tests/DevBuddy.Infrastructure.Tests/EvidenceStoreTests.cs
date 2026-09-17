@@ -1,6 +1,8 @@
+using System.Net;
 using System.Text;
 using Amazon.Runtime;
 using Amazon.S3;
+using Amazon.S3.Model;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Evidence;
@@ -164,6 +166,61 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
     }
 
     [Fact]
+    public async Task concurrent_first_captures_in_a_new_workspace_all_succeed_and_the_bucket_stays_private()
+    {
+        const int Racers = 6;
+        Seed seed = await Seed.CreateAsync(_postgres);
+
+        // Every capture lists the buckets before any of them creates one, so each finds the new
+        // workspace's bucket missing and asks for it. That is the interleaving the e2e suite hit
+        // on 2026-09-17 by chance, made certain: the losers used to throw
+        // BucketAlreadyOwnedByYou and the capture answered 500.
+        RacingS3Client client = RacingClient(Racers);
+
+        Task<EvidenceObject>[] captures = Enumerable.Range(0, Racers)
+            .Select(async racer =>
+            {
+                await using DevBuddyDbContext context = _postgres.CreateContext(seed.Workspace);
+                EvidenceStore store = ObjectStorageStore(context, client: client);
+
+                return await store.StoreAsync(
+                    seed.Alpha, Bytes($"first capture {racer}"), "text/plain", seed.Author, Ct);
+            })
+            .ToArray();
+
+        EvidenceObject[] stored = await Task.WhenAll(captures);
+
+        // Without this the test could pass by never racing at all.
+        Assert.Equal(Racers, client.BucketCreationAttempts);
+
+        await using (DevBuddyDbContext context = _postgres.CreateContext(seed.Workspace))
+        {
+            EvidenceStore store = ObjectStorageStore(context);
+            Assert.Equal(Racers, (await new EvidenceMetadataStore(context).ListForScopeAsync(seed.Alpha, Ct)).Count);
+
+            foreach (EvidenceObject evidence in stored)
+            {
+                await using Stream read = await store.OpenReadAsync(evidence, Ct);
+                using var reader = new StreamReader(read);
+                Assert.StartsWith("first capture ", await reader.ReadToEndAsync(Ct), StringComparison.Ordinal);
+            }
+        }
+
+        // Tolerating the race must not have made the bucket readable by anybody who is not the
+        // API: no listing and no object without credentials.
+        string bucket = new EvidenceStoreOptions().BucketFor(seed.Workspace);
+        using var anonymous = new HttpClient();
+
+        using HttpResponseMessage listing = await anonymous.GetAsync(
+            new Uri($"{_minio.ServiceUrl.TrimEnd('/')}/{bucket}/"), Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, listing.StatusCode);
+
+        using HttpResponseMessage download = await anonymous.GetAsync(
+            new Uri($"{_minio.ServiceUrl.TrimEnd('/')}/{bucket}/{stored[0].StorageKey}"), Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, download.StatusCode);
+    }
+
+    [Fact]
     public async Task the_filesystem_fallback_round_trips_and_refuses_a_path_that_escapes()
     {
         Seed seed = await Seed.CreateAsync(_postgres);
@@ -209,7 +266,9 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
     private static MemoryStream Bytes(string text) => new(Encoding.UTF8.GetBytes(text));
 
     private EvidenceStore ObjectStorageStore(
-        DevBuddyDbContext context, Action<EvidenceStoreOptions>? configure = null)
+        DevBuddyDbContext context,
+        Action<EvidenceStoreOptions>? configure = null,
+        IAmazonS3? client = null)
     {
         var settings = new EvidenceStoreOptions
         {
@@ -232,14 +291,7 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
 
         IOptions<EvidenceStoreOptions> options = Options.Create(settings);
 
-        var client = new AmazonS3Client(
-            new BasicAWSCredentials(settings.AccessKey, settings.SecretKey),
-            new AmazonS3Config
-            {
-                ServiceURL = settings.ServiceUrl,
-                ForcePathStyle = true,
-                AuthenticationRegion = "us-east-1",
-            });
+        client ??= new AmazonS3Client(Credentials, ClientConfig());
 
         return new EvidenceStore(
             new EvidenceMetadataStore(context),
@@ -248,8 +300,61 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
             options);
     }
 
+    private static BasicAWSCredentials Credentials => new(MinioFixture.AccessKey, MinioFixture.SecretKey);
+
+    private AmazonS3Config ClientConfig() => new()
+    {
+        ServiceURL = _minio.ServiceUrl,
+        ForcePathStyle = true,
+        AuthenticationRegion = "us-east-1",
+    };
+
+    private RacingS3Client RacingClient(int racers) => new(racers, Credentials, ClientConfig());
+
     private sealed class FixedClock : IClock
     {
         public DateTimeOffset UtcNow => Seed.Now;
+    }
+
+    /// <summary>
+    /// A real client that holds each of the first <c>racers</c> bucket listings until all of them
+    /// have been answered, so every one of those callers sees the same missing bucket.
+    /// </summary>
+    private sealed class RacingS3Client(int racers, AWSCredentials credentials, AmazonS3Config config)
+        : AmazonS3Client(credentials, config)
+    {
+        private readonly TaskCompletionSource _allListed =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private int _listed;
+        private int _creations;
+
+        public int BucketCreationAttempts => _creations;
+
+        public override async Task<ListBucketsResponse> ListBucketsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            ListBucketsResponse response = await base.ListBucketsAsync(cancellationToken);
+            int listed = Interlocked.Increment(ref _listed);
+
+            if (listed == racers)
+            {
+                _allListed.TrySetResult();
+            }
+
+            if (listed <= racers)
+            {
+                await _allListed.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            }
+
+            return response;
+        }
+
+        public override Task<PutBucketResponse> PutBucketAsync(
+            PutBucketRequest request, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _creations);
+            return base.PutBucketAsync(request, cancellationToken);
+        }
     }
 }
