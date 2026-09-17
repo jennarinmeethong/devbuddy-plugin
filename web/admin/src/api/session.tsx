@@ -15,6 +15,12 @@ import { describeSignedInUser, forgetTokens, hasSession, refreshSession, signOut
 
 interface Session {
   user: SignedInUser | null;
+  /**
+   * True only until the first answer about who is signed in has arrived. A later `reload` leaves
+   * it alone and swaps `user` when the new answer lands: App shows "Loading…" in place of every
+   * route while this is true, so a refresh that set it would unmount the screen that asked for it,
+   * and whatever that screen was showing — a confirmation, a half-filled form — with it.
+   */
   loading: boolean;
   reload: () => Promise<void>;
   end: () => Promise<void>;
@@ -32,8 +38,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-
-    setLoading(true);
 
     try {
       setUser(await describeSignedInUser());

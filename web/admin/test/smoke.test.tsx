@@ -9,6 +9,7 @@ import { forgetTokens } from "../src/api/client";
 import {
   EVIDENCE,
   fakeServer,
+  NEW_WORKSPACE,
   OTHER_USER,
   PROJECT,
   RECORD,
@@ -303,6 +304,43 @@ describe("standing up another workspace", () => {
       name: "Northwind",
       firstProjectName: null,
     });
+  });
+
+  test("the confirmation stays on screen while the session is re-read behind it", async () => {
+    // Creating a workspace re-reads /me. Until 2026-09-17 that re-read put App back on its
+    // "Loading…" screen, which unmounted this one and took the confirmation with it. The re-read
+    // is held back a little, as a network would, or React folds "loading" and "loaded" into one
+    // render and the defect never shows.
+    const answer = globalThis.fetch;
+    let reads = 0;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/me") {
+        reads += 1;
+
+        if (reads > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      }
+
+      return answer(input, init);
+    }) as typeof fetch;
+
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/workspaces`));
+
+    fireEvent.change(await screen.findByPlaceholderText("Northwind"), {
+      target: { value: "Northwind" },
+    });
+
+    const before = reads;
+    fireEvent.click(screen.getByRole("button", { name: "Create workspace" }));
+
+    await waitFor(() => expect(reads).toBeGreaterThan(before));
+
+    const link = await screen.findByRole("link", { name: "open Northwind" });
+    expect(link.getAttribute("href")).toBe(`/w/${NEW_WORKSPACE}`);
+    expect(screen.getByText(/Created, sponsored by Acme/)).toBeDefined();
+    expect(screen.queryByText("Loading…")).toBeNull();
   });
 
   test("a first project comes along when one is named", async () => {
