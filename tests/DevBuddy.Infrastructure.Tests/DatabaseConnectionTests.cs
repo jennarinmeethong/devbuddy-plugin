@@ -16,11 +16,11 @@ public sealed class DatabaseConnectionTests
     public void gss_encryption_is_switched_off_when_nobody_chose()
     {
         NpgsqlConnectionStringBuilder result = new(
-            DatabaseConnection.WithoutGssProbe("Host=database;Database=devbuddy;Username=devbuddy;Password=p@ss;word"));
+            DatabaseConnection.WithoutGssProbe("Host=database;Database=devbuddy;Username=devbuddy;Password='p@ss;word'"));
 
         Assert.Equal(GssEncryptionMode.Disable, result.GssEncryptionMode);
 
-        // And nothing else moved, including a password with the separator in it.
+        // And nothing else moved, including a quoted password with the separator in it.
         Assert.Equal("database", result.Host);
         Assert.Equal("devbuddy", result.Database);
         Assert.Equal("p@ss;word", result.Password);
