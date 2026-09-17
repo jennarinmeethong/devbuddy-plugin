@@ -215,7 +215,8 @@ Compose run or drill was performed against it.
 
 ## What was verified for v1.3.0
 
-**Not tagged yet.** This release carries:
+**Tagged on 2026-09-17** at `c850275`, which is `84ee6d5` plus documentation alone. This release
+carries:
 - the fixes from the 2026-09-15 plugin test round;
 - the audit channel column;
 - the Thai SB-18 rules;
@@ -324,7 +325,29 @@ Every row of the amd64 table came out the same:
 
 ### Against the release's own artefacts
 
-Not run yet. This section is filled in after the tag, as for `v1.2.1`.
+Tag `v1.3.0` pushed from `c850275`, run 35184238100, 2026-09-17. Every job passed on the first
+attempt, and the run carries no annotations. Between `84ee6d5` and `c850275` only `CLAUDE.md`, the
+Thai handbook and its generator, and this file changed.
+
+| Check | When | Result |
+| --- | --- | --- |
+| The draft carries exactly the published RIDs | Re-run | **Yes.** Seven archives, `SHA256SUMS` and the three SBOMs; `prerelease=false`, and `v1.2.1` stayed Latest while it was a draft. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and all seven archives: provenance names `refs/tags/v1.3.0` and `c850275`. A deliberately wrong `--owner` is refused for an image and for an archive. |
+| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all seven downloaded from the draft, and again on every machine an archive was copied to. |
+| SBOM attached per image | Re-run | **Yes.** CycloneDX 1.7: 36, 38 and 56 components for the API, the MCP server and the console. |
+| Both architectures in every manifest | Re-run | **Yes.** `linux/amd64` and `linux/arm64` for all three images. `1.3.0`, `1.3` and `v1.3.0` resolve to one digest per image. `1.2.1` still resolves to its own. |
+| Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp, with the tag's own Compose file and the published images in place of the build. The images were pulled as `1.3.0` and matched the published digests; `amd64`; user `1654`.<br>• `migrate` exited 0 having applied eight migrations, the last being `AuditEventChannel`.<br>• The API was healthy and answered 200, 401 and 200.<br>• The MCP server answered 401, against a 404 control.<br>• The API, MCP server and retention ran as uid 1654 and read-only, PostgreSQL as 70, and the evidence store as 1000, read-only.<br>• The console listed the twenty AI operations, and the API logged no error lines. |
+| Images **started** on `linux/arm64` | Re-run, against the published images | **Yes, on hardware:** the Mac mini's Docker Desktop Linux VM on the Apple M4, with PostgreSQL from `public.ecr.aws`. The same script, checks and results, with `arm64` and the same digests. |
+| `win-x64` smoke test | Re-run | **Yes, natively**, on the development machine: Windows 11 Pro 10.0.26200 on AMD64. Twenty operations, identical to the console image, exit 0; `--every 24` refused with exit 2. `v1.2.1` had been blocked here by Smart App Control. On 2026-09-17 `VerifiedAndReputablePolicyState` read 0 there, where it had read 1. This work did not change it. |
+| `linux-x64` smoke test | Re-run | **Yes.** `ubuntu:24.04` (24.04.4) with `libicu74`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24.1) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively on the Apple M4 Mac mini, macOS 26.6.2. Twenty operations, identical; `--every 24` refused; the apphost is an ad-hoc signed arm64 Mach-O. |
+| `linux-arm64` smoke test | Re-run | **Yes, in Docker Desktop's Linux VM on the Apple M4:** `ubuntu:24.04` (24.04.5), `aarch64`. Twenty operations, identical; `--every 24` refused. **Not run natively this time**, because the Ubuntu 26.04 VMware guest was switched off. |
+| `win-arm64` smoke test | Run for this release, not required | **Yes, in a VM.** Natively on Windows on ARM (10.0.26200.9457) in a VMware guest on Apple silicon. Twenty operations, identical, exit 0; `--every 24` refused with exit 2. The RID stays built but unverified. |
+| `linux-musl-arm64` smoke test | Run for this release, not required | **Yes, in a container.** `alpine:3` (3.24.1) in Docker Desktop's Linux VM on the Apple M4, `aarch64`. Twenty operations, identical; `--every 24` refused. The RID stays built but unverified. |
+
+"Identical" means the same twenty names, in the same order, as `operations --ai` printed by the
+published `devbuddy-cli:1.3.0` image on jmhp.
 
 ## What was verified for v1.2.1
 
