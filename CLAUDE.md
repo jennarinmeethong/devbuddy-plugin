@@ -30,11 +30,11 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 870 .NET tests and 57 web tests exist. The .NET suite passed on 2026-09-17 and the web suite on 2026-09-16 — the
+enforcement. 878 .NET tests and 57 web tests exist. The .NET suite passed on 2026-09-17 and the web suite on 2026-09-16 — the
 .NET suite in the SDK container on the owner's Linux test machine, the web suite in a Bun
 container there — count them rather than trusting this sentence, which has been stale three times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, and at 867 and 57 until the audit reference fix landed. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, and at 870 and 57 until archived records left semantic search. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -272,7 +272,11 @@ opened to AI is never embedded**; SB-18 redacts what the job reads; and SB-17 sc
 record carrying a credential is skipped with nothing sent and the sweep continues. It embeds **the
 published revision and nothing else** — a draft is not knowledge yet, and indexing one would let a
 semantic search surface something nobody approved. It re-embeds only what changed, by content hash,
-so an unchanged record costs neither a read nor an embedding.
+so an unchanged record costs neither a read nor an embedding. **An archived record keeps its
+published revision**, so since 2026-09-17 the sweep removes its rows, and a newer published
+revision replaces the older one's row rather than ranking beside it. `search_similar_records` also
+answers only a record's current published revision, and never an archived record, because the
+index lags by up to a pass.
 
 **`WorkerBudget` counts texts, not calls.** A correction: the gateway takes a batch, so counting
 invocations meant a budget of ten bounded nothing. Providers charge for input. Spent
