@@ -30,11 +30,11 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 867 .NET tests and 57 web tests exist, and all of them passed on 2026-09-16 — the
+enforcement. 870 .NET tests and 57 web tests exist. The .NET suite passed on 2026-09-17 and the web suite on 2026-09-16 — the
 .NET suite in the SDK container on the owner's Linux test machine, the web suite in a Bun
 container there — count them rather than trusting this sentence, which has been stale three times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, and at 861 and 47 until the draft editor landed. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, and at 867 and 57 until the audit reference fix landed. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -313,8 +313,9 @@ installation other than the owner's devbox holding real project data — both st
 of their own. **The devbox is approved (`info.md`, 2026-09-16):** self-hosted `qwen3-embedding:0.6b`
 through Ollama inside the stack, real project data with no customer, production or personal data,
 no bounded scope, and `record-embedding-sweep` as a Viewer account of its own at 50 texts every 24h.
-No stale-record sweep there. Its worker is not running until that account exists and has minted
-its own token, which only the owner can do. Known and not
+No stale-record sweep there. **That worker has run there since 2026-09-17**, on v1.3.0, as the
+owner's `test_worker` account with a token it minted. Its first pass with something to embed
+indexed one published test record, and `search_similar_records` found it over the plugin. Known and not
 fixed: with `Logging:File:Path` set, the console image writes its SQL logs to standard output ahead
 of a `run` result, so that output is not machine-parseable.
 
