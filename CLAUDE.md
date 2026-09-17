@@ -43,8 +43,8 @@ ADR-0012 required a control for, closed on 2026-09-13.
 instruction. It carries the 2026-09-15 plugin test round's fixes, the audit channel column, the
 Thai SB-18 rules and the draft editor. Its source was verified at `84ee6d5`, and `c850275` adds
 documentation only. **Upgrading from `v1.2.1` needs no manual step.** Its checklist in
-`docs/operations/release-matrix.md` ran `win-x64` natively, but `linux-arm64` only in Docker Desktop's
-Linux VM, because the Ubuntu arm64 guest was off.
+`docs/operations/release-matrix.md` ran `win-x64` natively. `linux-arm64` ran in Docker Desktop's
+Linux VM before publication, and natively in the Ubuntu arm64 guest the same day, after it.
 
 **`v1.1.0` is published too (2026-09-10, from `4253a5b`), then `v1.2.0` (2026-09-14, from `7512240`),
 and `v1.2.1`**, published 2026-09-14 from `56a4c2a`. `v1.2.1` is the
