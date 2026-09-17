@@ -22,7 +22,7 @@ repository.
 **v1 is released, and Phase 12 followed it.** Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are
 closed, and `v1.0.0` is published from `9a8ebf0` — signed, an SBOM per image, and the attestations
 verified from outside the workflow that built them. Phase 1 delivered `DevBuddy.Domain`; Phase 2
-the `UseCaseExecutor` pipeline and the first 41 of what is now 58 operations; Phase 3 PostgreSQL,
+the `UseCaseExecutor` pipeline and the first 41 of what is now 62 operations; Phase 3 PostgreSQL,
 full-text search, and MinIO; Phase 4 identity, authorization, and tenant isolation; Phase 5 the
 lifecycle and audit history; Phase 6 read-only analysis, the real secret scanner and redactor, the
 path and URL guards, and source synchronisation from a mounted working copy; Phase 7 the three
@@ -90,15 +90,29 @@ is shown.**
   that forgot either would drop it silently. The front matter is also part of the hash an approval
   binds, which is why the page shows it.
 
-Still **not** reachable from any screen, each needing a decision rather than a button:
-- `create_draft` by a person;
-- `grant_membership` (a role cannot be changed, and an existing account cannot be given a second
-  grant);
-- `sync_sources` (no operation registers a source repository);
-- `export_project` and `backup_system`;
-- the quality sweeps and `reindex`.
+**Since 2026-09-17 every operation a person needs has a screen** (`info.md`, same day). The owner
+decided it; until then six groups were deliberately left to the console.
+- **A work item page** carries the work, its records, the form a person writes a new draft with,
+  and a handover with open questions and missing evidence. A draft belongs to a work item, which
+  is why the form is there and not on the record list.
+- **Search** has full-text search, Published by default, and semantic search, which shows the
+  server's reason when it cannot answer.
+- **Analysis** lists the repositories the project can read, and runs the seven analyses, change
+  impact, a comparison of two references and a synchronisation. It needs
+  **`list_source_repositories`**, added the same day and human-only. Nothing persists a
+  `SourceRepository`, so it reports what the configuration already makes reachable: the GitHub
+  mode's entries for the project, or the identifier-named directories under its working copy root.
+  No server path is returned.
+- **Maintenance** has the quality sweeps, `reindex`, `detect_secrets`, `redact_sensitive_data`
+  and `export_project`, each shown only to a role carrying its permission. `backup_system` is on
+  Health.
+- **Members** changes a role by revoking the grant and then granting the new role on the same
+  scope, because a grant's role cannot be edited. Revoking first is the direction that fails safe,
+  and it is not offered on the caller's own grant. It can also give somebody already here another
+  grant.
 
-The console's `run` reaches all of them.
+The AI surface did not move: it is still twenty operations. The console's `run` still reaches
+everything.
 Team administration is the
 `Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the
 permission, so a viewer is offered neither), and deleting a project is on the project list —
