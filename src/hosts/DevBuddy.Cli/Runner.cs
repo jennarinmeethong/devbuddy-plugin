@@ -381,9 +381,7 @@ internal static class Runner
         {
             services.AddDevBuddy(configuration, "The console");
 
-            // Off unless Logging:File:Path is set. This is the host that runs the retention sweep,
-            // so it needs the options even when it is not the one writing the files.
-            services.AddDevBuddyFileLogging(configuration);
+            ConsoleLogging.Add(services, configuration);
         }
         catch (InvalidOperationException failure)
         {

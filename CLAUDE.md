@@ -319,9 +319,15 @@ through Ollama inside the stack, real project data with no customer, production 
 no bounded scope, and `record-embedding-sweep` as a Viewer account of its own at 50 texts every 24h.
 No stale-record sweep there. **That worker has run there since 2026-09-17**, on v1.3.0, as the
 owner's `test_worker` account with a token it minted. Its first pass with something to embed
-indexed one published test record, and `search_similar_records` found it over the plugin. Known and not
-fixed: with `Logging:File:Path` set, the console image writes its SQL logs to standard output ahead
-of a `run` result, so that output is not machine-parseable.
+indexed one published test record, and `search_similar_records` found it over the plugin.
+
+**The console logs to standard error (2026-09-17).** With `Logging:File:Path` set it used to write
+every SQL statement to standard output ahead of a `run` result, so nothing could parse that output.
+`ConsoleLogging` sends the console half of the file sink to standard error, as the MCP server under
+stdio always did. Two other lines that read like faults are gone too: every host now states EF's
+single-query loading (the default it already used, unstated it warned on every record read), and
+switches Npgsql's GSS encryption probe off unless the connection string chooses, because the
+chiseled images have no `libgssapi_krb5.so.2` and the probe printed that it could not load it.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports
