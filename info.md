@@ -1,5 +1,43 @@
 # Project Decisions
 
+## Confirmed a Screen for Every Operation, Fixes Before the Next Release, Releases on devbox, and HTTPS Deferred — 2026-09-17
+
+The owner answered the list of open items from the same day.
+
+- **Every operation a person needs is reachable from `web/admin`.** Until now `CLAUDE.md` left
+  these to the console, each "needing a decision":
+  - `create_draft` by a person;
+  - `grant_membership`, including changing a role and a second grant;
+  - `sync_sources`;
+  - `export_project` and `backup_system`;
+  - the quality sweeps and `reindex`.
+
+  The owner asked for all of them, and for the read operations the AI surface has.
+  - **What this decides:** `list_source_repositories` is added, human-only, needing
+    `AnalyzeProject`, so a repository is chosen from what the configuration makes reachable
+    rather than typed as an identifier.
+  - **A role change** is a revocation followed by a new grant on the same scope.
+  - **The AI surface does not change.** It stays at twenty operations.
+  - **Still no web chat**, as the technology decision below says. These are forms, not
+    conversations.
+- **Fix the known issues before the next release.** These are:
+  - the console writing SQL logs to standard output;
+  - EF's query-splitting warning;
+  - the `libgssapi_krb5.so.2` message.
+
+  The release follows once they and the screens above are merged and verified. Its version and
+  checklist are decided when it is cut, the same way `v1.3.0` was.
+- **The devbox installation runs from a release tag.** It ran `main` at `dd7b894` on 2026-09-17 to
+  take the archived-record fix early. It moves to the next release's tag once that is published,
+  and stays on tags afterwards.
+- **HTTPS for the devbox installation is deferred, not decided.** It is LAN-only over plain HTTP,
+  as recorded on 2026-09-14. The options raised then are still open, and none is chosen:
+  - ZeroTier;
+  - Tailscale;
+  - an owned domain with Cloudflare DNS-01 behind Caddy.
+
+  Nothing may expose it beyond the LAN until one is.
+
 ## Confirmed Cutting v1.3.0 for the Plugin Test Round's Fixes and the Draft Editor — 2026-09-16
 
 The owner decided the next release is `v1.3.0`, cut from `main` once the draft editor was merged,

@@ -95,7 +95,8 @@ public static class DependencyInjection
         configureOutbound?.Invoke(outbound);
         services.AddSingleton(outbound);
 
-        services.AddDbContext<DevBuddyDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<DevBuddyDbContext>(options => options.UseNpgsql(
+            DatabaseConnection.WithoutGssProbe(connectionString), DatabaseConnection.Configure));
 
         services.AddScoped<MutableTenantContext>();
         services.AddScoped<ITenantContext>(provider => provider.GetRequiredService<MutableTenantContext>());
@@ -157,6 +158,8 @@ public static class DependencyInjection
                 ? provider.GetRequiredService<GitHubApiSourceSystemClient>()
                 : provider.GetRequiredService<WorkingCopySourceSystemClient>();
         });
+
+        services.AddScoped<ISourceRepositoryCatalog, ConfiguredSourceRepositoryCatalog>();
 
         services.AddSingleton<IHostResolver, DnsHostResolver>();
         services.AddSingleton<UrlGuard>();

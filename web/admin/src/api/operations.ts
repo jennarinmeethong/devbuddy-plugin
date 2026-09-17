@@ -36,6 +36,7 @@ export type OperationName =
   | "publish_record"
   | "archive_record"
   | "sync_sources"
+  | "list_source_repositories"
   | "validate_provenance"
   | "detect_duplicates"
   | "detect_staleness"
@@ -655,6 +656,20 @@ export type SyncSourcesResult = {
   openIssueCount: number | null;
 };
 
+export type ListSourceRepositoriesArguments = {
+  scope: {
+    workspaceId: string;
+    projectId: string;
+  };
+};
+
+export type ListSourceRepositoriesResult = {
+  repositories: Array<{
+      repositoryId: string;
+      locator: string | null;
+    }>;
+};
+
 export type ValidateProvenanceArguments = {
   scope: {
     workspaceId: string;
@@ -1122,6 +1137,7 @@ export interface Operations {
   "publish_record": { arguments: PublishRecordArguments; result: PublishRecordResult };
   "archive_record": { arguments: ArchiveRecordArguments; result: ArchiveRecordResult };
   "sync_sources": { arguments: SyncSourcesArguments; result: SyncSourcesResult };
+  "list_source_repositories": { arguments: ListSourceRepositoriesArguments; result: ListSourceRepositoriesResult };
   "validate_provenance": { arguments: ValidateProvenanceArguments; result: ValidateProvenanceResult };
   "detect_duplicates": { arguments: DetectDuplicatesArguments; result: DetectDuplicatesResult };
   "detect_staleness": { arguments: DetectStalenessArguments; result: DetectStalenessResult };
@@ -1185,6 +1201,7 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "publish_record": { permission: "PublishRecord", availableToAi: false },
   "archive_record": { permission: "ArchiveRecord", availableToAi: false },
   "sync_sources": { permission: "ManageSources", availableToAi: false },
+  "list_source_repositories": { permission: "AnalyzeProject", availableToAi: false },
   "validate_provenance": { permission: "ManageIndex", availableToAi: false },
   "detect_duplicates": { permission: "ManageIndex", availableToAi: false },
   "detect_staleness": { permission: "ManageIndex", availableToAi: false },

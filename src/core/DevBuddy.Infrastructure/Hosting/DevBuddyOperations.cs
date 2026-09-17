@@ -53,6 +53,7 @@ public static class DevBuddyOperations
         // container still able to build its use cases, which is how the tool-surface suite reads
         // the AI allow-list without a database.
         services.TryAddScoped<IEmbeddingIndex, AbsentEmbeddingIndex>();
+        services.TryAddScoped<ISourceRepositoryCatalog, NoSourceRepositories>();
 
         services.AddScoped<SearchKnowledgeUseCase>();
         services.AddScoped<SearchSimilarRecordsUseCase>();
@@ -87,6 +88,7 @@ public static class DevBuddyOperations
         services.AddScoped<ArchiveRecordUseCase>();
 
         services.AddScoped<SyncSourcesUseCase>();
+        services.AddScoped<ListSourceRepositoriesUseCase>();
         services.AddScoped<ValidateProvenanceUseCase>();
         services.AddScoped<DetectDuplicatesUseCase>();
         services.AddScoped<DetectStalenessUseCase>();
@@ -170,6 +172,7 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<ArchiveRecordUseCase>(), executor),
 
             Bind(services.GetRequiredService<SyncSourcesUseCase>(), executor),
+            Bind(services.GetRequiredService<ListSourceRepositoriesUseCase>(), executor),
             Bind(services.GetRequiredService<ValidateProvenanceUseCase>(), executor),
             Bind(services.GetRequiredService<DetectDuplicatesUseCase>(), executor),
             Bind(services.GetRequiredService<DetectStalenessUseCase>(), executor),

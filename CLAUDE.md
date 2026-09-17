@@ -22,7 +22,7 @@ repository.
 **v1 is released, and Phase 12 followed it.** Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are
 closed, and `v1.0.0` is published from `9a8ebf0` — signed, an SBOM per image, and the attestations
 verified from outside the workflow that built them. Phase 1 delivered `DevBuddy.Domain`; Phase 2
-the `UseCaseExecutor` pipeline and the first 41 of what is now 58 operations; Phase 3 PostgreSQL,
+the `UseCaseExecutor` pipeline and the first 41 of what is now 62 operations; Phase 3 PostgreSQL,
 full-text search, and MinIO; Phase 4 identity, authorization, and tenant isolation; Phase 5 the
 lifecycle and audit history; Phase 6 read-only analysis, the real secret scanner and redactor, the
 path and URL guards, and source synchronisation from a mounted working copy; Phase 7 the three
@@ -30,11 +30,11 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 878 .NET tests and 57 web tests exist. The .NET suite passed on 2026-09-17 and the web suite on 2026-09-16 — the
+enforcement. 887 .NET tests and 72 web tests exist, and all of them passed on 2026-09-17 — the
 .NET suite in the SDK container on the owner's Linux test machine, the web suite in a Bun
 container there — count them rather than trusting this sentence, which has been stale three times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, and at 870 and 57 until archived records left semantic search. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, and at 878 and 57 until every operation got a screen. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -90,15 +90,29 @@ is shown.**
   that forgot either would drop it silently. The front matter is also part of the hash an approval
   binds, which is why the page shows it.
 
-Still **not** reachable from any screen, each needing a decision rather than a button:
-- `create_draft` by a person;
-- `grant_membership` (a role cannot be changed, and an existing account cannot be given a second
-  grant);
-- `sync_sources` (no operation registers a source repository);
-- `export_project` and `backup_system`;
-- the quality sweeps and `reindex`.
+**Since 2026-09-17 every operation a person needs has a screen** (`info.md`, same day). The owner
+decided it; until then six groups were deliberately left to the console.
+- **A work item page** carries the work, its records, the form a person writes a new draft with,
+  and a handover with open questions and missing evidence. A draft belongs to a work item, which
+  is why the form is there and not on the record list.
+- **Search** has full-text search, Published by default, and semantic search, which shows the
+  server's reason when it cannot answer.
+- **Analysis** lists the repositories the project can read, and runs the seven analyses, change
+  impact, a comparison of two references and a synchronisation. It needs
+  **`list_source_repositories`**, added the same day and human-only. Nothing persists a
+  `SourceRepository`, so it reports what the configuration already makes reachable: the GitHub
+  mode's entries for the project, or the identifier-named directories under its working copy root.
+  No server path is returned.
+- **Maintenance** has the quality sweeps, `reindex`, `detect_secrets`, `redact_sensitive_data`
+  and `export_project`, each shown only to a role carrying its permission. `backup_system` is on
+  Health.
+- **Members** changes a role by revoking the grant and then granting the new role on the same
+  scope, because a grant's role cannot be edited. Revoking first is the direction that fails safe,
+  and it is not offered on the caller's own grant. It can also give somebody already here another
+  grant.
 
-The console's `run` reaches all of them.
+The AI surface did not move: it is still twenty operations. The console's `run` still reaches
+everything.
 Team administration is the
 `Teams` screen, standing up another workspace is the `Workspaces` screen (both gated on the
 permission, so a viewer is offered neither), and deleting a project is on the project list —
@@ -319,9 +333,15 @@ through Ollama inside the stack, real project data with no customer, production 
 no bounded scope, and `record-embedding-sweep` as a Viewer account of its own at 50 texts every 24h.
 No stale-record sweep there. **That worker has run there since 2026-09-17**, on v1.3.0, as the
 owner's `test_worker` account with a token it minted. Its first pass with something to embed
-indexed one published test record, and `search_similar_records` found it over the plugin. Known and not
-fixed: with `Logging:File:Path` set, the console image writes its SQL logs to standard output ahead
-of a `run` result, so that output is not machine-parseable.
+indexed one published test record, and `search_similar_records` found it over the plugin.
+
+**The console logs to standard error (2026-09-17).** With `Logging:File:Path` set it used to write
+every SQL statement to standard output ahead of a `run` result, so nothing could parse that output.
+`ConsoleLogging` sends the console half of the file sink to standard error, as the MCP server under
+stdio always did. Two other lines that read like faults are gone too: every host now states EF's
+single-query loading (the default it already used, unstated it warned on every record read), and
+switches Npgsql's GSS encryption probe off unless the connection string chooses, because the
+chiseled images have no `libgssapi_krb5.so.2` and the probe printed that it could not load it.
 
 **Telemetry is OpenTelemetry, off unless an endpoint is configured.** `Telemetry:Endpoint` is
 empty by default and `AddDevBuddyTelemetry` registers nothing when it is. Configured, it exports

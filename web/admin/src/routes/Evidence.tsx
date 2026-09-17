@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { captureEvidence, downloadEvidence, invoke } from "../api/client";
 import { grants, useWorkspace } from "../api/session";
 import { Button, Empty, Field, Input, Panel, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { ProjectNav } from "../components/ProjectNav";
 
 /**
  * Artefacts attached to a project: a log, a screenshot, an export.
@@ -26,12 +27,7 @@ export function Evidence() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Evidence</h1>
-        <Link className="text-sm underline" to="..">
-          Work items
-        </Link>
-      </div>
+      <ProjectNav title="Evidence" />
 
       <Panel title="Attached to this project">
         {evidence.isPending ? (

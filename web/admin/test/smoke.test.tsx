@@ -6,7 +6,19 @@ import type { ReactElement } from "react";
 import { SessionProvider } from "../src/api/session";
 import { App } from "../src/App";
 import { forgetTokens } from "../src/api/client";
-import { EVIDENCE, fakeServer, OTHER_USER, PROJECT, RECORD, recordIn, TEAM, USER, WORKSPACE } from "./server";
+import {
+  EVIDENCE,
+  fakeServer,
+  OTHER_USER,
+  PROJECT,
+  RECORD,
+  recordIn,
+  REPOSITORY,
+  TEAM,
+  USER,
+  WORK_ITEM,
+  WORKSPACE,
+} from "./server";
 import type { FakeServer, RecordStatus } from "./server";
 
 /**
@@ -982,5 +994,304 @@ describe("editing a draft", () => {
     expect(within(matter).getByText("Platform team")).toBeDefined();
     expect(within(matter).getByText("import")).toBeDefined();
     expect(screen.getByText(/Import run log/)).toBeDefined();
+  });
+});
+
+/**
+ * Every operation a person needs is reachable from a screen (info.md, 2026-09-17). Each test below
+ * proves one screen calls the operation it claims to, with the arguments it showed. The rules are
+ * the server's, and are proved there.
+ */
+describe("every operation has a screen", () => {
+  const scope = { workspaceId: WORKSPACE, projectId: PROJECT };
+  const project = `/w/${WORKSPACE}/p/${PROJECT}`;
+
+  function textbox(name: RegExp): HTMLElement {
+    return screen.getByRole("textbox", { name });
+  }
+
+  test("a work item opens from the list", async () => {
+    signedIn();
+    render(mount(project));
+
+    const link = await screen.findByRole("link", { name: "Normalise identifiers on import" });
+    expect(link.getAttribute("href")).toBe(`${project}/work/${WORK_ITEM}`);
+  });
+
+  test("a person writes a draft from its work item, and says where it came from", async () => {
+    signedIn();
+    render(mount(`${project}/work/${WORK_ITEM}`));
+
+    expect(await screen.findByText("Identifiers are compared the same way everywhere.")).toBeDefined();
+
+    fireEvent.change(textbox(/^Source/), { target: { value: "meeting/2026-09-02" } });
+    fireEvent.change(textbox(/^Title/), { target: { value: "Identifiers are normalised first" } });
+    fireEvent.change(textbox(/^Body/), { target: { value: "Because the validator compares them." } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(server.called("create_draft")).toBeDefined());
+
+    const body = server.called("create_draft")!.body as {
+      provenance: Record<string, unknown>;
+      [key: string]: unknown;
+    };
+
+    expect(body).toMatchObject({
+      scope,
+      workItemId: WORK_ITEM,
+      kind: "Decision",
+      title: "Identifiers are normalised first",
+      body: "Because the validator compares them.",
+      frontMatter: {},
+      provenance: { sourceKind: "HumanAuthored", sourceLocator: "meeting/2026-09-02", evidence: [] },
+    });
+
+    // Whether an AI wrote it is the server's to decide from the channel, never the page's to say.
+    expect("isAiGenerated" in body.provenance).toBe(false);
+  });
+
+  test("a viewer is not offered the draft form", async () => {
+    server.restore();
+    server = fakeServer(["ReadKnowledge"]);
+
+    signedIn();
+    render(mount(`${project}/work/${WORK_ITEM}`));
+
+    expect(await screen.findByRole("heading", { name: "Handing this work over" })).toBeDefined();
+    expect(screen.queryByRole("heading", { name: "Write a new draft" })).toBeNull();
+  });
+
+  test("a handover, open questions and missing evidence are one click each", async () => {
+    signedIn();
+    render(mount(`${project}/work/${WORK_ITEM}`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Generate a handover" }));
+    expect(await screen.findByText("Identifiers are normalised before validation.")).toBeDefined();
+    expect(server.called("generate_handover")!.body).toEqual({ scope, workItemId: WORK_ITEM });
+
+    fireEvent.click(screen.getByRole("button", { name: "Find missing evidence" }));
+    expect(await screen.findByText("The decision cites no test run.")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Find open questions" }));
+    await waitFor(() => expect(server.called("find_open_questions")).toBeDefined());
+    expect(server.called("find_open_questions")!.body).toEqual({ scope, workItemId: WORK_ITEM });
+  });
+
+  test("search finds by text, and semantic search shows the server's reason when it cannot answer", async () => {
+    signedIn();
+    render(mount(`${project}/search`));
+
+    fireEvent.change(await screen.findByRole("textbox", { name: /^Question or words/ }), {
+      target: { value: "rollback" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search the text" }));
+    expect(await screen.findByText("Rolling back a migration is itself a migration.")).toBeDefined();
+
+    // Published only by default: a draft is not knowledge yet.
+    expect(server.called("search_knowledge")!.body).toEqual({
+      scope,
+      queryText: "rollback",
+      kinds: null,
+      statuses: ["Published"],
+      maxResults: 20,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Search by meaning" }));
+    expect(await screen.findByText(/no embedding provider configured/)).toBeDefined();
+    expect(server.called("search_similar_records")!.body).toEqual({ scope, queryText: "rollback", maxResults: 20 });
+  });
+
+  test("analysis offers the project's repositories and runs what was chosen", async () => {
+    signedIn();
+    render(mount(`${project}/analysis`));
+
+    expect(await screen.findByText(REPOSITORY)).toBeDefined();
+    expect(server.called("list_source_repositories")!.body).toEqual({ scope });
+
+    const run = screen.getByRole("heading", { name: "Run an analysis" }).closest("section")!;
+    const [what, repository] = within(run).getAllByRole("combobox");
+    fireEvent.change(what!, { target: { value: "analyze_code" } });
+    fireEvent.change(repository!, { target: { value: REPOSITORY } });
+    fireEvent.change(within(run).getByRole("textbox"), { target: { value: "src" } });
+    fireEvent.click(within(run).getByRole("button", { name: "Analyse" }));
+
+    expect(await screen.findByText("Twelve source files, two projects.")).toBeDefined();
+    expect(server.called("analyze_code")!.body).toEqual({ scope, repositoryId: REPOSITORY, target: "src" });
+  });
+
+  test("the whole project can be analysed without naming a repository", async () => {
+    signedIn();
+    render(mount(`${project}/analysis`));
+
+    await screen.findByText(REPOSITORY);
+    fireEvent.click(screen.getByRole("button", { name: "Analyse" }));
+
+    await waitFor(() => expect(server.called("analyze_project")).toBeDefined());
+    expect(server.called("analyze_project")!.body).toEqual({ scope, repositoryId: null, target: null });
+  });
+
+  test("change impact, comparing references and synchronising each call their operation", async () => {
+    signedIn();
+    render(mount(`${project}/analysis`));
+
+    const impact = (await screen.findByRole("heading", { name: "What a change affects" })).closest("section")!;
+    fireEvent.change(within(impact).getByRole("textbox"), { target: { value: "main..feature" } });
+    fireEvent.click(within(impact).getByRole("button", { name: "Work out the impact" }));
+    expect(await within(impact).findByText("Cited by one record.")).toBeDefined();
+    expect(server.called("analyze_change_impact")!.body).toEqual({
+      scope,
+      repositoryId: REPOSITORY,
+      commitOrRange: "main..feature",
+    });
+
+    const compare = screen.getByRole("heading", { name: "Compare two references" }).closest("section")!;
+    const [earlier, later] = within(compare).getAllByRole("textbox");
+    fireEvent.change(earlier!, { target: { value: "v1" } });
+    fireEvent.change(later!, { target: { value: "v2" } });
+    fireEvent.click(within(compare).getByRole("button", { name: "Compare" }));
+    expect(await within(compare).findByText("Pack files are not read.")).toBeDefined();
+    expect(server.called("compare_snapshots")!.body).toEqual({
+      scope,
+      repositoryId: REPOSITORY,
+      earlierReference: "v1",
+      laterReference: "v2",
+    });
+
+    const sync = screen.getByRole("heading", { name: "Synchronise a repository" }).closest("section")!;
+    fireEvent.click(within(sync).getByRole("button", { name: "Synchronise" }));
+
+    // Absent is not zero: a working copy cannot say how many pull requests are open.
+    expect((await within(sync).findAllByText("Not available from a working copy")).length).toBe(2);
+    expect(server.called("sync_sources")!.body).toEqual({ scope, repositoryId: REPOSITORY });
+  });
+
+  test("the maintenance screen runs the sweeps, the index, the text checks and the export", async () => {
+    signedIn();
+    render(mount(`${project}/maintenance`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Check provenance" }));
+    expect(await screen.findByText("No source locator.")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Find duplicates" }));
+    fireEvent.click(screen.getByRole("button", { name: "Find stale records" }));
+    await waitFor(() => expect(server.called("detect_staleness")).toBeDefined());
+    expect(server.called("detect_duplicates")!.body).toEqual({ scope });
+    expect(server.called("detect_staleness")!.body).toEqual({ scope, staleAfter: "180.00:00:00" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Rebuild the index" }));
+    expect(await screen.findByText("7 record(s) indexed.")).toBeDefined();
+
+    fireEvent.change(textbox(/^Text/), { target: { value: "key: AKIA..." } });
+    fireEvent.click(screen.getByRole("button", { name: "Look for secrets" }));
+    expect(await screen.findByText("aws-access-key")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Redact it" }));
+    expect(await screen.findByText("key: [REDACTED]")).toBeDefined();
+    expect(server.called("redact_sensitive_data")!.body).toEqual({ scope, content: "key: AKIA..." });
+
+    fireEvent.click(screen.getByRole("button", { name: "Export this project" }));
+    expect(await screen.findByText("export-20260902")).toBeDefined();
+    expect(server.called("export_project")!.body).toEqual({ scope });
+  });
+
+  test("a contributor is offered analysis and not maintenance", async () => {
+    server.restore();
+    server = fakeServer(["ReadKnowledge", "AnalyzeProject", "CreateDraft", "ManageWorkItems"]);
+
+    signedIn();
+    render(mount(project));
+
+    const nav = await screen.findByRole("navigation", { name: "Project" });
+    expect(within(nav).getByRole("link", { name: "Analysis" })).toBeDefined();
+    expect(within(nav).getByRole("link", { name: "Search" })).toBeDefined();
+    expect(within(nav).queryByRole("link", { name: "Maintenance" })).toBeNull();
+  });
+
+  test("a viewer is offered neither analysis nor maintenance", async () => {
+    server.restore();
+    server = fakeServer(["ReadKnowledge"]);
+
+    signedIn();
+    render(mount(project));
+
+    const nav = await screen.findByRole("navigation", { name: "Project" });
+    expect(within(nav).queryByRole("link", { name: "Analysis" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Maintenance" })).toBeNull();
+  });
+
+  test("a contributor on the analysis screen is not offered synchronisation", async () => {
+    server.restore();
+    server = fakeServer(["ReadKnowledge", "AnalyzeProject"]);
+
+    signedIn();
+    render(mount(`${project}/analysis`));
+
+    await screen.findByRole("heading", { name: "What a change affects" });
+    expect(screen.queryByRole("heading", { name: "Synchronise a repository" })).toBeNull();
+  });
+
+  test("a backup is taken from the health screen", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/health`));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Back up now" }));
+    expect(await screen.findByText("backup-20260902")).toBeDefined();
+    expect(server.called("backup_system")!.body).toEqual({ workspaceId: WORKSPACE });
+  });
+
+  test("changing somebody's role revokes the old grant, then grants the new one on the same scope", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/members`));
+
+    // Not offered on the signed-in person's own grant.
+    await screen.findByRole("combobox", { name: `New role for ${OTHER_USER}` });
+    expect(screen.queryByRole("combobox", { name: `New role for ${USER}` })).toBeNull();
+
+    fireEvent.change(screen.getByRole("combobox", { name: `New role for ${OTHER_USER}` }), {
+      target: { value: "Reviewer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Change role" }));
+
+    await waitFor(() => expect(server.called("grant_membership")).toBeDefined());
+
+    const order = server.calls
+      .map((call) => call.operation)
+      .filter((operation) => operation === "revoke_membership" || operation === "grant_membership");
+    expect(order).toEqual(["revoke_membership", "grant_membership"]);
+
+    expect(server.called("revoke_membership")!.body).toEqual({
+      workspaceId: WORKSPACE,
+      membershipId: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    });
+    expect(server.called("grant_membership")!.body).toEqual({
+      workspaceId: WORKSPACE,
+      subjectUserId: OTHER_USER,
+      role: "Reviewer",
+      scopedToProject: null,
+    });
+  });
+
+  test("somebody already here can be given a grant on one project", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/members`));
+
+    const panel = (await screen.findByRole("heading", { name: "Grant access to somebody already here" })).closest(
+      "section",
+    )!;
+    const [person, role, where] = within(panel).getAllByRole("combobox");
+
+    fireEvent.change(person!, { target: { value: OTHER_USER } });
+    fireEvent.change(role!, { target: { value: "Administrator" } });
+    await within(panel).findByRole("option", { name: "Alpha" });
+    fireEvent.change(where!, { target: { value: PROJECT } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Grant" }));
+
+    expect(await within(panel).findByText("Granted Administrator.")).toBeDefined();
+    expect(server.called("grant_membership")!.body).toEqual({
+      workspaceId: WORKSPACE,
+      subjectUserId: OTHER_USER,
+      role: "Administrator",
+      scopedToProject: PROJECT,
+    });
   });
 });
