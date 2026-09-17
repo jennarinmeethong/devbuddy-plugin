@@ -1,0 +1,11 @@
+# The e2e image is built from the repository root, and needs two things from it: this directory
+# and the client generated for web/admin. Everything else stays out of the context.
+*
+!tests/e2e/
+!web/admin/src/api/operations.ts
+
+tests/e2e/node_modules/
+tests/e2e/.out/
+tests/e2e/.state/
+tests/e2e/test-results/
+tests/e2e/playwright-report/

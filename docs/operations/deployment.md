@@ -249,3 +249,17 @@ curl and no shell, which is the point of one.
 
 A migration that fails leaves the servers not started rather than started against a schema they do
 not match.
+
+**Once, when upgrading past 2026-09-17: run `scope-report`.** Until then a workspace administrator
+could store a work item, a record, evidence, a project grant or an AI policy against a project
+identifier that is not a project of their workspace: another tenant's, a deleted one, or one that
+never existed. Nobody else could read those rows, and the authorization service refuses such a
+scope now. The console lists any that remain and changes nothing:
+
+```bash
+docker compose -f docker/compose.yaml run --rm migrate scope-report
+```
+
+It prints one line per table, workspace and project, and exits 3 if it found any. What to do with
+them is the operator's call. Audit events are not examined, because they outlive the project they
+describe on purpose.

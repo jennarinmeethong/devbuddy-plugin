@@ -1,0 +1,69 @@
+# An overlay on docker/compose.yaml for the end-to-end suite. run.sh is the way to use it:
+#
+#   bash tests/e2e/run.sh
+#
+# Given with `-f docker/compose.yaml -f tests/e2e/compose.e2e.yaml`, so relative paths below resolve
+# against docker/, the first file's directory.
+#
+# It changes the stack in exactly three ways, all of them about running tests beside it rather than
+# about what is being tested:
+#
+#   - Nothing is published on the host. The runner joins the stack's own network and reaches the
+#     API and the MCP server by service name, so a run cannot collide with an installation already
+#     listening on 8080 and 8081 on the same machine.
+#   - The sign-in rate limit is raised. The suite signs in several hundred times in a few minutes
+#     from one address, which is exactly what that limit exists to stop. The limit itself is
+#     covered by DevBuddy.Api.Tests.
+#   - The runner is added, behind a profile so a plain `up` never starts it.
+#
+# Everything else — images, read-only filesystems, dropped capabilities, the embedding provider
+# left off — is the shipped stack as it is.
+
+services:
+  api:
+    ports: !reset []
+    environment:
+      DEVBUDDY_RateLimiting__AuthPermitLimit: "100000"
+      DEVBUDDY_RateLimiting__RequestPermitLimit: "100000"
+
+  mcp:
+    ports: !reset []
+
+  e2e:
+    build:
+      context: ..
+      dockerfile: tests/e2e/Dockerfile
+    profiles: [e2e]
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    # Chromium keeps its shared memory in /dev/shm, and Docker's 64 MB default crashes tabs.
+    shm_size: 1gb
+    init: true
+    environment:
+      CI: ${CI:-}
+      HOME: /tmp
+      DEVBUDDY_E2E_BASE_URL: http://api:8080
+      DEVBUDDY_E2E_MCP_URL: http://mcp:8080
+      DEVBUDDY_E2E_ADMIN_EMAIL: ${DEVBUDDY_E2E_ADMIN_EMAIL:?run tests/e2e/run.sh, which sets this}
+      DEVBUDDY_E2E_ADMIN_PASSWORD: ${DEVBUDDY_E2E_ADMIN_PASSWORD:?run tests/e2e/run.sh, which sets this}
+      DEVBUDDY_E2E_PROJECTS: /srv/projects
+      DEVBUDDY_E2E_OUTPUT: /out
+      DEVBUDDY_E2E_STATE: /tmp/state
+      DEVBUDDY_E2E_WORKERS: ${DEVBUDDY_E2E_WORKERS:-4}
+    volumes:
+      # The same directory the API reads working copies from, writable here, so the analysis tests
+      # can plant one. The API still mounts it read-only.
+      - ${DEVBUDDY_PROJECTS_PATH:?run tests/e2e/run.sh, which sets this}:/srv/projects
+      - ${DEVBUDDY_E2E_OUT:?run tests/e2e/run.sh, which sets this}:/out
+    depends_on:
+      api:
+        condition: service_healthy
+      mcp:
+        condition: service_started
+    networks: [internal]

@@ -1,5 +1,20 @@
 # Project Decisions
 
+## Confirmed a Report, Not a Migration, for Rows Written Against a Foreign Project — 2026-09-17
+
+The e2e suite found that authorization never checked that a scope's project belongs to the named
+workspace, or exists. A workspace administrator could store rows under their own workspace against
+another tenant's project identifier or a made-up one. The check is fixed, and the owner was asked
+what to do with rows written before it.
+
+- **Report them. Do not migrate, delete or constrain.** `scope-report` on the console lists them
+  by table, workspace and project, changes nothing, and exits 3 when it finds any. Deleting is the
+  operator's call, per installation.
+- **Why not a migration:** a delete cannot be undone and would not reach evidence bytes in the
+  object store. A composite foreign key would fail to apply on any installation that has such rows.
+- **devbox had none** when checked on 2026-09-17, by a read-only count across all nine
+  project-scoped tables.
+
 ## Confirmed a Screen for Every Operation, Fixes Before the Next Release, Releases on devbox, and HTTPS Deferred — 2026-09-17
 
 The owner answered the list of open items from the same day.

@@ -28,11 +28,22 @@ public sealed record GrantMembershipRequest(
 
 public sealed record MembershipResponse(MembershipId MembershipId, Role Role, bool IsActive);
 
-/// <summary>Grants a role, either workspace-wide or on one project.</summary>
-public sealed class GrantMembershipUseCase(IAccessDirectory directory, IClock clock)
+/// <summary>
+/// Grants a role, either workspace-wide or on one project.
+/// <para>
+/// A project grant is only made on a live project of the same workspace. The request is
+/// workspace-level, so the authorization service never sees the project, and without this check a
+/// workspace administrator could grant a role on another tenant's project identifier, or on one
+/// that exists nowhere. It is reported as not found, which is also the answer for a project that
+/// exists elsewhere.
+/// </para>
+/// </summary>
+public sealed class GrantMembershipUseCase(
+    IAccessDirectory directory, IProjectDirectory projects, IClock clock)
     : UseCase<GrantMembershipRequest, MembershipResponse>
 {
     private readonly IAccessDirectory _directory = Guard.NotNull(directory, nameof(directory));
+    private readonly IProjectDirectory _projects = Guard.NotNull(projects, nameof(projects));
     private readonly IClock _clock = Guard.NotNull(clock, nameof(clock));
 
     public override UseCaseDescriptor Descriptor => UseCaseCatalog.GrantMembership;
@@ -40,6 +51,13 @@ public sealed class GrantMembershipUseCase(IAccessDirectory directory, IClock cl
     protected internal override async Task<MembershipResponse> HandleAsync(
         GrantMembershipRequest request, CallerContext caller, CancellationToken cancellationToken)
     {
+        if (request.ScopedToProject is { } scopedTo
+            && await _projects.FindProjectAsync(
+                new ProjectScope(request.WorkspaceId, scopedTo), cancellationToken) is null)
+        {
+            throw new ResourceNotFoundException($"No project {scopedTo}.");
+        }
+
         Membership membership = request.ScopedToProject is { } projectId
             ? Membership.ForProject(
                 MembershipId.New(),

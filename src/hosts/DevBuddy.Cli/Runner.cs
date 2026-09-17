@@ -37,6 +37,9 @@ internal static class Runner
     private const int Refused = 1;
     private const int Misconfigured = 2;
 
+    /// <summary><c>scope-report</c> found rows, so a script can act on it without parsing text.</summary>
+    private const int StrayRowsFound = 3;
+
     /// <summary>
     /// The same code, for a command that rejects its arguments before it builds anything —
     /// <c>retention --every</c> with an interval that is not one.
@@ -127,6 +130,39 @@ internal static class Runner
 
             Console.WriteLine(outcome.Detail);
             return Ok;
+        });
+    }
+
+    /// <summary>
+    /// Lists rows stored against a project that is not a live project of their workspace, and
+    /// changes nothing. See <see cref="IScopeIntegrityReport"/> for why they can exist and why this
+    /// only reports them.
+    /// </summary>
+    public static async Task<int> ScopeReportAsync(CancellationToken cancellationToken)
+    {
+        return await WithScopeAsync(async scope =>
+        {
+            IReadOnlyList<StrayScopeRows> found = await scope.ServiceProvider
+                .GetRequiredService<IScopeIntegrityReport>()
+                .FindAsync(cancellationToken);
+
+            if (found.Count == 0)
+            {
+                Console.WriteLine("No row names a project that is not a live project of its workspace.");
+                return Ok;
+            }
+
+            Console.WriteLine(
+                $"{found.Sum(entry => entry.Rows)} row(s) name a project that is not a live project of their workspace. Nothing was changed.");
+
+            foreach (StrayScopeRows entry in found)
+            {
+                Console.WriteLine(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{entry.Table,-28} workspace {entry.WorkspaceId}  project {entry.ProjectId}  rows {entry.Rows}"));
+            }
+
+            return StrayRowsFound;
         });
     }
 

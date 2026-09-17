@@ -217,7 +217,8 @@ public sealed class RevokedAccessAndRoleTests(SecurityFixture fixture)
         // Administrator on one project is not administrator of the workspace. Granting membership
         // is a workspace act, and a project grant does not cover it.
         Assert.Equal(ExecutionOutcome.Denied, (await session.RunAsync(
-            new GrantMembershipUseCase(session.Resolve<IAccessDirectory>(), session.Resolve<IClock>()),
+            new GrantMembershipUseCase(
+                session.Resolve<IAccessDirectory>(), session.Resolve<IProjectDirectory>(), session.Resolve<IClock>()),
             new GrantMembershipRequest(world.Workspace, UserId.New(), Role.Viewer),
             World.Human(projectAdmin))).Outcome);
     }

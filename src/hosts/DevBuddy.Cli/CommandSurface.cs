@@ -62,6 +62,7 @@ internal static class CommandSurface
         root.Add(Backup());
         root.Add(Restore());
         root.Add(Retention());
+        root.Add(ScopeReport());
         root.Add(Worker());
         root.Add(Sync());
         root.Add(Reindex());
@@ -304,6 +305,22 @@ internal static class CommandSurface
 
             return Runner.RetentionAsync(interval, cancellationToken);
         });
+
+        return command;
+    }
+
+    /// <summary>
+    /// Reports rows stored against a project their workspace does not have. Read-only, and outside
+    /// the pipeline for the reason <c>retention</c> is: it spans every workspace.
+    /// </summary>
+    private static Command ScopeReport()
+    {
+        Command command = new(
+            "scope-report",
+            "Lists rows stored against a project that is not a live project of their workspace. "
+            + "Changes nothing; exits 3 when it finds any.");
+
+        command.SetAction((_, cancellationToken) => Runner.ScopeReportAsync(cancellationToken));
 
         return command;
     }

@@ -132,7 +132,7 @@ internal sealed class UseCaseRegistry
         Add(new BackupSystemUseCase(ports), administrative);
         Add(new CheckSystemHealthUseCase(ports), administrative);
 
-        Add(new GrantMembershipUseCase(ports, ports),
+        Add(new GrantMembershipUseCase(ports, ports, ports),
             new GrantMembershipRequest(TestData.Workspace, TestData.Reviewer, Role.Contributor));
 
         Add(new RevokeMembershipUseCase(ports, ports),
