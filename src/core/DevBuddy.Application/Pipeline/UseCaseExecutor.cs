@@ -124,6 +124,18 @@ public sealed class UseCaseExecutor
             return UseCaseResult.Invalid<TResponse>(errors);
         }
 
+        // The audit entry prefixes the reference with the operation's name and holds at most
+        // AuditEvent.MaxResourceReferenceLength characters. A reference that would not fit used to
+        // pass here, run the operation, and then fail writing its own audit row, so the caller saw
+        // an error for something that had happened and the trail had no row for it. Refused now,
+        // before anything is authorised or run.
+        int referenceLimit = AuditEvent.MaxResourceReferenceLength - descriptor.Name.Length - 1;
+        if (request.ResourceReference is { } named && named.Length > referenceLimit)
+        {
+            return UseCaseResult.Invalid<TResponse>(
+                [$"The resource this request names is {named.Length} characters long; {descriptor.Name} accepts at most {referenceLimit}."]);
+        }
+
         // 2. Resolve identity. Stopping here rather than falling through matters: an anonymous
         //    caller must never reach a permission check that might accidentally pass.
         if (caller.IsAnonymous)

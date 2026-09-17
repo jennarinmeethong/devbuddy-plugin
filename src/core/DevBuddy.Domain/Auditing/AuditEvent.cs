@@ -18,6 +18,12 @@ namespace DevBuddy.Domain.Auditing;
 /// </summary>
 public sealed class AuditEvent
 {
+    /// <summary>
+    /// The longest reference an entry holds, the column's width. The pipeline refuses a request
+    /// whose reference would not fit before anything is authorised or run.
+    /// </summary>
+    public const int MaxResourceReferenceLength = 500;
+
     public AuditEvent(
         AuditEventId id,
         WorkspaceId? workspaceId,
@@ -43,7 +49,7 @@ public sealed class AuditEvent
         Action = Guard.Defined(action, nameof(action));
         Outcome = Guard.Defined(outcome, nameof(outcome));
         ResourceReference = Guard.NotLongerThan(
-            Guard.NotBlank(resourceReference, nameof(resourceReference)), 500, nameof(resourceReference));
+            Guard.NotBlank(resourceReference, nameof(resourceReference)), MaxResourceReferenceLength, nameof(resourceReference));
         OccurredAt = Guard.Utc(occurredAt, nameof(occurredAt));
         Details = Validate(details);
     }
