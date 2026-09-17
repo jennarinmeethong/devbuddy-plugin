@@ -132,8 +132,8 @@ test("a member of one workspace cannot reach another workspace, by page or by AP
       expect([403, 404], `${name} across tenants`).toContain(response.status());
     }
 
-    // A project identifier from the other tenant, presented inside the viewer's own workspace,
-    // reads nothing of theirs: the workspace filter holds even where authorization lets it through.
+    // A project identifier from the other tenant, presented inside the viewer's own workspace, is
+    // refused, and reads nothing of theirs either way.
     await ownerApi.invoke("create_work_item", {
       scope: theirs,
       key: "THEIRS-1",
@@ -143,8 +143,10 @@ test("a member of one workspace cannot reach another workspace, by page or by AP
     });
     const smuggled = { workspaceId: people.workspaceId, projectId: theirs.projectId };
     const listed = await viewer.call("list_work_items", { scope: smuggled });
+    expect([403, 404]).toContain(listed.status());
     expect(await listed.text()).not.toContain("Their private work");
     const searched = await viewer.call("search_knowledge", { scope: smuggled, queryText: "private" });
+    expect([403, 404]).toContain(searched.status());
     expect(await searched.text()).not.toContain("Their private work");
 
     // Signed in at home first: the refusal page has no header, so there is no Sign out to wait for.
@@ -158,16 +160,12 @@ test("a member of one workspace cannot reach another workspace, by page or by AP
 });
 
 /**
- * KNOWN DEFECT, found by this suite on 2026-09-17. Authorization checks the caller's membership in
- * the workspace a request names, and never that the project belongs to that workspace — or exists.
- * Nothing leaks (the test above), but writes are accepted: a work item is stored in the caller's
- * workspace against another tenant's project identifier, or against one that exists nowhere.
- * `test.fail` keeps the suite green while the defect stands and turns red once it is fixed; remove
- * the marker then.
+ * Found by this suite on 2026-09-17: authorization checked the caller's membership in the workspace
+ * a request names, and never that the project belongs to that workspace, or exists. Writes were
+ * accepted, stored in the caller's workspace against another tenant's project identifier or one
+ * that exists nowhere. Fixed in `AuthorizationService`, and covered below the HTTP layer by `ProjectScopeTests`.
  */
 test("a project identifier that is not in the named workspace is refused", async ({ admin, people }) => {
-  test.fail(true, "Known defect: project membership of the workspace is not checked (2026-09-17).");
-
   const owner = await invite(admin, people.workspaceId, "Administrator");
   const ownerApi = await Api.signIn(owner.email, owner.password);
 

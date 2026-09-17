@@ -305,7 +305,7 @@ public sealed class HandoverAndOperationsTests
         var harness = new Harness();
 
         await harness.SucceedAsync(
-            new GrantMembershipUseCase(harness.Ports, harness.Ports),
+            new GrantMembershipUseCase(harness.Ports, harness.Ports, harness.Ports),
             new GrantMembershipRequest(
                 TestData.Workspace, TestData.Reviewer, Role.Contributor, TestData.ProjectAlpha));
 

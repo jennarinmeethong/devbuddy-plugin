@@ -107,6 +107,18 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
     private async Task<Role?> EffectiveRoleAsync(
         AuthorizationRequest request, CancellationToken cancellationToken)
     {
+        if (request.ProjectId is { } requestedProject
+            && !await IsLiveProjectOfWorkspaceAsync(request.WorkspaceId, requestedProject, cancellationToken))
+        {
+            // A project that is not a live project of the named workspace — another tenant's, a
+            // deleted one, or one that never existed — is covered by no grant, not even a
+            // workspace-wide one. Answering here, as "no grant", keeps the refusal identical to
+            // every other scope the caller cannot reach, so it says nothing about what exists.
+            // Without it a workspace administrator could write rows under their own workspace
+            // against any project identifier at all, and reads answered with empty lists.
+            return null;
+        }
+
         List<MembershipRow> rows = await _db.Memberships
             .AsNoTracking()
             .Where(membership => membership.WorkspaceId == request.WorkspaceId.Value
@@ -133,6 +145,21 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
 
         return strongest;
     }
+
+    /// <summary>
+    /// Whether the project exists and belongs to the workspace the request names. The workspace is
+    /// matched here explicitly rather than left to the tenant query filter, so the answer does not
+    /// depend on which workspace a host happened to enter.
+    /// A deleted project's row is gone, which is what makes deletion answer as absence.
+    /// </summary>
+    private Task<bool> IsLiveProjectOfWorkspaceAsync(
+        WorkspaceId workspaceId, ProjectId projectId, CancellationToken cancellationToken) =>
+        _db.Projects
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .AnyAsync(
+                project => project.Id == projectId.Value && project.WorkspaceId == workspaceId.Value,
+                cancellationToken);
 
     /// <summary>
     /// A workspace-wide grant covers every project and every workspace-level operation. A project

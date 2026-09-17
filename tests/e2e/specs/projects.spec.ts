@@ -73,13 +73,11 @@ test("deleting a project needs its name typed back, and takes its content with i
 });
 
 /**
- * KNOWN DEFECT, found by this suite on 2026-09-17: a deleted project's pages answer with empty
- * lists rather than a refusal, because nothing checks that a project in a scope exists. Same root
- * cause as the one in permissions.spec.ts. Remove `test.fail` once it is fixed.
+ * Found by this suite on 2026-09-17: a deleted project's pages answered with empty lists rather than
+ * a refusal, because nothing checked that a project in a scope exists. Same root cause, and fix, as
+ * the one in permissions.spec.ts.
  */
 test("a deep link to a deleted project shows the server's refusal", async ({ page, admin, people, project }) => {
-  test.fail(true, "Known defect: a scope naming a deleted project is not refused (2026-09-17).");
-
   await admin.invoke("delete_project", { scope: { workspaceId: project.workspaceId, projectId: project.projectId } });
 
   await signIn(page, people.admin, projectPath(project));
