@@ -80,17 +80,45 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
         await _s3.DeleteObjectAsync(
             _options.BucketFor(scope.WorkspaceId), storageKey, cancellationToken);
 
+    /// <summary>
+    /// Creates the workspace's bucket if it is missing, and tolerates losing the race to create
+    /// it. Two first captures in one workspace both see no bucket, both ask for one, and the
+    /// store refuses the second; until 2026-09-17 that refusal reached the caller as a 500.
+    /// </summary>
     private async Task EnsureBucketAsync(string bucket, CancellationToken cancellationToken)
     {
-        ListBucketsResponse buckets = await _s3.ListBucketsAsync(cancellationToken);
-
-        if (buckets.Buckets?.Exists(existing => existing.BucketName == bucket) == true)
+        if (await OwnsBucketAsync(bucket, cancellationToken))
         {
             return;
         }
 
-        // Created private. There is no public-read path to evidence, ever.
-        await _s3.PutBucketAsync(new PutBucketRequest { BucketName = bucket }, cancellationToken);
+        try
+        {
+            // Created private. There is no public-read path to evidence, ever.
+            await _s3.PutBucketAsync(new PutBucketRequest { BucketName = bucket }, cancellationToken);
+        }
+        catch (BucketAlreadyOwnedByYouException)
+        {
+            // Another request created it with these credentials, the same way and just as
+            // private. Nothing to do.
+        }
+        catch (BucketAlreadyExistsException)
+        {
+            // Some stores answer this for a bucket the caller owns too. The name alone proves
+            // nothing, because bucket names can be global: evidence is written only into a
+            // bucket these credentials list as their own, and anybody else's is still an error.
+            if (!await OwnsBucketAsync(bucket, cancellationToken))
+            {
+                throw;
+            }
+        }
+    }
+
+    private async Task<bool> OwnsBucketAsync(string bucket, CancellationToken cancellationToken)
+    {
+        // ListBuckets answers only the buckets these credentials own.
+        ListBucketsResponse buckets = await _s3.ListBucketsAsync(cancellationToken);
+        return buckets.Buckets?.Exists(existing => existing.BucketName == bucket) == true;
     }
 }
 
