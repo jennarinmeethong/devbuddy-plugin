@@ -211,6 +211,13 @@ xUnit throughout. Name tests for observable behaviour, for example
   the **real** infrastructure against real PostgreSQL. Nothing is faked here on purpose: a fake
   authorization service would only prove the test agrees with itself. Each test maps to a row in
   `docs/security/verification-matrix.md`.
+- `tests/e2e` — **Playwright over the whole running stack**: the images `docker/compose.yaml`
+  builds, driven through the web client, the HTTP API and the MCP server's HTTP transport.
+  `bash tests/e2e/run.sh` starts a throwaway stack under its own Compose project, runs the suite
+  in Playwright's image on that stack's network, and removes it. It is TypeScript, installed with
+  Bun, and type-checked against `web/admin/src/api/operations.ts`, so an operation change that
+  breaks a test fails the runner's image build. `tests/e2e/README.md` says what it covers and what
+  it does not.
 
 `ScaffoldTests.cs` is a Phase 0 placeholder. Delete it when real tests arrive; it is already gone
 from `Domain.Tests` and `Application.Tests`.
