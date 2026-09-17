@@ -17,8 +17,9 @@ namespace DevBuddy.Security.Tests;
 /// empty list; writes were accepted, and a work item was stored under the caller's workspace
 /// against another tenant's project identifier, or against one that exists nowhere.
 /// <para>
-/// Every case here uses a workspace-wide Administrator, the strongest grant there is, so the only
-/// thing that can refuse is the project check itself.
+/// The refusals use a workspace-wide Administrator, the strongest grant there is, so the only thing
+/// that can refuse is the project check itself. The last case covers <c>scope-report</c>, which
+/// lists what an installation may have kept from before the check.
 /// </para>
 /// </summary>
 [Collection(SecurityCollection.Name)]
@@ -167,6 +168,51 @@ public sealed class ProjectScopeTests(SecurityFixture fixture)
             useCase,
             new GrantMembershipRequest(ours.Workspace, subject, Role.Viewer, ours.AlphaId),
             World.Human(administrator))).IsSuccess);
+    }
+
+    [Fact]
+    public async Task the_scope_report_lists_rows_written_before_the_check_and_changes_nothing()
+    {
+        World ours = await _fixture.CreateWorldAsync();
+        World theirs = await _fixture.CreateWorldAsync();
+        var ghost = ProjectId.New();
+        UserId member = await _fixture.CreateUserAsync($"stray-{Guid.NewGuid():N}@example.com");
+
+        // Planted around the pipeline, because the pipeline no longer writes them: this is what an
+        // installation may have kept from before 2026-09-17.
+        await _fixture.SeedWorkItemAsync(new ProjectScope(ours.Workspace, theirs.AlphaId), "CRQ-STRAY1", ours.Founder);
+        await _fixture.SeedWorkItemAsync(new ProjectScope(ours.Workspace, ghost), "CRQ-STRAY2", ours.Founder);
+        await _fixture.SeedWorkItemAsync(new ProjectScope(ours.Workspace, ghost), "CRQ-STRAY3", ours.Founder);
+        await _fixture.GrantAsync(ours.Workspace, member, Role.Viewer, ghost);
+
+        // Not strays: a live project, and a workspace-wide grant, which names no project at all.
+        await _fixture.SeedWorkItemAsync(ours.Alpha, "CRQ-FINE", ours.Founder);
+        await _fixture.GrantAsync(ours.Workspace, member, Role.Viewer);
+
+        using Session session = _fixture.OpenUnscopedSession();
+
+        IReadOnlyList<StrayScopeRows> found = (await session.Resolve<IScopeIntegrityReport>()
+            .FindAsync(TestToken.None))
+            .Where(entry => entry.WorkspaceId == ours.Workspace.Value)
+            .OrderBy(entry => entry.Table, StringComparer.Ordinal)
+            .ThenBy(entry => entry.Rows)
+            .ToList();
+
+        Assert.Equal(
+            [
+                new StrayScopeRows("memberships", ours.Workspace.Value, ghost.Value, 1),
+                new StrayScopeRows("work_items", ours.Workspace.Value, theirs.AlphaId.Value, 1),
+                new StrayScopeRows("work_items", ours.Workspace.Value, ghost.Value, 2),
+            ],
+            found);
+
+        // Their project is untouched and does not appear under its own workspace either.
+        Assert.DoesNotContain(
+            await session.Resolve<IScopeIntegrityReport>().FindAsync(TestToken.None),
+            entry => entry.WorkspaceId == theirs.Workspace.Value);
+
+        // Reporting deleted nothing.
+        Assert.True(await AnyWorkItemAgainstAsync(ghost));
     }
 
     private async Task<UserId> AdministratorOfAsync(World world)

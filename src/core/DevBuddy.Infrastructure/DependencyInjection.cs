@@ -123,6 +123,7 @@ public static class DependencyInjection
         services.AddScoped<ExportService>();
         services.AddScoped<IAdministrativeOperations, AdministrativeOperations>();
         services.AddScoped<IRetentionEnforcer, RetentionService>();
+        services.AddScoped<IScopeIntegrityReport, ScopeIntegrityService>();
 
         // The real scanner and redactor share one rule set, so nothing can be reported as
         // sensitive and released anyway (SB-17).
