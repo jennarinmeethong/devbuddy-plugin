@@ -30,8 +30,8 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. @@NET@@ .NET tests and @@WEB@@ web tests exist. The .NET suite passed on @@DATE@@ in the SDK
-container on the owner's Linux test machine, and the web suite passed on @@DATE@@ in a Bun
+enforcement. 896 .NET tests and 73 web tests exist. The .NET suite passed on 2026-09-18 in the SDK
+container on the owner's Linux test machine, and the web suite passed on 2026-09-18 in a Bun
 container there. Count them rather than trusting this sentence, which has been stale many times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
 and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, and at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen. `docs/plan.md` keeps the per-phase figures, and
@@ -474,6 +474,11 @@ dotnet run --project src/hosts/DevBuddy.Cli -- operations --ai
 
 All three hosts read `appsettings.json` in the working directory and environment variables
 prefixed `DEVBUDDY_`, and refuse to start without a connection string rather than inventing one.
+
+The whole system is tested end to end by Playwright in `tests/e2e`: `bash tests/e2e/run.sh` builds
+the images, starts a throwaway stack under its own Compose project, and drives the web client, the
+HTTP API and the MCP server's HTTP transport. 62 tests passed on 2026-09-18 on the Windows
+development machine's Docker Desktop. `tests/e2e/README.md` says what it does not cover.
 
 The web client uses **Bun**, not npm — that is what this machine has:
 
