@@ -301,8 +301,13 @@ in the audit trail under its own Viewer account. **Moving an existing database v
 `pgvector/pgvector:pg17` restart-loops on `Permission denied`**, because that image runs PostgreSQL
 as uid 999 and the Alpine default as uid 70; `docs/operations/deployment.md` has the fix.
 
-**What does not exist:** a hosted provider enabled anywhere, and any provider or worker on an
-installation holding real project data — both still need an approval of their own. Known and not
+**What does not exist:** a hosted provider enabled anywhere, and any provider or worker on any
+installation other than the owner's devbox holding real project data — both still need an approval
+of their own. **The devbox is approved (`info.md`, 2026-09-16):** self-hosted `qwen3-embedding:0.6b`
+through Ollama inside the stack, real project data with no customer, production or personal data,
+no bounded scope, and `record-embedding-sweep` as a Viewer account of its own at 50 texts every 24h.
+No stale-record sweep there. Its worker is not running until that account exists and has minted
+its own token, which only the owner can do. Known and not
 fixed: with `Logging:File:Path` set, the console image writes its SQL logs to standard output ahead
 of a `run` result, so that output is not machine-parseable.
 
