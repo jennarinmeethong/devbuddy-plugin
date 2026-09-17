@@ -1,4 +1,5 @@
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Domain.Common;
 using DevBuddy.Domain.Tenancy;
 
 namespace DevBuddy.Application.Workers;
@@ -46,6 +47,10 @@ public sealed class AbsentEmbeddingIndex : IEmbeddingIndex
     public Task<IReadOnlySet<string>> IndexedContentHashesAsync(
         ProjectScope scope, string model, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.Ordinal));
+
+    public Task<int> RemoveRecordAsync(
+        ProjectScope scope, KnowledgeRecordId recordId, CancellationToken cancellationToken) =>
+        Task.FromResult(0);
 
     public Task<int> PurgeProjectAsync(ProjectScope scope, CancellationToken cancellationToken) =>
         Task.FromResult(0);

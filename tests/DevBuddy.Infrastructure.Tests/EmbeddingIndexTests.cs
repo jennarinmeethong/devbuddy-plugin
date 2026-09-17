@@ -281,6 +281,48 @@ public sealed class EmbeddingIndexTests(PgvectorFixture fixture)
         Assert.Equal(["b"], await index.IndexedContentHashesAsync(survivor, Model, CancellationToken.None));
     }
 
+    /// <summary>
+    /// Removing a record takes every row it has, of every revision and model, and nothing else. The
+    /// same record identifier seeded into another project stays: only the scope in the statement can
+    /// refuse that, because the identifiers match. That row is at another revision, because the
+    /// table's key is record, revision and model, and a clashing key would update the first row in
+    /// place rather than add one.
+    /// </summary>
+    [Fact]
+    public async Task removing_a_record_takes_its_rows_and_leaves_everything_else()
+    {
+        await using DevBuddyDbContext context = _fixture.CreateContext();
+        PostgresEmbeddingIndex index = new(context);
+        ProjectScope scope = Scope();
+        ProjectScope elsewhere = Scope();
+        KnowledgeRecordId removed = KnowledgeRecordId.New();
+        KnowledgeRecordId kept = KnowledgeRecordId.New();
+
+        await index.UpsertAsync(
+            scope,
+            Model,
+            [
+                new EmbeddedRevision(removed, 1, "removed-1", Vector(1f, 0f, 0f)),
+                new EmbeddedRevision(removed, 2, "removed-2", Vector(0f, 1f, 0f)),
+                new EmbeddedRevision(kept, 1, "kept", Vector(0f, 0f, 1f)),
+            ],
+            CancellationToken.None);
+
+        await index.UpsertAsync(
+            scope, "another-model", [new EmbeddedRevision(removed, 2, "removed-other-model", Vector(1f, 0f, 0f))], CancellationToken.None);
+
+        await index.UpsertAsync(
+            elsewhere, Model, [new EmbeddedRevision(removed, 3, "same-id-elsewhere", Vector(1f, 0f, 0f))], CancellationToken.None);
+
+        Assert.Equal(3, await index.RemoveRecordAsync(scope, removed, CancellationToken.None));
+
+        Assert.Equal(["kept"], await index.IndexedContentHashesAsync(scope, Model, CancellationToken.None));
+        Assert.Empty(await index.IndexedContentHashesAsync(scope, "another-model", CancellationToken.None));
+        Assert.Equal(["same-id-elsewhere"], await index.IndexedContentHashesAsync(elsewhere, Model, CancellationToken.None));
+
+        Assert.Equal(0, await index.RemoveRecordAsync(scope, removed, CancellationToken.None));
+    }
+
     [Fact]
     public async Task an_empty_query_vector_has_no_nearest_neighbour()
     {

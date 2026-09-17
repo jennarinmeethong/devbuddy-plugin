@@ -188,6 +188,25 @@ internal sealed class PostgresEmbeddingIndex(DevBuddyDbContext db) : IEmbeddingI
         return hashes;
     }
 
+    public async Task<int> RemoveRecordAsync(
+        ProjectScope scope, KnowledgeRecordId recordId, CancellationToken cancellationToken)
+    {
+        // The scope as well as the record. A record identifier is unique on its own, but this
+        // table has no query filter, and a delete that trusted the identifier alone would be the
+        // one statement here that could reach past the project it was called for.
+        await using NpgsqlCommand command = Command(
+            """
+            delete from record_embeddings
+            where workspace_id = $1 and project_id = $2 and record_id = $3;
+            """,
+            Uuid(scope.WorkspaceId.Value),
+            Uuid(scope.ProjectId.Value),
+            Uuid(recordId.Value));
+
+        await OpenAsync(command, cancellationToken);
+        return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public async Task<int> PurgeProjectAsync(ProjectScope scope, CancellationToken cancellationToken)
     {
         // Guarded by the table's existence rather than by the caller remembering to ask: this is

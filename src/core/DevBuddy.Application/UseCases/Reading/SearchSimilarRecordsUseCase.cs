@@ -176,6 +176,16 @@ public sealed class SearchSimilarRecordsUseCase(
                 continue;
             }
 
+            // Only the revision that is live now. An archived record is no longer knowledge in use,
+            // and a row for a revision that is no longer the published one describes text a
+            // reader would not be shown. The worker removes both from the index, but the index is
+            // derived and lags it by up to a pass, so the answer does not depend on that.
+            if (record.Status == RecordStatus.Archived
+                || record.PublishedRevisionNumber != hit.RevisionNumber)
+            {
+                continue;
+            }
+
             RecordRevision? revision =
                 record.Revisions.FirstOrDefault(candidate => candidate.Number == hit.RevisionNumber);
 

@@ -224,7 +224,8 @@ internal static class WorkerSchedule
                 {
                     output.WriteLine(summary.Refusal is null
                         ? $"  project {summary.ProjectId}  embedded {summary.Embedded}  "
-                          + $"already current {summary.AlreadyCurrent}  skipped {summary.Skipped}"
+                          + $"already current {summary.AlreadyCurrent}  skipped {summary.Skipped}  "
+                          + $"removed {summary.Removed}"
                         : $"  project {summary.ProjectId}  refused: {summary.Refusal}");
                 }
 
