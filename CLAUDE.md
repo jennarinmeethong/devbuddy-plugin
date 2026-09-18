@@ -537,6 +537,14 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   index reports as absent. **Enabling the hosted provider mode in a deployment needs the vendor
   named, an `OutboundAccess:AllowedHosts` entry, and an acceptance of its own.** Never turn any of
   it on by default.
+- **The MCP server's HTTP transport answers POST and nothing else.** A `GET` on it is 405 with
+  `Allow: POST`, and that is correct, not a fault. `ModelContextProtocol.AspNetCore` 2.2.0 defaults
+  to stateless mode, following protocol revision 2026-07-28 (SEP-2567), so `MapMcp()` maps no `GET`
+  stream and no `DELETE`. Routing answers the 405 before authorization runs. An unauthenticated
+  `POST` is refused with 401 and `WWW-Authenticate: Bearer`. Probe the MCP server with a `POST`
+  when checking an installation. Stateless mode means the server cannot push messages to a client,
+  and nothing here needs it: every MCP call is a tool call the client makes. Confirmed on the devbox
+  on 2026-09-18.
 - **Warnings are errors.** Fix them rather than suppressing them.
 - **AI access is denied by default per project.** Nothing reaches the MCP tool surface unless it is
   added to the allow-list on purpose.
