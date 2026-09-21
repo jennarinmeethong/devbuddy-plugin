@@ -165,7 +165,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
 - **Exit:** no document claims something about CI or the plan's status that is no longer true.
 
 ### A5 — The web client reads one grant per workspace
-**Status: TODO** (found 2026-09-21 while doing B8)
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - `useWorkspace` in `web/admin/src/api/session.tsx` returns the first `WorkspaceAccess` for a
   workspace, and navigation is built from that grant's permissions. A person holding two grants in
@@ -182,7 +182,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
 ## B — Owner decisions, now taken
 
 ### B6 — Hosted embedding provider
-**Status: TODO** — vendor: **Voyage AI** (owner, 2026-09-21)
+**Status: DONE (2026-09-21)** for the adapter, merged to `main`. Enabling it anywhere is not part of this item and needs an acceptance per installation.
 
 `HttpEmbeddingProvider` speaks the OpenAI-compatible `/embeddings` shape: `input` in, and
 `data[].embedding` out. How the three candidates differ in what this project has to do:
@@ -218,7 +218,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
   Enabling it on a real installation is a separate owner acceptance and is outside this exit.
 
 ### B7 — Approving the provider and worker on other installations
-**Status: TODO**
+**Status: IN PROGRESS** — command and checklist merged; running it once on the devbox and recording the output is what is left.
 
 - **Steps:**
   1. Write `docs/operations/embedding-approval.md`. It covers:
@@ -296,7 +296,7 @@ The problem: `stale-record-sweep` needs `ManageIndex`, and only `Administrator` 
   - one pass is recorded in the audit trail under `stale_worker` with channel `InternalSystem`.
 
 ### B9 — The bounded AI scope approval flow (SB-18)
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 `ProjectAiAccessPolicy.BoundedDataScope` exists as free text, but no screen sets it. The Projects
 screen enables AI access without a scope.
@@ -325,7 +325,7 @@ screen enables AI access without a scope.
   exists on the devbox.
 
 ### B10 — `linux-musl-arm64` to the verified tier
-**Status: TODO**
+**Status: DONE (2026-09-21)**
 
 - **Steps:**
   1. Add a per-release smoke test on Alpine arm64 on the Mac mini (`ssh macmini`, Docker via
@@ -344,7 +344,7 @@ screen enables AI access without a scope.
 section when it is done.
 
 ### C1 — Embeddings and the workers, end to end
-**Status: TODO**
+**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
 
 - A Compose override for the e2e stack only:
   - the `pgvector/pgvector:pg17` database;
@@ -362,7 +362,7 @@ section when it is done.
   - the stub records what it received, and a credential never arrives.
 
 ### C2 — MCP over stdio with a machine token
-**Status: TODO**
+**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
 
 - A Playwright test using the MCP SDK's stdio client, which runs
   `docker compose run --rm -T mcp --stdio` with `DEVBUDDY_TOKEN`.
@@ -374,7 +374,7 @@ section when it is done.
   - `DEVBUDDY_ACTOR` is ignored.
 
 ### C3 — GitHub API source mode
-**Status: TODO**
+**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
 
 - A stub GitHub API server in the e2e stack. It serves:
   - pull requests;
@@ -389,7 +389,7 @@ section when it is done.
   - a host not on the allow-list is refused.
 
 ### C4 — SMTP delivery
-**Status: TODO**
+**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
 
 - Mailpit in the e2e stack, with `Email:Provider=Smtp`.
 - **Tests:**
@@ -398,7 +398,7 @@ section when it is done.
   - no token appears in the container logs.
 
 ### C5 — Observability overlay
-**Status: TODO**
+**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
 
 - Start the stack with `compose.observability.yaml`.
 - **Tests:**
@@ -408,7 +408,7 @@ section when it is done.
   - Grafana's security dashboard provisions.
 
 ### C6 — Restore, end to end
-**Status: TODO**
+**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
 
 - Automate the drill in the e2e runner:
   1. Seed data and evidence.
@@ -419,20 +419,20 @@ section when it is done.
   6. After D6, assert that an access token from before the restore is refused.
 
 ### C7 — Firefox and WebKit
-**Status: TODO**
+**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
 
 - Add both as Playwright projects. The setup project runs once, and the specs run per browser.
 - Fix whatever differs in the client, not in the tests.
 
 ### C8 — The hosted provider mode, exercised
-**Status: TODO** (after B6)
+**Status: BLOCKED (acceptance)** — the adapter is tested against a Voyage-shaped double (B6); a run against the real vendor waits for an installation's acceptance and the owner's key.
 
 - A test against a recording double shaped like the named vendor (part of B6).
 - **A run against the real vendor happens only after the owner's acceptance**, with synthetic data,
   and is recorded in `release-matrix.md`.
 
 ### C9 — `linux/arm64` on server-class hardware
-**Status: TODO**
+**Status: IN PROGRESS** — the CI job exists; done when it is green on `ubuntu-24.04-arm`.
 
 - A CI job on GitHub's `ubuntu-24.04-arm` runner, which is Arm Neoverse server hardware. It builds
   the arm64 images natively and runs `tests/e2e/run.sh` against them.
@@ -548,7 +548,7 @@ stated rather than claimed away.
 - **Devbox:** the next pass after deploying re-embeds that installation's records.
 
 ### D6 — An access token still valid after a restore
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Problem:** a stateless JWT inside its 15-minute lifetime still validates after a restore,
   because the signing key is configuration and survives.
@@ -566,7 +566,7 @@ stated rather than claimed away.
 - Update `backup-and-restore.md` and `release-readiness.md`, which record this overstatement.
 
 ### D7 — Deleted data living on in older backups
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Problem:** a project deleted after a backup comes back if that backup is restored. This is the
   "backup lag" residual in `info.md`'s accepted limitations.
@@ -583,7 +583,7 @@ stated rather than claimed away.
   - a restore with the ledger missing proceeds and warns rather than failing.
 
 ### D8 — Copies somebody downloaded before their access was revoked
-**Status: TODO** (narrowed; the limitation itself is **not removable**)
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Why it stays:** a file that left the system cannot be recalled by it. No code changes that.
 - **What can be done:** when a grant is revoked, the Members screen shows what that person
@@ -600,7 +600,7 @@ stated rather than claimed away.
     report exists.
 
 ### D9 — Ollama embeds only the first 4096 tokens
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Problem:** a long record is embedded from its beginning only, so a match late in the record is
   invisible to semantic search.
@@ -650,3 +650,16 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-21 | D4 | **DONE.** `read_audit_history` takes `channelNotRecorded`, and it is refused together with a channel (Invalid). The Audit screen offers "Channel not recorded (before v1.3.0)". `deployment.md` explains where such rows are and why they are never backfilled. The limitation stays by design (`info.md` 2026-09-15). **Test:** the existing legacy-row test also asserts the new filter returns exactly the null-channel rows and refuses the contradiction. **Mutation-checked:** ignoring the filter fails it. |
 | 2026-09-21 | D5 | **DONE.** The embedding sweep keys index rows on `contentHash:ruleSetFingerprint`. The fingerprint is SHA-256 over `PersonalDataRules.ChecksVersion` and each rule's name, pattern and options, in order, exposed as `IPersonalDataRedactor.RuleSetFingerprint`. Rows written before carry the bare hash, so each record re-embeds once, within budget. `ChecksVersion` must be bumped when an accept check changes without its pattern changing. **Tests:** a sweep test (stale key → re-embed with new key; same rules → nothing sent) and a fingerprint test (stable; changes with pattern, order, version). **Mutation-checked:** ignoring the fingerprint fails the sweep test. **Found while writing it:** a static initialiser declared above `All` would have hashed an empty rule set, so it is computed on read. **Devbox:** the next pass after deploying re-embeds its records; not yet deployed. |
 | 2026-09-21 | D2–D5 verification | One run on jmhp of the branch carrying all four: **916 .NET tests passed, 0 failed**, format exit 0, web 73, **e2e 65 of 65**. The four mutation checks were run separately, because the e2e runner consumed the rest of a piped script the first time and the D3 mutant silently did not run. `operations.ts` was regenerated and the Thai handbook rebuilt. |
+| 2026-09-21 | D6 | **DONE.** Each access token carries a `devbuddy_session` claim naming its refresh-token family. The API and the MCP server's HTTP transport refuse a token whose family has no live refresh token (`SessionTokenCheck` in each host, because ASP.NET's event model must not reach Infrastructure). This covers sign-out, revoke-all and restore. **Tests:** `SessionBoundTokenTests` (4); an e2e test that a signed-out token is refused on the MCP transport; the restore stage asserts a pre-disaster token gets 401. **Mutation-checked:** removing the check fails 3 of 4. Tokens issued before this carry no session, so everyone signs in once after upgrading. |
+| 2026-09-21 | D7 | **DONE.** `ProjectDirectory.DeleteProjectAsync` appends identifiers to `deletions.jsonl` in the backup root. `restore` deletes again every project recorded after the backup was taken, bytes included, and says how many. A missing ledger is reported, not fatal. Retention prunes the ledger to the oldest backup left. **Tests:** 3 in `RestoreDrillTests` over real PostgreSQL and MinIO. **Mutation-checked:** not re-applying fails the main one. **Found on the way:** the first build failed on CA1848 (a direct `LogWarning`), so it uses a `LoggerMessage` delegate. |
+| 2026-09-21 | D8 | **DONE.** `list_member_downloads` is human-only and needs `ReadAudit`. It lists one person's succeeded `EvidenceDownloaded` and `ExportCreated` entries in this workspace only: identifiers and times, never content. The Members screen offers it beside Revoke. The limitation itself stays: a copy cannot be recalled. **Tests:** 2 in `MemberDownloadsTests`. **Mutation-checked:** dropping the workspace bound fails. |
+| 2026-09-21 | D9 | **DONE.** `TextChunks.Split` makes chunks of `Embedding:ChunkCharacters` (3000), cut on paragraph, line or space, with a tenth's overlap. All chunks go in one gateway call. The index keeps a row per chunk: migration `RecordEmbeddingChunks`, conditional, **the ninth migration**. A similarity query ranks a record by its best chunk. **Tests:** splitter (3), sweep, and index over pgvector. **Mutation-checked:** ranking by the worst chunk fails. The first run failed on two mistakes in my own tests, not the product: a repeating Thai text, and asserting calls instead of texts. |
+| 2026-09-21 | B9 | **DONE.** A bounded scope names rules from `PersonalDataRuleNames.All` and needs a justification of 20 to 1000 characters. Only those rules are let through on the AI channel; every other rule is blocked and redacted, and a secret is refused regardless. Free text is refused for new approvals; a stored one is honoured as before and flagged on the Projects screen, which approves, changes and withdraws a scope behind a confirmation naming each rule. The scanner has rules, not customer/production categories, so the scope is expressed in rules (`info.md` notes it). **Tests:** a real-pipeline test (email allowed; Thai ID and mobile blocked and redacted; secret blocked), and a parity test holding the scanner's rules equal to the list. **Mutation-checked.** No scope was approved on the devbox. |
+| 2026-09-21 | A5 | **DONE.** `mergeAccess` in `session.tsx` combines grants: workspace-wide ones at workspace level, and those plus the project's own inside a project. Web tests: 4. Its first version failed the build on a strict-index error, now fixed. |
+| 2026-09-21 | B6 | **DONE (adapter).** `Embedding:Dialect=VoyageAi` sends `input_type`: document for the sweep, query for search, through a new `EmbeddingPurpose` on the port. `deployment.md` has the settings; the allow-list entry goes in `compose.override.yaml` on purpose, and the owner sets the key. **Tests:** `VoyageEmbeddingTests` (4) against a Voyage-shaped double: `input_type`, bearer key, allow-list refusal, and a vendor refusal quoting neither the key nor the text. **Mutation-checked:** sending query as document fails. **Not done:** enabling it anywhere. |
+| 2026-09-21 | B7 (code) | `embedding-check`: a read-only console command. It reports the provider, egress, the vector index, the worker token's reach and the budget, and exits 3 on a problem. `docs/operations/embedding-approval.md` has the checks it cannot make, the `info.md` template and the rollback. **Tests:** `EmbeddingReadinessTests` (5). **Mutation-checked.** **Left:** run it on the devbox and record the output. |
+| 2026-09-21 | B10 | **DONE.** `linux-musl-arm64` is in the verified tier: its smoke test ran for `v1.2.0`, `v1.2.1`, `v1.3.0` and `v1.4.0`. ADR-0008 is amended, and `release-matrix.md`, `release-readiness.md`, `CLAUDE.md` and `info.md` are updated. `win-arm64` is the only unverified RID. |
+| 2026-09-21 | C1–C7 | **DONE on jmhp.** The last full run (tip minus a one-line test fix and docs): **default suite 205 of 205 across Chromium, Firefox and WebKit (C7)**, plus two host stages. **Stdio (C2):** 8 of 8 — token minted, 20 tools, no human-only tool, a call succeeds, refused in another workspace and after revocation, `DEVBUDDY_ACTOR` alone resolves nobody. **Restore (C6):** 6 of 6 — both volumes destroyed; accounts, records, revisions, evidence rows, one artefact's bytes and channelled audit entries back; a pre-disaster token refused. **Mailpit (C4)** is in the default stack: 3 specs. **Embeddings mode (C1):** 2 of 2 plus setup — the real sweep as a Viewer at a one-minute interval, the draft and the closed project never reach the model, an archived record leaves the answers. **GitHub mode (C3):** 2 of 2 plus setup, on a second API instance. **Observability mode (C5):** 3 of 3 plus setup. CI gains three jobs, one per mode. |
+| 2026-09-21 | Defect (found by C2/C6) | **Every console `run` and every worker pass failed since D1** was merged to `main` (not in any release, not on the devbox). `issue_password_reset` → recovery service → `TokenService`, whose constructor refused a missing signing key, and the console carries none. The key is now checked when a token is signed. `ConsoleCompositionTests` composes every operation without a key and checks that a short key is still refused at signing. **Mutation-checked:** an eager check fails both. |
+| 2026-09-21 | Defect (found by C5) | **No log line ever reached Loki on a stack with its file log on**, which is every stack `docker/compose.yaml` starts. Serilog owned the pipeline, so the OpenTelemetry exporter registered after it received nothing. Option 2 of `logging.md`, in force since 2026-09-10, never delivered. Serilog now writes to the other providers. `FileLoggingForwardingTests` holds it. **Mutation-checked.** Recorded in `info.md` and `logging.md`. |
+| 2026-09-21 | Verification | Branch tip on jmhp: **944 .NET tests passed, 0 failed**, format exit 0, web 77. Every item's mutation check was caught; the D6 and key checks were first written wrong and re-run until they applied. **Not yet:** these CI jobs on GitHub, the arm64 runner (C9), and a release carrying any of this. |

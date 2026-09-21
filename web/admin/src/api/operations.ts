@@ -53,6 +53,7 @@ export type OperationName =
   | "disable_project_ai_access"
   | "read_audit_history"
   | "list_memberships"
+  | "list_member_downloads"
   | "create_workspace"
   | "create_project"
   | "delete_project"
@@ -205,6 +206,9 @@ export type ListProjectsResult = {
       name: string;
       createdAt: string;
       aiAccessEnabled: boolean;
+      aiAllowedPersonalDataRules?: Array<string> | null;
+      aiScopeJustification?: string | null;
+      aiScopeUnstructured?: boolean;
     }>;
 };
 
@@ -850,6 +854,8 @@ export type RevokeMembershipResult = {
 
 export type EnableProjectAiAccessArguments = {
   boundedDataScope?: string | null;
+  allowedPersonalDataRules?: Array<string> | null;
+  justification?: string | null;
   scope: {
     workspaceId: string;
     projectId: string;
@@ -860,6 +866,8 @@ export type EnableProjectAiAccessResult = {
   isEnabled: boolean;
   enabledBy: string | null;
   enabledAt: string | null;
+  allowedPersonalDataRules?: Array<string> | null;
+  justification?: string | null;
 };
 
 export type DisableProjectAiAccessArguments = {
@@ -873,6 +881,8 @@ export type DisableProjectAiAccessResult = {
   isEnabled: boolean;
   enabledBy: string | null;
   enabledAt: string | null;
+  allowedPersonalDataRules?: Array<string> | null;
+  justification?: string | null;
 };
 
 export type ReadAuditHistoryArguments = {
@@ -914,6 +924,23 @@ export type ListMembershipsResult = {
       scopedToProject: string | null;
       isActive: boolean;
       grantedAt: string;
+    }>;
+};
+
+export type ListMemberDownloadsArguments = {
+  subjectUserId: string;
+  days?: number;
+  workspaceId: string;
+};
+
+export type ListMemberDownloadsResult = {
+  subjectUserId: string;
+  days: number;
+  downloads: Array<{
+      occurredAt: string;
+      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded" | "EvidenceCaptured" | "EvidenceListed" | "PasswordResetIssued" | "StrayScopeRowsPurged" | "RecordMarkedAiGenerated";
+      projectId: string | null;
+      resourceReference: string;
     }>;
 };
 
@@ -1192,6 +1219,7 @@ export interface Operations {
   "disable_project_ai_access": { arguments: DisableProjectAiAccessArguments; result: DisableProjectAiAccessResult };
   "read_audit_history": { arguments: ReadAuditHistoryArguments; result: ReadAuditHistoryResult };
   "list_memberships": { arguments: ListMembershipsArguments; result: ListMembershipsResult };
+  "list_member_downloads": { arguments: ListMemberDownloadsArguments; result: ListMemberDownloadsResult };
   "create_workspace": { arguments: CreateWorkspaceArguments; result: CreateWorkspaceResult };
   "create_project": { arguments: CreateProjectArguments; result: CreateProjectResult };
   "delete_project": { arguments: DeleteProjectArguments; result: DeleteProjectResult };
@@ -1258,6 +1286,7 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "disable_project_ai_access": { permission: "ManageAccess", availableToAi: false },
   "read_audit_history": { permission: "ReadAudit", availableToAi: false },
   "list_memberships": { permission: "ManageAccess", availableToAi: false },
+  "list_member_downloads": { permission: "ReadAudit", availableToAi: false },
   "create_workspace": { permission: "ProvisionWorkspace", availableToAi: false },
   "create_project": { permission: "ManageProjects", availableToAi: false },
   "delete_project": { permission: "ManageProjects", availableToAi: false },
