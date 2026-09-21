@@ -75,7 +75,7 @@ AI access closed on every project.
   it.
 - **The GitHub API source mode**, SMTP delivery, the observability overlay, and restore. Restore is
   a console command, and the drill in `docs/operations/release-matrix.md` covers it.
-- **Browsers other than Chromium.**
+
 
 ## Writing a test
 
