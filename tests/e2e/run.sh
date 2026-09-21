@@ -18,6 +18,8 @@
 #   DEVBUDDY_E2E_PROJECT   the Compose project name (default devbuddy-e2e)
 #   DEVBUDDY_E2E_WORKERS   parallel workers (default 4)
 #   DEVBUDDY_E2E_RESTORE=0 skip the destroy-and-restore stage that runs after the suite
+#   DEVBUDDY_E2E_GITHUB=1  a second API instance on the GitHub source mode against a stand-in
+#                          GitHub, for specs/github.spec.ts
 #   DEVBUDDY_E2E_EMBEDDINGS=1  pgvector, a stand-in model server and the embedding sweep, for
 #                          specs/embeddings.spec.ts; off by default, so the default run tests the
 #                          shipped default stack
@@ -74,6 +76,10 @@ DEVBUDDY_E2E_ADMIN_EMAIL=$admin_email
 DEVBUDDY_E2E_ADMIN_PASSWORD=$admin_password
 EOF
 
+# The GitHub source mode (Phase 13, C3): a second API instance reading a stand-in GitHub.
+github=${DEVBUDDY_E2E_GITHUB:-0}
+github_repository=5b0f2a2e-7c1d-4e8f-9a3b-1c2d3e4f5a6b
+
 # The embeddings mode (Phase 13, C1): pgvector, a stand-in model server, and the real sweep.
 embeddings=${DEVBUDDY_E2E_EMBEDDINGS:-0}
 overlays=(--file "$(native "$here/compose.e2e.yaml")")
@@ -88,6 +94,14 @@ DEVBUDDY_EMBEDDING_DIMENSIONS=64
 DEVBUDDY_EMBEDDING_SWEEP_EVERY=00:00:05
 DEVBUDDY_EMBEDDING_SWEEP_BUDGET=1000
 EOF
+fi
+
+if [ "$github" = 1 ]; then
+  overlays+=(--file "$(native "$here/compose.github.yaml")")
+  echo "DEVBUDDY_E2E_GITHUB_SETTINGS=$(native "$work/appsettings.github.json")" >>"$work/.env"
+  # Written properly once the project exists; the file has to exist for Compose to parse the stack.
+  echo '{}' >"$work/appsettings.github.json"
+  chmod 0644 "$work/appsettings.github.json"
 fi
 
 compose() {
@@ -153,6 +167,31 @@ compose run --rm --no-deps "${tty[@]}" migrate bootstrap \
   exit 1
 }
 
+suite_env=()
+
+if [ "$github" = 1 ]; then
+  echo "==> Starting a second API instance on the GitHub source mode" >&2
+  g_workspace=$(awk '$1=="workspace"{print $2}' "$out/bootstrap.log")
+  g_actor=$(awk '$1=="actor"{print $2}' "$out/bootstrap.log")
+  g_project=$(compose run --rm --no-deps -T migrate run create_project --actor "$g_actor" \
+    --arguments "{\"workspaceId\":\"$g_workspace\",\"name\":\"GitHub-backed project\"}" 2>>"$out/github.log" \
+    | grep -o '"projectId": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  [ -n "$g_project" ] || { echo "Could not create the GitHub-backed project; see github.log" >&2; exit 1; }
+  cat >"$work/appsettings.github.json" <<JSON
+{
+  "GitHub": {
+    "Mode": "GitHubApi",
+    "ApiBaseUrl": "http://github-stub:8080",
+    "Token": "e2e-github-token",
+    "Repositories": { "$g_project/$github_repository": "octo/demo" }
+  },
+  "OutboundAccess": { "AllowedHosts": [ "github-stub" ], "AllowPrivateAddresses": true }
+}
+JSON
+  compose up --detach --wait github-stub api-github >>"$out/github.log" 2>&1
+  suite_env+=(-e "DEVBUDDY_E2E_GITHUB_PROJECT=$g_project" -e "DEVBUDDY_E2E_GITHUB_REPOSITORY=$github_repository")
+fi
+
 if [ "$embeddings" = 1 ]; then
   echo "==> Starting the embedding sweep as a Viewer account of its own" >&2
   e_workspace=$(awk '$1=="workspace"{print $2}' "$out/bootstrap.log")
@@ -170,7 +209,7 @@ fi
 
 echo "==> Running the suite" >&2
 set +e
-compose run --rm --no-deps "${tty[@]}" e2e "$@"
+compose run --rm --no-deps "${tty[@]}" "${suite_env[@]}" e2e "$@"
 status=$?
 set -e
 
