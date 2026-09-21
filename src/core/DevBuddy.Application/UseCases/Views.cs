@@ -180,7 +180,13 @@ public sealed record WorkItemView(
 /// </para>
 /// </summary>
 public sealed record ProjectSummary(
-    ProjectId ProjectId, string Name, DateTimeOffset CreatedAt, bool AiAccessEnabled);
+    ProjectId ProjectId,
+    string Name,
+    DateTimeOffset CreatedAt,
+    bool AiAccessEnabled,
+    IReadOnlyList<string>? AiAllowedPersonalDataRules = null,
+    string? AiScopeJustification = null,
+    bool AiScopeUnstructured = false);
 
 /// <summary>
 /// One revision in a record history, with the approval that covers it if there is one. This is

@@ -1,5 +1,6 @@
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Pipeline;
+using DevBuddy.Application.Security;
 using DevBuddy.Application.UseCases.Administration;
 using DevBuddy.Application.UseCases.Analysis;
 using DevBuddy.Application.UseCases.Handover;
@@ -342,12 +343,27 @@ public sealed class HandoverAndOperationsTests
 
         AiAccessResponse enabled = await harness.SucceedAsync(
             new EnableProjectAiAccessUseCase(harness.Ports, harness.Ports),
-            new EnableProjectAiAccessRequest(TestData.Scope, "Sanitised issue exports only."));
+            new EnableProjectAiAccessRequest(
+                TestData.Scope,
+                AllowedPersonalDataRules: ["email-address"],
+                Justification: "Sanitised issue exports only, with reporter addresses."));
 
         Assert.True(enabled.IsEnabled);
         Assert.Equal(TestData.Author, enabled.EnabledBy);
         Assert.Equal(TestData.Now, enabled.EnabledAt);
-        Assert.Equal("Sanitised issue exports only.", harness.Ports.Policy.BoundedDataScope);
+        Assert.Equal(["email-address"], enabled.AllowedPersonalDataRules);
+
+        BoundedScope stored = BoundedScope.Parse(harness.Ports.Policy.BoundedDataScope)!;
+        Assert.False(stored.Unstructured);
+        Assert.True(stored.Allows("email-address"));
+        Assert.False(stored.Allows("thai-national-id"));
+
+        // Free text is refused now; a stored one from before is still read as it always was.
+        UseCaseResult<AiAccessResponse> freeText = await harness.RunAsync(
+            new EnableProjectAiAccessUseCase(harness.Ports, harness.Ports),
+            new EnableProjectAiAccessRequest(TestData.Scope, "Sanitised issue exports only."));
+        Assert.Equal(ExecutionOutcome.Invalid, freeText.Outcome);
+        Assert.True(BoundedScope.Parse("Sanitised issue exports only.")!.Unstructured);
 
         AiAccessResponse disabled = await harness.SucceedAsync(
             new DisableProjectAiAccessUseCase(harness.Ports),

@@ -533,4 +533,17 @@ public sealed class PersonalDataCorpusTests
 
         Assert.NotEqual(fingerprint, PersonalDataRules.FingerprintOf(rules, PersonalDataRules.ChecksVersion + 1));
     }
+
+    /// <summary>
+    /// Phase 13, B9: a bounded scope names rules, and the request is validated against the list in
+    /// Application. That list and the scanner's rule set must be the same, or a scope could allow a
+    /// rule that does not exist, or fail to name one that does.
+    /// </summary>
+    [Fact]
+    public void the_rule_names_a_scope_can_allow_are_exactly_the_scanners_rules()
+    {
+        Assert.Equal(
+            DevBuddy.Application.Security.PersonalDataRuleNames.All,
+            PersonalDataRules.All.Select(rule => rule.Name));
+    }
 }

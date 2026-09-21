@@ -65,6 +65,15 @@ export function Projects() {
                   ) : (
                     <Badge>Denied</Badge>
                   )}
+                  {project.aiScopeUnstructured ? (
+                    <p className="mt-1 text-xs text-[var(--color-danger)]">
+                      Approved before rules could be named: every personal-data rule is off for AI.
+                    </p>
+                  ) : project.aiAllowedPersonalDataRules && project.aiAllowedPersonalDataRules.length > 0 ? (
+                    <p className="mt-1 text-xs text-[var(--color-muted)]" aria-label={`Bounded scope of ${project.name}`}>
+                      AI may see: {project.aiAllowedPersonalDataRules.join(", ")}
+                    </p>
+                  ) : null}
                 </td>
                 <td className="px-2 py-2 text-right">
                   <span className="inline-flex items-center gap-2">
@@ -73,6 +82,14 @@ export function Projects() {
                         workspaceId={workspaceId!}
                         projectId={project.projectId}
                         enabled={project.aiAccessEnabled}
+                      />
+                    ) : null}
+                    {canManageAi && project.aiAccessEnabled ? (
+                      <BoundedScopeButton
+                        workspaceId={workspaceId!}
+                        projectId={project.projectId}
+                        name={project.name}
+                        allowed={project.aiAllowedPersonalDataRules ?? []}
                       />
                     ) : null}
                     {canCreate ? (
@@ -201,6 +218,106 @@ function DeleteProjectButton({
 
       {remove.isError ? <Failure error={remove.error} /> : null}
     </span>
+  );
+}
+
+const PERSONAL_DATA_RULES = [
+  ["email-address", "Email addresses"],
+  ["us-ssn", "US social security numbers"],
+  ["payment-card-number", "Payment card numbers"],
+  ["thai-national-id", "Thai national ID numbers"],
+  ["thai-mobile-number", "Thai mobile numbers"],
+  ["labelled-personal-data", "Labelled personal details (date of birth, ID, address)"],
+] as const;
+
+/**
+ * Approves, changes or withdraws a bounded data scope for one project (SB-18, Phase 13 B9).
+ *
+ * By default the AI channel never sees personal data: it is blocked from drafts and redacted from
+ * reads. A scope names the rules an assistant may see through on this project, and why. It is a
+ * separate step from enabling access, names every rule it allows before it is confirmed, and can
+ * be withdrawn. A secret is refused whatever the scope says.
+ */
+function BoundedScopeButton({
+  workspaceId,
+  projectId,
+  name,
+  allowed,
+}: {
+  workspaceId: string;
+  projectId: string;
+  name: string;
+  allowed: string[];
+}) {
+  const queries = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [rules, setRules] = useState<string[]>(allowed);
+  const [justification, setJustification] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+
+  const approve = useMutation({
+    mutationFn: (withdraw: boolean) =>
+      invoke("enable_project_ai_access", {
+        scope: { workspaceId, projectId },
+        allowedPersonalDataRules: withdraw ? null : rules,
+        justification: withdraw ? null : justification,
+      }),
+    onSuccess: async () => {
+      setOpen(false);
+      setConfirmed(false);
+      await queries.invalidateQueries({ queryKey: ["projects", workspaceId] });
+    },
+  });
+
+  if (!open) {
+    return <Button onClick={() => setOpen(true)}>Bounded scope</Button>;
+  }
+
+  const labels = PERSONAL_DATA_RULES.filter(([rule]) => rules.includes(rule)).map(([, label]) => label);
+
+  return (
+    <div className="max-w-md space-y-2 text-left" aria-label={`Bounded scope for ${name}`}>
+      <p className="text-xs text-[var(--color-muted)]">
+        Choose what an assistant may see on {name}. Everything not ticked stays blocked and redacted.
+      </p>
+      {PERSONAL_DATA_RULES.map(([rule, label]) => (
+        <label key={rule} className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={rules.includes(rule)}
+            onChange={(event) =>
+              setRules(event.target.checked ? [...rules, rule] : rules.filter((candidate) => candidate !== rule))
+            }
+          />
+          {label}
+        </label>
+      ))}
+      <Field label="Why is this approved?">
+        <Input value={justification} maxLength={1000} onChange={(event) => setJustification(event.target.value)} />
+      </Field>
+      {rules.length > 0 ? (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+          <span>I approve an assistant seeing: {labels.join(", ")}. Secrets stay refused.</span>
+        </label>
+      ) : null}
+      <div className="flex gap-2">
+        <Button
+          variant="danger"
+          disabled={approve.isPending || rules.length === 0 || justification.trim().length < 20 || !confirmed}
+          onClick={() => approve.mutate(false)}
+        >
+          Approve scope
+        </Button>
+        {allowed.length > 0 ? (
+          <Button disabled={approve.isPending} onClick={() => approve.mutate(true)}>
+            Withdraw scope
+          </Button>
+        ) : null}
+        <Button onClick={() => setOpen(false)}>Cancel</Button>
+      </div>
+      {approve.isError ? <Failure error={approve.error} /> : null}
+    </div>
   );
 }
 

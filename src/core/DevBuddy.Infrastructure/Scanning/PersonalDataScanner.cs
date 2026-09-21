@@ -77,9 +77,13 @@ internal sealed class PersonalDataScanner : IPersonalDataScanner
 /// </summary>
 internal sealed class PersonalDataRedactor : IPersonalDataRedactor
 {
+    private static readonly IReadOnlySet<string> EmptyRules = new HashSet<string>(StringComparer.Ordinal);
+
     public string RuleSetFingerprint => PersonalDataRules.Fingerprint;
 
-    public string Redact(string text)
+    public string Redact(string text) => Redact(text, EmptyRules);
+
+    public string Redact(string text, IReadOnlySet<string> allowedRules)
     {
         if (string.IsNullOrEmpty(text))
         {
@@ -88,7 +92,7 @@ internal sealed class PersonalDataRedactor : IPersonalDataRedactor
 
         string current = text;
 
-        foreach (PersonalDataRule rule in PersonalDataRules.All)
+        foreach (PersonalDataRule rule in PersonalDataRules.All.Where(rule => !allowedRules.Contains(rule.Name)))
         {
             current = rule.Pattern.Replace(current, match => Replace(rule, match));
         }

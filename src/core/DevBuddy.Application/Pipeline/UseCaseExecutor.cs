@@ -185,11 +185,12 @@ public sealed class UseCaseExecutor
         {
             List<string> findings = [.. await FindSecretsAsync(scannable, cancellationToken)];
 
-            bool checkPersonalData = caller.Channel == AccessChannel.Ai && decision.BoundedDataScope is null;
+            BoundedScope? scope = BoundedScope.Parse(decision.BoundedDataScope);
+            bool checkPersonalData = caller.Channel == AccessChannel.Ai && scope is not { Unstructured: true };
 
             if (checkPersonalData)
             {
-                findings.AddRange(await FindPersonalDataAsync(scannable, cancellationToken));
+                findings.AddRange(await FindPersonalDataAsync(scannable, scope, cancellationToken));
             }
 
             if (findings.Count > 0)
@@ -304,8 +305,16 @@ public sealed class UseCaseExecutor
         //    through it without that separate approval.
         if (response is IRedactableResponse<TResponse> redactable)
         {
-            IRedactor effective = caller.Channel == AccessChannel.Ai && decision.BoundedDataScope is null
-                ? new CompositeRedactor(_redactor, _personalDataRedactor)
+            BoundedScope? scope = BoundedScope.Parse(decision.BoundedDataScope);
+
+            // A structured scope narrows what is redacted to the rules it does not allow; the old
+            // free-text form switched personal-data redaction off, and still does for a project
+            // that approved one before Phase 13.
+            IRedactor effective = caller.Channel == AccessChannel.Ai && scope is not { Unstructured: true }
+                ? new CompositeRedactor(
+                    _redactor,
+                    _personalDataRedactor,
+                    new HashSet<string>(scope?.AllowedPersonalDataRules ?? [], StringComparer.Ordinal))
                 : _redactor;
 
             response = redactable.Redact(effective);
@@ -373,7 +382,7 @@ public sealed class UseCaseExecutor
     /// so an audit reader can tell the two controls apart without the matched text ever appearing.
     /// </summary>
     private async Task<IReadOnlyList<string>> FindPersonalDataAsync(
-        IScannableRequest scannable, CancellationToken cancellationToken)
+        IScannableRequest scannable, BoundedScope? scope, CancellationToken cancellationToken)
     {
         List<string> findings = [];
 
@@ -384,14 +393,18 @@ public sealed class UseCaseExecutor
                 continue;
             }
 
-            PersonalDataScanResult result = await _personalDataScanner.ScanAsync(content, cancellationToken);
+            PersonalDataScanResult scanned = await _personalDataScanner.ScanAsync(content, cancellationToken);
 
-            foreach (PersonalDataFinding finding in result.Findings)
+            // What an approved bounded scope allows is not a finding on this project.
+            PersonalDataFinding[] result =
+                [.. scanned.Findings.Where(finding => scope is null || !scope.Allows(finding.RuleName))];
+
+            foreach (PersonalDataFinding finding in result)
             {
                 DevBuddyTelemetry.RecordBlockedContent("personal-data", finding.RuleName);
             }
 
-            findings.AddRange(result.Findings.Select(
+            findings.AddRange(result.Select(
                 finding => $"personal-data:{finding.RuleName} at line {finding.LineNumber}"));
         }
 
@@ -487,7 +500,11 @@ public sealed class UseCaseExecutor
 /// cannot be mistaken for personal data by the second pass.
 /// </para>
 /// </summary>
-internal sealed class CompositeRedactor(IRedactor secrets, IPersonalDataRedactor personalData) : IRedactor
+internal sealed class CompositeRedactor(
+    IRedactor secrets, IPersonalDataRedactor personalData, IReadOnlySet<string> allowedPersonalDataRules) : IRedactor
 {
-    public string Redact(string text) => personalData.Redact(secrets.Redact(text));
+    public string Redact(string text) =>
+        allowedPersonalDataRules.Count == 0
+            ? personalData.Redact(secrets.Redact(text))
+            : personalData.Redact(secrets.Redact(text), allowedPersonalDataRules);
 }

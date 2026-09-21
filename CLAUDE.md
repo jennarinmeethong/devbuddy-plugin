@@ -149,6 +149,11 @@ Customer, production, and personal data are blocked from a draft and redacted fr
 the caller is on the AI channel and the project's AI access policy carries no approved bounded
 scope. A human is never subject to it — SB-18 is an AI data policy, not a general content
 restriction — and a secret is still refused even inside an approved scope, per `info.md`.
+**Since Phase 13 (B9) a scope names rules.** `enable_project_ai_access` takes
+`allowedPersonalDataRules` (names from `PersonalDataRuleNames.All`, which a test holds equal to the
+scanner's rules) and a required justification. Only those rules are let through on the AI channel;
+every other one is still blocked and redacted. The old free-text form is refused for new approvals;
+a stored one is still read as switching every rule off, and the Projects screen says so.
 
 **SB-27, retention, is enforced for audit events, evidence, backups, and exports.**
 `dotnet run -- retention` is a console command, outside the pipeline for the same reason `restore`

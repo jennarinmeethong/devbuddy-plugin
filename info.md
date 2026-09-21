@@ -13,7 +13,11 @@ progress log are in `docs/plan-phase-13.md`.
 - **The stale-record sweep gets a narrow role.** The new role carries `ReadKnowledge` and
   `ManageIndex` only, rather than a token with an Administrator's reach.
 - **The bounded AI scope gets an approval flow.** No scope is approved on the devbox in this
-  phase.
+  phase. *(Built the same day, Phase 13 B9. A scope names which personal-data rules the AI channel
+  may see through, and carries a justification; every other rule stays in force. The scanner has
+  rules, not "customer" or "production" categories, so the scope is expressed in rules. The old
+  free-text form, which switched every rule off, is refused for new approvals and still honoured
+  where one was stored.)*
 - **`linux-musl-arm64` moves to the verified tier** once its smoke test is part of the release
   checklist and has run for a release.
 - **The hosted embedding vendor is Voyage AI (`api.voyageai.com`)**, chosen the same day over

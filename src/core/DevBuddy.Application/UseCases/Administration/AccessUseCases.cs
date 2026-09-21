@@ -117,13 +117,62 @@ public sealed class RevokeMembershipUseCase(IAccessDirectory directory, IClock c
     }
 }
 
-public sealed record EnableProjectAiAccessRequest(ProjectScope Scope, string? BoundedDataScope = null)
+public sealed record EnableProjectAiAccessRequest(
+    ProjectScope Scope,
+    string? BoundedDataScope = null,
+    IReadOnlyList<string>? AllowedPersonalDataRules = null,
+    string? Justification = null)
     : ProjectRequest(Scope)
 {
     public override string ResourceReference => "ai_access";
+
+    public override IReadOnlyList<string> Validate()
+    {
+        List<string> errors = [];
+
+        if (BoundedDataScope is not null)
+        {
+            // The free-text form switched every personal-data rule off at once and said nothing a
+            // reviewer could check. Stored values of it are still honoured; new ones are refused.
+            errors.Add("A bounded scope names the personal-data rules it allows, with a justification. Free text is no longer accepted.");
+        }
+
+        if (AllowedPersonalDataRules is { Count: > 0 } rules)
+        {
+            string[] unknown = [.. rules.Where(rule => !PersonalDataRuleNames.All.Contains(rule, StringComparer.Ordinal))];
+
+            if (unknown.Length > 0)
+            {
+                errors.Add($"Not a personal-data rule: {string.Join(", ", unknown)}.");
+            }
+
+            if (Justification is not { Length: >= 20 and <= 1000 } reason || string.IsNullOrWhiteSpace(reason))
+            {
+                errors.Add("An approved bounded scope needs a justification of 20 to 1000 characters.");
+            }
+        }
+        else if (Justification is not null)
+        {
+            errors.Add("A justification belongs with the rules it justifies.");
+        }
+
+        return errors;
+    }
 }
 
-public sealed record AiAccessResponse(bool IsEnabled, UserId? EnabledBy, DateTimeOffset? EnabledAt);
+public sealed record AiAccessResponse(
+    bool IsEnabled,
+    UserId? EnabledBy,
+    DateTimeOffset? EnabledAt,
+    IReadOnlyList<string>? AllowedPersonalDataRules = null,
+    string? Justification = null) : IAuditableResult
+{
+    /// <summary>The rule names only. The justification is on the policy, not copied into the audit trail.</summary>
+    public IReadOnlyDictionary<string, string> AuditDetails =>
+        AllowedPersonalDataRules is { Count: > 0 } rules
+            ? new Dictionary<string, string>(StringComparer.Ordinal) { ["boundedScopeRules"] = string.Join(",", rules) }
+            : new Dictionary<string, string>(StringComparer.Ordinal);
+}
 
 /// <summary>
 /// Turns on external AI access for one project.
@@ -147,10 +196,17 @@ public sealed class EnableProjectAiAccessUseCase(IAccessDirectory directory, ICl
         ProjectAiAccessPolicy policy =
             await _directory.GetAiAccessPolicyAsync(request.Scope, cancellationToken);
 
-        policy.Enable(caller.UserId, _clock.UtcNow, request.BoundedDataScope);
+        string? scope = request.AllowedPersonalDataRules is { Count: > 0 } rules
+            ? BoundedScope.Compose(rules, request.Justification!.Trim())
+            : null;
+
+        // Enabling without rules is enabling with no scope, which also withdraws one approved before.
+        policy.Enable(caller.UserId, _clock.UtcNow, scope);
         await _directory.SaveAiAccessPolicyAsync(policy, cancellationToken);
 
-        return new AiAccessResponse(policy.IsEnabled, policy.EnabledBy, policy.EnabledAt);
+        BoundedScope? approved = BoundedScope.Parse(policy.BoundedDataScope);
+        return new AiAccessResponse(
+            policy.IsEnabled, policy.EnabledBy, policy.EnabledAt, approved?.AllowedPersonalDataRules, approved?.Justification);
     }
 }
 

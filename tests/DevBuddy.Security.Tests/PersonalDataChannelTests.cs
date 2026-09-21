@@ -208,6 +208,66 @@ public sealed class PersonalDataChannelTests(SecurityFixture fixture)
         Assert.StartsWith("ลูกค้า [REDACTED] โทร [REDACTED] อีเมล [REDACTED]", view.Body, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Phase 13, B9: a structured scope lets through the rules it names and no others. Email is
+    /// allowed here, so an AI draft carrying an address is stored, and one carrying a Thai national
+    /// ID or mobile number is still refused; a read shows the address and still redacts the rest.
+    /// </summary>
+    [Fact]
+    public async Task a_structured_scope_allows_the_rules_it_names_and_no_others()
+    {
+        Ground ground = await Ground.CreateAsync(_fixture);
+        await _fixture.EnableAiAccessAsync(
+            ground.World.Alpha,
+            ground.World.Founder,
+            BoundedScope.Compose(["email-address"], "Support tickets quote the reporter's address."));
+
+        UseCaseResult<LifecycleResult> allowed = await ground.RunAsync(
+            new CreateDraftUseCase(ground.Repository, ground.Clock),
+            new CreateDraftRequest(
+                ground.World.Alpha, ground.WorkItem.Id, RecordKind.Decision,
+                "Reporter", "Reported by somchai.testperson@devbuddy-fixture.co.th", Source),
+            World.Ai(ground.Actor));
+
+        Assert.True(allowed.IsSuccess, $"{allowed.Outcome}: {string.Join("; ", allowed.ValidationErrors)}");
+
+        UseCaseResult<LifecycleResult> blocked = await ground.RunAsync(
+            new CreateDraftUseCase(ground.Repository, ground.Clock),
+            new CreateDraftRequest(
+                ground.World.Alpha, ground.WorkItem.Id, RecordKind.Decision,
+                "Customer escalation", ThaiCustomerNote, Source),
+            World.Ai(ground.Actor));
+
+        Assert.Equal(ExecutionOutcome.Blocked, blocked.Outcome);
+        string errors = string.Join(" ", blocked.ValidationErrors);
+        Assert.Contains("personal-data:thai-national-id", errors, StringComparison.Ordinal);
+        Assert.DoesNotContain("personal-data:email-address", errors, StringComparison.Ordinal);
+
+        KnowledgeRecord record = KnowledgeRecord.CreateDraft(
+            KnowledgeRecordId.New(), ground.World.Alpha, ground.WorkItem.Id, RecordKind.TechnicalKnowledge,
+            "Legacy escalation", ThaiCustomerNote, frontMatter: null, Seeded, World.Now, ground.Actor);
+        await ground.Repository.AddRecordAsync(record, CancellationToken.None);
+
+        KnowledgeRecordView view = await ground.SucceedAsync(
+            new GetRecordUseCase(ground.Repository),
+            new GetRecordRequest(ground.World.Alpha, record.Id, RevisionNumber: 1),
+            World.Ai(ground.Actor));
+
+        Assert.Contains("somchai.testperson@devbuddy-fixture.co.th", view.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("1-1037-01234-56-3", view.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("081-234-5678", view.Body, StringComparison.Ordinal);
+
+        // A secret is refused inside any scope.
+        UseCaseResult<LifecycleResult> secret = await ground.RunAsync(
+            new CreateDraftUseCase(ground.Repository, ground.Clock),
+            new CreateDraftRequest(
+                ground.World.Alpha, ground.WorkItem.Id, RecordKind.Decision,
+                "Key", "aws_access_key_id = AKIAIOSFODNN7EXAMPLE", Source),
+            World.Ai(ground.Actor));
+
+        Assert.Equal(ExecutionOutcome.Blocked, secret.Outcome);
+    }
+
     [Fact]
     public async Task a_human_read_is_never_redacted_for_personal_data()
     {
