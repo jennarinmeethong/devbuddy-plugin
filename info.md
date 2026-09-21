@@ -20,8 +20,8 @@ progress log are in `docs/plan-phase-13.md`.
   OpenAI and Cohere for its multilingual retrieval, Thai included. The adapter is built and tested
   against it. Enabling it on any installation still needs its own acceptance, and the owner sets
   the API key on the server.
-- **The next release is `v1.4.0`**, cut from `main` as it stands, so the devbox gets the
-  project-scope check (`958272a`) without waiting for the rest of Phase 13.
+- **The next release is `v1.4.0`**, cut from `main` as it stands, so the devbox runs a verified tag
+  again without waiting for the rest of Phase 13.
 - **The accepted limitations are to be removed where code can remove them, and narrowed where it
   cannot.** A downloaded copy cannot be recalled. Null audit channels are never backfilled, as the
   2026-09-15 entry requires.

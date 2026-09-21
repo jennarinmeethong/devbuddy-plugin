@@ -77,9 +77,9 @@ Two further rules for this phase:
 13.10 release v1.5.0, devbox to that tag
 ```
 
-13.2 comes early for one reason. The devbox runs `main` at `dd7b894`, which is 17 commits behind,
-and those include `958272a`, the fix that refuses a scope whose project is not in the workspace. A
-security fix should not wait for the rest of this phase.
+13.2 comes early because the devbox runs a detached `main` commit (`3e7cd47`, since 2026-09-18),
+not a release. It already carries `958272a`, the project-scope fix. What it lacks is a tag
+that went through the checklist, and `info.md` (2026-09-17) says the devbox runs from tags.
 
 ---
 
@@ -134,7 +134,8 @@ security fix should not wait for the rest of this phase.
   4. Probe `/health`.
   5. Probe the MCP server with a `POST`, not a `GET`.
   6. Run one embedding pass, and check `search_similar_records` over the plugin.
-- **Exit:** the devbox reports `v1.4.0` and passes the probes. The memory note and `info.md` say it
+- **Exit:** the devbox reports `v1.4.0` and passes the probes. It currently runs `3e7cd47`, and
+  the tag adds only documentation on top of that. The memory note and `info.md` say it
   runs a tag.
 
 ### A3 — Plugin package version
