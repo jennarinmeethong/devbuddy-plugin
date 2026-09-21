@@ -114,8 +114,13 @@ test("an index maintainer can maintain the index and read, and is refused everyt
   const scope = { workspaceId: project.workspaceId, projectId: project.projectId };
 
   try {
-    for (const name of ["reindex", "detect_staleness", "detect_duplicates", "validate_provenance"]) {
-      expect((await api.call(name, { scope })).status(), `${name} should be allowed`).toBe(200);
+    for (const [name, args] of [
+      ["reindex", { scope }],
+      ["detect_staleness", { scope, staleAfter: "90.00:00:00" }],
+      ["detect_duplicates", { scope }],
+      ["validate_provenance", { scope }],
+    ] as const) {
+      expect((await api.call(name, args)).status(), `${name} should be allowed`).toBe(200);
     }
     expect((await api.call("get_work_item", { scope, workItemId: workItem.workItemId })).status()).toBe(200);
 
