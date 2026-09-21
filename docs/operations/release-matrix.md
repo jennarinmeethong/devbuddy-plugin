@@ -213,6 +213,122 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.4.0
+
+**Checked on 2026-09-21 against `826b34e`, before the tag.** What this release adds:
+- a screen for every operation a person needs, and `list_source_repositories`;
+- the project-in-a-scope check (`958272a`) and the read-only `scope-report` command;
+- a fix for the evidence-bucket race, and parseable console output;
+- archived and superseded revisions kept out of semantic search;
+- the audit-reference length check.
+
+It adds no migration. `release.yml` and `docker` are unchanged since `v1.3.0`, and `.github`
+gained only the e2e job in `ci.yml`, so no throwaway prerelease tag was cut (`info.md`,
+2026-09-21). Nothing is carried over.
+
+Everything below ran on jmhp (Ubuntu 24.04.4, Docker 29.7.2). Each run used a clean clone from
+GitHub and a Compose project of its own, and the owner's `devbuddy` stack was not touched:
+- `devbuddy-v140` published on 127.0.0.1:18080 and 18081;
+- `devbuddy-up140` published on 127.0.0.1:28080 and 28081.
+
+The scripts are the `v1.3.0` ones with the versions changed and three checks added (the last three
+rows of the drill table). The console now writes its messages to standard error (`0fad716`), so the
+scripts' one-line captures of refusals came back empty. Each refusal was read from the stderr log
+instead, and is quoted below.
+
+| Check | When | Result |
+| --- | --- | --- |
+| `dotnet test DevBuddy.slnx -c Release` on Linux with Docker | **Against `826b34e`, before the tag** | **Yes.** In `mcr.microsoft.com/dotnet/sdk:10.0` against the host's Docker daemon, all six test projects ran: 896 passed and none failed. By project: Domain 61, Infrastructure 342, McpServer 31, Application 271, Security 136, Api 55. The format check exited 0. The web client built, and its suite passed 73 of 73 in `oven/bun:1`. CI passed on `826b34e`, all four jobs, including the Playwright end-to-end suite. |
+| `dotnet publish`, `linux-x64` console | **Against `826b34e`, before the tag** | **Yes**, self-contained, exit 0. The other RIDs are built by the workflow. |
+| Compose from clean to healthy | **Against `826b34e`, before the tag** | **Yes**, built from source. All six services came up:<br>• `api` was healthy 21 seconds after `up` started (images cached from earlier builds).<br>• `migrate` exited 0 having applied **eight** migrations, the last being `AuditEventChannel`. Nothing new.<br>• `retention` logged its first pass.<br>• The API answered `/health` 200, `/operations` 401 and the UI 200.<br>• The MCP server refused `POST /` with 401, against a 404 control.<br>• Nothing listened on 5432 or 9000.<br>• The console listed **twenty** AI operations, identical in name and order to `v1.3.0`'s list. |
+| No service runs as root | **Against `826b34e`, before the tag** | **Yes**, read from the host:<br>• The API, MCP server and retention ran as uid 1654, each read-only with every capability dropped.<br>• PostgreSQL ran as uid 70.<br>• The evidence store ran as uid 1000, read-only with every capability dropped.<br>• A fresh install gave the evidence volume to `1000:1000` and the log volume to `1654:1654`. |
+| Tokens stay out of the log | **Against `826b34e`, before the tag** | **Yes**, in both directions:<br>• With the default setting, a recovery request answered 202. Standard output held one "could not be delivered" line, and the file on the volume held no token.<br>• With the opt-in, the same request wrote exactly one token, to the file.<br>• None of the opt-in's long values appear in the default capture.<br>• The API was put back on the default afterwards. |
+| Destroy-and-restore drill | **Run on 2026-09-21, against `826b34e`** | **Yes**, with both the database and the evidence volumes destroyed. See below. |
+| Upgrade from `v1.3.0` on amd64 | **Run on 2026-09-21, against `826b34e`** | **Yes.** See below. |
+| Upgrade from `v1.3.0` on arm64 | **Run on 2026-09-21, against `826b34e`** | **Yes, on arm64:** the Ubuntu 26.04.1 VMware guest on the Apple M4 (`aarch64`, kernel 7.0, 2 CPUs, Docker 29.1.3). It was the amd64 run with the published `1.3.0` arm64 images, and `826b34e` built natively there, whose API image reports `arm64`. The host has no curl, so HTTP ran in a `curlimages/curl` container on the stack's own network. Every row matched amd64. See below. |
+
+### The destroy-and-restore drill for v1.4.0
+
+This is the `v1.3.0` drill unchanged. The record was:
+1. created with front matter;
+2. submitted and sent back with a reason;
+3. revised with more front matter and two evidence references;
+4. submitted, approved and published at revision 2.
+
+**Before the disaster**, the installation held:
+- a work item;
+- that record, whose approval was bound to content hash `76D97BFB…`;
+- two evidence artefacts, of 232 and 64 bytes;
+- an administrator account;
+- a machine token;
+- eighteen audit entries, all on the `Human` channel.
+
+These were refused, as they should be:
+- A file carrying a connection string and an AWS key was refused with 422 Blocked. The store kept
+  two artefacts.
+- Reading the record with no revision number while it was unpublished was refused: "has no
+  published revision. Ask for a revision number to read an unpublished one."
+- Approving it before it was submitted was refused: "Only a record pending approval can be
+  approved; this record is Draft."
+
+Both refusals are in the audit trail, as `RecordViewed/Failed` and `RecordApproved/Failed`.
+
+The backup came to 15,578 bytes and was copied off its volume before the disaster.
+
+| Row | Result |
+| --- | --- |
+| Records | **Back.** `get_record` returned exactly what it did before the disaster, front matter and both evidence references included. |
+| Approvals | **Back, and still bound.** The history was identical, correction and reason included, with content hash `76D97BFB…` before and after. |
+| Evidence | **Back, byte for byte**, into a store running as uid 1000 on a recreated volume owned by `1000:1000`. Both artefacts downloaded at 232 and 64 bytes, with matching SHA-256 hashes. |
+| Audit history | **Back, channel included.** All eighteen entries were present afterwards and unchanged. |
+| Accounts | **Back.** Sign-in with the same password succeeded. |
+| Plugins | **Back.** The machine token minted before the disaster answered `list_projects` identically over MCP stdio. A bogus token was refused with "No identity was resolved for this request". |
+| **New:** a scope naming a made-up project | **Refused.** `create_work_item` against a random project identifier in the drill's own workspace exited 1 with "The caller has no access to this scope." No work item was stored against it. |
+| **New:** `scope-report` | **Clean.** Exit 0: "No row names a project that is not a live project of its workspace." |
+| **New:** `list_source_repositories` | **Human-only**, as the console's operation list reports it. |
+
+A second restore was refused with "This installation already has data. Restore into an empty
+database." An access token issued before the disaster still answered 200 on `/me`, as documented.
+Phase 13 item D6 is to change that.
+
+### The upgrade from v1.3.0 on amd64
+
+The run started from `v1.3.0` as shipped: the published `1.3.0` images for the API, the MCP server
+and the console, and that tag's Compose file.
+- **Seeded on `v1.3.0`:**
+  - a published record and a record still in Draft;
+  - an evidence artefact;
+  - a machine token;
+  - twelve audit entries, each with a channel.
+- **The upgrade:** only the Compose file and the images changed, to `826b34e` built from source.
+  The volumes and `.env` stayed the same. **No manual step was needed.**
+
+| Check | Result |
+| --- | --- |
+| Migration | `migrate` exited 0 and applied nothing. Eight migrations are in the history table, as before. |
+| Old audit entries | All twelve are present, and every one keeps its channel. The database holds no row with a null channel, because this installation began on `v1.3.0`. |
+| New audit entries | Written with `channel: Human`. Filtering on `Human` returned only `Human` entries. |
+| Published record | Identical, and so is its history. |
+| The never-published draft | Refused with no revision number, as on `v1.3.0`, and read normally as revision 1. |
+| Evidence | The artefact from `v1.3.0` downloaded byte for byte. A new capture and download worked. Both still answered 200 after the API, the MCP server and the evidence store were restarted, and the evidence store logged no error lines. |
+| Identity | Sign-in with the same password worked. The machine token minted on `v1.3.0` answered `list_projects` identically over MCP stdio. |
+| `scope-report` | Exit 0, nothing found. |
+| Users | The API, MCP server and retention ran as uid 1654, PostgreSQL as 70, and the evidence store as 1000. The API logged no error lines. |
+
+### The upgrade from v1.3.0 on arm64
+
+The amd64 script ran in the Ubuntu 26.04.1 VMware guest, from fresh clones of `v1.3.0` and
+`826b34e`, and every row came out the same:
+- no migration was applied, and eight migrations are in the history table;
+- all twelve entries written on `v1.3.0` kept their channel;
+- the published record and its history are identical;
+- the never-published draft is refused without a revision number and read as revision 1;
+- the `v1.3.0` artefact downloads byte for byte, and a new capture works;
+- both artefacts still answer 200 after a restart;
+- the `v1.3.0` machine token answers identically over MCP stdio;
+- `scope-report` finds nothing;
+- no service runs as root, and the API and the evidence store logged no errors.
+
 ## What was verified for v1.3.0
 
 **Tagged on 2026-09-17** at `c850275`, which is `84ee6d5` plus documentation alone. This release
