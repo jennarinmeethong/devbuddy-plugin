@@ -24,7 +24,7 @@ repository.
 **v1 is released, and Phase 12 followed it.** Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are
 closed, and `v1.0.0` is published from `9a8ebf0` — signed, an SBOM per image, and the attestations
 verified from outside the workflow that built them. Phase 1 delivered `DevBuddy.Domain`; Phase 2
-the `UseCaseExecutor` pipeline and the first 41 of what is now 62 operations; Phase 3 PostgreSQL,
+the `UseCaseExecutor` pipeline and the first 41 of what is now 63 operations; Phase 3 PostgreSQL,
 full-text search, and MinIO; Phase 4 identity, authorization, and tenant isolation; Phase 5 the
 lifecycle and audit history; Phase 6 read-only analysis, the real secret scanner and redactor, the
 path and URL guards, and source synchronisation from a mounted working copy; Phase 7 the three
@@ -174,7 +174,10 @@ fallback sender records that a message could not be delivered, to whom, and how 
 writes the token nowhere. v1 wrote them unconditionally and `release-readiness.md` carried that as
 an accepted risk. Consequence to know: **inviting somebody still works with no mail server**
 (`create_user_account` returns the setup token in its own response), and **self-service recovery
-deliberately does not** until SMTP or the opt-in is set. Refusing to start without a delivery
+deliberately does not** until SMTP or the opt-in is set. Since Phase 13 an administrator can issue
+the reset instead: `issue_password_reset` (human-only, `ManageAccounts`) returns a single-use
+recovery token in its own response, on the Members screen. It is refused unless the caller
+administers **every** workspace the person belongs to, because a password works in all of them. Refusing to start without a delivery
 channel was the alternative and was rejected — it breaks a plain `docker run`.
 
 **Application logs: option 2 of `docs/operations/logging.md` is the option in force**, confirmed

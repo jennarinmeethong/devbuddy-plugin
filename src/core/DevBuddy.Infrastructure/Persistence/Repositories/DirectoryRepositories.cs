@@ -287,6 +287,20 @@ internal sealed class AccessDirectory(DevBuddyDbContext db) : IAccessDirectory
         return [.. rows.Select(RowMappers.ToDomain)];
     }
 
+    public async Task<IReadOnlyList<Membership>> ListLiveMembershipsEverywhereAsync(
+        UserId userId, CancellationToken cancellationToken)
+    {
+        // Memberships carry no tenant filter, and this query must not gain one: its whole point
+        // is to see the workspaces the current one cannot.
+        List<MembershipRow> rows = await _db.Memberships
+            .Where(membership => membership.UserId == userId.Value && membership.RevokedAt == null)
+            .OrderBy(membership => membership.GrantedAt)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(RowMappers.ToDomain)];
+    }
+
     public async Task AddMembershipAsync(Membership membership, CancellationToken cancellationToken)
     {
         _db.Memberships.Add(RowMappers.ToRow(Guard.NotNull(membership, nameof(membership))));

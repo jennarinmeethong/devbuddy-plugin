@@ -295,6 +295,10 @@ public static class UseCaseCatalog
         "create_user_account", PermissionKind.ManageAccounts, AiExposure.Denied,
         AuditAction.AccountCreated, redactsOutput: false);
 
+    public static UseCaseDescriptor IssuePasswordReset { get; } = new(
+        "issue_password_reset", PermissionKind.ManageAccounts, AiExposure.Denied,
+        AuditAction.PasswordResetIssued, redactsOutput: false);
+
     public static UseCaseDescriptor ListWorkItems { get; } = new(
         "list_work_items", PermissionKind.ReadKnowledge, AiExposure.Denied,
         AuditAction.RecordViewed, redactsOutput: true);
@@ -353,7 +357,7 @@ public static class UseCaseCatalog
         GrantMembership, RevokeMembership, EnableProjectAiAccess, DisableProjectAiAccess,
         ReadAuditHistory, ListMemberships,
         CreateWorkspace,
-        CreateProject, DeleteProject, CreateWorkItem, CreateUserAccount, ListWorkItems, ListRecords,
+        CreateProject, DeleteProject, CreateWorkItem, CreateUserAccount, IssuePasswordReset, ListWorkItems, ListRecords,
         CreateTeam, RenameTeam, DeleteTeam, ListTeams, ListTeamMembers, AddTeamMember, RemoveTeamMember,
         IssueMachineToken, ListMachineTokens, RevokeMachineToken,
     ];

@@ -185,7 +185,12 @@ Consequences worth stating, since a closed risk that quietly breaks a workflow i
   token in its own response, which was always a real delivery path rather than a fallback one.
 - **Self-service password recovery does not.** With no SMTP and no opt-in, a recovery token is
   generated, is unreachable, and expires. That is deliberate. An administrator's alternative is to
-  configure SMTP, or to set the opt-in, read the token, and turn it off again.
+  configure SMTP, or to set the opt-in, read the token, and turn it off again. **Since Phase 13
+  (D1) there is a third way:** `issue_password_reset` hands the administrator a single-use reset
+  token in its own response, and never writes it to a log or to the audit trail. It is refused
+  unless the administrator holds `ManageAccounts` in every workspace the person belongs to.
+  Without that rule, resetting a shared member's password would be a way into a workspace the
+  administrator does not run.
 - **Log export to Loki is now on by default with the overlay**, which was previously held false
   precisely because tokens were in those logs. An operator who turns the token opt-in on should
   turn log export back off.

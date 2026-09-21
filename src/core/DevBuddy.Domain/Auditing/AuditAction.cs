@@ -65,4 +65,10 @@ public enum AuditAction
 
     /// <summary>What a project holds was listed. A read of metadata, not of bytes.</summary>
     EvidenceListed = 41,
+
+    /// <summary>
+    /// An administrator issued a password reset for somebody else (Phase 13, D1). The token is
+    /// never part of the entry.
+    /// </summary>
+    PasswordResetIssued = 42,
 }
