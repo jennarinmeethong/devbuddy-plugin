@@ -87,6 +87,7 @@ internal sealed class FakePorts :
     IAdministrativeOperations,
     IKnowledgeQualityChecks,
     ICredentialManager,
+    IAccountRecoveryService,
     IMachineTokenService,
     IClock
 {
@@ -436,6 +437,24 @@ internal sealed class FakePorts :
     {
         Touch();
         return Task.CompletedTask;
+    }
+
+    public Task<string?> BeginAsync(string email, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<string?>(null);
+    }
+
+    public Task<PasswordReset?> IssueForAsync(UserId userId, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<PasswordReset?>(new PasswordReset("fake-reset-token", TestData.Now.AddMinutes(30)));
+    }
+
+    public Task<RecoveryOutcome> CompleteAsync(string token, string newPassword, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult(RecoveryOutcome.Rejected);
     }
 
     public Task<bool> HasCredentialAsync(UserId userId, CancellationToken cancellationToken)

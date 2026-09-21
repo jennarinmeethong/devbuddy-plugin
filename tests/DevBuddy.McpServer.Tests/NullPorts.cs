@@ -42,6 +42,7 @@ internal sealed class NullPorts :
     IKnowledgeQualityChecks,
     IAuthorizationService,
     ICredentialManager,
+    IAccountRecoveryService,
     IMachineTokenService,
     IClock
 {
@@ -270,6 +271,15 @@ internal sealed class NullPorts :
         string email, string displayName, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<string?> BeginAsync(string email, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<PasswordReset?> IssueForAsync(UserId userId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    public Task<RecoveryOutcome> CompleteAsync(string token, string newPassword, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<MachineTokenIssued> IssueAsync(
         UserId userId,
         WorkspaceId workspaceId,
@@ -325,6 +335,7 @@ internal sealed class NullPorts :
         services.AddSingleton<IKnowledgeQualityChecks>(ports);
         services.AddSingleton<IAuthorizationService>(ports);
         services.AddSingleton<ICredentialManager>(ports);
+        services.AddSingleton<IAccountRecoveryService>(ports);
         services.AddSingleton<IMachineTokenService>(ports);
         services.AddSingleton<IClock>(ports);
 
