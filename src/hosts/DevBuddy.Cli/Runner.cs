@@ -304,7 +304,9 @@ internal static class Runner
                         dispatcher,
                         services.GetRequiredService<EmbeddingGateway>(),
                         services.GetRequiredService<IEmbeddingIndex>(),
-                        services.GetRequiredService<IPersonalDataRedactor>().RuleSetFingerprint)
+                        services.GetRequiredService<IPersonalDataRedactor>().RuleSetFingerprint,
+                        services.GetService<EmbeddingOptions>()?.ChunkCharacters
+                            ?? RecordEmbeddingSweepJob.DefaultChunkCharacters)
                     : new StaleRecordSweepJob(dispatcher, staleAfter!.Value);
 
                 WorkerRunReport report = await WorkerSchedule.PassAsync(

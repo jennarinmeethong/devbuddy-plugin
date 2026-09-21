@@ -295,7 +295,11 @@ content hash **and the personal-data rule set's fingerprint** (Phase 13, D5), so
 record costs neither a read nor an embedding, but a change to the SB-18 rules re-embeds every
 record once, within the budget, because the redacted text it embedded is no longer what it would
 send. Bump `PersonalDataRules.ChecksVersion` when a rule's acceptance check changes without its
-pattern changing; the fingerprint cannot see code. **An archived record keeps its
+pattern changing; the fingerprint cannot see code. **A long record is embedded in chunks** (Phase
+13, D9): `TextChunks.Split` cuts at most `Embedding:ChunkCharacters` (3000) with a tenth's overlap,
+all chunks go in one gateway call so the budget and the SB-17 scan stay all-or-nothing per record,
+the index keeps a row per chunk (`chunk` column, migration `RecordEmbeddingChunks`, conditional like
+the table), and a similarity query ranks a record by its best chunk and answers it once. **An archived record keeps its
 published revision**, so since 2026-09-17 the sweep removes its rows, and a newer published
 revision replaces the older one's row rather than ranking beside it. `search_similar_records` also
 answers only a record's current published revision, and never an archived record, because the

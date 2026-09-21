@@ -206,7 +206,9 @@ synthetic data only and does not carry over.
   the LAN, and any generative model.
 - **Why this model:** it scores above `bge-m3` on MMTEB and takes longer inputs. DevBuddy sends no
   query instruction, so retrieval is somewhat below the published figure. Ollama embeds only the
-  first 4096 tokens of a record.
+  first 4096 tokens of a text. *(Since Phase 13, D9, a long record is split into overlapping chunks
+  of at most `Embedding:ChunkCharacters`, 3000 by default, each embedded, so no part of it is lost
+  to that limit.)*
 
 ### An editor for drafts
 

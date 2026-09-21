@@ -97,6 +97,43 @@ public sealed class EmbeddingIndexTests(PgvectorFixture fixture)
     }
 
     /// <summary>
+    /// Phase 13, D9: a record indexed as several chunks is ranked by its best chunk and answered
+    /// once. The match is in the second chunk on purpose: before chunking, only the start of a long
+    /// record was ever embedded.
+    /// </summary>
+    [Fact]
+    public async Task a_chunked_record_is_ranked_by_its_best_chunk_and_answered_once()
+    {
+        await using DevBuddyDbContext context = _fixture.CreateContext();
+        PostgresEmbeddingIndex index = new(context);
+        ProjectScope scope = Scope();
+
+        KnowledgeRecordId chunked = KnowledgeRecordId.New();
+        KnowledgeRecordId other = KnowledgeRecordId.New();
+
+        await index.UpsertAsync(
+            scope,
+            Model,
+            [
+                new EmbeddedRevision(chunked, 1, "hash-chunked", Vector(0f, 0f, 1f), Chunk: 0),
+                new EmbeddedRevision(chunked, 1, "hash-chunked", Vector(1f, 0f, 0f), Chunk: 1),
+                new EmbeddedRevision(other, 1, "hash-other", Vector(0.6f, 0.8f, 0f)),
+            ],
+            CancellationToken.None);
+
+        IReadOnlyList<SimilarRevision> hits = await index.FindSimilarAsync(
+            scope, Model, Vector(1f, 0f, 0f), 10, CancellationToken.None);
+
+        Assert.Equal([chunked, other], hits.Select(hit => hit.RecordId));
+        Assert.True(hits[0].Distance < 0.001, $"Expected the best chunk's ~0 but got {hits[0].Distance}.");
+
+        // Removing a record removes every chunk.
+        await index.RemoveRecordAsync(scope, chunked, CancellationToken.None);
+        Assert.Equal([other], (await index.FindSimilarAsync(scope, Model, Vector(1f, 0f, 0f), 10, CancellationToken.None))
+            .Select(hit => hit.RecordId));
+    }
+
+    /// <summary>
     /// The isolation test, and the reason the vectors are identical: every numerical reason to
     /// return the other project's row is present, and only the <c>where</c> clause refuses. A
     /// post-filter would have computed and ranked both before deciding.

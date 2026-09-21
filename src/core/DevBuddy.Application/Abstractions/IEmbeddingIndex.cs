@@ -98,7 +98,8 @@ public sealed record EmbeddedRevision(
     KnowledgeRecordId RecordId,
     int RevisionNumber,
     string ContentHash,
-    ReadOnlyMemory<float> Vector);
+    ReadOnlyMemory<float> Vector,
+    int Chunk = 0);
 
 /// <summary>
 /// A hit. <paramref name="Distance"/> is cosine distance — 0 is identical, 2 is opposite — and is

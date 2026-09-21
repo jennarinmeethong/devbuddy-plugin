@@ -76,6 +76,14 @@ public sealed class EmbeddingOptions
     public int BatchSize { get; set; } = 32;
 
     /// <summary>
+    /// The longest piece of a record sent as one text, in characters (Phase 13, D9). A long record
+    /// is split into overlapping chunks of at most this, each embedded, and a search ranks the
+    /// record by its best chunk. Lower it for a model with a short context; the default suits a
+    /// 4096-token model even for Thai text.
+    /// </summary>
+    public int ChunkCharacters { get; set; } = 3000;
+
+    /// <summary>
     /// What an operator has to have got right before this can start, as a list of problems rather
     /// than a boolean.
     /// <para>
@@ -115,6 +123,11 @@ public sealed class EmbeddingOptions
         if (BatchSize <= 0)
         {
             problems.Add("Embedding:BatchSize must be at least one.");
+        }
+
+        if (ChunkCharacters < 200)
+        {
+            problems.Add("Embedding:ChunkCharacters must be at least 200.");
         }
 
         if (Provider != EmbeddingProviderKind.HostedApi)

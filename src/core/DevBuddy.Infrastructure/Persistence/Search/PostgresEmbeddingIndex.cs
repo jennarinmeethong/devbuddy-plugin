@@ -81,9 +81,9 @@ internal sealed class PostgresEmbeddingIndex(DevBuddyDbContext db) : IEmbeddingI
                 """
                 insert into record_embeddings (
                     record_id, revision_number, model, workspace_id, project_id,
-                    content_hash, dimensions, embedding, embedded_at)
-                values ($1, $2, $3, $4, $5, $6, $7, $8, now())
-                on conflict (record_id, revision_number, model) do update set
+                    content_hash, dimensions, embedding, embedded_at, chunk)
+                values ($1, $2, $3, $4, $5, $6, $7, $8, now(), $9)
+                on conflict (record_id, revision_number, model, chunk) do update set
                     content_hash = excluded.content_hash,
                     dimensions = excluded.dimensions,
                     embedding = excluded.embedding,
@@ -96,7 +96,8 @@ internal sealed class PostgresEmbeddingIndex(DevBuddyDbContext db) : IEmbeddingI
                 Uuid(scope.ProjectId.Value),
                 Text(entry.ContentHash),
                 Integer(entry.Vector.Length),
-                Vector(entry.Vector));
+                Vector(entry.Vector),
+                Integer(entry.Chunk));
 
             await OpenAsync(command, cancellationToken);
             written += await command.ExecuteNonQueryAsync(cancellationToken);
@@ -128,13 +129,14 @@ internal sealed class PostgresEmbeddingIndex(DevBuddyDbContext db) : IEmbeddingI
         // compared.
         await using NpgsqlCommand command = Command(
             """
-            select record_id, revision_number, embedding <=> $1 as distance
+            select record_id, revision_number, min(embedding <=> $1) as distance
             from record_embeddings
             where workspace_id = $2
               and project_id = $3
               and model = $4
               and dimensions = $5
-            order by embedding <=> $1
+            group by record_id, revision_number
+            order by distance
             limit $6;
             """,
             Vector(query),

@@ -366,9 +366,48 @@ public sealed class RecordEmbeddingSweepJobTests
         Assert.Equal(["list_projects"], recorder.Invoked);
     }
 
+    /// <summary>
+    /// Phase 13, D9. A long record is embedded as several chunks, every one of which is indexed
+    /// under the same key, and the budget is charged for each text sent.
+    /// </summary>
+    [Fact]
+    public async Task a_long_record_is_embedded_in_chunks_and_each_chunk_is_charged()
+    {
+        string body = string.Join("\n\n", Enumerable.Range(1, 60).Select(i => $"Step {i}: the importer normalises identifiers first."));
+
+        RecordingDispatcher recorder = new();
+        recorder.Projects(Guid.NewGuid());
+        recorder.Records(Guid.NewGuid());
+        recorder.History(publishedRevision: 1, contentHash: "HASH-LONG");
+        recorder.Record("A long record", body);
+
+        FakeIndex index = new();
+        CountingProvider provider = new();
+
+        WorkerRunReport report = await Run(Job(recorder, Configured(provider), index, chunkCharacters: 400));
+
+        Assert.True(provider.Texts.Count > 1);
+        Assert.Equal(provider.Texts.Count, report.CallsSpent);
+        Assert.Equal(Enumerable.Range(0, provider.Texts.Count), index.Written.Select(row => row.Chunk));
+        Assert.All(index.Written, row => Assert.Equal("HASH-LONG", row.ContentHash));
+        Assert.Contains(provider.Texts, text => text.Contains("Step 60:", StringComparison.Ordinal));
+
+        // A budget that cannot cover every chunk sends none of them: the record is skipped whole.
+        FakeIndex untouched = new();
+        CountingProvider idle = new();
+        await Run(Job(recorder, Configured(idle), untouched, chunkCharacters: 400), new WorkerBudget(2));
+
+        Assert.Empty(idle.Texts);
+        Assert.Empty(untouched.Written);
+    }
+
     private static RecordEmbeddingSweepJob Job(
-        RecordingDispatcher recorder, EmbeddingGateway gateway, FakeIndex index, string? fingerprint = null) =>
-        new(recorder.Build(), gateway, index, fingerprint);
+        RecordingDispatcher recorder,
+        EmbeddingGateway gateway,
+        FakeIndex index,
+        string? fingerprint = null,
+        int chunkCharacters = RecordEmbeddingSweepJob.DefaultChunkCharacters) =>
+        new(recorder.Build(), gateway, index, fingerprint, chunkCharacters);
 
     private static EmbeddingGateway Configured(CountingProvider? provider = null) =>
         new(new CleanScanner(), provider ?? new CountingProvider());

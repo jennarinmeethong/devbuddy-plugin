@@ -215,6 +215,10 @@ public static class DependencyInjection
                 + string.Join(Environment.NewLine, problems.Select(problem => "  - " + problem)));
         }
 
+        // The validated settings, for what reads them outside the adapter: the embedding sweep
+        // takes its chunk length from here.
+        services.AddSingleton(embedding);
+
         if (configureEmbedding is not null)
         {
             services.Configure(configureEmbedding);

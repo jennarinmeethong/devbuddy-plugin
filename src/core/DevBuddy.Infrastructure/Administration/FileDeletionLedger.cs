@@ -21,7 +21,7 @@ namespace DevBuddy.Infrastructure.Administration;
 /// ledger, which is the honest answer.
 /// </para>
 /// </summary>
-internal sealed class FileDeletionLedger(
+internal sealed partial class FileDeletionLedger(
     IOptions<BackupOptions> options, IClock clock, ILogger<FileDeletionLedger> logger) : IDeletionLedger
 {
     public const string FileName = "deletions.jsonl";
@@ -55,10 +55,7 @@ internal sealed class FileDeletionLedger(
         }
         catch (Exception failure) when (failure is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(
-                "A project deletion could not be written to the deletion ledger beside the backups ({Reason}). "
-                + "Restoring a backup taken before it would bring the project back.",
-                failure.GetType().Name);
+            LogNotRecorded(_logger, failure.GetType().Name);
         }
     }
 
@@ -128,6 +125,13 @@ internal sealed class FileDeletionLedger(
 
         return dropped;
     }
+
+    [LoggerMessage(
+        EventId = 1,
+        Level = LogLevel.Warning,
+        Message = "A project deletion could not be written to the deletion ledger beside the backups ({Reason}). "
+            + "Restoring a backup taken before it would bring the project back.")]
+    private static partial void LogNotRecorded(ILogger logger, string reason);
 
     public override string ToString() =>
         string.Create(CultureInfo.InvariantCulture, $"{nameof(FileDeletionLedger)}({PathToLedger})");
