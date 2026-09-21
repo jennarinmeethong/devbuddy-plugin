@@ -239,8 +239,20 @@ The problem: `stale-record-sweep` needs `ManageIndex`, and only `Administrator` 
     because roles are stored as integers.
   - Its permissions: `ReadKnowledge` and `ManageIndex`, and nothing else.
   - Not grantable over the AI channel, like every grant.
+- **The trap, found while reading for this item (2026-09-21):**
+  - `AuthorizationService.EffectiveRoleAsync` (`AuthorizationService.cs:140`) picks the
+    *numerically highest* role among a caller's covering grants, then asks whether that single
+    role carries the permission.
+  - That was sound only while every role was a superset of the one below it. `IndexMaintainer = 5`
+    would outrank `Administrator = 4`, so an administrator who also held it would lose every
+    administrator permission.
+  - **The check must become "does any covering grant's role carry this permission".**
+    `RolePermissions`' own comment already asks for this ("introducing a role that is not a superset
+    … stays possible").
+  - Test: a person holding both Administrator and IndexMaintainer keeps every administrator
+    permission. Mutation-check it against the old max-role code.
 - **Steps:**
-  1. Domain, then `RolePermissions`.
+  1. Domain, then `RolePermissions`, then the authorisation check above.
   2. Check any `Role` switch or exhaustive map. The build will find them, because warnings are
      errors.
   3. Grant and revoke validation.
