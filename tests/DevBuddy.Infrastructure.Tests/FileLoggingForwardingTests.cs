@@ -36,8 +36,8 @@ public sealed class FileLoggingForwardingTests
 
             using (ServiceProvider provider = services.BuildServiceProvider())
             {
-                provider.GetRequiredService<ILogger<FileLoggingForwardingTests>>()
-                    .LogInformation("forwarded to every provider");
+                provider.GetRequiredService<ILogger<FileLoggingForwardingTests>>().Log(
+                    LogLevel.Information, new EventId(1), "forwarded to every provider", null, (state, _) => state);
             }
 
             Assert.Contains(recorder.Messages, message => message.Contains("forwarded to every provider", StringComparison.Ordinal));

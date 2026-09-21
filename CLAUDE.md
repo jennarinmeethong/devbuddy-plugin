@@ -186,7 +186,9 @@ administers **every** workspace the person belongs to, because a password works 
 channel was the alternative and was rejected — it breaks a plain `docker run`.
 
 **Application logs: option 2 of `docs/operations/logging.md` is the option in force**, confirmed
-2026-09-10. Logs go to Loki through the observability overlay and its ninety days is the retention
+2026-09-10. **It never delivered a log line until Phase 13:** with the file sink on, Serilog owned the
+pipeline and the OpenTelemetry exporter received nothing. `AddDevBuddyFileLogging` now writes to the
+other providers too; the observability end-to-end test found it. Logs go to Loki through the observability overlay and its ninety days is the retention
 of record; `Telemetry:ExportLogs` still defaults to false in code (log export is a third egress
 path) but the overlay sets it true, which it could not do while tokens were in those logs.
 

@@ -63,6 +63,19 @@ The owner confirmed `v1.4.0`, cut from `main` as it stands, as item A1 of Phase 
   - No manual upgrade step is needed.
 - **The Claude plugin package moves to `1.4.0`.** The Codex package carries no version.
 
+## Recorded: Logs Never Reached Loki Before Phase 13 — 2026-09-21
+
+Not a decision; a correction to one. The 2026-09-10 acceptance names option 2 of
+`docs/operations/logging.md`, with Loki's ninety days as the retention of record. The observability
+end-to-end test found that no log line had ever reached Loki on a stack with its file log on. That is
+every stack `docker/compose.yaml` starts. The defect is fixed in code:
+
+- Serilog writes to the OpenTelemetry exporter as well as to the file.
+- `FileLoggingForwardingTests` holds it, mutation-checked.
+
+Until an installation runs the fix, its log of record is the application's own file, swept after
+`Logging:File:RetentionDays` (90), not Loki.
+
 ## Confirmed Marking a Record as AI-Written After the Fact — 2026-09-21
 
 Phase 13, D3, under the owner's instruction to remove the accepted limitations where code can.
