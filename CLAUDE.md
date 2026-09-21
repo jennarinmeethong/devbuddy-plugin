@@ -9,6 +9,8 @@ repository.
   contributor guide and applies here in full.
 - `info.md` — decisions confirmed by the project owner. Treat as binding. When the owner confirms
   something new, add it there.
+- `docs/plan-phase-13.md` — Phase 13, approved 2026-09-21, and its progress log. Update the item's
+  status and add a dated log entry every time an item is finished.
 - `docs/plan.md` — the phased plan, Phase 0 to Phase 12, each with exit criteria. Phase 12 is
   approved as of 2026-09-10, and as of 2026-09-13 all three tracks are done: ADR-0012 and ADR-0013
   are confirmed (0013 amended the same day), the embedding provider is a port with two modes off by
@@ -443,7 +445,7 @@ said which channel wrote them. Things that are easy to get wrong:
   enum member emitted a dangling `|`. That is fixed in `TypeScriptClient`.
 
 SB-19's row in `docs/security/verification-matrix.md` names the tests. They passed on jmhp on
-2026-09-15 and were mutation-checked there. Not yet run in CI.
+2026-09-15 and were mutation-checked there, and passed in CI in run 35328802725 on 2026-09-18.
 
 **Identity over MCP stdio is a machine token in `DEVBUDDY_TOKEN`, bound to one user and one
 workspace.** `DEVBUDDY_ACTOR` is gone: it let anybody who could start the process start it as
