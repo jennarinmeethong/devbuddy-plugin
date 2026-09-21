@@ -38,7 +38,8 @@ public sealed class TextChunksTests
     public void text_with_no_spaces_is_cut_by_length_and_nothing_is_lost()
     {
         // Thai is written without spaces between words.
-        string text = string.Concat(Enumerable.Repeat("การนำเข้าข้อมูลล้มเหลวที่ขั้นตอนที่สาม", 200));
+        // Numbered so no stretch of it repeats, which lets each chunk be found at exactly one place.
+        string text = string.Concat(Enumerable.Range(0, 400).Select(i => $"การนำเข้าขั้นตอน{i:D4}"));
 
         IReadOnlyList<string> chunks = TextChunks.Split(text, 1000);
 

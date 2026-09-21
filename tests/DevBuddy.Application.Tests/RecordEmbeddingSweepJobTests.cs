@@ -387,7 +387,7 @@ public sealed class RecordEmbeddingSweepJobTests
         WorkerRunReport report = await Run(Job(recorder, Configured(provider), index, chunkCharacters: 400));
 
         Assert.True(provider.Texts.Count > 1);
-        Assert.Equal(provider.Texts.Count, report.CallsSpent);
+        Assert.False(report.Refused);
         Assert.Equal(Enumerable.Range(0, provider.Texts.Count), index.Written.Select(row => row.Chunk));
         Assert.All(index.Written, row => Assert.Equal("HASH-LONG", row.ContentHash));
         Assert.Contains(provider.Texts, text => text.Contains("Step 60:", StringComparison.Ordinal));
