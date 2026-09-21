@@ -57,10 +57,19 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
 
     public bool LeavesTheBoundary => _options.Provider == EmbeddingProviderKind.HostedApi;
 
+    public Task<EmbeddingResult> EmbedAsync(
+        IReadOnlyList<string> texts, CancellationToken cancellationToken) =>
+        EmbedAsync(texts, EmbeddingPurpose.Document, cancellationToken);
+
     public async Task<EmbeddingResult> EmbedAsync(
-        IReadOnlyList<string> texts, CancellationToken cancellationToken)
+        IReadOnlyList<string> texts, EmbeddingPurpose purpose, CancellationToken cancellationToken)
     {
         Guard.NotNull(texts, nameof(texts));
+
+        // Voyage's input_type; null, and so omitted, for a provider that has no such field.
+        string? inputType = _options.Dialect == EmbeddingDialect.VoyageAi
+            ? purpose == EmbeddingPurpose.Query ? "query" : "document"
+            : null;
 
         List<ReadOnlyMemory<float>> vectors = [];
         int calls = 0;
@@ -70,7 +79,7 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
         foreach (string[] batch in Batches(texts, _options.BatchSize))
         {
             HttpResponseMessage response = await _http.PostAsJsonAsync(
-                "embeddings", new EmbeddingRequestJson(_options.Model, batch), cancellationToken);
+                "embeddings", new EmbeddingRequestJson(_options.Model, batch, inputType), IgnoreNulls, cancellationToken);
 
             calls++;
 
@@ -113,9 +122,15 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
         }
     }
 
+    private static readonly System.Text.Json.JsonSerializerOptions IgnoreNulls = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private sealed record EmbeddingRequestJson(
         [property: JsonPropertyName("model")] string Model,
-        [property: JsonPropertyName("input")] IReadOnlyList<string> Input);
+        [property: JsonPropertyName("input")] IReadOnlyList<string> Input,
+        [property: JsonPropertyName("input_type")] string? InputType);
 
     private sealed record EmbeddingResponseJson(
         [property: JsonPropertyName("data")] IReadOnlyList<EmbeddingDatumJson>? Data);

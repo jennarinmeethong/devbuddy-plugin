@@ -92,7 +92,8 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
         CallerContext caller,
         IReadOnlyList<string> texts,
         WorkerBudget? budget,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        EmbeddingPurpose purpose = EmbeddingPurpose.Document)
     {
         Guard.NotNull(caller, nameof(caller));
         Guard.NotNull(texts, nameof(texts));
@@ -148,7 +149,7 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
                 + $"{budget.Remaining} left, which will not cover {texts.Count}.");
         }
 
-        EmbeddingResult result = await _provider.EmbedAsync(texts, cancellationToken);
+        EmbeddingResult result = await _provider.EmbedAsync(texts, purpose, cancellationToken);
 
         if (result.Vectors.Count != texts.Count)
         {

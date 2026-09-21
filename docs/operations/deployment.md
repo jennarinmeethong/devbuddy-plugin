@@ -122,6 +122,25 @@ of the deployment. The hosted mode does, refuses to start unless its host is on
 `OutboundAccess:AllowedHosts`, and per `info.md` needs the vendor named and an acceptance of its
 own before it is used with real project data.
 
+**The named hosted vendor is Voyage AI** (`info.md`, 2026-09-21). The adapter is built and tested
+against a double shaped like its API; it has not been enabled on any installation. When an
+installation's own acceptance is in `info.md`, these are the settings:
+
+```bash
+DEVBUDDY_EMBEDDING_PROVIDER=HostedApi
+DEVBUDDY_EMBEDDING_DIALECT=VoyageAi          # sends input_type: document / query
+DEVBUDDY_EMBEDDING_ENDPOINT=https://api.voyageai.com/v1
+DEVBUDDY_EMBEDDING_MODEL=voyage-3.5          # or the model the acceptance names
+DEVBUDDY_EMBEDDING_DIMENSIONS=1024           # must match the model
+DEVBUDDY_OutboundAccess__AllowedHosts__0=api.voyageai.com
+```
+
+The API key is `DEVBUDDY_Embedding__ApiKey`. **The owner sets it on the server**, in `docker/.env`
+or a secret store, and it is never written anywhere else. The adapter sends it as a bearer header
+and never logs it or puts it in an error. A vendor refusal is reported by status code alone,
+because a vendor that echoes its input would put project text in the message. Changing model or
+dimension re-embeds every record, since vectors from two models are never compared.
+
 **Moving the database to `DEVBUDDY_DB_IMAGE=pgvector/pgvector:pg17` is a data-directory change, and
 not only in name.** Back up first. The pgvector image runs PostgreSQL as uid 999 and the default
 Alpine image runs it as uid 70, so the new image cannot open a volume the old one created: the

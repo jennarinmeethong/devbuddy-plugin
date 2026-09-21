@@ -280,6 +280,7 @@ services:
       DEVBUDDY_Embedding__Dimensions: ${DEVBUDDY_EMBEDDING_DIMENSIONS:-0}
       DEVBUDDY_Embedding__BatchSize: ${DEVBUDDY_EMBEDDING_BATCH_SIZE:-32}
       DEVBUDDY_Embedding__ChunkCharacters: ${DEVBUDDY_EMBEDDING_CHUNK_CHARACTERS:-3000}
+      DEVBUDDY_Embedding__Dialect: ${DEVBUDDY_EMBEDDING_DIALECT:-OpenAiCompatible}
     volumes:
       - logs:/srv/logs
     depends_on:
@@ -367,6 +368,7 @@ services:
       DEVBUDDY_Embedding__Dimensions: ${DEVBUDDY_EMBEDDING_DIMENSIONS:-0}
       DEVBUDDY_Embedding__BatchSize: ${DEVBUDDY_EMBEDDING_BATCH_SIZE:-32}
       DEVBUDDY_Embedding__ChunkCharacters: ${DEVBUDDY_EMBEDDING_CHUNK_CHARACTERS:-3000}
+      DEVBUDDY_Embedding__Dialect: ${DEVBUDDY_EMBEDDING_DIALECT:-OpenAiCompatible}
     volumes:
       # Read-only. Analysis reads a working copy and never writes to it, and the mount says so as
       # well as the code (SB-04).
@@ -435,6 +437,7 @@ services:
       DEVBUDDY_Embedding__Dimensions: ${DEVBUDDY_EMBEDDING_DIMENSIONS:-0}
       DEVBUDDY_Embedding__BatchSize: ${DEVBUDDY_EMBEDDING_BATCH_SIZE:-32}
       DEVBUDDY_Embedding__ChunkCharacters: ${DEVBUDDY_EMBEDDING_CHUNK_CHARACTERS:-3000}
+      DEVBUDDY_Embedding__Dialect: ${DEVBUDDY_EMBEDDING_DIALECT:-OpenAiCompatible}
     volumes:
       - ${DEVBUDDY_PROJECTS_PATH:-./projects}:/srv/projects:ro
 

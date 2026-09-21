@@ -23,7 +23,13 @@ progress log are in `docs/plan-phase-13.md`.
 - **The hosted embedding vendor is Voyage AI (`api.voyageai.com`)**, chosen the same day over
   OpenAI and Cohere for its multilingual retrieval, Thai included. The adapter is built and tested
   against it. Enabling it on any installation still needs its own acceptance, and the owner sets
-  the API key on the server.
+  the API key on the server. An acceptance entry names:
+  - the installation;
+  - the model and its dimension;
+  - that project text leaves to Voyage;
+  - the budget;
+  - which projects are opened to AI;
+  - who holds the key.
 - **The next release is `v1.4.0`**, cut from `main` as it stands, so the devbox runs a verified tag
   again without waiting for the rest of Phase 13.
 - **The accepted limitations are to be removed where code can remove them, and narrowed where it
