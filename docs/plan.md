@@ -148,7 +148,8 @@ security docs exist with every row explicitly marked unimplemented.
 **Status: COMPLETE (2026-09-01).** 12 projects build with 0 warnings, 6 scaffold tests pass,
 `dotnet format --verify-no-changes` exits clean, 33 controls catalogued and every one recorded
 `NOT IMPLEMENTED`, 10 ADRs written. The CI workflow is written and verified locally command by
-command; it has not yet run on GitHub, so "CI green" is not yet demonstrated.
+command; it has not yet run on GitHub, so "CI green" is not yet demonstrated. *(Historical: CI has
+run on GitHub on every push since, and was green on 2026-09-18, run 35328802725.)*
 
 ---
 
@@ -1462,10 +1463,10 @@ written to a log unless an operator asks, and the unrun platforms keep shipping 
 notes saying so — two of them since 2026-09-13, when `osx-x64` was dropped and `osx-arm64` moved
 to the verified tier.
 
-What is left is a caller and a schedule. Both ADRs are confirmed, the embedding provider is
-settled as a port with two modes off by default, the worker's authorization skeleton is built, the
-first job (`stale-record-sweep`, which touches no model) runs through the ordinary dispatcher, and
-the embedding adapter exists behind a gateway that scans before text leaves.
+The rest of 12C landed in the order the next paragraphs describe: both ADRs confirmed, the
+embedding provider settled as a port with two modes off by default, the worker's authorization
+skeleton, the first job (`stale-record-sweep`, which touches no model) running through the ordinary
+dispatcher, and the embedding adapter behind a gateway that scans before text leaves.
 
 The derived vector index exists too, as of 2026-09-11: a conditional `pgvector` migration that
 skips itself where the extension is absent, and a similarity query whose scope is a `where` clause
@@ -1500,3 +1501,8 @@ an outbound allow-list entry and an acceptance of its own, and no provider or wo
 real project data without a separate approval. `stale-record-sweep` needs a token whose owner
 administers the workspace, because only Administrator carries `ManageIndex`; a narrower role for that
 is a decision nobody has made.
+
+**What followed is Phase 13**, approved on 2026-09-21: the release after `v1.3.0`, the owner's
+answers to what was still gated here, the test-coverage gaps `tests/e2e/README.md` names, and the
+accepted limitations code can remove or narrow. Its plan and progress log are in
+`docs/plan-phase-13.md`.

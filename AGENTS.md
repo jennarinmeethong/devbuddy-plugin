@@ -24,6 +24,9 @@ Two documents govern the work and are read before changing anything:
   an acceptance of its own. The vector index also needs a pgvector-capable database image, which the
   default is not — and moving an existing volume onto one is not a restart, see
   `docs/operations/deployment.md`.
+- `docs/plan-phase-13.md` — Phase 13, approved 2026-09-21: what `v1.3.0` left open, and its
+  progress log. When a Phase 13 item is finished, change its status there and add a dated entry to
+  the log saying what was verified and where.
 
 ## Project Structure & Module Organization
 

@@ -1,5 +1,31 @@
 # Project Decisions
 
+## Confirmed Phase 13 — Closing What v1.3.0 Left Open — 2026-09-21
+
+The owner reviewed the open items after `v1.3.0` and approved closing them. The plan and its
+progress log are in `docs/plan-phase-13.md`.
+
+- **Out of scope:**
+  - HTTPS for the devbox, which stays deferred and LAN-only;
+  - `win-arm64`, which stays built-but-unverified.
+- **Other installations may run the self-hosted provider and worker through a written checklist
+  and an `info.md` entry per installation.** No generative model; that would need an ADR.
+- **The stale-record sweep gets a narrow role.** The new role carries `ReadKnowledge` and
+  `ManageIndex` only, rather than a token with an Administrator's reach.
+- **The bounded AI scope gets an approval flow.** No scope is approved on the devbox in this
+  phase.
+- **`linux-musl-arm64` moves to the verified tier** once its smoke test is part of the release
+  checklist and has run for a release.
+- **The hosted embedding vendor is Voyage AI (`api.voyageai.com`)**, chosen the same day over
+  OpenAI and Cohere for its multilingual retrieval, Thai included. The adapter is built and tested
+  against it. Enabling it on any installation still needs its own acceptance, and the owner sets
+  the API key on the server.
+- **The next release is `v1.4.0`**, cut from `main` as it stands, so the devbox gets the
+  project-scope check (`958272a`) without waiting for the rest of Phase 13.
+- **The accepted limitations are to be removed where code can remove them, and narrowed where it
+  cannot.** A downloaded copy cannot be recalled. Null audit channels are never backfilled, as the
+  2026-09-15 entry requires.
+
 ## Confirmed a Report, Not a Migration, for Rows Written Against a Foreign Project — 2026-09-17
 
 The e2e suite found that authorization never checked that a scope's project belongs to the named
