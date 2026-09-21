@@ -15,8 +15,10 @@ async function latestTo(address: string): Promise<{ subject: string; text: strin
     const search = await fetch(`${mailpit}/api/v1/search?query=${encodeURIComponent(`to:"${address}"`)}`);
     const found = (await search.json()) as { messages: { ID: string; Subject: string }[] };
 
-    if (found.messages.length > 0) {
-      const message = await fetch(`${mailpit}/api/v1/message/${found.messages[0].ID}`);
+    const newest = found.messages[0];
+
+    if (newest) {
+      const message = await fetch(`${mailpit}/api/v1/message/${newest.ID}`);
       const body = (await message.json()) as { Subject: string; Text: string };
       return { subject: body.Subject, text: body.Text };
     }
