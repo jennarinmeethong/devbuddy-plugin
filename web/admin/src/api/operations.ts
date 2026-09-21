@@ -57,6 +57,7 @@ export type OperationName =
   | "delete_project"
   | "create_work_item"
   | "create_user_account"
+  | "issue_password_reset"
   | "list_work_items"
   | "list_records"
   | "create_team"
@@ -867,7 +868,7 @@ export type ReadAuditHistoryResult = {
       projectId: string | null;
       actorId: string;
       channel: "Human" | "Ai" | "InternalSystem" | null;
-      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded" | "EvidenceCaptured" | "EvidenceListed";
+      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded" | "EvidenceCaptured" | "EvidenceListed" | "PasswordResetIssued";
       outcome: "Succeeded" | "Denied" | "Failed";
       resourceReference: string;
       occurredAt: string;
@@ -955,6 +956,17 @@ export type CreateUserAccountResult = {
   membershipId: string;
   setupToken: string;
   setupTokenExpiresAt: string;
+};
+
+export type IssuePasswordResetArguments = {
+  subjectUserId: string;
+  workspaceId: string;
+};
+
+export type IssuePasswordResetResult = {
+  userId: string;
+  resetToken: string;
+  resetTokenExpiresAt: string;
 };
 
 export type ListWorkItemsArguments = {
@@ -1158,6 +1170,7 @@ export interface Operations {
   "delete_project": { arguments: DeleteProjectArguments; result: DeleteProjectResult };
   "create_work_item": { arguments: CreateWorkItemArguments; result: CreateWorkItemResult };
   "create_user_account": { arguments: CreateUserAccountArguments; result: CreateUserAccountResult };
+  "issue_password_reset": { arguments: IssuePasswordResetArguments; result: IssuePasswordResetResult };
   "list_work_items": { arguments: ListWorkItemsArguments; result: ListWorkItemsResult };
   "list_records": { arguments: ListRecordsArguments; result: ListRecordsResult };
   "create_team": { arguments: CreateTeamArguments; result: CreateTeamResult };
@@ -1222,6 +1235,7 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "delete_project": { permission: "ManageProjects", availableToAi: false },
   "create_work_item": { permission: "ManageWorkItems", availableToAi: false },
   "create_user_account": { permission: "ManageAccounts", availableToAi: false },
+  "issue_password_reset": { permission: "ManageAccounts", availableToAi: false },
   "list_work_items": { permission: "ReadKnowledge", availableToAi: false },
   "list_records": { permission: "ReadKnowledge", availableToAi: true },
   "create_team": { permission: "ManageTeams", availableToAi: false },
