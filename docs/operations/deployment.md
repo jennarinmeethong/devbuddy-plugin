@@ -132,10 +132,13 @@ DEVBUDDY_EMBEDDING_DIALECT=VoyageAi          # sends input_type: document / quer
 DEVBUDDY_EMBEDDING_ENDPOINT=https://api.voyageai.com/v1
 DEVBUDDY_EMBEDDING_MODEL=voyage-3.5          # or the model the acceptance names
 DEVBUDDY_EMBEDDING_DIMENSIONS=1024           # must match the model
-DEVBUDDY_OutboundAccess__AllowedHosts__0=api.voyageai.com
+DEVBUDDY_EMBEDDING_API_KEY=...               # set by the owner, on the server
 ```
 
-The API key is `DEVBUDDY_Embedding__ApiKey`. **The owner sets it on the server**, in `docker/.env`
+The allow-list entry is not a `docker/.env` variable, on purpose. Add it to the `api`, `mcp` and
+`record-embedding-sweep` services in `docker/compose.override.yaml`, as
+`DEVBUDDY_OutboundAccess__AllowedHosts__0: api.voyageai.com`, so that enabling egress is a file
+somebody wrote rather than a value somebody pasted. **The owner sets the key**, in `docker/.env`
 or a secret store, and it is never written anywhere else. The adapter sends it as a bearer header
 and never logs it or puts it in an error. A vendor refusal is reported by status code alone,
 because a vendor that echoes its input would put project text in the message. Changing model or
