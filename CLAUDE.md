@@ -430,7 +430,11 @@ exists. Backup is still an operation, because that one has a caller.
 
 **A backup carries rows and artefacts.** It is logical rather than `pg_dump`, because running an
 external program from product code would break the no-execution guard. Sessions are not restored;
-passwords and machine tokens are.
+passwords and machine tokens are. Since Phase 13 a deleted project stays deleted across a restore:
+`ProjectDirectory.DeleteProjectAsync` appends identifiers to `deletions.jsonl` beside the backups,
+`restore` deletes again whatever was recorded after the backup was taken, and retention prunes the
+ledger to the oldest backup left. The ledger is a file, not a table, because the database is what a
+restore replaces.
 
 **Every audit entry records the channel its request arrived on (2026-09-15).** A machine token's
 owner is an ordinary user, so an assistant's `create_draft` over MCP and the same person's in the

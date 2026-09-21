@@ -237,9 +237,11 @@ restored" covers refreshing and not tokens already issued. **Closed in code by P
 every access token now names its session, and both web hosts refuse one whose session has no live
 refresh token. That covers a restore, a sign-out, and a revoke-all.
 
-**Still the operator's, and unchanged:** the residual lag before deleted data ages out of a
+**Still the operator's, and narrowed in Phase 13:** the residual lag before deleted data ages out of a
 backup, and the fact that a permission revoked today does not retrieve a copy somebody downloaded
-yesterday. Both are in `info.md` under Accepted Security Limitations.
+yesterday. For the first: a deleted project no longer comes back when an older backup is restored,
+because a deletion ledger beside the backups is re-applied by `restore` (D7). What remains is a
+backup copied off the volume and restored after the ledger was pruned (`backup-and-restore.md`). Both are in `info.md` under Accepted Security Limitations.
 
 Nothing here moves a control's status. All 33 of that date remain `TESTED`, and SB-14, SB-15,
 SB-27 and SB-29 gain evidence: `EmailSenderTests` is four cases over the token opt-in and its default,

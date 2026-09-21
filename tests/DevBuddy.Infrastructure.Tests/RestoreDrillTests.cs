@@ -13,6 +13,7 @@ using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.Infrastructure.Persistence.Mapping;
 using DevBuddy.Infrastructure.Persistence.Repositories;
+using DevBuddy.Infrastructure.Persistence.Search;
 using DevBuddy.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -198,6 +199,141 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture min
         Assert.Contains("No backup", outcome.Detail, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Phase 13, D7: a project deleted after a backup stays deleted when that backup is restored.
+    /// Before the ledger, the restore brought it back, rows and bytes, which is the residual
+    /// <c>info.md</c> carried as an accepted limitation.
+    /// </summary>
+    [Fact]
+    public async Task a_project_deleted_after_the_backup_stays_deleted_after_a_restore()
+    {
+        string backupRoot = Path.Combine(
+            Path.GetTempPath(), "devbuddy-drill-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Seed seed = await Seed.CreateAsync(_postgres);
+            byte[] artefact = Encoding.UTF8.GetBytes("evidence of a project that will be deleted\n");
+            (KnowledgeRecordId recordId, _, string storageKey) = await PopulateAsync(seed, artefact);
+
+            BackupManifest manifest;
+
+            await using (DevBuddyDbContext context = _postgres.CreateContext(seed.Workspace))
+            {
+                manifest = await ServiceFor(context, backupRoot).BackupAsync(Ct);
+
+                // Deleted after the backup, through the same deletion delete_project uses.
+                await ProjectsFor(context, backupRoot).DeleteProjectAsync(seed.Alpha, Ct);
+            }
+
+            // The ledger holds identifiers and a time, and nothing of what was deleted.
+            string ledger = await File.ReadAllTextAsync(Path.Combine(backupRoot, FileDeletionLedger.FileName), Ct);
+            Assert.Contains(seed.Alpha.ProjectId.Value.ToString(), ledger, StringComparison.Ordinal);
+            Assert.DoesNotContain("Rollback", ledger, StringComparison.Ordinal);
+
+            string replacement = await _postgres.CreateIsolatedDatabaseAsync(
+                "drill_" + Guid.NewGuid().ToString("N")[..16]);
+
+            RestoreOutcome outcome;
+
+            await using (DevBuddyDbContext context = PostgresFixture.CreateContextFor(replacement, null))
+            {
+                outcome = await ServiceFor(context, backupRoot).RestoreAsync(manifest.Reference, Ct);
+            }
+
+            Assert.True(outcome.Succeeded, outcome.Detail);
+            Assert.Contains("Deleted again 1 project(s)", outcome.Detail, StringComparison.Ordinal);
+
+            await using (DevBuddyDbContext restored = PostgresFixture.CreateContextFor(replacement, seed.Workspace))
+            {
+                Assert.Null(await new KnowledgeRepository(restored).FindRecordAsync(recordId, seed.Alpha, Ct));
+                Assert.False(await restored.WorkItems.IgnoreQueryFilters().AnyAsync(row => row.ProjectId == seed.Alpha.ProjectId.Value, Ct));
+
+                // The workspace and its accounts came back; only what was deleted stayed gone.
+                Assert.True(await restored.Workspaces.AsNoTracking().AnyAsync(row => row.Id == seed.Workspace.Value, Ct));
+            }
+
+            await Assert.ThrowsAnyAsync<Exception>(() => Blobs().OpenReadAsync(seed.Alpha, storageKey, Ct));
+        }
+        finally
+        {
+            if (Directory.Exists(backupRoot))
+            {
+                Directory.Delete(backupRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task a_restore_with_no_ledger_proceeds_and_says_it_could_not_check()
+    {
+        string backupRoot = Path.Combine(
+            Path.GetTempPath(), "devbuddy-drill-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Seed seed = await Seed.CreateAsync(_postgres);
+            await PopulateAsync(seed, Encoding.UTF8.GetBytes("bytes\n"));
+
+            BackupManifest manifest;
+
+            await using (DevBuddyDbContext context = _postgres.CreateContext(seed.Workspace))
+            {
+                manifest = await ServiceFor(context, backupRoot).BackupAsync(Ct);
+            }
+
+            Assert.False(File.Exists(Path.Combine(backupRoot, FileDeletionLedger.FileName)));
+
+            string replacement = await _postgres.CreateIsolatedDatabaseAsync(
+                "drill_" + Guid.NewGuid().ToString("N")[..16]);
+
+            await using DevBuddyDbContext target = PostgresFixture.CreateContextFor(replacement, null);
+            RestoreOutcome outcome = await ServiceFor(target, backupRoot).RestoreAsync(manifest.Reference, Ct);
+
+            Assert.True(outcome.Succeeded, outcome.Detail);
+            Assert.Contains("No deletion ledger was found", outcome.Detail, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(backupRoot))
+            {
+                Directory.Delete(backupRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task the_ledger_keeps_only_what_a_remaining_backup_could_need()
+    {
+        string backupRoot = Path.Combine(
+            Path.GetTempPath(), "devbuddy-ledger-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            FileDeletionLedger ledger = LedgerFor(backupRoot);
+            var first = new ProjectScope(WorkspaceId.New(), ProjectId.New());
+            var second = new ProjectScope(WorkspaceId.New(), ProjectId.New());
+
+            await ledger.RecordProjectDeletedAsync(first, Ct);
+            await ledger.RecordProjectDeletedAsync(first, Ct);
+            await ledger.RecordProjectDeletedAsync(second, Ct);
+
+            LedgerRead read = await ledger.ReadAsync(Ct);
+            Assert.Equal(2, read.Entries.Count);
+
+            Assert.Equal(0, await ledger.PruneAsync(DateTimeOffset.UtcNow.AddDays(-1), Ct));
+            Assert.Equal(2, await ledger.PruneAsync(DateTimeOffset.UtcNow.AddDays(1), Ct));
+            Assert.Empty((await ledger.ReadAsync(Ct)).Entries);
+        }
+        finally
+        {
+            if (Directory.Exists(backupRoot))
+            {
+                Directory.Delete(backupRoot, recursive: true);
+            }
+        }
+    }
+
     /// <summary>Writes a published record with an approval, and an artefact beside it.</summary>
     private async Task<(KnowledgeRecordId Record, EvidenceObjectId Evidence, string StorageKey)>
         PopulateAsync(Seed seed, byte[] artefact)
@@ -246,7 +382,22 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture min
     }
 
     private BackupService ServiceFor(DevBuddyDbContext context, string backupRoot) =>
-        new(context, Blobs(), new SystemClock(), Options.Create(new BackupOptions { RootPath = backupRoot }));
+        new(
+            context,
+            Blobs(),
+            new SystemClock(),
+            Options.Create(new BackupOptions { RootPath = backupRoot }),
+            ProjectsFor(context, backupRoot),
+            LedgerFor(backupRoot));
+
+    private ProjectDirectory ProjectsFor(DevBuddyDbContext context, string backupRoot) =>
+        new(context, Blobs(), new PostgresEmbeddingIndex(context), LedgerFor(backupRoot));
+
+    private static FileDeletionLedger LedgerFor(string backupRoot) =>
+        new(
+            Options.Create(new BackupOptions { RootPath = backupRoot }),
+            new SystemClock(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<FileDeletionLedger>.Instance);
 
     private EvidenceStore StoreFor(DevBuddyDbContext context) =>
         new(new EvidenceMetadataStore(context), Blobs(), new SystemClock(), Settings());

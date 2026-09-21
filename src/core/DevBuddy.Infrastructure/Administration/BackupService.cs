@@ -26,12 +26,19 @@ internal sealed class BackupService
     private readonly IClock _clock;
     private readonly BackupOptions _options;
 
+    private readonly IProjectDirectory? _projects;
+    private readonly FileDeletionLedger? _ledger;
+
     public BackupService(
         DevBuddyDbContext db,
         IEvidenceBlobStore blobs,
         IClock clock,
-        IOptions<BackupOptions> options)
+        IOptions<BackupOptions> options,
+        IProjectDirectory? projects = null,
+        FileDeletionLedger? ledger = null)
     {
+        _projects = projects;
+        _ledger = ledger;
         _db = Guard.NotNull(db, nameof(db));
         _blobs = Guard.NotNull(blobs, nameof(blobs));
         _clock = Guard.NotNull(clock, nameof(clock));
@@ -136,13 +143,53 @@ internal sealed class BackupService
 
         await WriteEverythingAsync(archive, cancellationToken);
         int artefacts = await CopyEvidenceBackAsync(archive, directory, cancellationToken);
+        string deletions = await ReapplyDeletionsAsync(archive.CreatedAt, cancellationToken);
 
         return new RestoreOutcome(
             reference!,
             true,
             $"Restored {archive.KnowledgeRecords.Count} records, {archive.WorkItems.Count} work "
             + $"items, {archive.Users.Count} accounts, and {artefacts} artefacts. Everyone signs "
-            + "in again: sessions are not part of a backup.");
+            + $"in again: sessions are not part of a backup. {deletions}");
+    }
+
+    /// <summary>
+    /// Deletes again every project the ledger says was deleted after this backup was taken
+    /// (Phase 13, D7), with the same deletion <c>delete_project</c> performs, bytes included.
+    /// A missing ledger does not stop the restore; it is reported, because a restore that quietly
+    /// brought deleted projects back is the thing this exists to prevent.
+    /// </summary>
+    private async Task<string> ReapplyDeletionsAsync(DateTimeOffset takenAt, CancellationToken cancellationToken)
+    {
+        if (_ledger is null || _projects is null)
+        {
+            return "Deletions made after this backup were not checked.";
+        }
+
+        LedgerRead ledger = await _ledger.ReadAsync(cancellationToken);
+
+        if (!ledger.Exists)
+        {
+            return "No deletion ledger was found beside the backups, so projects deleted after this "
+                + "backup was taken could not be deleted again. Check whether any were.";
+        }
+
+        List<DeletionEntry> later = [.. ledger.Entries.Where(entry => entry.DeletedAt > takenAt)];
+
+        foreach (DeletionEntry entry in later)
+        {
+            await _projects.DeleteProjectAsync(
+                new ProjectScope(new WorkspaceId(entry.WorkspaceId), new ProjectId(entry.ProjectId)),
+                cancellationToken);
+        }
+
+        string unreadable = ledger.Unreadable == 0
+            ? string.Empty
+            : string.Create(CultureInfo.InvariantCulture, $" {ledger.Unreadable} ledger line(s) could not be read.");
+
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"Deleted again {later.Count} project(s) the ledger records as deleted after this backup.{unreadable}");
     }
 
     private string Root() => Path.GetFullPath(_options.RootPath);

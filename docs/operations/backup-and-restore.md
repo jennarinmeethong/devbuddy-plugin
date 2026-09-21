@@ -118,6 +118,29 @@ at once rather than at expiry.
 actually lost, so the Evidence row cannot fail. The v1.1.0 drill destroyed both, and the bytes came
 back from the backup byte for byte. Do that.
 
+## Deleted projects and older backups
+
+A backup is a copy of what existed when it was taken. Since Phase 13 (D7), restoring one taken
+before a project was deleted **does not bring that project back**:
+
+- `delete_project`, and `scope-report --delete`, append the workspace and project identifiers and
+  the time to `deletions.jsonl` in the backup root, on the same volume as the backups. It holds no
+  names and no content.
+- `restore` reads it after putting the rows and bytes back, and deletes again every project recorded
+  as deleted after the backup was taken, bytes included. Its output says how many.
+- The retention sweep keeps entries only as far back as the oldest backup still on the volume.
+
+Limits, stated because they are real:
+
+- **A backup copied off the volume, restored after the sweep pruned the ledger,** can bring back a
+  project deleted before the pruning. Keep off-volume copies no longer than the backup retention
+  window, or keep a copy of `deletions.jsonl` with them.
+- **With no ledger** (the backup volume was not mounted when the deletion happened, or the file was
+  lost), the restore proceeds and says it could not check. The deletion itself logged a warning when
+  the ledger could not be written.
+- Retention's own purges need no ledger: an item past its window when an old backup is restored is
+  past it again on the next sweep.
+
 ## Retention
 
 Backups carry the retention schedule too — a backup is a complete copy of everything, including

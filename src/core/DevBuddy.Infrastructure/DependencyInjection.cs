@@ -102,6 +102,8 @@ public static class DependencyInjection
         services.AddScoped<ITenantContext>(provider => provider.GetRequiredService<MutableTenantContext>());
 
         services.AddScoped<IKnowledgeRepository, KnowledgeRepository>();
+        services.AddScoped<FileDeletionLedger>();
+        services.AddScoped<IDeletionLedger>(provider => provider.GetRequiredService<FileDeletionLedger>());
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
         services.AddScoped<ITeamDirectory, TeamDirectory>();
         services.AddScoped<IAccessDirectory, AccessDirectory>();

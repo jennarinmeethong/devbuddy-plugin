@@ -15,7 +15,8 @@ namespace DevBuddy.Infrastructure.Persistence.Repositories;
 /// is what narrows AI results to the requesting user rather than to the AI credential (SB-09).
 /// </summary>
 internal sealed class ProjectDirectory(
-    DevBuddyDbContext db, IEvidenceBlobStore blobs, IEmbeddingIndex embeddings) : IProjectDirectory
+    DevBuddyDbContext db, IEvidenceBlobStore blobs, IEmbeddingIndex embeddings, IDeletionLedger? ledger = null)
+    : IProjectDirectory
 {
     private readonly DevBuddyDbContext _db = Guard.NotNull(db, nameof(db));
     private readonly IEvidenceBlobStore _blobs = Guard.NotNull(blobs, nameof(blobs));
@@ -149,6 +150,13 @@ internal sealed class ProjectDirectory(
         // They hold no text, so what would have been left is which records used to resemble each
         // other. That is still disclosure, and it is still cheaper to delete than to explain.
         await _embeddings.PurgeProjectAsync(scope, cancellationToken);
+
+        // Last, once everything is gone: the ledger beside the backups is what stops a restore of
+        // an older backup bringing all of it back (Phase 13, D7).
+        if (ledger is not null)
+        {
+            await ledger.RecordProjectDeletedAsync(scope, cancellationToken);
+        }
     }
 }
 
