@@ -83,11 +83,48 @@ export function useSession(): Session {
   return session;
 }
 
-/** The caller's grant on one workspace, or undefined when they hold none. */
-export function useWorkspace(workspaceId: string | undefined): WorkspaceAccess | undefined {
+/**
+ * What the caller may do in one workspace, or in one project of it, across every grant they hold
+ * there; undefined when they hold none.
+ *
+ * A person can hold several grants in one workspace — a workspace-wide Viewer and a Reviewer on one
+ * project, say. This used to return whichever grant came first, so the menus followed the order the
+ * grants were made in (Phase 13, A5). The server authorises every request itself; this only decides
+ * what is offered.
+ */
+export function useWorkspace(workspaceId: string | undefined, projectId?: string): WorkspaceAccess | undefined {
   const { user } = useSession();
 
-  return user?.workspaces.find((workspace) => workspace.workspaceId === workspaceId);
+  return mergeAccess(user?.workspaces.filter((workspace) => workspace.workspaceId === workspaceId) ?? [], projectId);
+}
+
+/**
+ * Merges the grants one person holds in one workspace.
+ *
+ * - For a project: the workspace-wide grants and the grants on that project.
+ * - For the workspace itself: the workspace-wide grants; a person with only project grants is
+ *   offered the union of those, as before, and the server refuses what they do not cover.
+ */
+export function mergeAccess(grantsHere: WorkspaceAccess[], projectId?: string): WorkspaceAccess | undefined {
+  if (grantsHere.length === 0) {
+    return undefined;
+  }
+
+  const workspaceWide = grantsHere.filter((grant) => grant.scopedToProject === null);
+  const relevant = projectId
+    ? grantsHere.filter((grant) => grant.scopedToProject === null || grant.scopedToProject === projectId)
+    : workspaceWide.length > 0
+      ? workspaceWide
+      : grantsHere;
+
+  const chosen = relevant.length > 0 ? relevant : grantsHere.slice(0, 1);
+  const permissions = [...new Set(chosen.flatMap((grant) => grant.permissions))];
+
+  return {
+    ...chosen[0],
+    scopedToProject: workspaceWide.length > 0 ? null : chosen[0].scopedToProject,
+    permissions: relevant.length > 0 ? permissions : [],
+  };
 }
 
 /** Whether the caller's grant on this workspace carries a permission. */
