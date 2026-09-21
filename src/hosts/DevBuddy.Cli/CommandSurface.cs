@@ -63,6 +63,7 @@ internal static class CommandSurface
         root.Add(Restore());
         root.Add(Retention());
         root.Add(ScopeReport());
+        root.Add(EmbeddingCheck());
         root.Add(Worker());
         root.Add(Sync());
         root.Add(Reindex());
@@ -336,6 +337,27 @@ internal static class CommandSurface
         command.SetAction((result, cancellationToken) => result.GetValue(delete)
             ? Runner.ScopePurgeAsync(result.GetValue(confirm), result.GetValue(Actor), cancellationToken)
             : Runner.ScopeReportAsync(cancellationToken));
+
+        return command;
+    }
+
+    /// <summary>
+    /// Reports what an installation's embedding setup shows, for the approval an installation needs
+    /// before a provider runs against real data (Phase 13, B7). Changes nothing and sends no text.
+    /// Run it in the embedding sweep's own service so it sees that service's settings and token.
+    /// </summary>
+    private static Command EmbeddingCheck()
+    {
+        Option<int?> budget = new("--budget") { Description = "The budget the sweep is given, to report it." };
+
+        Command command = new(
+            "embedding-check",
+            "Reports the embedding provider, the vector index, the worker token's reach and the budget. "
+            + "Changes nothing and sends no text; exits 3 when something stands in the way.");
+        command.Add(budget);
+
+        command.SetAction((result, cancellationToken) =>
+            Runner.EmbeddingCheckAsync(result.GetValue(budget), cancellationToken));
 
         return command;
     }

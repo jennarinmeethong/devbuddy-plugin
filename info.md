@@ -13,13 +13,25 @@ progress log are in `docs/plan-phase-13.md`.
 - **The stale-record sweep gets a narrow role.** The new role carries `ReadKnowledge` and
   `ManageIndex` only, rather than a token with an Administrator's reach.
 - **The bounded AI scope gets an approval flow.** No scope is approved on the devbox in this
-  phase.
+  phase. *(Built the same day, Phase 13 B9. A scope names which personal-data rules the AI channel
+  may see through, and carries a justification; every other rule stays in force. The scanner has
+  rules, not "customer" or "production" categories, so the scope is expressed in rules. The old
+  free-text form, which switched every rule off, is refused for new approvals and still honoured
+  where one was stored.)*
 - **`linux-musl-arm64` moves to the verified tier** once its smoke test is part of the release
-  checklist and has run for a release.
+  checklist and has run for a release. *(Done the same day: it ran for `v1.4.0`, in Alpine on the
+  Ubuntu arm64 guest, as for every release since `v1.2.0`. The smoke test is in the checklist, and
+  ADR-0008 is amended. `win-arm64` is the only built-but-unverified RID.)*
 - **The hosted embedding vendor is Voyage AI (`api.voyageai.com`)**, chosen the same day over
   OpenAI and Cohere for its multilingual retrieval, Thai included. The adapter is built and tested
   against it. Enabling it on any installation still needs its own acceptance, and the owner sets
-  the API key on the server.
+  the API key on the server. An acceptance entry names:
+  - the installation;
+  - the model and its dimension;
+  - that project text leaves to Voyage;
+  - the budget;
+  - which projects are opened to AI;
+  - who holds the key.
 - **The next release is `v1.4.0`**, cut from `main` as it stands, so the devbox runs a verified tag
   again without waiting for the rest of Phase 13.
 - **The accepted limitations are to be removed where code can remove them, and narrowed where it
@@ -50,6 +62,19 @@ The owner confirmed `v1.4.0`, cut from `main` as it stands, as item A1 of Phase 
   - The console writes its logs to standard error, so a `run` result on standard output parses.
   - No manual upgrade step is needed.
 - **The Claude plugin package moves to `1.4.0`.** The Codex package carries no version.
+
+## Recorded: Logs Never Reached Loki Before Phase 13 — 2026-09-21
+
+Not a decision; a correction to one. The 2026-09-10 acceptance names option 2 of
+`docs/operations/logging.md`, with Loki's ninety days as the retention of record. The observability
+end-to-end test found that no log line had ever reached Loki on a stack with its file log on. That is
+every stack `docker/compose.yaml` starts. The defect is fixed in code:
+
+- Serilog writes to the OpenTelemetry exporter as well as to the file.
+- `FileLoggingForwardingTests` holds it, mutation-checked.
+
+Until an installation runs the fix, its log of record is the application's own file, swept after
+`Logging:File:RetentionDays` (90), not Loki.
 
 ## Confirmed Marking a Record as AI-Written After the Fact — 2026-09-21
 
@@ -206,7 +231,9 @@ synthetic data only and does not carry over.
   the LAN, and any generative model.
 - **Why this model:** it scores above `bge-m3` on MMTEB and takes longer inputs. DevBuddy sends no
   query instruction, so retrieval is somewhat below the published figure. Ollama embeds only the
-  first 4096 tokens of a record.
+  first 4096 tokens of a text. *(Since Phase 13, D9, a long record is split into overlapping chunks
+  of at most `Embedding:ChunkCharacters`, 3000 by default, each embedded, so no part of it is lost
+  to that limit.)*
 
 ### An editor for drafts
 

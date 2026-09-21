@@ -66,16 +66,32 @@ AI access closed on every project.
 | `mcp.spec.ts` | The tool list equals the manifest's AI allow-list. A project closed to AI is invisible. An assistant's draft is marked and audited as an assistant's whatever it claims. A viewer's assistant cannot write. |
 | `host.spec.ts` | The client's route fallback never shadows an API answer. The build has no source maps. No script errors while moving through the screens. |
 
+## After the suite
+
+`run.sh` runs two stages of its own once Playwright finishes, from the host, because neither can be
+driven from inside the runner:
+
+- **MCP over stdio** with a machine token, the path the plugins use (`stdio.log`).
+- **Destroy and restore** (`restore.log`): a backup of the stack the suite just filled, both the
+  database and the evidence volumes destroyed, a restore, and a comparison of accounts, records,
+  revisions, evidence rows, one artefact's bytes, and that an access token from before is refused.
+  `DEVBUDDY_E2E_RESTORE=0` skips it.
+
 ## What is not covered
 
-- **Embeddings and the workers.** They need a model server and a pgvector database, and the default
-  stack has neither. `DevBuddy.Security.Tests` covers the egress path (SB-34). This suite checks only
-  that semantic search explains why it cannot answer.
-- **MCP over stdio with a machine token.** That is the plugin path. `DevBuddy.McpServer.Tests` covers
-  it.
-- **The GitHub API source mode**, SMTP delivery, the observability overlay, and restore. Restore is
-  a console command, and the drill in `docs/operations/release-matrix.md` covers it.
-- **Browsers other than Chromium.**
+- **Embeddings and the workers in the default run.** The default stack has no model server and no
+  pgvector, so the default run checks only that semantic search explains why it cannot answer. The
+  embeddings mode covers them: `DEVBUDDY_E2E_EMBEDDINGS=1 bash tests/e2e/run.sh
+  specs/embeddings.spec.ts` runs pgvector, a stand-in model server that keeps what it is sent, and
+  the real sweep as a Viewer account. CI runs it as a job of its own.
+- **The observability overlay in the default run.** `DEVBUDDY_E2E_OBSERVABILITY=1 bash
+  tests/e2e/run.sh specs/observability.spec.ts` covers it: traces in Tempo that carry no identifier
+  and no URL path, logs in Loki, and the provisioned Grafana dashboard. CI runs it as a job of its
+  own.
+- **The GitHub API source mode in the default run.** `DEVBUDDY_E2E_GITHUB=1 bash tests/e2e/run.sh
+  specs/github.spec.ts` covers it: a second API instance on the GitHub mode against a stand-in
+  GitHub, beside the first on working copies. CI runs it as a job of its own.
+
 
 ## Writing a test
 

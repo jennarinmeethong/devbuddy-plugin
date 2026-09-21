@@ -50,5 +50,19 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
     },
+    // Phase 13, C7: the same specs in Firefox and WebKit, so a screen that works in one engine and
+    // not another is found here rather than by a person using it.
+    {
+      name: "firefox",
+      testMatch: /specs[\\/].*\.spec\.ts$/,
+      use: { ...devices["Desktop Firefox"] },
+      dependencies: ["setup"],
+    },
+    {
+      name: "webkit",
+      testMatch: /specs[\\/].*\.spec\.ts$/,
+      use: { ...devices["Desktop Safari"] },
+      dependencies: ["setup"],
+    },
   ],
 });

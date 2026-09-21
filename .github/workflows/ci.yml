@@ -71,10 +71,18 @@ jobs:
   # The whole system, as a deployment runs it: the three images built from this commit, PostgreSQL
   # and the object store, driven through the browser, the HTTP API and the MCP server by Playwright.
   # tests/e2e/run.sh builds and throws away a stack of its own; see tests/e2e/README.md.
+  #
+  # Twice: on x64, and on GitHub's arm64 runner (Phase 13, C9). The arm64 run builds the images
+  # natively for linux/arm64 and runs the whole stack on server-class Arm hardware, which no release
+  # checklist had done: every arm64 run before this was on an Apple M4.
   e2e:
-    name: End-to-end (Playwright)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    name: End-to-end (Playwright, ${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
 
     steps:
       - name: Checkout
@@ -90,7 +98,87 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.runner }}
+          path: e2e-results
+          if-no-files-found: ignore
+
+  # The embeddings mode: pgvector, a stand-in model server and the real embedding sweep, asserting
+  # on what reached the model (Phase 13, C1). A job of its own so the main run keeps testing the
+  # shipped default stack.
+  e2e-embeddings:
+    name: End-to-end (embeddings)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run the embeddings specs against a fresh stack
+        run: bash tests/e2e/run.sh specs/embeddings.spec.ts --project chromium
+        env:
+          CI: "true"
+          DEVBUDDY_E2E_EMBEDDINGS: "1"
+          DEVBUDDY_E2E_RESTORE: "0"
+          DEVBUDDY_E2E_OUT: ${{ github.workspace }}/e2e-results
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-embeddings-results
+          path: e2e-results
+          if-no-files-found: ignore
+
+  # The GitHub source mode against a stand-in GitHub (Phase 13, C3).
+  e2e-github:
+    name: End-to-end (GitHub source mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run the GitHub specs against a fresh stack
+        run: bash tests/e2e/run.sh specs/github.spec.ts --project chromium
+        env:
+          CI: "true"
+          DEVBUDDY_E2E_GITHUB: "1"
+          DEVBUDDY_E2E_RESTORE: "0"
+          DEVBUDDY_E2E_OUT: ${{ github.workspace }}/e2e-results
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-github-results
+          path: e2e-results
+          if-no-files-found: ignore
+
+  # The shipped observability overlay, queried (Phase 13, C5).
+  e2e-observability:
+    name: End-to-end (observability)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run the observability specs against a fresh stack
+        run: bash tests/e2e/run.sh specs/observability.spec.ts --project chromium
+        env:
+          CI: "true"
+          DEVBUDDY_E2E_OBSERVABILITY: "1"
+          DEVBUDDY_E2E_RESTORE: "0"
+          DEVBUDDY_E2E_OUT: ${{ github.workspace }}/e2e-results
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-observability-results
           path: e2e-results
           if-no-files-found: ignore
 

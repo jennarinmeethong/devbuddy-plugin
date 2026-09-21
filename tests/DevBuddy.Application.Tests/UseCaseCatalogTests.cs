@@ -77,7 +77,7 @@ public sealed class UseCaseCatalogTests
             "backup_system", "read_audit_history",
             "grant_membership", "revoke_membership",
             "enable_project_ai_access", "disable_project_ai_access",
-            "issue_password_reset", "mark_record_ai_generated",
+            "issue_password_reset", "mark_record_ai_generated", "list_member_downloads",
         ];
 
         foreach (string name in humanOnly)

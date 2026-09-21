@@ -39,6 +39,7 @@ internal sealed class RetentionService : IRetentionEnforcer
     private readonly BackupOptions _backup;
     private readonly ExportOptions _export;
     private readonly LogFileOptions _logs;
+    private readonly FileDeletionLedger? _ledger;
 
     public RetentionService(
         DevBuddyDbContext db,
@@ -47,8 +48,10 @@ internal sealed class RetentionService : IRetentionEnforcer
         IOptions<RetentionOptions> retention,
         IOptions<BackupOptions> backup,
         IOptions<ExportOptions> export,
-        LogFileOptions logs)
+        LogFileOptions logs,
+        FileDeletionLedger? ledger = null)
     {
+        _ledger = ledger;
         _db = Guard.NotNull(db, nameof(db));
         _blobs = Guard.NotNull(blobs, nameof(blobs));
         _clock = Guard.NotNull(clock, nameof(clock));
@@ -65,6 +68,7 @@ internal sealed class RetentionService : IRetentionEnforcer
         int auditEventsDeleted = await PurgeAuditEventsAsync(now, cancellationToken);
         int evidenceDeleted = await PurgeOrphanedEvidenceAsync(now, cancellationToken);
         int backupsDeleted = PurgeTimestampedDirectories(_backup.RootPath, "backup", _backup.Retention, now);
+        await PruneDeletionLedgerAsync(now, cancellationToken);
         int exportsDeleted = PurgeExports(now);
         int logFilesDeleted = PurgeLogFiles(now);
         int archivedEligible = await CountArchivedRecordsEligibleAsync(now, cancellationToken);
@@ -243,6 +247,29 @@ internal sealed class RetentionService : IRetentionEnforcer
     /// <see cref="ExportService"/>), so that is what ages one out rather than filesystem metadata
     /// a copy or a restore could have changed.
     /// </summary>
+    /// <summary>
+    /// Keeps the deletion ledger only as far back as the oldest backup still on the volume: an entry
+    /// older than every backup can never be needed by a restore (Phase 13, D7). With no backup left,
+    /// entries older than the backup retention window go.
+    /// </summary>
+    private async Task PruneDeletionLedgerAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (_ledger is null)
+        {
+            return;
+        }
+
+        string root = Path.GetFullPath(_backup.RootPath);
+        DateTimeOffset? oldest = Directory.Exists(root)
+            ? Directory.GetDirectories(root)
+                .Select(directory => TimestampOf(Path.GetFileName(directory), "backup"))
+                .Where(takenAt => takenAt is not null)
+                .Min()
+            : null;
+
+        await _ledger.PruneAsync(oldest ?? now - _backup.Retention, cancellationToken);
+    }
+
     private static int PurgeTimestampedDirectories(
         string rootPath, string prefix, TimeSpan retention, DateTimeOffset now)
     {

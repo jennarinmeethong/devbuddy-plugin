@@ -1,0 +1,18 @@
+# The observability mode of the end-to-end suite (Phase 13, C5), given after
+# docker/compose.observability.yaml and compose.e2e.yaml:
+#
+#   DEVBUDDY_E2E_OBSERVABILITY=1 bash tests/e2e/run.sh specs/observability.spec.ts --project chromium
+#
+# The shipped overlay as it is, except that Grafana publishes nothing on the host, and the runner
+# is told where Tempo, Loki and Grafana answer on the stack's own network.
+services:
+  grafana:
+    ports: !reset []
+
+  e2e:
+    environment:
+      DEVBUDDY_E2E_OBSERVABILITY: "1"
+      DEVBUDDY_E2E_TEMPO_URL: http://tempo:3200
+      DEVBUDDY_E2E_LOKI_URL: http://loki:3100
+      DEVBUDDY_E2E_GRAFANA_URL: http://grafana:3000
+      DEVBUDDY_E2E_GRAFANA_PASSWORD: ${DEVBUDDY_GRAFANA_PASSWORD:?run tests/e2e/run.sh, which sets this}

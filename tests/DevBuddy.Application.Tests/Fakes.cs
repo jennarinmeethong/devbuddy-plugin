@@ -642,6 +642,14 @@ internal sealed class FakePorts :
         return Task.FromResult<IReadOnlyList<AuditEvent>>([]);
     }
 
+    public Task<IReadOnlyList<AuditEvent>> QueryActorInWorkspaceAsync(
+        WorkspaceId workspaceId, UserId actorId, IReadOnlyCollection<AuditAction> actions,
+        DateTimeOffset occurredFrom, DateTimeOffset occurredUntil, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<AuditEvent>>([]);
+    }
+
     public Task<ExportManifest> ExportAsync(ProjectScope scope, CancellationToken cancellationToken)
     {
         Touch();

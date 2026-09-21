@@ -105,16 +105,41 @@ drill run against an older build could only ever have exercised five of the six 
 | Plugins | A machine token that worked before still works. Over stdio, which is where a machine token is presented; the HTTP transport takes a signed-in session instead. |
 
 **What "sessions are not restored" means, exactly.** The refresh-session rows are not in a backup,
-so nobody can refresh a session across a restore and everybody signs in again. It does **not** mean
-previously issued access tokens stop working: those are stateless JWTs signed with
-`Identity:SigningKey`, and one inside its lifetime still validates after a restore. Observed in the
-v1.1.0 drill. A restore cannot revoke an issued bearer token, and nothing about that is specific to
-restoring — rotating the signing key is what invalidates them.
+so nobody can refresh a session across a restore and everybody signs in again. **Since Phase 13
+(D6) it also means every access token issued before the disaster stops working.** Each access token
+names the refresh-token family it was issued for, and both web hosts refuse a token whose family
+has no live refresh token left. After a restore none does. Before this, a token inside its lifetime
+still validated after a restore; the v1.1.0 to v1.4.0 drills observed that and recorded it. The
+same check makes signing out, and the revoke-all that a password recovery performs, end access tokens
+at once rather than at expiry.
 
 **Destroy the evidence volume too, not just the database.** The drill below names
 `devbuddy_database`, and with the evidence volume left in place the artefact bytes were never
 actually lost, so the Evidence row cannot fail. The v1.1.0 drill destroyed both, and the bytes came
 back from the backup byte for byte. Do that.
+
+## Deleted projects and older backups
+
+A backup is a copy of what existed when it was taken. Since Phase 13 (D7), restoring one taken
+before a project was deleted **does not bring that project back**:
+
+- `delete_project`, and `scope-report --delete`, append the workspace and project identifiers and
+  the time to `deletions.jsonl` in the backup root, on the same volume as the backups. It holds no
+  names and no content.
+- `restore` reads it after putting the rows and bytes back, and deletes again every project recorded
+  as deleted after the backup was taken, bytes included. Its output says how many.
+- The retention sweep keeps entries only as far back as the oldest backup still on the volume.
+
+Limits, stated because they are real:
+
+- **A backup copied off the volume, restored after the sweep pruned the ledger,** can bring back a
+  project deleted before the pruning. Keep off-volume copies no longer than the backup retention
+  window, or keep a copy of `deletions.jsonl` with them.
+- **With no ledger** (the backup volume was not mounted when the deletion happened, or the file was
+  lost), the restore proceeds and says it could not check. The deletion itself logged a warning when
+  the ledger could not be written.
+- Retention's own purges need no ledger: an item past its window when an old backup is restored is
+  past it again on the next sweep.
 
 ## Retention
 

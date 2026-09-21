@@ -102,6 +102,8 @@ public static class DependencyInjection
         services.AddScoped<ITenantContext>(provider => provider.GetRequiredService<MutableTenantContext>());
 
         services.AddScoped<IKnowledgeRepository, KnowledgeRepository>();
+        services.AddScoped<FileDeletionLedger>();
+        services.AddScoped<IDeletionLedger>(provider => provider.GetRequiredService<FileDeletionLedger>());
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
         services.AddScoped<ITeamDirectory, TeamDirectory>();
         services.AddScoped<IAccessDirectory, AccessDirectory>();
@@ -212,6 +214,10 @@ public static class DependencyInjection
                 + Environment.NewLine
                 + string.Join(Environment.NewLine, problems.Select(problem => "  - " + problem)));
         }
+
+        // The validated settings, for what reads them outside the adapter: the embedding sweep
+        // takes its chunk length from here.
+        services.AddSingleton(embedding);
 
         if (configureEmbedding is not null)
         {

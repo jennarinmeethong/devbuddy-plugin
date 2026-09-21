@@ -196,8 +196,18 @@ public sealed class ListProjectsUseCase(IProjectDirectory directory, IAccessDire
                 continue;
             }
 
+            BoundedScope? scope = policy.IsEnabled ? BoundedScope.Parse(policy.BoundedDataScope) : null;
+
+            // The justification is for people. On the AI channel an assistant is told which rules
+            // it may see through, and nothing of why.
             summaries.Add(new ProjectSummary(
-                project.Id, project.Name, project.CreatedAt, policy.IsEnabled));
+                project.Id,
+                project.Name,
+                project.CreatedAt,
+                policy.IsEnabled,
+                scope?.AllowedPersonalDataRules,
+                caller.Channel == AccessChannel.Ai ? null : scope?.Justification,
+                scope?.Unstructured ?? false));
         }
 
         return new ListProjectsResponse(summaries);

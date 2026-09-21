@@ -9,7 +9,7 @@ import { grants, useWorkspace } from "../api/session";
  */
 export function ProjectNav({ title }: { title: string }) {
   const { workspaceId, projectId } = useParams();
-  const access = useWorkspace(workspaceId);
+  const access = useWorkspace(workspaceId, projectId);
   const base = `/w/${workspaceId}/p/${projectId}`;
 
   const links = [

@@ -1,0 +1,26 @@
+# The embeddings mode of the end-to-end suite (Phase 13, C1), on top of compose.e2e.yaml:
+#
+#   DEVBUDDY_E2E_EMBEDDINGS=1 bash tests/e2e/run.sh
+#
+# A pgvector database, a stand-in model server that records what it is sent, and the real
+# record-embedding-sweep running every minute as its own Viewer account. run.sh sets the
+# provider settings in the env file and mints the worker's token; this file only adds the model
+# server. The default run keeps the shipped default stack, with no provider and no pgvector.
+services:
+  embedder:
+    build:
+      context: ..
+      dockerfile: tests/e2e/Dockerfile
+    entrypoint: ["node", "/repo/tests/e2e/embedder/server.mjs"]
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks: [internal]
+
+  e2e:
+    environment:
+      DEVBUDDY_E2E_EMBEDDINGS: "1"
+      DEVBUDDY_E2E_EMBEDDER_URL: http://embedder:8080

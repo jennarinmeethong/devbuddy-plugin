@@ -9,6 +9,7 @@ using DevBuddy.Application.Workers;
 using DevBuddy.Application.Workers.Jobs;
 using DevBuddy.Domain.Common;
 using DevBuddy.Infrastructure.Administration;
+using DevBuddy.Infrastructure.Embeddings;
 using DevBuddy.Infrastructure.Hosting;
 using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Persistence;
@@ -39,6 +40,9 @@ internal static class Runner
 
     /// <summary><c>scope-report</c> found rows, so a script can act on it without parsing text.</summary>
     private const int StrayRowsFound = 3;
+
+    /// <summary><c>embedding-check</c> found something that stands in the way.</summary>
+    private const int ChecksFailed = 3;
 
     /// <summary>
     /// The same code, for a command that rejects its arguments before it builds anything —
@@ -163,6 +167,54 @@ internal static class Runner
             }
 
             return StrayRowsFound;
+        });
+    }
+
+    /// <summary>
+    /// Gathers what the installation shows about embeddings and prints the readiness lines. Read-only:
+    /// the token is resolved, never used, and the provider is described, never called.
+    /// </summary>
+    public static async Task<int> EmbeddingCheckAsync(int? budget, CancellationToken cancellationToken)
+    {
+        return await WithScopeAsync(async scope =>
+        {
+            IServiceProvider services = scope.ServiceProvider;
+            EmbeddingOptions? options = services.GetService<EmbeddingOptions>();
+            string? token = Environment.GetEnvironmentVariable(WorkerSchedule.TokenVariable);
+
+            MachineTokenIdentity? identity = string.IsNullOrWhiteSpace(token)
+                ? null
+                : await services.GetRequiredService<IMachineTokenService>().ResolveAsync(token, cancellationToken);
+
+            IReadOnlyList<Domain.Access.Role> roles = identity is null
+                ? []
+                : [.. (await services.GetRequiredService<IAccessDirectory>()
+                        .ListMembershipsAsync(identity.WorkspaceId, identity.UserId, cancellationToken))
+                    .Where(membership => membership.IsActive)
+                    .Select(membership => membership.Role)
+                    .Distinct()];
+
+            var facts = new EmbeddingFacts(
+                options?.Provider.ToString() ?? "None",
+                options?.Model,
+                options?.Dimensions ?? 0,
+                options?.Dialect.ToString(),
+                options?.Provider == EmbeddingProviderKind.HostedApi,
+                await services.GetRequiredService<IEmbeddingIndex>().IsAvailableAsync(cancellationToken),
+                !string.IsNullOrWhiteSpace(token),
+                identity is not null,
+                roles,
+                budget);
+
+            IReadOnlyList<ReadinessLine> lines = EmbeddingReadiness.Evaluate(facts);
+
+            foreach (ReadinessLine line in lines)
+            {
+                Console.WriteLine(string.Create(
+                    CultureInfo.InvariantCulture, $"{(line.Problem ? "PROBLEM" : "ok"),-8} {line.Check,-14} {line.Finding}"));
+            }
+
+            return lines.Any(line => line.Problem) ? ChecksFailed : Ok;
         });
     }
 
@@ -304,7 +356,9 @@ internal static class Runner
                         dispatcher,
                         services.GetRequiredService<EmbeddingGateway>(),
                         services.GetRequiredService<IEmbeddingIndex>(),
-                        services.GetRequiredService<IPersonalDataRedactor>().RuleSetFingerprint)
+                        services.GetRequiredService<IPersonalDataRedactor>().RuleSetFingerprint,
+                        services.GetService<EmbeddingOptions>()?.ChunkCharacters
+                            ?? RecordEmbeddingSweepJob.DefaultChunkCharacters)
                     : new StaleRecordSweepJob(dispatcher, staleAfter!.Value);
 
                 WorkerRunReport report = await WorkerSchedule.PassAsync(

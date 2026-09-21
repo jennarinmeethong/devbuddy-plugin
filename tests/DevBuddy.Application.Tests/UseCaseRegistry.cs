@@ -192,6 +192,9 @@ internal sealed class UseCaseRegistry
             new CreateUserAccountRequest(
                 TestData.Workspace, "newcomer@example.test", "Newcomer", Role.Contributor));
 
+        Add(new ListMemberDownloadsUseCase(ports, ports),
+            new ListMemberDownloadsRequest(TestData.Workspace, TestData.Reviewer));
+
         Add(new IssuePasswordResetUseCase(ports, ports),
             new IssuePasswordResetRequest(TestData.Workspace, TestData.Reviewer));
 

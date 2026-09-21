@@ -1,4 +1,5 @@
-import { Api } from "../support/api";
+import { anonymous, Api } from "../support/api";
+import { invite } from "../support/people";
 import { unique } from "../support/env";
 import { draft, expect, projectPath, publish, scopeOf, signIn, test } from "../support/fixtures";
 import { McpSession } from "../support/mcp";
@@ -20,6 +21,36 @@ test("the MCP server refuses a caller with no bearer", async () => {
   });
 
   expect(response.status()).toBe(401);
+});
+
+test("an access token stops working on the MCP transport as soon as its session is signed out", async ({
+  admin,
+  people,
+}) => {
+  const person = await invite(admin, people.workspaceId, "Viewer");
+  const api = await Api.signIn(person.email, person.password);
+  const initialize = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "signed-out", version: "0" } },
+  };
+
+  try {
+    expect((await McpSession.post(api.accessToken, initialize)).status()).toBe(200);
+
+    const http = await anonymous();
+    try {
+      expect((await http.post("/auth/sign-out", { data: { refreshToken: api.refreshToken } })).status()).toBe(204);
+    } finally {
+      await http.dispose();
+    }
+
+    // Still inside its lifetime, and refused: the session behind it has ended (Phase 13, D6).
+    expect((await McpSession.post(api.accessToken, initialize)).status()).toBe(401);
+  } finally {
+    await api.dispose();
+  }
 });
 
 test("the tool list is exactly the operations the manifest marks as available to AI", async ({ admin }) => {

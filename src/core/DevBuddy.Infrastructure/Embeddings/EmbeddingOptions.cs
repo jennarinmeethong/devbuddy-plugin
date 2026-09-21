@@ -4,6 +4,22 @@ namespace DevBuddy.Infrastructure.Embeddings;
 /// Which embedding provider, if any. <see cref="None"/> is the default and means the port is not
 /// registered at all — the same posture telemetry, SMTP and the GitHub API mode take.
 /// </summary>
+/// <summary>
+/// Which variant of the OpenAI-compatible <c>/embeddings</c> shape the provider speaks (Phase 13, B6).
+/// </summary>
+public enum EmbeddingDialect
+{
+    /// <summary><c>model</c> and <c>input</c>, nothing else. OpenAI, Ollama, vLLM, TEI, llama.cpp.</summary>
+    OpenAiCompatible = 1,
+
+    /// <summary>
+    /// Voyage AI (<c>api.voyageai.com/v1</c>): the same request and response, plus <c>input_type</c>
+    /// of <c>document</c> or <c>query</c>, which Voyage's models use to retrieve better. The vendor
+    /// the owner named for the hosted mode on 2026-09-21.
+    /// </summary>
+    VoyageAi = 2,
+}
+
 public enum EmbeddingProviderKind
 {
     /// <summary>
@@ -76,6 +92,17 @@ public sealed class EmbeddingOptions
     public int BatchSize { get; set; } = 32;
 
     /// <summary>
+    /// The longest piece of a record sent as one text, in characters (Phase 13, D9). A long record
+    /// is split into overlapping chunks of at most this, each embedded, and a search ranks the
+    /// record by its best chunk. Lower it for a model with a short context; the default suits a
+    /// 4096-token model even for Thai text.
+    /// </summary>
+    public int ChunkCharacters { get; set; } = 3000;
+
+    /// <summary>Which variant of the request the provider expects. See <see cref="EmbeddingDialect"/>.</summary>
+    public EmbeddingDialect Dialect { get; set; } = EmbeddingDialect.OpenAiCompatible;
+
+    /// <summary>
     /// What an operator has to have got right before this can start, as a list of problems rather
     /// than a boolean.
     /// <para>
@@ -115,6 +142,11 @@ public sealed class EmbeddingOptions
         if (BatchSize <= 0)
         {
             problems.Add("Embedding:BatchSize must be at least one.");
+        }
+
+        if (ChunkCharacters < 200)
+        {
+            problems.Add("Embedding:ChunkCharacters must be at least 200.");
         }
 
         if (Provider != EmbeddingProviderKind.HostedApi)

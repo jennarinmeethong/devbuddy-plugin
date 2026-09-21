@@ -108,6 +108,7 @@ public static class DevBuddyOperations
         services.AddScoped<DisableProjectAiAccessUseCase>();
         services.AddScoped<ReadAuditHistoryUseCase>();
         services.AddScoped<ListMembershipsUseCase>();
+        services.AddScoped<ListMemberDownloadsUseCase>();
 
         services.AddScoped<CreateWorkspaceUseCase>();
         services.AddScoped<CreateProjectUseCase>();
@@ -189,6 +190,7 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<CheckSystemHealthUseCase>(), executor),
 
             Bind(services.GetRequiredService<ListMembershipsUseCase>(), executor),
+            Bind(services.GetRequiredService<ListMemberDownloadsUseCase>(), executor),
             Bind(services.GetRequiredService<CreateWorkspaceUseCase>(), executor),
             Bind(services.GetRequiredService<CreateProjectUseCase>(), executor),
             Bind(services.GetRequiredService<DeleteProjectUseCase>(), executor),

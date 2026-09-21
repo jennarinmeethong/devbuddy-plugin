@@ -149,6 +149,11 @@ Customer, production, and personal data are blocked from a draft and redacted fr
 the caller is on the AI channel and the project's AI access policy carries no approved bounded
 scope. A human is never subject to it — SB-18 is an AI data policy, not a general content
 restriction — and a secret is still refused even inside an approved scope, per `info.md`.
+**Since Phase 13 (B9) a scope names rules.** `enable_project_ai_access` takes
+`allowedPersonalDataRules` (names from `PersonalDataRuleNames.All`, which a test holds equal to the
+scanner's rules) and a required justification. Only those rules are let through on the AI channel;
+every other one is still blocked and redacted. The old free-text form is refused for new approvals;
+a stored one is still read as switching every rule off, and the Projects screen says so.
 
 **SB-27, retention, is enforced for audit events, evidence, backups, and exports.**
 `dotnet run -- retention` is a console command, outside the pipeline for the same reason `restore`
@@ -181,7 +186,9 @@ administers **every** workspace the person belongs to, because a password works 
 channel was the alternative and was rejected — it breaks a plain `docker run`.
 
 **Application logs: option 2 of `docs/operations/logging.md` is the option in force**, confirmed
-2026-09-10. Logs go to Loki through the observability overlay and its ninety days is the retention
+2026-09-10. **It never delivered a log line until Phase 13:** with the file sink on, Serilog owned the
+pipeline and the OpenTelemetry exporter received nothing. `AddDevBuddyFileLogging` now writes to the
+other providers too; the observability end-to-end test found it. Logs go to Loki through the observability overlay and its ninety days is the retention
 of record; `Telemetry:ExportLogs` still defaults to false in code (log export is a third egress
 path) but the overlay sets it true, which it could not do while tokens were in those logs.
 
@@ -195,8 +202,10 @@ the Compose stack of `v1.2.0` ran from clean on arm64 too, with the published im
 Ubuntu 26.04 VMware guest (2 CPUs, 5.3 GB). `docs/operations/release-matrix.md` records it. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
-**The two unverified RIDs keep shipping.** `win-arm64` and `linux-musl-arm64` stay in the
-built-but-unverified tier, confirmed as a decision and not left as a gap. Each has been started
+**One unverified RID keeps shipping.** `win-arm64` stays in the built-but-unverified tier,
+confirmed as a decision and not left as a gap. **`linux-musl-arm64` is verified since 2026-09-21**
+(Phase 13, B10), so every release owes it a smoke test in Alpine on arm64. What follows is the
+history of both. Each has been started
 once, for `v1.2.0` on 2026-09-14: `win-arm64` in a VMware VM on Apple silicon, and
 `linux-musl-arm64` in Alpine on the Mac mini. The owner kept both in the tier that day. So there is
 no per-release smoke test for them, every release's notes say exactly what was and was not run,
@@ -295,7 +304,11 @@ content hash **and the personal-data rule set's fingerprint** (Phase 13, D5), so
 record costs neither a read nor an embedding, but a change to the SB-18 rules re-embeds every
 record once, within the budget, because the redacted text it embedded is no longer what it would
 send. Bump `PersonalDataRules.ChecksVersion` when a rule's acceptance check changes without its
-pattern changing; the fingerprint cannot see code. **An archived record keeps its
+pattern changing; the fingerprint cannot see code. **A long record is embedded in chunks** (Phase
+13, D9): `TextChunks.Split` cuts at most `Embedding:ChunkCharacters` (3000) with a tenth's overlap,
+all chunks go in one gateway call so the budget and the SB-17 scan stay all-or-nothing per record,
+the index keeps a row per chunk (`chunk` column, migration `RecordEmbeddingChunks`, conditional like
+the table), and a similarity query ranks a record by its best chunk and answers it once. **An archived record keeps its
 published revision**, so since 2026-09-17 the sweep removes its rows, and a newer published
 revision replaces the older one's row rather than ranking beside it. `search_similar_records` also
 answers only a record's current published revision, and never an archived record, because the
@@ -430,7 +443,11 @@ exists. Backup is still an operation, because that one has a caller.
 
 **A backup carries rows and artefacts.** It is logical rather than `pg_dump`, because running an
 external program from product code would break the no-execution guard. Sessions are not restored;
-passwords and machine tokens are.
+passwords and machine tokens are. Since Phase 13 a deleted project stays deleted across a restore:
+`ProjectDirectory.DeleteProjectAsync` appends identifiers to `deletions.jsonl` beside the backups,
+`restore` deletes again whatever was recorded after the backup was taken, and retention prunes the
+ledger to the oldest backup left. The ledger is a file, not a table, because the database is what a
+restore replaces.
 
 **Every audit entry records the channel its request arrived on (2026-09-15).** A machine token's
 owner is an ordinary user, so an assistant's `create_draft` over MCP and the same person's in the

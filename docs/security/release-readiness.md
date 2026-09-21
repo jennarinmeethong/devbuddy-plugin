@@ -215,7 +215,9 @@ accepted as unrun. `win-arm64` and `linux-musl-arm64` remain on the terms above.
 **Run once, and still unverified: 2026-09-14.** Both remaining RIDs were started for the first time,
 against the `v1.2.0` draft's archives. `win-arm64` ran in a VMware VM on Apple silicon, and
 `linux-musl-arm64` in an Alpine container on the Apple M4. Both passed the smoke test. The owner
-kept them in the built-but-unverified tier (`info.md`, 2026-09-14). The acceptance above stands,
+kept them in the built-but-unverified tier (`info.md`, 2026-09-14). **On 2026-09-21 `linux-musl-arm64`
+moved to the verified tier** (Phase 13, B10), after runs for four releases; `win-arm64` alone remains
+here. The acceptance above stands,
 with one change of wording: release notes now say what was run for these two, not that they were
 never started. Nobody may describe them as supported.
 
@@ -233,11 +235,15 @@ backup, the approval was still bound to the same content hash, and the machine t
 the disaster still resolved. `docs/operations/release-matrix.md` records it. It also found one
 overstatement in the documentation rather than in the code: an access token issued before a restore
 still validates afterwards, because it is a stateless JWT inside its lifetime, so "sessions are not
-restored" covers refreshing and not tokens already issued.
+restored" covers refreshing and not tokens already issued. **Closed in code by Phase 13 (D6):**
+every access token now names its session, and both web hosts refuse one whose session has no live
+refresh token. That covers a restore, a sign-out, and a revoke-all.
 
-**Still the operator's, and unchanged:** the residual lag before deleted data ages out of a
+**Still the operator's, and narrowed in Phase 13:** the residual lag before deleted data ages out of a
 backup, and the fact that a permission revoked today does not retrieve a copy somebody downloaded
-yesterday. Both are in `info.md` under Accepted Security Limitations.
+yesterday. For the first: a deleted project no longer comes back when an older backup is restored,
+because a deletion ledger beside the backups is re-applied by `restore` (D7). What remains is a
+backup copied off the volume and restored after the ledger was pruned (`backup-and-restore.md`). Both are in `info.md` under Accepted Security Limitations.
 
 Nothing here moves a control's status. All 33 of that date remain `TESTED`, and SB-14, SB-15,
 SB-27 and SB-29 gain evidence: `EmailSenderTests` is four cases over the token opt-in and its default,

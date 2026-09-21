@@ -88,15 +88,19 @@ else
     // separate MCP credential to get wrong.
     builder.Services
         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters
+        .AddJwtBearer(options =>
         {
-            ValidIssuer = identitySettings.Issuer,
-            ValidAudience = identitySettings.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(identitySettings.SigningKey)),
-            ValidateIssuerSigningKey = true,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30),
+            options.Events = new JwtBearerEvents { OnTokenValidated = SessionTokenCheck.ValidateAsync };
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidIssuer = identitySettings.Issuer,
+                ValidAudience = identitySettings.Audience,
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(identitySettings.SigningKey)),
+                ValidateIssuerSigningKey = true,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromSeconds(30),
+            };
         });
 
     builder.Services.AddAuthorization();

@@ -1,0 +1,41 @@
+# The GitHub source mode of the end-to-end suite (Phase 13, C3), on top of compose.e2e.yaml:
+#
+#   DEVBUDDY_E2E_GITHUB=1 bash tests/e2e/run.sh specs/github.spec.ts --project chromium
+#
+# A second API instance, the shipped image with a settings file that switches it to
+# GitHub:Mode=GitHubApi against a stand-in GitHub, beside the first, which keeps reading
+# working copies. run.sh creates the project the settings name before starting it, because
+# GitHub repositories are configured per project.
+services:
+  github-stub:
+    build:
+      context: ..
+      dockerfile: tests/e2e/Dockerfile
+    entrypoint: ["node", "/repo/tests/e2e/github/server.mjs"]
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks: [internal]
+
+  api-github:
+    extends:
+      file: compose.yaml
+      service: api
+    ports: !reset []
+    volumes:
+      - ${DEVBUDDY_E2E_GITHUB_SETTINGS:?run tests/e2e/run.sh with DEVBUDDY_E2E_GITHUB=1}:/app/appsettings.json:ro
+    depends_on: !override
+      github-stub:
+        condition: service_started
+      database:
+        condition: service_healthy
+    networks: [internal]
+
+  e2e:
+    environment:
+      DEVBUDDY_E2E_GITHUB: "1"
+      DEVBUDDY_E2E_GITHUB_URL: http://api-github:8080
+      DEVBUDDY_E2E_GITHUB_STUB_URL: http://github-stub:8080

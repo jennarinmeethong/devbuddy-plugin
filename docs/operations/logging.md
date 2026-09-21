@@ -88,6 +88,22 @@ x-logging: &app-logging
 Re-measure when traffic changes materially. This is the option that stays a guess if nobody ever
 looks at it again.
 
+## A defect in option 2, found 2026-09-21 and fixed in Phase 13
+
+**Until Phase 13, no log line ever reached Loki on a stack that also kept its file log**, and
+`docker/compose.yaml` always keeps one. With `Logging:File:Path` set, Serilog took over the
+logging pipeline. The OpenTelemetry log exporter, registered after it, was never written to. Traces
+and metrics were unaffected. The observability end-to-end test (`tests/e2e`, C5) found it on its
+first run. Serilog now writes to the other providers as well, and
+`FileLoggingForwardingTests` holds it.
+
+What that means for the retention of record:
+
+- **Before the fix,** Loki's ninety days held nothing, and the application's own file, swept after
+  `Logging:File:RetentionDays`, was the only log there was.
+- **Any statement that Loki held logs from before an installation upgraded past the fix was not
+  true.**
+
 ## Option 2 — A log aggregator with time-based retention — **this is the option in force**
 
 Also implements "90 days", and since the OpenTelemetry work it is no longer something to assemble

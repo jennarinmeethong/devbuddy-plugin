@@ -44,9 +44,26 @@ namespace DevBuddy.Application.Workers.Jobs;
 /// </para>
 /// </summary>
 public sealed class RecordEmbeddingSweepJob(
-    OperationDispatcher dispatcher, EmbeddingGateway gateway, IEmbeddingIndex index, string? ruleSetFingerprint = null)
+    OperationDispatcher dispatcher,
+    EmbeddingGateway gateway,
+    IEmbeddingIndex index,
+    string? ruleSetFingerprint = null,
+    int chunkCharacters = RecordEmbeddingSweepJob.DefaultChunkCharacters)
     : CallerBoundWorkerJob
 {
+    /// <summary>
+    /// How long a chunk may be, in characters (Phase 13, D9). A model embeds only so many tokens of
+    /// a text; qwen3-embedding under Ollama takes the first 4096 and drops the rest without saying
+    /// so, which made a match late in a long record invisible to semantic search. Characters rather
+    /// than tokens because the sweep has no tokenizer; 3000 stays under 4096 tokens even for Thai,
+    /// which tokenizes densely.
+    /// </summary>
+    public const int DefaultChunkCharacters = 3000;
+
+    private readonly int _chunkCharacters = chunkCharacters >= 200
+        ? chunkCharacters
+        : throw new ArgumentOutOfRangeException(nameof(chunkCharacters), chunkCharacters, "A chunk must be at least 200 characters.");
+
     /// <summary>
     /// What an index row is keyed on (Phase 13, D5): the published revision's content hash, and
     /// the personal-data rule set the embedded text was redacted under. An unchanged revision
@@ -247,10 +264,15 @@ public sealed class RecordEmbeddingSweepJob(
             return false;
         }
 
-        EmbeddingOutcome outcome = await _gateway.EmbedAsync(
-            caller.Context, [text], budget, cancellationToken);
+        // Every chunk in one call: the budget is spent all-or-nothing for the record, and the
+        // gateway scans every chunk before it sends any, so a credential in the last chunk keeps
+        // the first from leaving too.
+        IReadOnlyList<string> chunks = TextChunks.Split(text, _chunkCharacters);
 
-        if (outcome.Refused || outcome.Vectors.Count != 1)
+        EmbeddingOutcome outcome = await _gateway.EmbedAsync(
+            caller.Context, chunks, budget, cancellationToken);
+
+        if (outcome.Refused || outcome.Vectors.Count != chunks.Count)
         {
             return false;
         }
@@ -263,11 +285,12 @@ public sealed class RecordEmbeddingSweepJob(
         await _index.UpsertAsync(
             scope,
             model,
-            [new EmbeddedRevision(
+            [.. outcome.Vectors.Select((vector, chunk) => new EmbeddedRevision(
                 new KnowledgeRecordId(recordId),
                 published.Number,
                 IndexKey(published.ContentHash),
-                outcome.Vectors[0])],
+                vector,
+                chunk))],
             cancellationToken);
 
         return true;

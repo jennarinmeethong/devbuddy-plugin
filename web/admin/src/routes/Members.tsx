@@ -69,6 +69,7 @@ export function Members() {
                         <>
                           <ChangeRole workspaceId={workspaceId!} membership={membership} />
                           <ResetPassword workspaceId={workspaceId!} userId={membership.userId} />
+                          <Downloads workspaceId={workspaceId!} userId={membership.userId} />
                         </>
                       ) : null}
                       <Button
@@ -177,6 +178,53 @@ class PartialChange extends Error {
   constructor(readonly inner: unknown) {
     super("The old grant was revoked and the new one was refused.");
   }
+}
+
+/**
+ * What this person downloaded or exported here in the last ninety days, from the audit trail.
+ * Offered beside Revoke because revoking stops what comes next and cannot recall what already left:
+ * this is the list an administrator follows up outside the system. Identifiers and times only.
+ */
+function Downloads({ workspaceId, userId }: { workspaceId: string; userId: string }) {
+  const [open, setOpen] = useState(false);
+  const downloads = useQuery({
+    queryKey: ["member-downloads", workspaceId, userId],
+    queryFn: () => invoke("list_member_downloads", { workspaceId, subjectUserId: userId, days: 90 }),
+    enabled: open,
+  });
+
+  if (!open) {
+    return (
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Downloads
+      </Button>
+    );
+  }
+
+  return (
+    <div className="max-w-md space-y-2 text-left" aria-label={`Downloads by ${userId}`}>
+      {downloads.isPending ? (
+        <Empty>Loading…</Empty>
+      ) : downloads.isError ? (
+        <Failure error={downloads.error} />
+      ) : downloads.data.downloads.length === 0 ? (
+        <p className="text-xs text-[var(--color-muted)]">Nothing downloaded or exported here in 90 days.</p>
+      ) : (
+        <ul className="space-y-1 text-xs">
+          {downloads.data.downloads.map((download) => (
+            <li key={`${download.occurredAt}-${download.resourceReference}`}>
+              <When value={download.occurredAt} /> ·{" "}
+              {download.action === "EvidenceDownloaded" ? "downloaded evidence" : "exported a project"} ·{" "}
+              <span className="font-mono">{download.resourceReference}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Button variant="secondary" onClick={() => setOpen(false)}>
+        Close
+      </Button>
+    </div>
+  );
 }
 
 /**

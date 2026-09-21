@@ -29,4 +29,17 @@ public interface IAuditReader
         AuditChannel? channel,
         bool channelNotRecorded,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// One person's succeeded entries of the given actions, across every project of one workspace,
+    /// newest first (Phase 13, D8). Workspace-bounded on purpose: an administrator of this workspace
+    /// learns nothing about what the person did anywhere else.
+    /// </summary>
+    Task<IReadOnlyList<AuditEvent>> QueryActorInWorkspaceAsync(
+        WorkspaceId workspaceId,
+        UserId actorId,
+        IReadOnlyCollection<AuditAction> actions,
+        DateTimeOffset occurredFrom,
+        DateTimeOffset occurredUntil,
+        CancellationToken cancellationToken);
 }
