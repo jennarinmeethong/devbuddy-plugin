@@ -344,7 +344,7 @@ screen enables AI access without a scope.
 section when it is done.
 
 ### C1 — Embeddings and the workers, end to end
-**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
+**Status: DONE (2026-09-21)** — on jmhp and in CI.
 
 - A Compose override for the e2e stack only:
   - the `pgvector/pgvector:pg17` database;
@@ -362,7 +362,7 @@ section when it is done.
   - the stub records what it received, and a credential never arrives.
 
 ### C2 — MCP over stdio with a machine token
-**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
+**Status: DONE (2026-09-21)** — on jmhp and in CI.
 
 - A Playwright test using the MCP SDK's stdio client, which runs
   `docker compose run --rm -T mcp --stdio` with `DEVBUDDY_TOKEN`.
@@ -374,7 +374,7 @@ section when it is done.
   - `DEVBUDDY_ACTOR` is ignored.
 
 ### C3 — GitHub API source mode
-**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
+**Status: DONE (2026-09-21)** — on jmhp and in CI.
 
 - A stub GitHub API server in the e2e stack. It serves:
   - pull requests;
@@ -389,7 +389,7 @@ section when it is done.
   - a host not on the allow-list is refused.
 
 ### C4 — SMTP delivery
-**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
+**Status: DONE (2026-09-21)** — on jmhp and in CI.
 
 - Mailpit in the e2e stack, with `Email:Provider=Smtp`.
 - **Tests:**
@@ -398,7 +398,7 @@ section when it is done.
   - no token appears in the container logs.
 
 ### C5 — Observability overlay
-**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
+**Status: DONE (2026-09-21)** — on jmhp and in CI.
 
 - Start the stack with `compose.observability.yaml`.
 - **Tests:**
@@ -408,7 +408,7 @@ section when it is done.
   - Grafana's security dashboard provisions.
 
 ### C6 — Restore, end to end
-**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
+**Status: DONE (2026-09-21)** — on jmhp and in CI.
 
 - Automate the drill in the e2e runner:
   1. Seed data and evidence.
@@ -419,7 +419,7 @@ section when it is done.
   6. After D6, assert that an access token from before the restore is refused.
 
 ### C7 — Firefox and WebKit
-**Status: DONE (2026-09-21)** on jmhp; the CI jobs run from the merge on.
+**Status: DONE (2026-09-21)** — on jmhp and in CI.
 
 - Add both as Playwright projects. The setup project runs once, and the specs run per browser.
 - Fix whatever differs in the client, not in the tests.
@@ -432,7 +432,7 @@ section when it is done.
   and is recorded in `release-matrix.md`.
 
 ### C9 — `linux/arm64` on server-class hardware
-**Status: IN PROGRESS** — the CI job exists; done when it is green on `ubuntu-24.04-arm`.
+**Status: DONE (2026-09-21)**
 
 - A CI job on GitHub's `ubuntu-24.04-arm` runner, which is Arm Neoverse server hardware. It builds
   the arm64 images natively and runs `tests/e2e/run.sh` against them.
@@ -663,3 +663,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-21 | Defect (found by C2/C6) | **Every console `run` and every worker pass failed since D1** was merged to `main` (not in any release, not on the devbox). `issue_password_reset` → recovery service → `TokenService`, whose constructor refused a missing signing key, and the console carries none. The key is now checked when a token is signed. `ConsoleCompositionTests` composes every operation without a key and checks that a short key is still refused at signing. **Mutation-checked:** an eager check fails both. |
 | 2026-09-21 | Defect (found by C5) | **No log line ever reached Loki on a stack with its file log on**, which is every stack `docker/compose.yaml` starts. Serilog owned the pipeline, so the OpenTelemetry exporter registered after it received nothing. Option 2 of `logging.md`, in force since 2026-09-10, never delivered. Serilog now writes to the other providers. `FileLoggingForwardingTests` holds it. **Mutation-checked.** Recorded in `info.md` and `logging.md`. |
 | 2026-09-21 | Verification | Branch tip on jmhp: **944 .NET tests passed, 0 failed**, format exit 0, web 77. Every item's mutation check was caught; the D6 and key checks were first written wrong and re-run until they applied. **Not yet:** these CI jobs on GitHub, the arm64 runner (C9), and a release carrying any of this. |
+| 2026-09-21 | C9, CI | **DONE.** CI run 35578883536 on `main` at `8b03a58` passed every job. That includes **End-to-end (Playwright, ubuntu-24.04-arm)**, the whole stack built natively for `linux/arm64` on GitHub's Arm server runner, the first arm64 run on server-class hardware. The other jobs that passed: e2e on x64 (three browsers, stdio and restore stages), the embeddings, GitHub source and observability modes, build and test on Linux and Windows, and the format check. Supply chain run 35593315251 passed too. C1–C7 are therefore verified in CI as well as on jmhp. |
