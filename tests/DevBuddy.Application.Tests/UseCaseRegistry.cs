@@ -100,6 +100,8 @@ internal sealed class UseCaseRegistry
         Add(new SubmitForApprovalUseCase(ports, ports), recordAction);
         Add(new PublishRecordUseCase(ports, ports), recordAction);
         Add(new ArchiveRecordUseCase(ports, ports), recordAction);
+        Add(new MarkRecordAiGeneratedUseCase(ports, ports),
+            new MarkRecordAiGeneratedRequest(TestData.Scope, KnowledgeRecordId.New(), "The author said an assistant wrote it."));
 
         Add(new ApproveRecordUseCase(ports, ports),
             new ApproveRecordRequest(

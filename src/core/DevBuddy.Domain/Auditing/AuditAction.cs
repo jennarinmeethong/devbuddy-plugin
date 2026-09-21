@@ -77,4 +77,10 @@ public enum AuditAction
     /// workspace (Phase 13, D2). Written on the internal channel, as the operator who asked.
     /// </summary>
     StrayScopeRowsPurged = 43,
+
+    /// <summary>
+    /// An administrator recorded after the fact that an AI wrote a record (Phase 13, D3). The mark
+    /// goes one way; there is no action that clears it.
+    /// </summary>
+    RecordMarkedAiGenerated = 44,
 }

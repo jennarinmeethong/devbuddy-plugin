@@ -560,9 +560,13 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   and `revise_draft` take `DraftProvenance`, which has no such field. `ForCaller` marks anything
   arriving on `AccessChannel.Ai`. A person declaring `AiDraft` is honoured, and a revision of AI
   content stays marked. Until then, a draft written over MCP that named `RepositoryAnalysis` was
-  published as a person's work. **Rows written before the fix cannot be corrected**, because
-  nothing recorded the channel a draft came from. Do not put the domain `Provenance` back on a
-  request record.
+  published as a person's work. **Rows written before the fix cannot be corrected from the data**,
+  because nothing recorded the channel a draft came from. Since Phase 13 an administrator who
+  *knows* can record it: `mark_record_ai_generated` (human-only, `ManageProjects`, reason
+  required) marks every unmarked revision with who said so, when and why (`Provenance.AiMarking`).
+  It goes one way only, leaves content and content hash untouched so approvals stay bound, and is
+  the one change `UpdateRecordAsync` accepts on a stored revision. Do not put the domain
+  `Provenance` back on a request record.
 - **The project in a scope is a claim, like the workspace.** Since 2026-09-17
   `AuthorizationService` treats a project that is not a live project of the named workspace as
   covered by no grant, with the same denial as any other unreachable scope. Before that, a workspace

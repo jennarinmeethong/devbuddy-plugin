@@ -163,6 +163,14 @@ internal sealed class KnowledgeRepository(DevBuddyDbContext db) : IKnowledgeRepo
                     $"Revision {revision.Number} of record {record.Id} already exists with different content. "
                     + "Revisions are immutable; add a new revision instead.");
             }
+
+            // The one change a stored revision accepts: an administrator's after-the-fact mark
+            // that an AI wrote it (Phase 13, D3). Only from unmarked to marked, and only with who
+            // said so, so nothing here can clear a mark or change anything else about provenance.
+            if (!stored.Provenance.DescribesAiContent() && revision.Provenance.AiMarkedBy is not null)
+            {
+                stored.Provenance = revision.Provenance;
+            }
         }
 
         foreach (RecordApprovalRow approval in incoming.Approvals

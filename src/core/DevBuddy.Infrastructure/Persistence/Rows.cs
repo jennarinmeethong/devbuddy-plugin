@@ -390,9 +390,20 @@ internal sealed class ProvenanceJson
     /// </summary>
     public bool IsAiGenerated { get; set; }
 
+    /// <summary>
+    /// Set only when an administrator marked this revision, after the fact, as written by an AI
+    /// (Phase 13, D3). Absent on every other row, which is why all three are nullable.
+    /// </summary>
+    public Guid? AiMarkedBy { get; set; }
+
+    public DateTimeOffset? AiMarkedAt { get; set; }
+
+    public string? AiMarkedReason { get; set; }
+
     /// <summary>The domain's rule, for the queries that read rows without mapping them.</summary>
     public bool DescribesAiContent() =>
-        IsAiGenerated || SourceKind == (int)Domain.Knowledge.ProvenanceSourceKind.AiDraft;
+        IsAiGenerated || AiMarkedBy is not null
+        || SourceKind == (int)Domain.Knowledge.ProvenanceSourceKind.AiDraft;
 }
 
 internal sealed class EvidenceReferenceJson

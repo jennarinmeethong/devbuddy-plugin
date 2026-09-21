@@ -86,6 +86,7 @@ public static class DevBuddyOperations
         services.AddScoped<RequestCorrectionUseCase>();
         services.AddScoped<PublishRecordUseCase>();
         services.AddScoped<ArchiveRecordUseCase>();
+        services.AddScoped<MarkRecordAiGeneratedUseCase>();
 
         services.AddScoped<SyncSourcesUseCase>();
         services.AddScoped<ListSourceRepositoriesUseCase>();
@@ -171,6 +172,7 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<RequestCorrectionUseCase>(), executor),
             Bind(services.GetRequiredService<PublishRecordUseCase>(), executor),
             Bind(services.GetRequiredService<ArchiveRecordUseCase>(), executor),
+            Bind(services.GetRequiredService<MarkRecordAiGeneratedUseCase>(), executor),
 
             Bind(services.GetRequiredService<SyncSourcesUseCase>(), executor),
             Bind(services.GetRequiredService<ListSourceRepositoriesUseCase>(), executor),

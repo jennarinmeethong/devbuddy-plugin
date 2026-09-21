@@ -51,6 +51,21 @@ The owner confirmed `v1.4.0`, cut from `main` as it stands, as item A1 of Phase 
   - No manual upgrade step is needed.
 - **The Claude plugin package moves to `1.4.0`.** The Codex package carries no version.
 
+## Confirmed Marking a Record as AI-Written After the Fact — 2026-09-21
+
+Phase 13, D3, under the owner's instruction to remove the accepted limitations where code can.
+Records written over MCP before 2026-09-15 may be stored as a person's work. The data cannot say
+which ones, and that stays true.
+
+- **What changes:** an administrator who knows can record it.
+  - `mark_record_ai_generated` marks every unmarked revision of a record.
+  - The mark carries who said so, when, and a required reason.
+- **It goes one way.** Nothing clears the mark or overwrites who made it.
+- **Content, content hash and approvals are untouched.** The mark is not content, and the hash does
+  not cover provenance.
+- **The 2026-09-15 statement narrows, and is not reversed.** Rows still cannot be corrected from the
+  data, only by a person's recorded statement. The UI shows the difference.
+
 ## Confirmed a Report, Not a Migration, for Rows Written Against a Foreign Project — 2026-09-17
 
 The e2e suite found that authorization never checked that a scope's project belongs to the named

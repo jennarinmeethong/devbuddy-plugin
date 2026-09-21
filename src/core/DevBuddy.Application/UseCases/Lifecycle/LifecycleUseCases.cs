@@ -440,3 +440,56 @@ internal static class LifecycleSupport
         await repository.FindRecordAsync(recordId, scope, cancellationToken)
         ?? throw new ResourceNotFoundException($"No record {recordId} in this project.");
 }
+
+/// <summary>
+/// Records, after the fact, that an AI wrote a record (Phase 13, D3).
+/// <para>
+/// Until 2026-09-15 a draft written over the AI channel could name a source kind other than
+/// <c>AiDraft</c> and be stored as a person's work, and nothing recorded the channel it came from.
+/// The truth cannot be recovered from the rows. What can be done is let an administrator who
+/// knows say so, once, with a reason, and keep who said it beside the mark. It goes one way only:
+/// nothing here, or anywhere, clears the mark. The content and its hash are untouched, so an
+/// approval stays bound to what was approved.
+/// </para>
+/// </summary>
+public sealed record MarkRecordAiGeneratedRequest(ProjectScope Scope, KnowledgeRecordId RecordId, string Reason)
+    : ProjectRequest(Scope)
+{
+    public override string ResourceReference => RecordId.ToString();
+
+    public override IReadOnlyList<string> Validate() =>
+        string.IsNullOrWhiteSpace(Reason) ? ["A reason is required: say how you know an AI wrote it."]
+        : Reason.Length > 500 ? ["The reason must be 500 characters or fewer."]
+        : [];
+}
+
+public sealed record RecordMarkedAiGeneratedResponse(KnowledgeRecordId RecordId, int RevisionsMarked)
+    : IAuditableResult
+{
+    /// <summary>The count only. The reason is stored on the record, not copied into the audit trail.</summary>
+    public IReadOnlyDictionary<string, string> AuditDetails =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["revisionsMarked"] = RevisionsMarked.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+}
+
+public sealed class MarkRecordAiGeneratedUseCase(IKnowledgeRepository repository, IClock clock)
+    : UseCase<MarkRecordAiGeneratedRequest, RecordMarkedAiGeneratedResponse>
+{
+    private readonly IKnowledgeRepository _repository = Guard.NotNull(repository, nameof(repository));
+    private readonly IClock _clock = Guard.NotNull(clock, nameof(clock));
+
+    public override UseCaseDescriptor Descriptor => UseCaseCatalog.MarkRecordAiGenerated;
+
+    protected internal override async Task<RecordMarkedAiGeneratedResponse> HandleAsync(
+        MarkRecordAiGeneratedRequest request, CallerContext caller, CancellationToken cancellationToken)
+    {
+        KnowledgeRecord record = await LifecycleSupport.LoadAsync(
+            _repository, request.RecordId, request.Scope, cancellationToken);
+
+        int marked = record.MarkAiGenerated(caller.UserId, request.Reason.Trim(), _clock.UtcNow);
+        await _repository.UpdateRecordAsync(record, cancellationToken);
+        return new RecordMarkedAiGeneratedResponse(record.Id, marked);
+    }
+}

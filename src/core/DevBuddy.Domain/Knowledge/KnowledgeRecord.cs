@@ -232,6 +232,36 @@ public sealed class KnowledgeRecord
         return revision;
     }
 
+    /// <summary>
+    /// Records, after the fact, that an AI wrote this record: every revision not already marked
+    /// gains the mark, with who said so and why (Phase 13, D3). One direction only; nothing clears
+    /// it. Allowed on an archived record, because it corrects what the record says about itself
+    /// rather than changing its content, and a content hash is never touched.
+    /// </summary>
+    public int MarkAiGenerated(UserId markedBy, string reason, DateTimeOffset markedAt)
+    {
+        var marking = new AiMarking(markedBy, markedAt, reason);
+        int marked = 0;
+
+        for (int index = 0; index < _revisions.Count; index++)
+        {
+            if (_revisions[index].Provenance.IsAiGenerated)
+            {
+                continue;
+            }
+
+            _revisions[index] = _revisions[index].MarkedAiGeneratedBy(marking);
+            marked++;
+        }
+
+        if (marked == 0)
+        {
+            throw new InvalidTransitionException("Every revision of this record is already recorded as written by an AI.");
+        }
+
+        return marked;
+    }
+
     public void SubmitForApproval(DateTimeOffset submittedAt)
     {
         RequireNotArchived();

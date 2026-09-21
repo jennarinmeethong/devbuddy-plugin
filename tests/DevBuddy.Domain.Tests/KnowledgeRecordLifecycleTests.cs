@@ -127,4 +127,27 @@ public sealed class KnowledgeRecordLifecycleTests
                 Fixtures.Now,
                 Fixtures.Author));
     }
+
+    [Fact]
+    public void marking_a_record_as_ai_written_changes_no_content_hash_and_cannot_be_repeated()
+    {
+        KnowledgeRecord record = Fixtures.Draft();
+        record.AddRevision("Second", "Second body.", null, Fixtures.HumanProvenance(), Fixtures.Now.AddMinutes(1), Fixtures.Author);
+        ContentHash[] before = [.. record.Revisions.Select(revision => revision.ContentHash)];
+
+        int marked = record.MarkAiGenerated(Fixtures.Reviewer, "The author said so.", Fixtures.Now.AddMinutes(2));
+
+        Assert.Equal(2, marked);
+        Assert.Equal(before, record.Revisions.Select(revision => revision.ContentHash));
+        Assert.All(record.Revisions, revision =>
+        {
+            Assert.True(revision.Provenance.IsAiGenerated);
+            Assert.Equal(Fixtures.Reviewer, revision.Provenance.AiMarking!.MarkedBy);
+        });
+
+        Assert.Throws<InvalidTransitionException>(() =>
+            record.MarkAiGenerated(Fixtures.Author, "Again.", Fixtures.Now.AddMinutes(3)));
+        Assert.Throws<DomainValidationException>(() =>
+            Fixtures.Draft().MarkAiGenerated(Fixtures.Reviewer, "  ", Fixtures.Now));
+    }
 }

@@ -154,6 +154,10 @@ public static class UseCaseCatalog
         "publish_record", PermissionKind.PublishRecord, AiExposure.Denied,
         AuditAction.RecordPublished, redactsOutput: false);
 
+    public static UseCaseDescriptor MarkRecordAiGenerated { get; } = new(
+        "mark_record_ai_generated", PermissionKind.ManageProjects, AiExposure.Denied,
+        AuditAction.RecordMarkedAiGenerated, redactsOutput: false);
+
     public static UseCaseDescriptor ArchiveRecord { get; } = new(
         "archive_record", PermissionKind.ArchiveRecord, AiExposure.Denied,
         AuditAction.RecordArchived, redactsOutput: false);
@@ -351,6 +355,7 @@ public static class UseCaseCatalog
         GenerateHandover, FindOpenQuestions, FindMissingEvidence,
         CreateDraft,
         ReviseDraft, SubmitForApproval, ApproveRecord, RequestCorrection, PublishRecord, ArchiveRecord,
+        MarkRecordAiGenerated,
         SyncSources, ListSourceRepositories, ValidateProvenance, DetectDuplicates, DetectStaleness, Reindex,
         DetectSecrets, RedactSensitiveData,
         ExportProject, BackupSystem, CheckSystemHealth,
