@@ -5,8 +5,8 @@
 # Given with `-f docker/compose.yaml -f tests/e2e/compose.e2e.yaml`, so relative paths below resolve
 # against docker/, the first file's directory.
 #
-# It changes the stack in exactly three ways, all of them about running tests beside it rather than
-# about what is being tested:
+# It changes the stack in these ways, all of them about running tests beside it rather than about
+# what is being tested:
 #
 #   - Nothing is published on the host. The runner joins the stack's own network and reaches the
 #     API and the MCP server by service name, so a run cannot collide with an installation already
@@ -15,6 +15,7 @@
 #     from one address, which is exactly what that limit exists to stop. The limit itself is
 #     covered by DevBuddy.Api.Tests.
 #   - The runner is added, behind a profile so a plain `up` never starts it.
+#   - Mail is delivered over SMTP to a Mailpit container, so delivery itself is tested.
 #
 # Everything else — images, read-only filesystems, dropped capabilities, the embedding provider
 # left off — is the shipped stack as it is.
@@ -25,6 +26,28 @@ services:
     environment:
       DEVBUDDY_RateLimiting__AuthPermitLimit: "100000"
       DEVBUDDY_RateLimiting__RequestPermitLimit: "100000"
+      # Mail goes to Mailpit (Phase 13, C4), so the suite can read what an installation with SMTP
+      # actually delivers. A setup token is still returned in create_user_account's response.
+      DEVBUDDY_Email__Provider: Smtp
+      DEVBUDDY_Email__Host: mailpit
+      DEVBUDDY_Email__Port: "1025"
+      DEVBUDDY_Email__UseStartTls: "false"
+      DEVBUDDY_Email__FromAddress: devbuddy@e2e.devbuddy.test
+    depends_on:
+      mailpit:
+        condition: service_started
+
+  # An SMTP server that keeps what it receives and answers an HTTP API about it. Test-only.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /data
+    security_opt:
+      - no-new-privileges:true
+    networks: [internal]
 
   mcp:
     ports: !reset []
@@ -50,6 +73,7 @@ services:
       HOME: /tmp
       DEVBUDDY_E2E_BASE_URL: http://api:8080
       DEVBUDDY_E2E_MCP_URL: http://mcp:8080
+      DEVBUDDY_E2E_MAILPIT_URL: http://mailpit:8025
       DEVBUDDY_E2E_ADMIN_EMAIL: ${DEVBUDDY_E2E_ADMIN_EMAIL:?run tests/e2e/run.sh, which sets this}
       DEVBUDDY_E2E_ADMIN_PASSWORD: ${DEVBUDDY_E2E_ADMIN_PASSWORD:?run tests/e2e/run.sh, which sets this}
       DEVBUDDY_E2E_PROJECTS: /srv/projects

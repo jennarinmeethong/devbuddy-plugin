@@ -71,10 +71,8 @@ AI access closed on every project.
 - **Embeddings and the workers.** They need a model server and a pgvector database, and the default
   stack has neither. `DevBuddy.Security.Tests` covers the egress path (SB-34). This suite checks only
   that semantic search explains why it cannot answer.
-- **MCP over stdio with a machine token.** That is the plugin path. `DevBuddy.McpServer.Tests` covers
-  it.
-- **The GitHub API source mode**, SMTP delivery, the observability overlay, and restore. Restore is
-  a console command, and the drill in `docs/operations/release-matrix.md` covers it.
+- **The GitHub API source mode**, the observability overlay, and restore. Restore is a console
+  command, and the drill in `docs/operations/release-matrix.md` covers it.
 
 
 ## Writing a test

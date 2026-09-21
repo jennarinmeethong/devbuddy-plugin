@@ -134,5 +134,72 @@ compose run --rm --no-deps "${tty[@]}" e2e "$@"
 status=$?
 set -e
 
-echo "==> Results in $out (report/index.html, junit.xml, stack.log)" >&2
+# MCP over stdio with a machine token (Phase 13, C2). That is the path the plugin packages use,
+# and the runner cannot reach it: it is a process the host starts, not a port on the network. So
+# it runs here, from the host, the way a plugin session starts the server.
+stdio_checks() {
+  local log="$out/stdio.log" failures=0
+  : >"$log"
+
+  check() {
+    if [ "$2" = yes ]; then echo "ok    $1" | tee -a "$log" >&2; else echo "FAIL  $1" | tee -a "$log" >&2; failures=$((failures + 1)); fi
+  }
+
+  # One exchange: initialize, then the given request as id 2, answered on stdout.
+  mcp_stdio() {
+    local token=$1 request=$2 extra=${3:-}
+    {
+      printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e-stdio","version":"0"}}}'
+      sleep 3
+      printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+      printf '%s\n' "$request"
+      sleep 8
+    } | compose run --rm --no-deps -T -e DEVBUDDY_TOKEN="$token" $extra mcp --stdio 2>>"$log" | grep '"id":2' || true
+  }
+
+  local workspace actor issued token token_id
+  workspace=$(awk '$1=="workspace"{print $2}' "$out/bootstrap.log")
+  actor=$(awk '$1=="actor"{print $2}' "$out/bootstrap.log")
+
+  issued=$(compose run --rm --no-deps -T migrate run issue_machine_token --actor "$actor" \
+    --arguments "{\"name\":\"e2e-stdio\",\"lifetimeDays\":1,\"workspaceId\":\"$workspace\"}" 2>>"$log")
+  token=$(printf '%s' "$issued" | grep -o '"token": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  token_id=$(printf '%s' "$issued" | grep -o '"tokenId": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  check "a machine token was minted for the administrator" "$([ -n "$token" ] && [ -n "$token_id" ] && echo yes || echo no)"
+
+  local tools
+  tools=$(mcp_stdio "$token" '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')
+  check "tools/list over stdio answers" "$([ -n "$tools" ] && echo yes || echo no)"
+  check "the AI surface is twenty tools" "$([ "$(printf '%s' "$tools" | grep -o '"name":"[a-z_]*"' | sort -u | wc -l | tr -d ' ')" = 20 ] && echo yes || echo no)"
+  check "no human-only operation is a tool" "$(printf '%s' "$tools" | grep -qE '"name":"(grant_membership|approve_record|publish_record|delete_project|issue_password_reset)"' && echo no || echo yes)"
+
+  local projects
+  projects=$(mcp_stdio "$token" "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"list_projects\",\"arguments\":{\"workspaceId\":\"$workspace\"}}}")
+  check "a tool call with the token succeeds" "$(printf '%s' "$projects" | grep -q '"isError":true' && echo no || { [ -n "$projects" ] && echo yes || echo no; })"
+
+  local other
+  other=$(mcp_stdio "$token" '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects","arguments":{"workspaceId":"00000000-0000-0000-0000-000000000001"}}}')
+  check "the token is refused in a workspace it was not minted in" "$(printf '%s' "$other" | grep -q '"isError":true' && echo yes || echo no)"
+
+  local actor_only
+  actor_only=$(mcp_stdio "" "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"list_projects\",\"arguments\":{\"workspaceId\":\"$workspace\"}}}" "-e DEVBUDDY_ACTOR=$actor")
+  check "DEVBUDDY_ACTOR names nobody: no token, no identity" "$(printf '%s' "$actor_only" | grep -q 'No identity was resolved' && echo yes || echo no)"
+
+  compose run --rm --no-deps -T migrate run revoke_machine_token --actor "$actor" \
+    --arguments "{\"tokenId\":\"$token_id\",\"workspaceId\":\"$workspace\"}" >>"$log" 2>&1
+  local revoked
+  revoked=$(mcp_stdio "$token" "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"list_projects\",\"arguments\":{\"workspaceId\":\"$workspace\"}}}")
+  check "a revoked token is refused on the next call" "$(printf '%s' "$revoked" | grep -q 'No identity was resolved' && echo yes || echo no)"
+
+  return "$failures"
+}
+
+echo "==> MCP over stdio with a machine token" >&2
+set +e
+stdio_checks
+stdio_status=$?
+set -e
+[ "$stdio_status" -eq 0 ] || status=1
+
+echo "==> Results in $out (report/index.html, junit.xml, stack.log, stdio.log)" >&2
 exit "$status"
