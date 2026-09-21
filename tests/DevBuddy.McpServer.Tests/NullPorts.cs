@@ -235,6 +235,11 @@ internal sealed class NullPorts :
         UserId? actorId, AuditChannel? channel, bool channelNotRecorded, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<IReadOnlyList<AuditEvent>> QueryActorInWorkspaceAsync(
+        WorkspaceId workspaceId, UserId actorId, IReadOnlyCollection<AuditAction> actions,
+        DateTimeOffset occurredFrom, DateTimeOffset occurredUntil, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task WriteAsync(AuditEvent auditEvent, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 

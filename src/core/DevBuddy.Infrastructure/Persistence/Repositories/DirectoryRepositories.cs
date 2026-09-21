@@ -436,6 +436,32 @@ internal sealed class AuditStore(DevBuddyDbContext db) : IAuditSink, IAuditReade
 
         return [.. rows.Select(RowMappers.ToDomain)];
     }
+
+    public async Task<IReadOnlyList<AuditEvent>> QueryActorInWorkspaceAsync(
+        WorkspaceId workspaceId,
+        UserId actorId,
+        IReadOnlyCollection<AuditAction> actions,
+        DateTimeOffset occurredFrom,
+        DateTimeOffset occurredUntil,
+        CancellationToken cancellationToken)
+    {
+        int[] wanted = [.. actions.Select(action => (int)action)];
+        int succeeded = (int)AuditOutcome.Succeeded;
+
+        List<AuditEventRow> rows = await _db.AuditEvents
+            .IgnoreQueryFilters()
+            .Where(entry => entry.WorkspaceId == workspaceId.Value
+                && entry.ActorId == actorId.Value
+                && entry.Outcome == succeeded
+                && wanted.Contains(entry.Action)
+                && entry.OccurredAt >= occurredFrom
+                && entry.OccurredAt < occurredUntil)
+            .OrderByDescending(entry => entry.OccurredAt)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(RowMappers.ToDomain)];
+    }
 }
 
 /// <summary>

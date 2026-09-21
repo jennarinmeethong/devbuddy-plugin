@@ -235,6 +235,10 @@ public static class UseCaseCatalog
         "read_audit_history", PermissionKind.ReadAudit, AiExposure.Denied,
         AuditAction.AuditRead, redactsOutput: false);
 
+    public static UseCaseDescriptor ListMemberDownloads { get; } = new(
+        "list_member_downloads", PermissionKind.ReadAudit, AiExposure.Denied,
+        AuditAction.AuditRead, redactsOutput: false);
+
     public static UseCaseDescriptor ListMemberships { get; } = new(
         "list_memberships", PermissionKind.ManageAccess, AiExposure.Denied,
         AuditAction.AuditRead, redactsOutput: false);
@@ -360,7 +364,7 @@ public static class UseCaseCatalog
         DetectSecrets, RedactSensitiveData,
         ExportProject, BackupSystem, CheckSystemHealth,
         GrantMembership, RevokeMembership, EnableProjectAiAccess, DisableProjectAiAccess,
-        ReadAuditHistory, ListMemberships,
+        ReadAuditHistory, ListMemberships, ListMemberDownloads,
         CreateWorkspace,
         CreateProject, DeleteProject, CreateWorkItem, CreateUserAccount, IssuePasswordReset, ListWorkItems, ListRecords,
         CreateTeam, RenameTeam, DeleteTeam, ListTeams, ListTeamMembers, AddTeamMember, RemoveTeamMember,

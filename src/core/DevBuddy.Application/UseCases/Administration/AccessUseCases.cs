@@ -243,3 +243,52 @@ public sealed class ReadAuditHistoryUseCase(IAuditReader reader)
         return new AuditHistoryResponse(entries);
     }
 }
+
+/// <summary>
+/// What a person copied out of a workspace (Phase 13, D8): the evidence they downloaded and the
+/// exports they ran, from the audit trail.
+/// <para>
+/// A copy that left the system cannot be recalled, and revoking access does not change that. What
+/// an administrator can do is know what left, so they can follow it up outside the system. This is
+/// that list: identifiers, actions and times, never content, for one workspace only.
+/// </para>
+/// </summary>
+public sealed record ListMemberDownloadsRequest(WorkspaceId WorkspaceId, UserId SubjectUserId, int Days = 90)
+    : WorkspaceRequest(WorkspaceId)
+{
+    public override string ResourceReference => SubjectUserId.ToString();
+
+    public override IReadOnlyList<string> Validate() =>
+        SubjectUserId.Value == Guid.Empty ? ["A person is required."]
+        : Days is < 1 or > 3650 ? ["Days must be between 1 and 3650."]
+        : [];
+}
+
+public sealed record MemberDownload(DateTimeOffset OccurredAt, AuditAction Action, ProjectId? ProjectId, string ResourceReference);
+
+public sealed record MemberDownloadsResponse(UserId SubjectUserId, int Days, IReadOnlyList<MemberDownload> Downloads);
+
+public sealed class ListMemberDownloadsUseCase(IAuditReader reader, IClock clock)
+    : UseCase<ListMemberDownloadsRequest, MemberDownloadsResponse>
+{
+    private static readonly AuditAction[] Copies = [AuditAction.EvidenceDownloaded, AuditAction.ExportCreated];
+
+    private readonly IAuditReader _reader = Guard.NotNull(reader, nameof(reader));
+    private readonly IClock _clock = Guard.NotNull(clock, nameof(clock));
+
+    public override UseCaseDescriptor Descriptor => UseCaseCatalog.ListMemberDownloads;
+
+    protected internal override async Task<MemberDownloadsResponse> HandleAsync(
+        ListMemberDownloadsRequest request, CallerContext caller, CancellationToken cancellationToken)
+    {
+        DateTimeOffset until = _clock.UtcNow;
+
+        IReadOnlyList<AuditEvent> entries = await _reader.QueryActorInWorkspaceAsync(
+            request.WorkspaceId, request.SubjectUserId, Copies, until.AddDays(-request.Days), until, cancellationToken);
+
+        return new MemberDownloadsResponse(
+            request.SubjectUserId,
+            request.Days,
+            [.. entries.Select(entry => new MemberDownload(entry.OccurredAt, entry.Action, entry.ProjectId, entry.ResourceReference))]);
+    }
+}
