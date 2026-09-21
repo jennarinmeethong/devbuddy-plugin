@@ -47,6 +47,8 @@ test("operations reach Tempo as traces that carry no identifier and no URL path"
   expect(all).not.toContain(`/workspaces/${people.workspaceId}`);
 });
 
+// Found a real defect when first run (Phase 13, C5): with the file sink on, Serilog owned the logging
+// pipeline and the OpenTelemetry exporter received nothing, so no log ever reached Loki.
 test("logs reach Loki", async ({ admin, people }) => {
   await admin.invoke("list_projects", { workspaceId: people.workspaceId });
 

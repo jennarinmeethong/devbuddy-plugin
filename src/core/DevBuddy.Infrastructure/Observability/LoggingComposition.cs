@@ -59,6 +59,13 @@ public static class LoggingComposition
             Directory.CreateDirectory(directory);
         }
 
+        // Serilog owns the pipeline once it is on, so any other logger provider — the OpenTelemetry
+        // log exporter AddDevBuddyTelemetry registers after this — receives nothing unless Serilog
+        // writes to it. Until Phase 13 it did not: with the file sink on, which docker/compose.yaml
+        // always sets, logs never reached Loki, and option 2 of logging.md, the option in force, had
+        // never worked. The observability end-to-end test found it.
+        var providers = new Serilog.Extensions.Logging.LoggerProviderCollection();
+
         var logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
@@ -81,12 +88,13 @@ public static class LoggingComposition
                 // name parseable, and therefore what makes the sweep able to decide a file's age
                 // without trusting a filesystem timestamp that a copy would have reset.
                 rollOnFileSizeLimit: false)
+            .WriteTo.Providers(providers)
             .CreateLogger();
 
         // Serilog owns the pipeline once it is on, rather than sitting alongside the framework's
         // console provider and printing everything twice.
         services.AddLogging(logging => logging.ClearProviders());
-        services.AddSerilog(logger, dispose: true);
+        services.AddSerilog(logger, dispose: true, providers: providers);
 
         return services;
     }
