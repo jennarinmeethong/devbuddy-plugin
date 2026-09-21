@@ -3,7 +3,7 @@
 #   DEVBUDDY_E2E_EMBEDDINGS=1 bash tests/e2e/run.sh
 #
 # A pgvector database, a stand-in model server that records what it is sent, and the real
-# record-embedding-sweep running every few seconds as its own Viewer account. run.sh sets the
+# record-embedding-sweep running every minute as its own Viewer account. run.sh sets the
 # provider settings in the env file and mints the worker's token; this file only adds the model
 # server. The default run keeps the shipped default stack, with no provider and no pgvector.
 services:

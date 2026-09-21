@@ -92,7 +92,7 @@ DEVBUDDY_EMBEDDING_PROVIDER=SelfHosted
 DEVBUDDY_EMBEDDING_ENDPOINT=http://embedder:8080/v1
 DEVBUDDY_EMBEDDING_MODEL=e2e-bag-of-words
 DEVBUDDY_EMBEDDING_DIMENSIONS=64
-DEVBUDDY_EMBEDDING_SWEEP_EVERY=00:00:05
+DEVBUDDY_EMBEDDING_SWEEP_EVERY=1m
 DEVBUDDY_EMBEDDING_SWEEP_BUDGET=1000
 EOF
 fi
@@ -149,11 +149,11 @@ echo "==> Building the stack and the runner" >&2
 compose build
 
 echo "==> Starting the stack as '$project'" >&2
-if [ "$embeddings" = 1 ]; then
-  compose up --detach --wait embedder api mcp
-else
-  compose up --detach --wait api mcp
-fi
+services_up=(api mcp)
+[ "$embeddings" = 1 ] && services_up+=(embedder)
+# Nothing in the stack depends on the observability services, so they are started by name.
+[ "${DEVBUDDY_E2E_OBSERVABILITY:-0}" = 1 ] && services_up+=(otel-collector tempo loki prometheus grafana)
+compose up --detach --wait "${services_up[@]}"
 
 echo "==> Waiting for the MCP server to answer" >&2
 compose run --rm --no-deps "${tty[@]}" --entrypoint node e2e -e '

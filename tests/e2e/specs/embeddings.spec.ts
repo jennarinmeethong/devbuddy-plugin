@@ -3,8 +3,9 @@ import { draft, expect, publish, scopeOf, test } from "../support/fixtures";
 /**
  * Embeddings and the sweep, end to end (Phase 13, C1). Runs only in the embeddings mode
  * (`DEVBUDDY_E2E_EMBEDDINGS=1`), where the stack has pgvector, a stand-in model server that keeps
- * everything it is sent, and the real record-embedding-sweep running every five seconds as a Viewer
- * account with its own token.
+ * everything it is sent, and the real record-embedding-sweep running every minute as a Viewer
+ * account with its own token. The schedule's shortest interval is a minute, and that is kept: a
+ * pass runs at start and then every minute, so the tests wait for one.
  *
  * What is asserted is what left the installation, read back from the model server: the published
  * text of a project opened to AI, and never a draft or a closed project's record.
@@ -12,7 +13,7 @@ import { draft, expect, publish, scopeOf, test } from "../support/fixtures";
 const embedder = process.env.DEVBUDDY_E2E_EMBEDDER_URL ?? "http://embedder:8080";
 
 test.skip(process.env.DEVBUDDY_E2E_EMBEDDINGS !== "1", "Only in the embeddings mode.");
-test.describe.configure({ timeout: 180_000 });
+test.describe.configure({ timeout: 300_000 });
 
 async function received(): Promise<string[]> {
   return (await (await fetch(`${embedder}/received`)).json()) as string[];
@@ -38,9 +39,9 @@ test("a published record in a project opened to AI is embedded, found, and remov
     body: `draftonly${marker} must never be embedded.`,
   });
 
-  // The sweep runs every five seconds; wait for the published record to become findable.
+  // The sweep runs every minute; wait for the published record to become findable.
   let found = false;
-  for (let attempt = 0; attempt < 60 && !found; attempt++) {
+  for (let attempt = 0; attempt < 100 && !found; attempt++) {
     const answer = await admin.invoke("search_similar_records", { scope, queryText: `${marker} ledger reconciliation` });
     found = answer.hits.some((hit) => hit.recordId === published.recordId);
     if (!found) {
@@ -68,8 +69,8 @@ test("a project nobody opened to AI is never sent to the model", async ({ admin,
   });
   await publish(admin, admin, project, record.recordId);
 
-  // Several sweep passes.
-  await new Promise((resolve) => setTimeout(resolve, 20_000));
+  // At least one full pass after publication.
+  await new Promise((resolve) => setTimeout(resolve, 75_000));
 
   expect((await received()).some((text) => text.includes(marker))).toBe(false);
 });
