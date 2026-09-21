@@ -215,7 +215,9 @@ accepted as unrun. `win-arm64` and `linux-musl-arm64` remain on the terms above.
 **Run once, and still unverified: 2026-09-14.** Both remaining RIDs were started for the first time,
 against the `v1.2.0` draft's archives. `win-arm64` ran in a VMware VM on Apple silicon, and
 `linux-musl-arm64` in an Alpine container on the Apple M4. Both passed the smoke test. The owner
-kept them in the built-but-unverified tier (`info.md`, 2026-09-14). The acceptance above stands,
+kept them in the built-but-unverified tier (`info.md`, 2026-09-14). **On 2026-09-21 `linux-musl-arm64`
+moved to the verified tier** (Phase 13, B10), after runs for four releases; `win-arm64` alone remains
+here. The acceptance above stands,
 with one change of wording: release notes now say what was run for these two, not that they were
 never started. Nobody may describe them as supported.
 

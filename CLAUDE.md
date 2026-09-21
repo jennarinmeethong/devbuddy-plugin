@@ -200,8 +200,10 @@ the Compose stack of `v1.2.0` ran from clean on arm64 too, with the published im
 Ubuntu 26.04 VMware guest (2 CPUs, 5.3 GB). `docs/operations/release-matrix.md` records it. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
-**The two unverified RIDs keep shipping.** `win-arm64` and `linux-musl-arm64` stay in the
-built-but-unverified tier, confirmed as a decision and not left as a gap. Each has been started
+**One unverified RID keeps shipping.** `win-arm64` stays in the built-but-unverified tier,
+confirmed as a decision and not left as a gap. **`linux-musl-arm64` is verified since 2026-09-21**
+(Phase 13, B10), so every release owes it a smoke test in Alpine on arm64. What follows is the
+history of both. Each has been started
 once, for `v1.2.0` on 2026-09-14: `win-arm64` in a VMware VM on Apple silicon, and
 `linux-musl-arm64` in Alpine on the Mac mini. The owner kept both in the tier that day. So there is
 no per-release smoke test for them, every release's notes say exactly what was and was not run,

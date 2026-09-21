@@ -19,7 +19,12 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
 | `osx-arm64` | yes | **yes** | Natively, on an Apple M4 Mac mini running macOS 26.6.2. Hardware, not emulation. First run 2026-09-13, outside a release; see below. |
 | `win-arm64` | yes | once | **Not in the verified tier.** Started once, for `v1.2.0` on 2026-09-14, in a VMware guest on Apple silicon. Not smoke-tested per release. |
-| `linux-musl-arm64` | yes | once | **Not in the verified tier.** Started once, for `v1.2.0` on 2026-09-14, in `alpine:3` on an Apple M4. Not smoke-tested per release. |
+| `linux-musl-arm64` | yes | **yes** | `alpine:3` on arm64, after installing the dependencies below. **Verified since 2026-09-21** (Phase 13, B10): run for `v1.2.0`, `v1.2.1`, `v1.3.0` and `v1.4.0`, and smoke-tested every release from now on, in Alpine on the Ubuntu arm64 guest or the Mac mini. |
+
+**`linux-musl-arm64` moved to the verified tier on 2026-09-21** (`info.md`, Phase 13 B10). It had
+been started for every release since `v1.2.0`, so the per-release smoke test is now a commitment
+rather than a courtesy. What follows describes both rows as they stood until then; `win-arm64`
+still stands there.
 
 The two rows reading **once** are a decision rather than an omission. They are published in this
 tier without the per-release smoke test the rows reading yes get, as confirmed by the project owner

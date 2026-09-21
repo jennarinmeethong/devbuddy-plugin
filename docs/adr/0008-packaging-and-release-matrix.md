@@ -20,8 +20,8 @@ Publish in three declared tiers, recorded in `docs/operations/release-matrix.md`
 
 | Tier | RIDs | Meaning |
 |---|---|---|
-| Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`, `osx-arm64` | Built and smoke-tested by hand every release, recorded in that file. |
-| Built, unverified | `win-arm64`, `linux-musl-arm64` | Published as-is, never run, labelled unverified in the release notes. |
+| Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`, `osx-arm64`, `linux-musl-arm64` | Built and smoke-tested by hand every release, recorded in that file. |
+| Built, unverified | `win-arm64` | Published as-is, not smoke-tested per release, labelled unverified in the release notes. |
 | Not published | Everything else | Out of scope for v1. Not claimed as supported. |
 
 Container images are a **separate** matrix: `linux/amd64` and `linux/arm64` (see the second
@@ -104,6 +104,14 @@ container does not commit anyone to a smoke test before every release, and that 
 the verified tier means. The table's "never run" now reads as "not smoke-tested per release".
 Release notes say what was run for these two for that release, rather than that they were never
 started.
+
+## Amendment — 2026-09-21: `linux-musl-arm64` moves to the verified tier
+
+`linux-musl-arm64` was started, and passed the smoke test, for `v1.2.0`, `v1.2.1`, `v1.3.0` and
+`v1.4.0`, in `alpine:3` on arm64 (the Mac mini's Docker Desktop VM, then the Ubuntu arm64 guest).
+The owner moved it into the verified tier as Phase 13 item B10 (`info.md`, 2026-09-21), so every
+release now owes that smoke test and records it. `win-arm64` stays in the built-but-unverified tier
+by the same decision; it is the only row left there.
 
 ## Consequences
 

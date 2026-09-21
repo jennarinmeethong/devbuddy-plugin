@@ -19,7 +19,9 @@ progress log are in `docs/plan-phase-13.md`.
   free-text form, which switched every rule off, is refused for new approvals and still honoured
   where one was stored.)*
 - **`linux-musl-arm64` moves to the verified tier** once its smoke test is part of the release
-  checklist and has run for a release.
+  checklist and has run for a release. *(Done the same day: it ran for `v1.4.0`, in Alpine on the
+  Ubuntu arm64 guest, as for every release since `v1.2.0`. The smoke test is in the checklist, and
+  ADR-0008 is amended. `win-arm64` is the only built-but-unverified RID.)*
 - **The hosted embedding vendor is Voyage AI (`api.voyageai.com`)**, chosen the same day over
   OpenAI and Cohere for its multilingual retrieval, Thai included. The adapter is built and tested
   against it. Enabling it on any installation still needs its own acceptance, and the owner sets
