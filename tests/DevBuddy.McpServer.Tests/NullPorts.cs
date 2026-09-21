@@ -200,6 +200,10 @@ internal sealed class NullPorts :
     public Task SendAsync(EmailMessage message, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<IReadOnlyList<Membership>> ListLiveMembershipsEverywhereAsync(
+        UserId userId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<IReadOnlyList<Membership>> ListMembershipsForWorkspaceAsync(
         WorkspaceId workspaceId, CancellationToken cancellationToken) =>
         throw new NotSupportedException();

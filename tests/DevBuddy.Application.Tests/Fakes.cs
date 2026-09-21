@@ -566,6 +566,14 @@ internal sealed class FakePorts :
         return Task.FromResult<IReadOnlyList<Membership>>(Membership is null ? [] : [Membership]);
     }
 
+    public Task<IReadOnlyList<Membership>> ListLiveMembershipsEverywhereAsync(
+        UserId userId, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult<IReadOnlyList<Membership>>(
+            Membership is { IsActive: true } live && live.UserId == userId ? [live] : []);
+    }
+
     public Task<IReadOnlyList<Membership>> ListMembershipsForWorkspaceAsync(
         WorkspaceId workspaceId, CancellationToken cancellationToken)
     {

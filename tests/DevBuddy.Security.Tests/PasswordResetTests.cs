@@ -148,7 +148,7 @@ public sealed class PasswordResetTests(SecurityFixture fixture)
         int issued = await session.Db.Database
             .SqlQuery<int>($@"
                 select count(*)::int as ""Value"" from audit_events
-                where action = {(int)Domain.Auditing.AuditAction.PasswordResetIssued} and resource_reference = {member.ToString()}")
+                where action = {(int)Domain.Auditing.AuditAction.PasswordResetIssued} and resource_reference = {"issue_password_reset:" + member}")
             .SingleAsync();
         int leaked = await session.Db.Database
             .SqlQuery<int>($@"
