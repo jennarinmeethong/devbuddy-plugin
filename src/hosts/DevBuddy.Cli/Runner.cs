@@ -9,6 +9,7 @@ using DevBuddy.Application.Workers;
 using DevBuddy.Application.Workers.Jobs;
 using DevBuddy.Domain.Common;
 using DevBuddy.Infrastructure.Administration;
+using DevBuddy.Infrastructure.Embeddings;
 using DevBuddy.Infrastructure.Hosting;
 using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Persistence;
