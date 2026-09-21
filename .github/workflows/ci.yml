@@ -71,10 +71,18 @@ jobs:
   # The whole system, as a deployment runs it: the three images built from this commit, PostgreSQL
   # and the object store, driven through the browser, the HTTP API and the MCP server by Playwright.
   # tests/e2e/run.sh builds and throws away a stack of its own; see tests/e2e/README.md.
+  #
+  # Twice: on x64, and on GitHub's arm64 runner (Phase 13, C9). The arm64 run builds the images
+  # natively for linux/arm64 and runs the whole stack on server-class Arm hardware, which no release
+  # checklist had done: every arm64 run before this was on an Apple M4.
   e2e:
-    name: End-to-end (Playwright)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    name: End-to-end (Playwright, ${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
 
     steps:
       - name: Checkout
@@ -90,7 +98,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.runner }}
           path: e2e-results
           if-no-files-found: ignore
 
