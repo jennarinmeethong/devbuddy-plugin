@@ -79,9 +79,11 @@ driven from inside the runner:
 
 ## What is not covered
 
-- **Embeddings and the workers.** They need a model server and a pgvector database, and the default
-  stack has neither. `DevBuddy.Security.Tests` covers the egress path (SB-34). This suite checks only
-  that semantic search explains why it cannot answer.
+- **Embeddings and the workers in the default run.** The default stack has no model server and no
+  pgvector, so the default run checks only that semantic search explains why it cannot answer. The
+  embeddings mode covers them: `DEVBUDDY_E2E_EMBEDDINGS=1 bash tests/e2e/run.sh
+  specs/embeddings.spec.ts` runs pgvector, a stand-in model server that keeps what it is sent, and
+  the real sweep as a Viewer account. CI runs it as a job of its own.
 - **The GitHub API source mode** and the observability overlay.
 
 

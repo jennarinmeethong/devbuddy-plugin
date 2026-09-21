@@ -18,6 +18,9 @@
 #   DEVBUDDY_E2E_PROJECT   the Compose project name (default devbuddy-e2e)
 #   DEVBUDDY_E2E_WORKERS   parallel workers (default 4)
 #   DEVBUDDY_E2E_RESTORE=0 skip the destroy-and-restore stage that runs after the suite
+#   DEVBUDDY_E2E_EMBEDDINGS=1  pgvector, a stand-in model server and the embedding sweep, for
+#                          specs/embeddings.spec.ts; off by default, so the default run tests the
+#                          shipped default stack
 #   DEVBUDDY_E2E_KEEP=1    leave the stack running afterwards, to look at it; its env file path is
 #                          printed, and `down -v` with the same arguments removes it
 #
@@ -71,12 +74,28 @@ DEVBUDDY_E2E_ADMIN_EMAIL=$admin_email
 DEVBUDDY_E2E_ADMIN_PASSWORD=$admin_password
 EOF
 
+# The embeddings mode (Phase 13, C1): pgvector, a stand-in model server, and the real sweep.
+embeddings=${DEVBUDDY_E2E_EMBEDDINGS:-0}
+overlays=(--file "$(native "$here/compose.e2e.yaml")")
+if [ "$embeddings" = 1 ]; then
+  overlays+=(--file "$(native "$here/compose.embeddings.yaml")")
+  cat >>"$work/.env" <<EOF
+DEVBUDDY_DB_IMAGE=pgvector/pgvector:pg17
+DEVBUDDY_EMBEDDING_PROVIDER=SelfHosted
+DEVBUDDY_EMBEDDING_ENDPOINT=http://embedder:8080/v1
+DEVBUDDY_EMBEDDING_MODEL=e2e-bag-of-words
+DEVBUDDY_EMBEDDING_DIMENSIONS=64
+DEVBUDDY_EMBEDDING_SWEEP_EVERY=00:00:05
+DEVBUDDY_EMBEDDING_SWEEP_BUDGET=1000
+EOF
+fi
+
 compose() {
   docker compose \
     --project-name "$project" \
     --env-file "$(native "$work/.env")" \
     --file "$(native "$repo/docker/compose.yaml")" \
-    --file "$(native "$here/compose.e2e.yaml")" \
+    "${overlays[@]}" \
     --profile e2e \
     "$@"
 }
@@ -90,6 +109,7 @@ finish() {
   local status=$?
 
   compose logs --no-color api mcp migrate >"$out/stack.log" 2>&1 || true
+  [ "${embeddings:-0}" = 1 ] && compose --profile workers logs --no-color record-embedding-sweep embedder >>"$out/stack.log" 2>&1 || true
 
   if [ "$keep" = 1 ]; then
     echo "Stack '$project' left running. Env file: $work/.env" >&2
@@ -108,7 +128,11 @@ echo "==> Building the stack and the runner" >&2
 compose build
 
 echo "==> Starting the stack as '$project'" >&2
-compose up --detach --wait api mcp
+if [ "$embeddings" = 1 ]; then
+  compose up --detach --wait embedder api mcp
+else
+  compose up --detach --wait api mcp
+fi
 
 echo "==> Waiting for the MCP server to answer" >&2
 compose run --rm --no-deps "${tty[@]}" --entrypoint node e2e -e '
@@ -128,6 +152,21 @@ compose run --rm --no-deps "${tty[@]}" migrate bootstrap \
   cat "$out/bootstrap.log" >&2
   exit 1
 }
+
+if [ "$embeddings" = 1 ]; then
+  echo "==> Starting the embedding sweep as a Viewer account of its own" >&2
+  e_workspace=$(awk '$1=="workspace"{print $2}' "$out/bootstrap.log")
+  e_actor=$(awk '$1=="actor"{print $2}' "$out/bootstrap.log")
+  e_worker=$(compose run --rm --no-deps -T migrate run create_user_account --actor "$e_actor" \
+    --arguments "{\"workspaceId\":\"$e_workspace\",\"email\":\"embedding.worker@e2e.devbuddy.test\",\"displayName\":\"Embedding worker\",\"role\":\"Viewer\"}" 2>>"$out/embeddings.log" \
+    | grep -o '"userId": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  e_token=$(compose run --rm --no-deps -T migrate run issue_machine_token --actor "$e_worker" \
+    --arguments "{\"name\":\"embedding sweep\",\"lifetimeDays\":1,\"workspaceId\":\"$e_workspace\"}" 2>>"$out/embeddings.log" \
+    | grep -o '"token": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  [ -n "$e_token" ] || { echo "Could not mint the worker's token; see embeddings.log" >&2; exit 1; }
+  echo "DEVBUDDY_EMBEDDING_SWEEP_TOKEN=$e_token" >>"$work/.env"
+  compose --profile workers up --detach embedder record-embedding-sweep >>"$out/embeddings.log" 2>&1
+fi
 
 echo "==> Running the suite" >&2
 set +e

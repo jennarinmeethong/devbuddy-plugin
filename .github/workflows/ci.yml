@@ -102,6 +102,34 @@ jobs:
           path: e2e-results
           if-no-files-found: ignore
 
+  # The embeddings mode: pgvector, a stand-in model server and the real embedding sweep, asserting
+  # on what reached the model (Phase 13, C1). A job of its own so the main run keeps testing the
+  # shipped default stack.
+  e2e-embeddings:
+    name: End-to-end (embeddings)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run the embeddings specs against a fresh stack
+        run: bash tests/e2e/run.sh specs/embeddings.spec.ts --project chromium
+        env:
+          CI: "true"
+          DEVBUDDY_E2E_EMBEDDINGS: "1"
+          DEVBUDDY_E2E_RESTORE: "0"
+          DEVBUDDY_E2E_OUT: ${{ github.workspace }}/e2e-results
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-embeddings-results
+          path: e2e-results
+          if-no-files-found: ignore
+
   format:
     name: Format check
     runs-on: ubuntu-latest
