@@ -32,7 +32,17 @@ internal sealed class TokenService : ITokenService
         _db = Guard.NotNull(db, nameof(db));
         _clock = Guard.NotNull(clock, nameof(clock));
         _settings = Guard.NotNull(settings, nameof(settings)).Value;
+    }
 
+    /// <summary>
+    /// The signing key, refused when it is too short. Checked when a token is signed rather than
+    /// when this is constructed: the console and the workers compose every operation and sign
+    /// nothing, and they carry no key. Checking at construction made every console `run` and every
+    /// worker pass fail once an operation (issue_password_reset) came to depend on this
+    /// indirectly, which the end-to-end suite found (Phase 13).
+    /// </summary>
+    private byte[] SigningKey()
+    {
         if (_settings.SigningKey.Length < 32)
         {
             // Refused rather than padded. A key short enough to brute force is worse than no
@@ -40,6 +50,8 @@ internal sealed class TokenService : ITokenService
             throw new InvalidOperationException(
                 "The access-token signing key must be at least 32 characters. Supply one from a secret store.");
         }
+
+        return Encoding.UTF8.GetBytes(_settings.SigningKey);
     }
 
     public Task<TokenPair> IssueAsync(UserId userId, CancellationToken cancellationToken) =>
@@ -126,6 +138,10 @@ internal sealed class TokenService : ITokenService
     private async Task<TokenPair> IssueAsync(
         UserId userId, Guid familyId, CancellationToken cancellationToken)
     {
+        // Before anything is written: a key too short to sign with refuses the session outright
+        // rather than leaving a refresh token behind that no access token can accompany.
+        _ = SigningKey();
+
         DateTimeOffset now = _clock.UtcNow;
         DateTimeOffset accessExpiry = now + _settings.AccessTokenLifetime;
         DateTimeOffset refreshExpiry = now + _settings.RefreshTokenLifetime;
@@ -176,7 +192,7 @@ internal sealed class TokenService : ITokenService
     private string CreateAccessToken(UserId userId, Guid sessionId, DateTimeOffset issuedAt, DateTimeOffset expiresAt)
     {
         var credentials = new SigningCredentials(
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.SigningKey)),
+            new SymmetricSecurityKey(SigningKey()),
             SecurityAlgorithms.HmacSha256);
 
         var descriptor = new SecurityTokenDescriptor
