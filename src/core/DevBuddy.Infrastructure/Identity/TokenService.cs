@@ -226,12 +226,26 @@ internal sealed class AccountRecoveryService : IAccountRecoveryService
             return null;
         }
 
+        return (await IssueAsync(user.Id, cancellationToken)).Token;
+    }
+
+    public async Task<PasswordReset?> IssueForAsync(UserId userId, CancellationToken cancellationToken)
+    {
+        UserRow? user = await _db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(candidate => candidate.Id == userId.Value, cancellationToken);
+
+        return user is null || user.IsDisabled ? null : await IssueAsync(user.Id, cancellationToken);
+    }
+
+    private async Task<PasswordReset> IssueAsync(Guid userId, CancellationToken cancellationToken)
+    {
         DateTimeOffset now = _clock.UtcNow;
 
         // Any earlier outstanding token is retired. Two live recovery links is one more than
         // anyone needs and one more chance for the older one to leak.
         await _db.RecoveryTokens
-            .Where(token => token.UserId == user.Id && token.UsedAt == null)
+            .Where(token => token.UserId == userId && token.UsedAt == null)
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(token => token.UsedAt, now), cancellationToken);
 
@@ -240,14 +254,14 @@ internal sealed class AccountRecoveryService : IAccountRecoveryService
         _db.RecoveryTokens.Add(new RecoveryTokenRow
         {
             Id = Guid.NewGuid(),
-            UserId = user.Id,
+            UserId = userId,
             TokenHash = OpaqueToken.Hash(recoveryToken),
             IssuedAt = now,
             ExpiresAt = now + _settings.RecoveryTokenLifetime,
         });
 
         await _db.SaveChangesAsync(cancellationToken);
-        return recoveryToken;
+        return new PasswordReset(recoveryToken, now + _settings.RecoveryTokenLifetime);
     }
 
     public async Task<RecoveryOutcome> CompleteAsync(

@@ -66,7 +66,10 @@ export function Members() {
                   {membership.isActive ? (
                     <div className="flex items-center justify-end gap-2">
                       {membership.userId !== user?.userId ? (
-                        <ChangeRole workspaceId={workspaceId!} membership={membership} />
+                        <>
+                          <ChangeRole workspaceId={workspaceId!} membership={membership} />
+                          <ResetPassword workspaceId={workspaceId!} userId={membership.userId} />
+                        </>
                       ) : null}
                       <Button
                         variant="danger"
@@ -174,6 +177,58 @@ class PartialChange extends Error {
   constructor(readonly inner: unknown) {
     super("The old grant was revoked and the new one was refused.");
   }
+}
+
+/**
+ * A password reset for somebody who cannot receive the recovery email: the installation has no
+ * SMTP, or they lost access to the address. The token is shown once, here, and goes nowhere else.
+ *
+ * The server refuses it when the person also belongs to a workspace this administrator does not
+ * administer, because a password works everywhere they do. The refusal says so rather than
+ * failing quietly.
+ */
+function ResetPassword({ workspaceId, userId }: { workspaceId: string; userId: string }) {
+  const [open, setOpen] = useState(false);
+  const reset = useMutation({
+    mutationFn: () => invoke("issue_password_reset", { workspaceId, subjectUserId: userId }),
+  });
+
+  if (!open) {
+    return (
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Reset password
+      </Button>
+    );
+  }
+
+  return (
+    <div className="max-w-md space-y-2 text-left">
+      {reset.isSuccess ? (
+        <>
+          <Alert tone="success">
+            Give them this reset token. It is shown once, is single-use, and expires. Their current
+            sessions end when they use it.
+          </Alert>
+          <code aria-label="Reset token" className="block break-all rounded bg-neutral-100 p-2 font-mono text-xs">
+            {reset.data.resetToken}
+          </code>
+          <p className="text-xs text-[var(--color-muted)]">
+            Expires <When value={reset.data.resetTokenExpiresAt} />. They redeem it on the set-password page.
+          </p>
+        </>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Button variant="danger" disabled={reset.isPending} onClick={() => reset.mutate()}>
+            Issue reset token
+          </Button>
+          <Button variant="secondary" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        </div>
+      )}
+      {reset.isError ? <Failure error={reset.error} /> : null}
+    </div>
+  );
 }
 
 /**

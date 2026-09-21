@@ -112,6 +112,76 @@ test.describe("members", () => {
       page.getByRole("row", { name: new RegExp(person.userId) }).filter({ hasText: `Project ${project.projectId}` }),
     ).toContainText("Reviewer");
   });
+
+  test("an administrator issues a password reset, and the person signs in with the new password", async ({
+    page,
+    browser,
+    admin,
+    people,
+  }) => {
+    const person = await invite(admin, people.workspaceId, "Viewer");
+
+    await signIn(page, people.admin, `/w/${people.workspaceId}/members`);
+    const row = page.getByRole("row", { name: new RegExp(person.userId) });
+    await row.getByRole("button", { name: "Reset password" }).click();
+    await row.getByRole("button", { name: "Issue reset token" }).click();
+    await expect(row.getByRole("status")).toContainText("shown once");
+    const token = (await row.getByLabel("Reset token").innerText()).trim();
+    expect(token.length).toBeGreaterThan(20);
+
+    const chosen = password();
+    const context = await browser.newContext();
+    const tab = await context.newPage();
+    await tab.goto(`/set-password?token=${encodeURIComponent(token)}`);
+    await tab.getByLabel(/^New password/).fill(chosen);
+    await tab.getByLabel(/^Confirm password/).fill(chosen);
+    await tab.getByRole("button", { name: "Set password" }).click();
+    await expect(tab.getByRole("status")).toContainText("Your password is set");
+    await context.close();
+
+    // The new password works, and the old one no longer does.
+    const api = await Api.signIn(person.email, chosen);
+    await api.dispose();
+    await expect(Api.signIn(person.email, person.password)).rejects.toThrow();
+  });
+
+  test("a password reset is refused for somebody who also belongs to a workspace the administrator does not run", async ({
+    admin,
+    people,
+  }) => {
+    const person = await invite(admin, people.workspaceId, "Viewer");
+    const owner = await invite(admin, people.workspaceId, "Administrator");
+    const ownerApi = await Api.signIn(owner.email, owner.password);
+
+    try {
+      const other = await ownerApi.invoke("create_workspace", {
+        sponsorWorkspaceId: people.workspaceId,
+        name: unique("Reset elsewhere"),
+        firstProjectName: "Theirs",
+      });
+      await ownerApi.invoke("grant_membership", {
+        workspaceId: other.workspaceId,
+        subjectUserId: person.userId,
+        role: "Viewer",
+      });
+
+      const refused = await admin.call("issue_password_reset", {
+        workspaceId: people.workspaceId,
+        subjectUserId: person.userId,
+      });
+      expect(refused.status()).toBe(403);
+      expect(await refused.text()).toContain("do not administer");
+
+      // The owner administers both, so it is theirs to do.
+      const allowed = await ownerApi.call("issue_password_reset", {
+        workspaceId: people.workspaceId,
+        subjectUserId: person.userId,
+      });
+      expect(allowed.status()).toBe(200);
+    } finally {
+      await ownerApi.dispose();
+    }
+  });
 });
 
 test.describe("teams", () => {

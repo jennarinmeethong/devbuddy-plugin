@@ -139,9 +139,20 @@ public interface IAccountRecoveryService
     /// </summary>
     Task<string?> BeginAsync(string email, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Issues a recovery token for a known account on an administrator's behalf, for an
+    /// installation with no mail server. Null for an unknown or disabled account. Retires any
+    /// earlier outstanding token exactly as <see cref="BeginAsync"/> does, and is redeemed the
+    /// same way.
+    /// </summary>
+    Task<PasswordReset?> IssueForAsync(UserId userId, CancellationToken cancellationToken);
+
     Task<RecoveryOutcome> CompleteAsync(
         string token, string newPassword, CancellationToken cancellationToken);
 }
+
+/// <summary>A single-use recovery token, and when it stops working.</summary>
+public sealed record PasswordReset(string Token, DateTimeOffset ExpiresAt);
 
 /// <summary>A newly created account and the one-time token its owner uses to set a password.</summary>
 public sealed record AccountCreation(UserId UserId, string SetupToken, DateTimeOffset ExpiresAt);

@@ -22,6 +22,14 @@ public interface IAccessDirectory
     Task<IReadOnlyList<Membership>> ListMembershipsForWorkspaceAsync(
         WorkspaceId workspaceId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Every live grant this person holds, in every workspace. It spans tenants on purpose, and
+    /// only one question needs it: whether an administrator's reach covers everywhere a password
+    /// works. A password belongs to the installation, not to a workspace.
+    /// </summary>
+    Task<IReadOnlyList<Membership>> ListLiveMembershipsEverywhereAsync(
+        UserId userId, CancellationToken cancellationToken);
+
     Task AddMembershipAsync(Membership membership, CancellationToken cancellationToken);
 
     Task UpdateMembershipAsync(Membership membership, CancellationToken cancellationToken);

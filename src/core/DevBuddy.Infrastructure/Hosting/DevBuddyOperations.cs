@@ -120,6 +120,7 @@ public static class DevBuddyOperations
         services.AddScoped<RemoveTeamMemberUseCase>();
         services.AddScoped<CreateWorkItemUseCase>();
         services.AddScoped<CreateUserAccountUseCase>();
+        services.AddScoped<IssuePasswordResetUseCase>();
         services.AddScoped<ListWorkItemsUseCase>();
         services.AddScoped<ListRecordsUseCase>();
         services.AddScoped<IssueMachineTokenUseCase>();
@@ -198,6 +199,7 @@ public static class DevBuddyOperations
             Bind(services.GetRequiredService<RemoveTeamMemberUseCase>(), executor),
             Bind(services.GetRequiredService<CreateWorkItemUseCase>(), executor),
             Bind(services.GetRequiredService<CreateUserAccountUseCase>(), executor),
+            Bind(services.GetRequiredService<IssuePasswordResetUseCase>(), executor),
             Bind(services.GetRequiredService<ListWorkItemsUseCase>(), executor),
             Bind(services.GetRequiredService<ListRecordsUseCase>(), executor),
             Bind(services.GetRequiredService<IssueMachineTokenUseCase>(), executor),
