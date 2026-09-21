@@ -1500,7 +1500,7 @@ What remains is not Phase 12 work. The hosted mode may not be switched on withou
 an outbound allow-list entry and an acceptance of its own, and no provider or worker may run against
 real project data without a separate approval. `stale-record-sweep` needs a token whose owner
 administers the workspace, because only Administrator carries `ManageIndex`; a narrower role for that
-is a decision nobody has made.
+is a decision nobody has made. *(Made on 2026-09-21: Phase 13 item B8 adds `IndexMaintainer`.)*
 
 **What followed is Phase 13**, approved on 2026-09-21: the release after `v1.3.0`, the owner's
 answers to what was still gated here, the test-coverage gaps `tests/e2e/README.md` names, and the

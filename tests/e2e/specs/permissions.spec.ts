@@ -103,6 +103,56 @@ test("the API refuses every step a role does not carry", async ({ people, projec
   }
 });
 
+test("an index maintainer can maintain the index and read, and is refused everything else", async ({
+  admin,
+  people,
+  project,
+  workItem,
+}) => {
+  const worker = await invite(admin, people.workspaceId, "IndexMaintainer");
+  const api = await Api.signIn(worker.email, worker.password);
+  const scope = { workspaceId: project.workspaceId, projectId: project.projectId };
+
+  try {
+    for (const [name, args] of [
+      ["reindex", { scope }],
+      ["detect_staleness", { scope, staleAfter: "90.00:00:00" }],
+      ["detect_duplicates", { scope }],
+      ["validate_provenance", { scope }],
+    ] as const) {
+      expect((await api.call(name, args)).status(), `${name} should be allowed`).toBe(200);
+    }
+    expect((await api.call("get_work_item", { scope, workItemId: workItem.workItemId })).status()).toBe(200);
+
+    const refusals: [string, unknown][] = [
+      [
+        "create_draft",
+        {
+          scope,
+          workItemId: workItem.workItemId,
+          kind: "Decision",
+          title: "No",
+          body: "No",
+          frontMatter: {},
+          provenance: { sourceKind: "HumanAuthored", sourceLocator: "e2e", author: "E2E suite", recordedAt: new Date().toISOString(), evidence: [] },
+        },
+      ],
+      ["create_work_item", { scope, key: "NOPE-2", type: "Develop", title: "No", goal: "No" }],
+      ["list_memberships", { workspaceId: people.workspaceId }],
+      ["grant_membership", { workspaceId: people.workspaceId, subjectUserId: worker.userId, role: "Administrator" }],
+      ["export_project", { scope }],
+      ["backup_system", { workspaceId: people.workspaceId }],
+      ["read_audit_history", { scope, occurredFrom: new Date(0).toISOString(), occurredUntil: new Date().toISOString() }],
+      ["analyze_project", { scope }],
+    ];
+    for (const [name, args] of refusals) {
+      expect((await api.call(name, args)).status(), `${name} should be refused`).toBe(403);
+    }
+  } finally {
+    await api.dispose();
+  }
+});
+
 test("a member of one workspace cannot reach another workspace, by page or by API", async ({
   page,
   admin,

@@ -800,14 +800,14 @@ export type CheckSystemHealthResult = {
 
 export type GrantMembershipArguments = {
   subjectUserId: string;
-  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator";
+  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator" | "IndexMaintainer";
   scopedToProject?: string | null;
   workspaceId: string;
 };
 
 export type GrantMembershipResult = {
   membershipId: string;
-  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator";
+  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator" | "IndexMaintainer";
   isActive: boolean;
 };
 
@@ -818,7 +818,7 @@ export type RevokeMembershipArguments = {
 
 export type RevokeMembershipResult = {
   membershipId: string;
-  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator";
+  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator" | "IndexMaintainer";
   isActive: boolean;
 };
 
@@ -883,7 +883,7 @@ export type ListMembershipsResult = {
   memberships: Array<{
       membershipId: string;
       userId: string;
-      role: "Viewer" | "Contributor" | "Reviewer" | "Administrator";
+      role: "Viewer" | "Contributor" | "Reviewer" | "Administrator" | "IndexMaintainer";
       scopedToProject: string | null;
       isActive: boolean;
       grantedAt: string;
@@ -945,7 +945,7 @@ export type CreateWorkItemResult = {
 export type CreateUserAccountArguments = {
   email: string;
   displayName: string;
-  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator";
+  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator" | "IndexMaintainer";
   scopedToProject?: string | null;
   workspaceId: string;
 };

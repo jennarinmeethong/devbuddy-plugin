@@ -71,6 +71,26 @@ public sealed class RolePermissionsTests
     }
 
     [Fact]
+    public void an_index_maintainer_reads_and_maintains_the_index_and_nothing_else()
+    {
+        // Asserted as the exact set, not as a few spot checks, because the point of the role is
+        // what it does not carry: a worker token holding it must not reach anything else.
+        Assert.Equal(
+            [PermissionKind.ReadKnowledge, PermissionKind.ManageIndex, PermissionKind.ManageOwnCredentials],
+            RolePermissions.For(Role.IndexMaintainer).Order());
+    }
+
+    [Fact]
+    public void an_index_maintainer_is_not_above_an_administrator_whatever_its_number()
+    {
+        // It is stored after Administrator and carries almost nothing. Nothing may read that
+        // number as rank; IndexMaintainerRoleTests proves authorization does not.
+        Assert.False(RolePermissions.Grants(Role.IndexMaintainer, PermissionKind.ManageAccess));
+        Assert.False(RolePermissions.Grants(Role.IndexMaintainer, PermissionKind.CreateDraft));
+        Assert.False(RolePermissions.Grants(Role.IndexMaintainer, PermissionKind.AdministerSystem));
+    }
+
+    [Fact]
     public void an_undefined_role_grants_nothing()
     {
         // A role added to the enum but not to the table grants nothing rather than everything.

@@ -106,6 +106,23 @@ Two things keep this from becoming a loophole:
   takes a caller and rejects one that is not on the AI channel. Declaring no model use buys a job
   the human-only operations its membership carries; it does not also buy it the model.
 
+## Amendment — 2026-09-21: a narrow role for the stale-record sweep
+
+`stale-record-sweep` calls `detect_staleness`, which needs `ManageIndex`, and until this amendment
+only Administrator carried it. The worker's token therefore had an administrator's reach in its
+workspace, which is the widest thing this ADR's "a real membership" allowed rather than the
+narrowest. Phase 13 (item B8, `info.md` 2026-09-21) adds **`IndexMaintainer`**:
+- It carries `ReadKnowledge`, `ManageOwnCredentials`, so the account can mint its own token, and
+  `ManageIndex`. Nothing else.
+- It is appended to the `Role` enum as 5, because roles are stored as numbers. It is not above
+  Administrator.
+- Authorization therefore stopped choosing the numerically highest covering role and asks whether
+  any covering grant carries the permission. Under the old rule, a person holding both
+  Administrator and IndexMaintainer would have lost every administrator permission.
+
+Nothing else in this ADR changes. The job still runs on `InternalSystem`, still through the
+dispatcher, and is still refused everything its membership does not carry.
+
 ## Consequences
 
 - Stale-record detection, recurring handover reports, and scheduled source analysis become possible

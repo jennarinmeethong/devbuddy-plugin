@@ -164,6 +164,19 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
   4. `AGENTS.md`: "Phase 0 to Phase 12" becomes "to Phase 13", with a pointer here.
 - **Exit:** no document claims something about CI or the plan's status that is no longer true.
 
+### A5 — The web client reads one grant per workspace
+**Status: TODO** (found 2026-09-21 while doing B8)
+
+- `useWorkspace` in `web/admin/src/api/session.tsx` returns the first `WorkspaceAccess` for a
+  workspace, and navigation is built from that grant's permissions. A person holding two grants in
+  one workspace, for example a project-scoped Reviewer and a workspace-wide Viewer, sees the menu
+  of whichever grant came first. The server is unaffected, because it authorizes every request
+  itself.
+- **Fix:**
+  - build workspace navigation from the union of the person's workspace-wide grants;
+  - build project navigation from the workspace-wide grants plus the grants on that project.
+- **Tests:** web unit tests for the merge, and an e2e test with two grants.
+
 ---
 
 ## B — Owner decisions, now taken
@@ -229,7 +242,8 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
   the devbox with the output recorded.
 
 ### B8 — A narrow role for the stale-record sweep
-**Status: TODO**
+**Status: IN PROGRESS** — code merged (see log). What remains: shipping it in a tag, then the owner's
+account and `--stale-after` value on the devbox.
 
 The problem: `stale-record-sweep` needs `ManageIndex`, and only `Administrator` carries it
 (`RolePermissions.cs:50`). A token for it would reach everything an administrator reaches.
@@ -445,6 +459,11 @@ stated rather than claimed away.
   - never writes the token to a log;
   - is audited without the token;
   - refuses a caller resetting their own account;
+  - **refuses unless the caller holds `ManageAccounts` in every workspace where the subject holds
+    a live membership**. A password is installation-wide. Without this rule, an administrator of
+    workspace A could reset a person who also belongs to workspace B and sign in to B as them.
+    This is a cross-tenant takeover, and a test must prove it is refused;
+  - refuses a disabled account, as recovery already does;
   - revokes the target's sessions when the reset completes, which the recovery flow already does.
 - **UI:** a "Reset password" action on the Members screen shows the link once.
 - **Tests:**
@@ -622,4 +641,5 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-21 | — | Plan written and approved by the owner. B6 is blocked on the vendor. HTTPS and `win-arm64` are out of scope. |
 | 2026-09-21 | A4 | **DONE.** `CLAUDE.md`'s SB-19 line now says the tests passed in CI. The claim was checked, not assumed from a green tick: the `ubuntu-latest` test results of CI run 35328802725 (`0fdc064`, 2026-09-18) were downloaded, and they show 896 .NET tests with none failed. `AuditChannelTests`, the two `LifecycleAndAuditTests` SB-19 names, the SB-18 personal-data tests and `DraftEditorReadTests` passed. The dated "Not yet run in CI" entries in `verification-matrix.md` are left as written, as history, with a new 2026-09-21 entry beside them. `docs/plan.md`'s Phase 0 line is annotated as historical. Its closing section no longer says "what is left is a caller and a schedule", and it points here. `AGENTS.md` and `CLAUDE.md` point here, with the rule to log each finished item. No build or test was run for this item, because it is documentation only. |
 | 2026-09-21 | B6, A1 | The owner named **Voyage AI** as the hosted vendor, which unblocks B6 and C8, and confirmed `v1.4.0`. Both are recorded in `info.md`. |
+| 2026-09-21 | B8 (code) | **`IndexMaintainer` built and tested.** It carries `ReadKnowledge`, `ManageOwnCredentials` and `ManageIndex` only. Authorization now asks whether any covering grant carries the permission, instead of picking the highest-numbered role. Under the old rule, a person holding Administrator and IndexMaintainer would have lost every administrator permission. There is a Members-screen option, and `operations.ts` was regenerated. ADR-0013 is amended, and `deployment.md` and `CLAUDE.md` are updated. **Verified on jmhp** (clean clone, SDK container): 901 .NET tests passed, 0 failed (Security 139, Application 273), `dotnet format` exit 0, web 73 pass. **Mutation-checked:** with the old max-role `AuthorizationService.cs` restored, `an_administrator_who_also_holds_index_maintainer_keeps_every_permission` fails. The new e2e test in `permissions.spec.ts` failed first, on its own mistake: `detect_staleness` needs `staleAfter`, and the request was refused as invalid with 400 before any authorization ran. With that fixed, `tests/e2e/run.sh` on jmhp passed **63 of 63**. **Not done:** the devbox enablement, which needs a release carrying the role, the owner's worker account, and the owner's confirmation of `--stale-after` (90d proposed). **Found, not fixed:** the web client's `useWorkspace` uses only a person's first grant in a workspace (`session.tsx`), so someone holding two grants there sees the navigation of whichever came first. This predates B8. It is logged as new item A5. |
 | 2026-09-21 | A1 (pre-tag) | **The full pre-tag checklist passed against `826b34e`, with nothing carried over.** On jmhp: 896 .NET tests, format, 73 web tests, the `linux-x64` publish, Compose from clean, non-root, tokens out of the log both ways, and the destroy-and-restore drill with both volumes. Three new checks: a made-up project refused, `scope-report` clean, `list_source_repositories` human-only. Also the upgrade from `v1.3.0` on amd64. On the Ubuntu 26.04.1 arm64 guest: the upgrade from `v1.3.0`. CI was green on `826b34e`, all four jobs. Recorded in `release-matrix.md`. **Script gap found:** since `0fad716` the console writes refusals to stderr, so the drill script's one-line refusal captures came back empty. Each refusal was read from the stderr log instead, and the AI-operation count was recounted with `awk '$NF=="ai"'` (20, identical to `v1.3.0`). **Not yet:** the tag, the post-tag artefact checks, and the smoke tests. |
