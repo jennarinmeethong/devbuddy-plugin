@@ -84,7 +84,10 @@ driven from inside the runner:
   embeddings mode covers them: `DEVBUDDY_E2E_EMBEDDINGS=1 bash tests/e2e/run.sh
   specs/embeddings.spec.ts` runs pgvector, a stand-in model server that keeps what it is sent, and
   the real sweep as a Viewer account. CI runs it as a job of its own.
-- **The observability overlay.**
+- **The observability overlay in the default run.** `DEVBUDDY_E2E_OBSERVABILITY=1 bash
+  tests/e2e/run.sh specs/observability.spec.ts` covers it: traces in Tempo that carry no identifier
+  and no URL path, logs in Loki, and the provisioned Grafana dashboard. CI runs it as a job of its
+  own.
 - **The GitHub API source mode in the default run.** `DEVBUDDY_E2E_GITHUB=1 bash tests/e2e/run.sh
   specs/github.spec.ts` covers it: a second API instance on the GitHub mode against a stand-in
   GitHub, beside the first on working copies. CI runs it as a job of its own.

@@ -18,6 +18,7 @@
 #   DEVBUDDY_E2E_PROJECT   the Compose project name (default devbuddy-e2e)
 #   DEVBUDDY_E2E_WORKERS   parallel workers (default 4)
 #   DEVBUDDY_E2E_RESTORE=0 skip the destroy-and-restore stage that runs after the suite
+#   DEVBUDDY_E2E_OBSERVABILITY=1  the shipped observability overlay, for specs/observability.spec.ts
 #   DEVBUDDY_E2E_GITHUB=1  a second API instance on the GitHub source mode against a stand-in
 #                          GitHub, for specs/github.spec.ts
 #   DEVBUDDY_E2E_EMBEDDINGS=1  pgvector, a stand-in model server and the embedding sweep, for
@@ -94,6 +95,12 @@ DEVBUDDY_EMBEDDING_DIMENSIONS=64
 DEVBUDDY_EMBEDDING_SWEEP_EVERY=00:00:05
 DEVBUDDY_EMBEDDING_SWEEP_BUDGET=1000
 EOF
+fi
+
+# The observability mode (Phase 13, C5): the shipped observability overlay, queried by a spec.
+if [ "${DEVBUDDY_E2E_OBSERVABILITY:-0}" = 1 ]; then
+  overlays=(--file "$(native "$repo/docker/compose.observability.yaml")" "${overlays[@]}" --file "$(native "$here/compose.observability-e2e.yaml")")
+  echo "DEVBUDDY_GRAFANA_PASSWORD=$(word 24)" >>"$work/.env"
 fi
 
 if [ "$github" = 1 ]; then
