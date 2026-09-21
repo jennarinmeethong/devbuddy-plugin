@@ -22,7 +22,8 @@ public sealed record Provenance
         // constructor parameter whose type differs from the property it names cannot be bound by
         // name, which breaks every by-name construction: serialisers, mappers, and records.
         IReadOnlyList<EvidenceReference>? evidence = null,
-        bool isAiGenerated = false)
+        bool isAiGenerated = false,
+        AiMarking? aiMarking = null)
     {
         SourceKind = Guard.Defined(sourceKind, nameof(sourceKind));
         SourceLocator = Guard.NotLongerThan(
@@ -33,7 +34,8 @@ public sealed record Provenance
 
         // A declared AI draft is AI-generated whatever else is said. The reverse never holds: a
         // source kind other than AiDraft says what the content was drawn from, not who wrote it.
-        IsAiGenerated = isAiGenerated || SourceKind == ProvenanceSourceKind.AiDraft;
+        AiMarking = aiMarking;
+        IsAiGenerated = isAiGenerated || SourceKind == ProvenanceSourceKind.AiDraft || aiMarking is not null;
     }
 
     public ProvenanceSourceKind SourceKind { get; }
@@ -63,7 +65,48 @@ public sealed record Provenance
     /// </summary>
     public bool IsAiGenerated { get; }
 
+    /// <summary>
+    /// Set when an administrator recorded, after the fact, that an AI wrote this (Phase 13, D3).
+    /// Null for everything the channel marked when it was written, and for anything nobody
+    /// corrected. It says who claimed it, when, and why, because a later owner reading the mark
+    /// deserves to know it was a person's statement and not the system's observation.
+    /// </summary>
+    public AiMarking? AiMarking { get; }
+
     /// <summary>The same provenance, marked as written by an AI.</summary>
     public Provenance AsAiGenerated() =>
         IsAiGenerated ? this : new(SourceKind, SourceLocator, Author, RecordedAt, Evidence, isAiGenerated: true);
+
+    /// <summary>
+    /// The same provenance, marked by a person as written by an AI. Refused when it already is:
+    /// the mark only ever goes one way, and marking twice would overwrite who said so.
+    /// </summary>
+    public Provenance MarkedAiGeneratedBy(AiMarking marking)
+    {
+        Guard.NotNull(marking, nameof(marking));
+
+        if (IsAiGenerated)
+        {
+            throw new InvalidTransitionException("This revision is already recorded as written by an AI.");
+        }
+
+        return new(SourceKind, SourceLocator, Author, RecordedAt, Evidence, isAiGenerated: true, aiMarking: marking);
+    }
+}
+
+/// <summary>Who recorded after the fact that an AI wrote a revision, when, and why.</summary>
+public sealed record AiMarking
+{
+    public AiMarking(UserId markedBy, DateTimeOffset markedAt, string reason)
+    {
+        MarkedBy = markedBy;
+        MarkedAt = Guard.Utc(markedAt, nameof(markedAt));
+        Reason = Guard.NotLongerThan(Guard.NotBlank(reason, nameof(reason)), 500, nameof(reason));
+    }
+
+    public UserId MarkedBy { get; }
+
+    public DateTimeOffset MarkedAt { get; }
+
+    public string Reason { get; }
 }

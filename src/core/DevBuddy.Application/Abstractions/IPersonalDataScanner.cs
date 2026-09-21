@@ -44,4 +44,12 @@ public sealed record PersonalDataFinding(string RuleName, int LineNumber, int Le
 public interface IPersonalDataRedactor
 {
     string Redact(string text);
+
+    /// <summary>
+    /// A stable identifier for the rule set this redactor applies (Phase 13, D5). It changes when
+    /// the rules do, which is how a derived copy made under the old rules — an embedding of redacted
+    /// text — knows it is stale. Empty when an implementation cannot say, which the embedding sweep
+    /// reads as "no change to track".
+    /// </summary>
+    string RuleSetFingerprint => string.Empty;
 }

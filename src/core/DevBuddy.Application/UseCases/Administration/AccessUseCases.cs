@@ -185,7 +185,8 @@ public sealed record ReadAuditHistoryRequest(
     DateTimeOffset OccurredFrom,
     DateTimeOffset OccurredUntil,
     UserId? ActorId = null,
-    AuditChannel? Channel = null) : ProjectRequest(Scope)
+    AuditChannel? Channel = null,
+    bool ChannelNotRecorded = false) : ProjectRequest(Scope)
 {
     public override string ResourceReference => "audit";
 
@@ -203,6 +204,11 @@ public sealed record ReadAuditHistoryRequest(
         if (Channel is { } channel && !Enum.IsDefined(channel))
         {
             errors.Add("The channel is not one the audit trail records.");
+        }
+
+        if (Channel is not null && ChannelNotRecorded)
+        {
+            errors.Add("Ask for one channel or for entries with no channel recorded, not both.");
         }
 
         return errors;
@@ -231,6 +237,7 @@ public sealed class ReadAuditHistoryUseCase(IAuditReader reader)
             request.OccurredUntil,
             request.ActorId,
             request.Channel,
+            request.ChannelNotRecorded,
             cancellationToken);
 
         return new AuditHistoryResponse(entries);

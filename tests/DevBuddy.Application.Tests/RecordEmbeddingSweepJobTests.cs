@@ -100,6 +100,39 @@ public sealed class RecordEmbeddingSweepJobTests
     }
 
     /// <summary>
+    /// Phase 13, D5. The text embedded is the redacted text, so an unchanged revision redacted under
+    /// new personal-data rules is different text. Keyed on the content hash alone it was never
+    /// embedded again; keyed on the hash and the rule set, it is, once, and then it costs nothing.
+    /// </summary>
+    [Fact]
+    public async Task a_revision_embedded_under_other_rules_is_embedded_again_once()
+    {
+        RecordingDispatcher recorder = new();
+        recorder.Projects(Guid.NewGuid());
+        recorder.Records(Guid.NewGuid());
+        recorder.History(publishedRevision: 2, contentHash: "HASH-2");
+        recorder.Record("Title", "Body");
+
+        // A row written before rule sets were tracked carries the bare hash.
+        FakeIndex stale = new() { Indexed = new HashSet<string>(["HASH-2"], StringComparer.Ordinal) };
+        CountingProvider provider = new();
+
+        await Run(Job(recorder, Configured(provider), stale, fingerprint: "RULES-B"));
+
+        Assert.Single(provider.Texts);
+        Assert.Equal("HASH-2:RULES-B", Assert.Single(stale.Written).ContentHash);
+
+        // Under the same rules again, nothing is sent.
+        FakeIndex current = new() { Indexed = new HashSet<string>(["HASH-2:RULES-B"], StringComparer.Ordinal) };
+        CountingProvider idle = new();
+
+        await Run(Job(recorder, Configured(idle), current, fingerprint: "RULES-B"));
+
+        Assert.Empty(idle.Texts);
+        Assert.Empty(current.Written);
+    }
+
+    /// <summary>
     /// The difference between a nightly sweep that costs nothing on a quiet installation and one
     /// that re-bills the whole corpus every night.
     /// </summary>
@@ -334,8 +367,8 @@ public sealed class RecordEmbeddingSweepJobTests
     }
 
     private static RecordEmbeddingSweepJob Job(
-        RecordingDispatcher recorder, EmbeddingGateway gateway, FakeIndex index) =>
-        new(recorder.Build(), gateway, index);
+        RecordingDispatcher recorder, EmbeddingGateway gateway, FakeIndex index, string? fingerprint = null) =>
+        new(recorder.Build(), gateway, index, fingerprint);
 
     private static EmbeddingGateway Configured(CountingProvider? provider = null) =>
         new(new CleanScanner(), provider ?? new CountingProvider());

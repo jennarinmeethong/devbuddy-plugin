@@ -51,6 +51,21 @@ The owner confirmed `v1.4.0`, cut from `main` as it stands, as item A1 of Phase 
   - No manual upgrade step is needed.
 - **The Claude plugin package moves to `1.4.0`.** The Codex package carries no version.
 
+## Confirmed Marking a Record as AI-Written After the Fact — 2026-09-21
+
+Phase 13, D3, under the owner's instruction to remove the accepted limitations where code can.
+Records written over MCP before 2026-09-15 may be stored as a person's work. The data cannot say
+which ones, and that stays true.
+
+- **What changes:** an administrator who knows can record it.
+  - `mark_record_ai_generated` marks every unmarked revision of a record.
+  - The mark carries who said so, when, and a required reason.
+- **It goes one way.** Nothing clears the mark or overwrites who made it.
+- **Content, content hash and approvals are untouched.** The mark is not content, and the hash does
+  not cover provenance.
+- **The 2026-09-15 statement narrows, and is not reversed.** Rows still cannot be corrected from the
+  data, only by a person's recorded statement. The UI shows the difference.
+
 ## Confirmed a Report, Not a Migration, for Rows Written Against a Foreign Project — 2026-09-17
 
 The e2e suite found that authorization never checked that a scope's project belongs to the named
@@ -65,6 +80,16 @@ what to do with rows written before it.
   object store. A composite foreign key would fail to apply on any installation that has such rows.
 - **devbox had none** when checked on 2026-09-17, by a read-only count across all nine
   project-scoped tables.
+- **Extended 2026-09-21 (Phase 13, D2): the operator now has the delete, and it is still theirs to
+  run.**
+  - `scope-report --delete --confirm <count> --actor <id>` deletes what the report lists, evidence
+    bytes included, with the same deletion `delete_project` performs, keyed on the workspace and the
+    project together.
+  - It is refused, with nothing changed, if the count has moved since the report, or if the actor
+    does not administer every workspace involved.
+  - It is audited per project.
+  - Nothing runs it automatically, and no migration does. The decision above, report rather than
+    migrate, stands.
 
 ## Confirmed a Screen for Every Operation, Fixes Before the Next Release, Releases on devbox, and HTTPS Deferred — 2026-09-17
 
@@ -157,7 +182,9 @@ implemented. The owner chose each proposal's first option.
   redacted whole.
 
 The AL-2 wording, "catches known shapes", still describes the rule set. Records embedded before
-this change are not re-embedded until they are revised.
+this change are not re-embedded until they are revised. *(Superseded on 2026-09-21 by Phase 13, D5: the
+embedding sweep keys its rows on the rule set's fingerprint as well as the content hash, so every
+record is re-embedded once under the rules in force, within the budget.)*
 
 ### Self-hosted embeddings on the devbox installation
 

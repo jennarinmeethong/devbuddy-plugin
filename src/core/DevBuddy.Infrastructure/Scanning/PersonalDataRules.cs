@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace DevBuddy.Infrastructure.Scanning;
@@ -24,6 +26,40 @@ namespace DevBuddy.Infrastructure.Scanning;
 internal static partial class PersonalDataRules
 {
     public const string Marker = "[REDACTED]";
+
+    /// <summary>
+    /// Bump when a rule's acceptance check changes without its pattern changing, such as a checksum
+    /// or an exempt domain list. A pattern, a name or the order changing is picked up by the
+    /// fingerprint without this. Code cannot be hashed, so this number is the promise that stands
+    /// in for it.
+    /// </summary>
+    public const int ChecksVersion = 1;
+
+    /// <summary>
+    /// The rule set's fingerprint: the checks version, then each rule's name and pattern in order.
+    /// Sixteen hex characters are enough to tell rule sets apart; this is not a security boundary.
+    /// </summary>
+    /// <remarks>
+    /// Computed on each read rather than stored: a static initialiser here would run before
+    /// <see cref="All"/> is assigned below it, and hash an empty rule set.
+    /// </remarks>
+    public static string Fingerprint => FingerprintOf(All, ChecksVersion);
+
+    internal static string FingerprintOf(IEnumerable<PersonalDataRule> rules, int checksVersion)
+    {
+        var canonical = new StringBuilder();
+        canonical.Append(CultureInfo.InvariantCulture, $"checks={checksVersion}\n");
+
+        foreach (PersonalDataRule rule in rules)
+        {
+            canonical.Append(rule.Name).Append('\t')
+                .Append(rule.Pattern.ToString()).Append('\t')
+                .Append(((int)rule.Pattern.Options).ToString(CultureInfo.InvariantCulture)).Append('\n');
+        }
+
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString()));
+        return Convert.ToHexString(hash, 0, 8);
+    }
 
     // Order matters to the redactor, which applies the rules one after another. An email address
     // goes first so that a local part made of digits is removed with its domain, rather than

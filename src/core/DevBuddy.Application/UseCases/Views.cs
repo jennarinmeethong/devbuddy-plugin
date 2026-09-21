@@ -106,10 +106,15 @@ public sealed record ProvenanceView(
     string Author,
     DateTimeOffset RecordedAt,
     bool IsAiGenerated,
-    int EvidenceCount)
+    int EvidenceCount,
+    AiMarkingView? AiMarking = null)
 {
     public ProvenanceView Redact(IRedactor redactor) =>
-        this with { SourceLocator = redactor.Redact(SourceLocator) };
+        this with
+        {
+            SourceLocator = redactor.Redact(SourceLocator),
+            AiMarking = AiMarking is null ? null : AiMarking with { Reason = redactor.Redact(AiMarking.Reason) },
+        };
 
     public static ProvenanceView From(Provenance provenance) =>
         new(
@@ -118,8 +123,17 @@ public sealed record ProvenanceView(
             provenance.Author,
             provenance.RecordedAt,
             provenance.IsAiGenerated,
-            provenance.Evidence.Count);
+            provenance.Evidence.Count,
+            provenance.AiMarking is { } marking
+                ? new AiMarkingView(marking.MarkedBy, marking.MarkedAt, marking.Reason)
+                : null);
 }
+
+/// <summary>
+/// That an administrator, not the channel, recorded an AI as the writer: who, when, and why.
+/// Null when the channel marked it, or when nobody did.
+/// </summary>
+public sealed record AiMarkingView(UserId MarkedBy, DateTimeOffset MarkedAt, string Reason);
 
 /// <summary>Work identity, including the exclusions a later owner usually cannot find.</summary>
 public sealed record WorkItemView(

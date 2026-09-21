@@ -491,6 +491,23 @@ public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
 
             Assert.DoesNotContain(filtered.Entries, entry => entry.Id.Value == legacyId);
         }
+
+        // Asked for by name instead (Phase 13, D4), it is exactly those rows: every one has no
+        // channel, and the legacy row is among them.
+        AuditHistoryResponse unrecorded = await stage.SucceedAsync(
+            readAudit, new ReadAuditHistoryRequest(stage.World.Alpha, from, until, ChannelNotRecorded: true));
+
+        Assert.Contains(unrecorded.Entries, entry => entry.Id.Value == legacyId);
+        Assert.All(unrecorded.Entries, entry => Assert.Null(entry.Channel));
+
+        // A channel and "not recorded" together is a contradiction, refused rather than answered
+        // with an empty list that would read as "nothing happened".
+        Assert.Equal(
+            ExecutionOutcome.Invalid,
+            (await stage.RunAsync(
+                readAudit,
+                new ReadAuditHistoryRequest(
+                    stage.World.Alpha, from, until, Channel: AuditChannel.Human, ChannelNotRecorded: true))).Outcome);
     }
 
     /// <summary>
@@ -689,6 +706,7 @@ public sealed class LifecycleAndAuditTests(SecurityFixture fixture)
                     DateTimeOffset.UtcNow.AddDays(1),
                     actorId: null,
                     channel: null,
+                    channelNotRecorded: false,
                     CancellationToken.None);
 
             return entries.FirstOrDefault(entry => entry.Action == action)

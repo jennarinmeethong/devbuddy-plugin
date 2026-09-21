@@ -264,3 +264,21 @@ docker compose -f docker/compose.yaml run --rm migrate scope-report
 It prints one line per table, workspace and project, and exits 3 if it found any. What to do with
 them is the operator's call. Audit events are not examined, because they outlive the project they
 describe on purpose.
+
+## Audit entries with no channel
+
+Every audit entry written since `v1.3.0` records the channel its request arrived on. Entries
+written before an installation upgraded to `v1.3.0` have none. Where they are:
+
+- **An installation that began on `v1.3.0` or later** has none at all.
+- **One that upgraded** has them from its first day up to the moment `migrate` applied
+  `AuditEventChannel`. That is when the stack first started on `v1.3.0`.
+
+They are **not** backfilled, and must never be (`info.md`, 2026-09-15). Null means "not recorded".
+A guess would make the trail less trustworthy than the gap does.
+
+- **Matching:** they match no channel filter.
+- **Web UI:** the Audit screen shows them as not recorded, and its channel list has "Channel not
+  recorded" to list exactly those.
+- **API:** `read_audit_history` with `channelNotRecorded: true` does the same. It is refused
+  together with a channel, because the two contradict each other.

@@ -30,7 +30,9 @@ export function Audit() {
   const { workspaceId } = useParams();
   const [projectId, setProjectId] = useState("");
   const [days, setDays] = useState(7);
-  const [channel, setChannel] = useState<Channel | "">("");
+  // "unrecorded" is not a channel: it asks for the entries written before the channel was
+  // recorded, which match no channel filter and are never guessed into one.
+  const [channel, setChannel] = useState<Channel | "" | "unrecorded">("");
 
   const projects = useQuery({
     queryKey: ["projects", workspaceId],
@@ -48,7 +50,8 @@ export function Audit() {
         scope: { workspaceId: workspaceId!, projectId },
         occurredFrom: from.toISOString(),
         occurredUntil: until.toISOString(),
-        channel: channel || null,
+        channel: channel === "unrecorded" ? null : channel || null,
+        channelNotRecorded: channel === "unrecorded",
       }),
     enabled: Boolean(workspaceId && projectId),
   });
@@ -78,11 +81,15 @@ export function Audit() {
         </Field>
 
         <Field label="Channel">
-          <Select value={channel} onChange={(event) => setChannel(event.target.value as Channel | "")}>
+          <Select
+            value={channel}
+            onChange={(event) => setChannel(event.target.value as Channel | "" | "unrecorded")}
+          >
             <option value="">Every channel</option>
             <option value="Human">People only</option>
             <option value="Ai">Assistants only</option>
             <option value="InternalSystem">Internal system only</option>
+            <option value="unrecorded">Channel not recorded (before v1.3.0)</option>
           </Select>
         </Field>
       </form>

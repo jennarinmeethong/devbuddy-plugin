@@ -56,6 +56,14 @@ public sealed class RecordRevision
     public UserId CreatedBy { get; }
 
     /// <summary>
+    /// This revision with its provenance marked by a person as written by an AI. The content, and
+    /// so the content hash an approval binds, is untouched; that is the whole reason this is allowed
+    /// on a revision that is otherwise immutable.
+    /// </summary>
+    internal RecordRevision MarkedAiGeneratedBy(AiMarking marking) =>
+        new(Number, Title, Body, FrontMatter, Provenance.MarkedAiGeneratedBy(marking), CreatedAt, CreatedBy);
+
+    /// <summary>
     /// Hash of the canonical content, computed at construction from the title, front matter,
     /// and body, so it always describes what this revision actually contains rather than what
     /// a caller claimed it contains.

@@ -35,6 +35,7 @@ export type OperationName =
   | "request_correction"
   | "publish_record"
   | "archive_record"
+  | "mark_record_ai_generated"
   | "sync_sources"
   | "list_source_repositories"
   | "validate_provenance"
@@ -160,6 +161,11 @@ export type GetRecordResult = {
     recordedAt: string;
     isAiGenerated: boolean;
     evidenceCount: number;
+    aiMarking?: {
+      markedBy: string;
+      markedAt: string;
+      reason: string;
+    } | null;
   };
   lastUpdatedAt: string;
   frontMatter: Record<string, string>;
@@ -225,6 +231,11 @@ export type ViewRecordHistoryResult = {
         recordedAt: string;
         isAiGenerated: boolean;
         evidenceCount: number;
+        aiMarking?: {
+          markedBy: string;
+          markedAt: string;
+          reason: string;
+        } | null;
       };
       isPublished: boolean;
       approval: {
@@ -640,6 +651,20 @@ export type ArchiveRecordResult = {
   publishedRevisionNumber: number | null;
 };
 
+export type MarkRecordAiGeneratedArguments = {
+  recordId: string;
+  reason: string;
+  scope: {
+    workspaceId: string;
+    projectId: string;
+  };
+};
+
+export type MarkRecordAiGeneratedResult = {
+  recordId: string;
+  revisionsMarked: number;
+};
+
 export type SyncSourcesArguments = {
   repositoryId: string;
   scope: {
@@ -855,6 +880,7 @@ export type ReadAuditHistoryArguments = {
   occurredUntil: string;
   actorId?: string | null;
   channel?: "Human" | "Ai" | "InternalSystem" | null;
+  channelNotRecorded?: boolean;
   scope: {
     workspaceId: string;
     projectId: string;
@@ -868,7 +894,7 @@ export type ReadAuditHistoryResult = {
       projectId: string | null;
       actorId: string;
       channel: "Human" | "Ai" | "InternalSystem" | null;
-      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded" | "EvidenceCaptured" | "EvidenceListed" | "PasswordResetIssued";
+      action: "KnowledgeSearched" | "RecordViewed" | "DraftCreated" | "RevisionAdded" | "CorrectionRequested" | "RecordApproved" | "RecordPublished" | "RecordArchived" | "EvidenceDownloaded" | "SourcesSynchronized" | "AiAccessEnabled" | "AiAccessDisabled" | "MembershipGranted" | "MembershipRevoked" | "ExportCreated" | "BackupCreated" | "BackupRestored" | "AccessDenied" | "AnalysisRun" | "HandoverGenerated" | "ApprovalRequested" | "QualitySweepRun" | "IndexRebuilt" | "ContentScanned" | "HealthChecked" | "AuditRead" | "ProjectCreated" | "WorkItemCreated" | "AccountCreated" | "MachineTokenIssued" | "MachineTokenRevoked" | "ProjectDeleted" | "TeamCreated" | "TeamRenamed" | "TeamDeleted" | "TeamMemberAdded" | "TeamMemberRemoved" | "WorkspaceCreated" | "ExportDownloaded" | "EvidenceCaptured" | "EvidenceListed" | "PasswordResetIssued" | "StrayScopeRowsPurged" | "RecordMarkedAiGenerated";
       outcome: "Succeeded" | "Denied" | "Failed";
       resourceReference: string;
       occurredAt: string;
@@ -1148,6 +1174,7 @@ export interface Operations {
   "request_correction": { arguments: RequestCorrectionArguments; result: RequestCorrectionResult };
   "publish_record": { arguments: PublishRecordArguments; result: PublishRecordResult };
   "archive_record": { arguments: ArchiveRecordArguments; result: ArchiveRecordResult };
+  "mark_record_ai_generated": { arguments: MarkRecordAiGeneratedArguments; result: MarkRecordAiGeneratedResult };
   "sync_sources": { arguments: SyncSourcesArguments; result: SyncSourcesResult };
   "list_source_repositories": { arguments: ListSourceRepositoriesArguments; result: ListSourceRepositoriesResult };
   "validate_provenance": { arguments: ValidateProvenanceArguments; result: ValidateProvenanceResult };
@@ -1213,6 +1240,7 @@ export const OPERATIONS: Record<OperationName, { permission: PermissionName; ava
   "request_correction": { permission: "ReviewRecord", availableToAi: false },
   "publish_record": { permission: "PublishRecord", availableToAi: false },
   "archive_record": { permission: "ArchiveRecord", availableToAi: false },
+  "mark_record_ai_generated": { permission: "ManageProjects", availableToAi: false },
   "sync_sources": { permission: "ManageSources", availableToAi: false },
   "list_source_repositories": { permission: "AnalyzeProject", availableToAi: false },
   "validate_provenance": { permission: "ManageIndex", availableToAi: false },

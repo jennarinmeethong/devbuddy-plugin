@@ -381,11 +381,11 @@ public sealed class PersistenceTests(PostgresFixture fixture)
             Ct);
 
         IReadOnlyList<AuditEvent> entries = await audit.QueryAsync(
-            seed.Alpha, Seed.Now.AddDays(-1), Seed.Now.AddDays(1), null, null, Ct);
+            seed.Alpha, Seed.Now.AddDays(-1), Seed.Now.AddDays(1), null, null, false, Ct);
 
         Assert.Equal("get_record:123", Assert.Single(entries).ResourceReference);
         Assert.Empty(await audit.QueryAsync(
-            seed.Beta, Seed.Now.AddDays(-1), Seed.Now.AddDays(1), null, null, Ct));
+            seed.Beta, Seed.Now.AddDays(-1), Seed.Now.AddDays(1), null, null, false, Ct));
     }
 
     [Fact]

@@ -129,6 +129,10 @@ export function RecordDetail() {
         <Archive scope={scope} recordId={recordId!} />
       ) : null}
 
+      {grants(access, "ManageProjects") && record.data && !record.data.provenance.isAiGenerated ? (
+        <MarkAiGenerated scope={scope} recordId={recordId!} />
+      ) : null}
+
       <Panel title="History">
         {history.isPending ? (
           <Empty>Loading…</Empty>
@@ -217,6 +221,12 @@ function Content({ record }: { record: GetRecordResult }) {
         {record.provenance.isAiGenerated ? " · drafted by AI" : ""} · from{" "}
         {record.provenance.sourceLocator} · recorded by {record.provenance.author}
       </p>
+      {record.provenance.aiMarking ? (
+        <p className="text-xs text-[var(--color-muted)]" aria-label="AI marking">
+          Marked as written by AI by {record.provenance.aiMarking.markedBy} on{" "}
+          <When value={record.provenance.aiMarking.markedAt} />: {record.provenance.aiMarking.reason}
+        </p>
+      ) : null}
 
       {/* Part of what an approval binds to, so it is shown rather than taken on trust. */}
       {fields.length > 0 ? (
@@ -556,6 +566,49 @@ function Publish({ scope, recordId }: { scope: Scope; recordId: string }) {
         </Button>
         {publish.isError ? <Failure error={publish.error} /> : null}
       </div>
+    </Panel>
+  );
+}
+
+/**
+ * Records that an AI wrote this, for a record stored as a person's work before 2026-09-15, when
+ * nothing recorded the channel a draft came from. The server keeps who said so and why beside the
+ * mark, and nothing clears it, so it is confirmed rather than one click.
+ */
+function MarkAiGenerated({ scope, recordId }: { scope: Scope; recordId: string }) {
+  const refresh = useRecordRefresh(scope, recordId);
+  const [reason, setReason] = useState("");
+
+  const mark = useMutation({
+    mutationFn: () => invoke("mark_record_ai_generated", { scope, recordId, reason }),
+    onSuccess: async () => {
+      setReason("");
+      await refresh();
+    },
+  });
+
+  return (
+    <Panel title="Record as written by AI">
+      <form
+        className="space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          mark.mutate();
+        }}
+      >
+        <p className="text-sm text-[var(--color-muted)]">
+          For a record an assistant wrote that was stored as a person&apos;s work. Every revision is
+          marked, with your name and this reason beside it. The mark cannot be removed. The content
+          and its approval are not changed.
+        </p>
+        <Field label="How do you know an AI wrote it?">
+          <Input required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
+        </Field>
+        <Button variant="danger" type="submit" disabled={mark.isPending || reason.trim() === ""}>
+          Mark as written by AI
+        </Button>
+        {mark.isError ? <Failure error={mark.error} /> : null}
+      </form>
     </Panel>
   );
 }

@@ -506,4 +506,31 @@ public sealed class PersonalDataCorpusTests
         Assert.DoesNotContain(EmailAddress, redacted, StringComparison.Ordinal);
         Assert.DoesNotContain("2533", redacted, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Phase 13, D5: the fingerprint a derived copy is keyed on. Stable while the rules are, and
+    /// different as soon as a pattern, a name, the order or the checks version changes.
+    /// </summary>
+    [Fact]
+    public void the_rule_set_fingerprint_is_stable_and_moves_with_the_rules()
+    {
+        string fingerprint = PersonalDataRules.Fingerprint;
+
+        Assert.Matches("^[0-9A-F]{16}$", fingerprint);
+        Assert.Equal(fingerprint, PersonalDataRules.Fingerprint);
+        Assert.Equal(fingerprint, new PersonalDataRedactor().RuleSetFingerprint);
+
+        List<PersonalDataRule> rules = [.. PersonalDataRules.All];
+        Assert.Equal(fingerprint, PersonalDataRules.FingerprintOf(rules, PersonalDataRules.ChecksVersion));
+
+        List<PersonalDataRule> changedPattern = [.. rules];
+        changedPattern[0] = changedPattern[0] with { Pattern = new System.Text.RegularExpressions.Regex("changed") };
+        Assert.NotEqual(fingerprint, PersonalDataRules.FingerprintOf(changedPattern, PersonalDataRules.ChecksVersion));
+
+        List<PersonalDataRule> reordered = [.. rules];
+        reordered.Reverse();
+        Assert.NotEqual(fingerprint, PersonalDataRules.FingerprintOf(reordered, PersonalDataRules.ChecksVersion));
+
+        Assert.NotEqual(fingerprint, PersonalDataRules.FingerprintOf(rules, PersonalDataRules.ChecksVersion + 1));
+    }
 }

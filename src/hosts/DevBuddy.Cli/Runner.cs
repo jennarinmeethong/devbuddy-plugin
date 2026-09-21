@@ -167,6 +167,50 @@ internal static class Runner
     }
 
     /// <summary>
+    /// Deletes what <see cref="ScopeReportAsync"/> reports, when the operator confirms the count it
+    /// showed and names an actor who administers every workspace involved. Refused with nothing
+    /// changed otherwise; see <see cref="IScopeIntegrityReport.PurgeAsync"/>.
+    /// </summary>
+    public static async Task<int> ScopePurgeAsync(int? confirm, string? actor, CancellationToken cancellationToken)
+    {
+        if (confirm is not { } expected || !Guid.TryParse(actor, out Guid actorId))
+        {
+            Console.Error.WriteLine(
+                "Deleting needs --confirm <the row count scope-report showed> and --actor <your user id>. Nothing was deleted.");
+            return Misconfigured;
+        }
+
+        return await WithScopeAsync(async scope =>
+        {
+            StrayScopePurge purge = await scope.ServiceProvider
+                .GetRequiredService<IScopeIntegrityReport>()
+                .PurgeAsync(new UserId(actorId), expected, cancellationToken);
+
+            switch (purge.Outcome)
+            {
+                case StrayScopePurgeOutcome.Purged:
+                    Console.WriteLine(purge.Message);
+                    foreach (StrayScopeRows entry in purge.Removed)
+                    {
+                        Console.WriteLine(string.Create(
+                            CultureInfo.InvariantCulture,
+                            $"{entry.Table,-28} workspace {entry.WorkspaceId}  project {entry.ProjectId}  rows {entry.Rows}"));
+                    }
+
+                    return Ok;
+
+                case StrayScopePurgeOutcome.NothingToPurge:
+                    Console.WriteLine(purge.Message);
+                    return Ok;
+
+                default:
+                    Console.Error.WriteLine(purge.Message);
+                    return Refused;
+            }
+        });
+    }
+
+    /// <summary>
     /// Applies the retention schedule, outside the pipeline for the same reason as
     /// <see cref="RestoreAsync"/>: a sweep spans every workspace and project, so there is no
     /// single caller to authorise it against.
@@ -259,7 +303,8 @@ internal static class Runner
                     ? new RecordEmbeddingSweepJob(
                         dispatcher,
                         services.GetRequiredService<EmbeddingGateway>(),
-                        services.GetRequiredService<IEmbeddingIndex>())
+                        services.GetRequiredService<IEmbeddingIndex>(),
+                        services.GetRequiredService<IPersonalDataRedactor>().RuleSetFingerprint)
                     : new StaleRecordSweepJob(dispatcher, staleAfter!.Value);
 
                 WorkerRunReport report = await WorkerSchedule.PassAsync(

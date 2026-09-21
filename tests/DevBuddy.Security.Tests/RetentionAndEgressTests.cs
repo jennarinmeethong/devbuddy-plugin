@@ -125,7 +125,7 @@ public sealed class RetentionAndEgressTests(SecurityFixture fixture)
         IReadOnlyList<AuditEvent> entries = await ground.Session.Resolve<IAuditReader>()
             .QueryAsync(
                 ground.World.Alpha, World.Now.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1),
-                actorId: null, channel: null, CancellationToken.None);
+                actorId: null, channel: null, channelNotRecorded: false, CancellationToken.None);
 
         AuditEvent entry = Assert.Single(entries, candidate => candidate.Action == AuditAction.ContentScanned);
 

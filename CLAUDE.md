@@ -290,8 +290,12 @@ rather than a formality: `list_projects` omits a project nobody opened to AI, so
 opened to AI is never embedded**; SB-18 redacts what the job reads; and SB-17 scans twice, so a
 record carrying a credential is skipped with nothing sent and the sweep continues. It embeds **the
 published revision and nothing else** — a draft is not knowledge yet, and indexing one would let a
-semantic search surface something nobody approved. It re-embeds only what changed, by content hash,
-so an unchanged record costs neither a read nor an embedding. **An archived record keeps its
+semantic search surface something nobody approved. It re-embeds only what changed, keyed on the
+content hash **and the personal-data rule set's fingerprint** (Phase 13, D5), so an unchanged
+record costs neither a read nor an embedding, but a change to the SB-18 rules re-embeds every
+record once, within the budget, because the redacted text it embedded is no longer what it would
+send. Bump `PersonalDataRules.ChecksVersion` when a rule's acceptance check changes without its
+pattern changing; the fingerprint cannot see code. **An archived record keeps its
 published revision**, so since 2026-09-17 the sweep removes its rows, and a newer published
 revision replaces the older one's row rather than ranking beside it. `search_similar_records` also
 answers only a record's current published revision, and never an archived record, because the
@@ -560,16 +564,23 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   and `revise_draft` take `DraftProvenance`, which has no such field. `ForCaller` marks anything
   arriving on `AccessChannel.Ai`. A person declaring `AiDraft` is honoured, and a revision of AI
   content stays marked. Until then, a draft written over MCP that named `RepositoryAnalysis` was
-  published as a person's work. **Rows written before the fix cannot be corrected**, because
-  nothing recorded the channel a draft came from. Do not put the domain `Provenance` back on a
-  request record.
+  published as a person's work. **Rows written before the fix cannot be corrected from the data**,
+  because nothing recorded the channel a draft came from. Since Phase 13 an administrator who
+  *knows* can record it: `mark_record_ai_generated` (human-only, `ManageProjects`, reason
+  required) marks every unmarked revision with who said so, when and why (`Provenance.AiMarking`).
+  It goes one way only, leaves content and content hash untouched so approvals stay bound, and is
+  the one change `UpdateRecordAsync` accepts on a stored revision. Do not put the domain
+  `Provenance` back on a request record.
 - **The project in a scope is a claim, like the workspace.** Since 2026-09-17
   `AuthorizationService` treats a project that is not a live project of the named workspace as
   covered by no grant, with the same denial as any other unreachable scope. Before that, a workspace
   administrator could write rows against another tenant's project identifier or a made-up one.
   A workspace-level request that names a project in its body, like `grant_membership`, has to
   check it itself. Rows from before are reported by the read-only `scope-report` console command,
-  not migrated (`info.md`). The Playwright suite in `tests/e2e` found this, and
+  not migrated (`info.md`). Since Phase 13 the operator can delete them with
+  `scope-report --delete --confirm <count> --actor <id>`: refused unless the count still matches
+  the report and the actor administers every workspace involved, and audited per project as
+  `StrayScopeRowsPurged` on the internal channel. Nothing runs it on its own. The Playwright suite in `tests/e2e` found this, and
   `bash tests/e2e/run.sh` runs it against a throwaway stack.
 - **Never execute repository scripts** — no builds, restores, or tests — while analysing a
   repository under study. Analysis is read-only.

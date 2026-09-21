@@ -4,6 +4,7 @@ using DevBuddy.Application.UseCases.Administration;
 using DevBuddy.Application.UseCases.Reading;
 using DevBuddy.Domain.Access;
 using DevBuddy.Domain.Common;
+using DevBuddy.Domain.Evidence;
 using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
 using Microsoft.EntityFrameworkCore;
@@ -243,6 +244,83 @@ public sealed class ProjectScopeTests(SecurityFixture fixture)
             new ListWorkItemsUseCase(session.Resolve<IKnowledgeRepository>()),
             new ListWorkItemsRequest(scope),
             World.Human(caller));
+    }
+
+    [Fact]
+    public async Task the_scope_report_deletes_only_when_the_count_and_the_actor_are_right()
+    {
+        World ours = await _fixture.CreateWorldAsync();
+        World theirs = await _fixture.CreateWorldAsync();
+        var ghost = ProjectId.New();
+        UserId administrator = await _fixture.CreateUserAsync($"purger-{Guid.NewGuid():N}@example.com");
+        UserId viewer = await _fixture.CreateUserAsync($"purge-viewer-{Guid.NewGuid():N}@example.com");
+        await _fixture.GrantAsync(ours.Workspace, administrator, Role.Administrator);
+        await _fixture.GrantAsync(ours.Workspace, viewer, Role.Viewer);
+
+        // Strays, including evidence whose bytes must go too.
+        await _fixture.SeedWorkItemAsync(new ProjectScope(ours.Workspace, theirs.AlphaId), "CRQ-PURGE1", ours.Founder);
+        await _fixture.SeedWorkItemAsync(new ProjectScope(ours.Workspace, ghost), "CRQ-PURGE2", ours.Founder);
+        await _fixture.GrantAsync(ours.Workspace, viewer, Role.Viewer, ghost);
+
+        using Session session = _fixture.OpenSession(ours.Workspace);
+        EvidenceObject stray;
+        using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("stray evidence bytes")))
+        {
+            stray = await session.Resolve<IEvidenceStore>().StoreAsync(
+                new ProjectScope(ours.Workspace, ghost), stream, "text/plain", ours.Founder, CancellationToken.None);
+        }
+
+        // Not strays, and they must survive: a live project's content, and the other tenant's own
+        // project, whose identifier the stray row borrowed.
+        await _fixture.SeedWorkItemAsync(ours.Alpha, "CRQ-KEEP1", ours.Founder);
+        await _fixture.SeedWorkItemAsync(theirs.Alpha, "CRQ-KEEP2", theirs.Founder);
+
+        IScopeIntegrityReport report = session.Resolve<IScopeIntegrityReport>();
+        int total = (await report.FindAsync(TestToken.None)).Sum(entry => entry.Rows);
+
+        // Every workspace with strays must be administered by the actor, including any a test
+        // before this one left behind. Grant the administrator on each, so only the checks under
+        // test can refuse.
+        foreach (Guid other in (await report.FindAsync(TestToken.None)).Select(entry => entry.WorkspaceId).Distinct())
+        {
+            if (other != ours.Workspace.Value)
+            {
+                await _fixture.GrantAsync(new WorkspaceId(other), administrator, Role.Administrator);
+            }
+        }
+
+        Assert.Equal(StrayScopePurgeOutcome.CountChanged,
+            (await report.PurgeAsync(administrator, total + 1, TestToken.None)).Outcome);
+        Assert.Equal(StrayScopePurgeOutcome.NotAnAdministrator,
+            (await report.PurgeAsync(viewer, total, TestToken.None)).Outcome);
+        Assert.True(await AnyWorkItemAgainstAsync(ghost));
+
+        StrayScopePurge purge = await report.PurgeAsync(administrator, total, TestToken.None);
+
+        Assert.Equal(StrayScopePurgeOutcome.Purged, purge.Outcome);
+        Assert.Empty(await report.FindAsync(TestToken.None));
+        Assert.False(await AnyWorkItemAgainstAsync(ghost));
+        Assert.False(await session.Db.EvidenceObjects.IgnoreQueryFilters().AnyAsync(row => row.Id == stray.Id.Value));
+        await Assert.ThrowsAsync<FileNotFoundException>(() =>
+            session.Resolve<IEvidenceStore>().OpenReadAsync(stray, CancellationToken.None));
+
+        // What was not a stray is untouched, the other tenant's project included.
+        Assert.True(await session.Db.WorkItems.IgnoreQueryFilters().AnyAsync(row => row.Key == "CRQ-KEEP1"));
+        Assert.True(await session.Db.WorkItems.IgnoreQueryFilters().AnyAsync(row => row.Key == "CRQ-KEEP2"));
+        Assert.True(await session.Db.Projects.IgnoreQueryFilters().AnyAsync(row => row.Id == theirs.AlphaId.Value));
+
+        // Audited, as the actor, on the internal channel.
+        int audited = await session.Db.AuditEvents
+            .IgnoreQueryFilters()
+            .CountAsync(row => row.Action == (int)Domain.Auditing.AuditAction.StrayScopeRowsPurged
+                && row.ActorId == administrator.Value
+                && row.Channel == (int)Domain.Auditing.AuditChannel.InternalSystem
+                && row.WorkspaceId == ours.Workspace.Value);
+        Assert.Equal(2, audited);
+
+        // Running it again finds nothing and deletes nothing.
+        Assert.Equal(StrayScopePurgeOutcome.NothingToPurge,
+            (await report.PurgeAsync(administrator, 0, TestToken.None)).Outcome);
     }
 
     private async Task<bool> AnyWorkItemAgainstAsync(ProjectId project)

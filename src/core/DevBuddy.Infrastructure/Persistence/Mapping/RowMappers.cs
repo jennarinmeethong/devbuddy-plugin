@@ -393,7 +393,10 @@ internal static class RowMappers
                 .. json.Evidence.Select(evidence =>
                     new EvidenceReference(new EvidenceObjectId(evidence.EvidenceObjectId), evidence.Description))
             ],
-            json.IsAiGenerated);
+            json.IsAiGenerated,
+            json is { AiMarkedBy: { } markedBy, AiMarkedAt: { } markedAt, AiMarkedReason: { } reason }
+                ? new AiMarking(new UserId(markedBy), markedAt, reason)
+                : null);
 
     private static ProvenanceJson ToRow(Provenance provenance) => new()
     {
@@ -402,6 +405,9 @@ internal static class RowMappers
         Author = provenance.Author,
         RecordedAt = provenance.RecordedAt,
         IsAiGenerated = provenance.IsAiGenerated,
+        AiMarkedBy = provenance.AiMarking?.MarkedBy.Value,
+        AiMarkedAt = provenance.AiMarking?.MarkedAt,
+        AiMarkedReason = provenance.AiMarking?.Reason,
         Evidence =
         [
             .. provenance.Evidence.Select(evidence => new EvidenceReferenceJson
