@@ -6,11 +6,12 @@ namespace DevBuddy.Application.Security;
 /// What each role may do. One table, in the application layer, so the question "who can publish"
 /// has a single answer rather than one per endpoint.
 /// <para>
-/// Roles are cumulative by design: a reviewer can do everything a contributor can. That is the
-/// shape info.md describes, and it keeps the table small enough to read in one go. It is not a
-/// numeric comparison, though: <see cref="Grants"/> looks the permission up rather than comparing
-/// role values, so introducing a role that is not a superset of the one below it stays possible
-/// without rewriting every check.
+/// The four roles info.md describes are cumulative: a reviewer can do everything a contributor
+/// can. <see cref="Role.IndexMaintainer"/> is not part of that ladder. It carries reading, its own
+/// credentials, and <see cref="PermissionKind.ManageIndex"/>, so a worker that sweeps for stale
+/// records holds no administrator's reach. That is why <see cref="Grants"/> looks the permission up
+/// rather than comparing role values, and why authorization asks whether <i>any</i> of a caller's
+/// grants carries a permission rather than picking one "strongest" role.
 /// </para>
 /// <para>
 /// A role never authorises anything on its own. The authorization service still has to establish
@@ -56,6 +57,13 @@ public static class RolePermissions
         PermissionKind.ProvisionWorkspace,
     ];
 
+    private static readonly PermissionKind[] IndexMaintainerPermissions =
+    [
+        PermissionKind.ReadKnowledge,
+        PermissionKind.ManageOwnCredentials,
+        PermissionKind.ManageIndex,
+    ];
+
     /// <summary>Whether this role carries this permission. Unknown roles grant nothing.</summary>
     public static bool Grants(Role role, PermissionKind permission) =>
         For(role).Contains(permission);
@@ -66,6 +74,7 @@ public static class RolePermissions
         Role.Contributor => ContributorPermissions,
         Role.Reviewer => ReviewerPermissions,
         Role.Administrator => AdministratorPermissions,
+        Role.IndexMaintainer => IndexMaintainerPermissions,
 
         // Deny by default. A role added to the enum without being added here grants nothing,
         // which is the safe direction to fail.

@@ -13,7 +13,7 @@ import { env, password, unique } from "./env";
  * sees.
  */
 
-export type Role = "Viewer" | "Contributor" | "Reviewer" | "Administrator";
+export type Role = "Viewer" | "Contributor" | "Reviewer" | "Administrator" | "IndexMaintainer";
 
 export interface Person {
   userId: string;

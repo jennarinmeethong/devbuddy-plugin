@@ -41,7 +41,7 @@ export interface TokenPair {
 export interface WorkspaceAccess {
   workspaceId: string;
   name: string;
-  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator";
+  role: "Viewer" | "Contributor" | "Reviewer" | "Administrator" | "IndexMaintainer";
   scopedToProject: string | null;
   permissions: PermissionName[];
 }

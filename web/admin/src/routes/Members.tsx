@@ -6,7 +6,7 @@ import { useSession, useWorkspace } from "../api/session";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 
-const ROLES = ["Viewer", "Contributor", "Reviewer", "Administrator"] as const;
+const ROLES = ["Viewer", "Contributor", "Reviewer", "Administrator", "IndexMaintainer"] as const;
 
 /**
  * Membership administration: who is in this workspace, what each grant allows, and bringing
@@ -308,7 +308,10 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
           />
         </Field>
 
-        <Field label="Role" hint="Roles are cumulative: a reviewer can do everything a contributor can.">
+        <Field
+          label="Role"
+          hint="Viewer to Administrator are cumulative: a reviewer can do everything a contributor can. IndexMaintainer is for a worker account: it reads and maintains the index, and nothing else."
+        >
           <Select value={role} onChange={(event) => setRole(event.target.value as (typeof ROLES)[number])}>
             {ROLES.map((option) => (
               <option key={option} value={option}>

@@ -306,8 +306,10 @@ screen stops the next pass without a restart — enters the token's own workspac
 gives each pass a fresh budget. `record-embedding-sweep` must be given `--budget` and Compose
 defaults it to zero; `stale-record-sweep` must be given `--stale-after` and has no default. A pass
 that cannot run is reported as **refused**, not as an error, and the schedule continues. Two things
-that are easy to get wrong: **`stale-record-sweep` needs `ManageIndex`, which only the
-Administrator role carries**, so its token's owner administers that workspace; and the MCP server
+that are easy to get wrong: **`stale-record-sweep` needs `ManageIndex`**, which since Phase 13 the
+narrow `IndexMaintainer` role carries alongside Administrator, so its token's owner holds that role
+and nothing wider (and authorization asks whether *any* covering grant carries a permission,
+because that role is numbered after Administrator and is not above it); and the MCP server
 did not receive the embedding settings in Compose until this change, so semantic search would have
 answered "no provider" to every assistant on an installation that enabled one.
 

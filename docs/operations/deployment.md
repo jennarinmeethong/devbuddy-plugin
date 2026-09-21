@@ -99,10 +99,11 @@ works in. Every call the job makes is authorised against that membership and aud
 account's name. The token is resolved again on every pass, so **revoking it stops the next pass**
 without touching this file or restarting anything. Use one account per job:
 
-- **`stale-record-sweep`** calls `detect_staleness`, which needs `ManageIndex`. Today only the
-  Administrator role carries that, so this worker's account is an administrator of its workspace —
-  grant it on one workspace, not more, and treat its token accordingly. It sends nothing to a
-  model. `DEVBUDDY_STALE_AFTER` has no default and the worker refuses to start without it, because
+- **`stale-record-sweep`** calls `detect_staleness`, which needs `ManageIndex`. Give its account
+  the **`IndexMaintainer`** role, which carries reading, its own credentials and `ManageIndex` and
+  nothing else, on one workspace, not more. Until Phase 13 only Administrator carried
+  `ManageIndex`, so this worker's token had an administrator's reach; do not go back to that. It
+  sends nothing to a model. `DEVBUDDY_STALE_AFTER` has no default and the worker refuses to start without it, because
   how long untouched is suspect depends on the installation.
 - **`record-embedding-sweep`** needs read access, which Viewer carries, and nothing more. It also
   needs an embedding provider configured, a pgvector-capable database image, and at least one

@@ -75,9 +75,9 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
             return AuthorizationDecision.Deny("The account is disabled.");
         }
 
-        Role? role = await EffectiveRoleAsync(request, cancellationToken);
+        IReadOnlyList<Role> roles = await CoveringRolesAsync(request, cancellationToken);
 
-        if (role is null)
+        if (roles.Count == 0)
         {
             // Deliberately the same message whether the caller has no grant, the grant was
             // revoked, or the project belongs to someone else entirely. A denial that explains
@@ -85,10 +85,15 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
             return AuthorizationDecision.Deny("The caller has no access to this scope.");
         }
 
-        if (!RolePermissions.Grants(role.Value, request.Permission))
+        // Any covering grant whose role carries the permission is enough. This used to pick the
+        // numerically highest role and ask only that one, which was right only while every role
+        // was a superset of the one below it. IndexMaintainer is not: it is numbered after
+        // Administrator and carries far less, so a person holding both would have lost every
+        // administrator permission.
+        if (!roles.Any(role => RolePermissions.Grants(role, request.Permission)))
         {
             return AuthorizationDecision.Deny(
-                $"The role {role.Value} does not carry {request.Permission}.");
+                $"The role {string.Join(", ", roles)} does not carry {request.Permission}.");
         }
 
         if (request.Caller.Channel == AccessChannel.Ai)
@@ -100,11 +105,11 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
     }
 
     /// <summary>
-    /// The strongest role among the caller active grants that cover this scope, or null when none
-    /// does. A revoked grant covers nothing, which is what makes revocation take effect on the
-    /// next request rather than at the next sign-in.
+    /// The roles of the caller's active grants that cover this scope, each once, in a stable
+    /// order; empty when none does. A revoked grant covers nothing, which is what makes
+    /// revocation take effect on the next request rather than at the next sign-in.
     /// </summary>
-    private async Task<Role?> EffectiveRoleAsync(
+    private async Task<IReadOnlyList<Role>> CoveringRolesAsync(
         AuthorizationRequest request, CancellationToken cancellationToken)
     {
         if (request.ProjectId is { } requestedProject
@@ -116,7 +121,7 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
             // every other scope the caller cannot reach, so it says nothing about what exists.
             // Without it a workspace administrator could write rows under their own workspace
             // against any project identifier at all, and reads answered with empty lists.
-            return null;
+            return [];
         }
 
         List<MembershipRow> rows = await _db.Memberships
@@ -126,24 +131,14 @@ internal sealed class AuthorizationService(DevBuddyDbContext db) : IAuthorizatio
                 && membership.RevokedAt == null)
             .ToListAsync(cancellationToken);
 
-        Role? strongest = null;
-
-        foreach (MembershipRow row in rows)
-        {
-            if (!Covers(row, request.ProjectId))
-            {
-                continue;
-            }
-
-            var role = (Role)row.Role;
-
-            if (strongest is null || role > strongest)
-            {
-                strongest = role;
-            }
-        }
-
-        return strongest;
+        return
+        [
+            .. rows
+                .Where(row => Covers(row, request.ProjectId))
+                .Select(row => (Role)row.Role)
+                .Distinct()
+                .Order(),
+        ];
     }
 
     /// <summary>
