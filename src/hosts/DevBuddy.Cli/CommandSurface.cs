@@ -310,17 +310,32 @@ internal static class CommandSurface
     }
 
     /// <summary>
-    /// Reports rows stored against a project their workspace does not have. Read-only, and outside
-    /// the pipeline for the reason <c>retention</c> is: it spans every workspace.
+    /// Reports rows stored against a project their workspace does not have, outside the pipeline
+    /// for the reason <c>retention</c> is: it spans every workspace. Read-only unless the operator
+    /// asks for <c>--delete</c>, confirms the exact count the report showed, and names an
+    /// <c>--actor</c> who administers every workspace involved (Phase 13, D2).
     /// </summary>
     private static Command ScopeReport()
     {
+        Option<bool> delete = new("--delete")
+        {
+            Description = "Delete the rows the report finds. Needs --confirm and --actor.",
+        };
+        Option<int?> confirm = new("--confirm")
+        {
+            Description = "The row count the report showed. The delete is refused if it has changed.",
+        };
+
         Command command = new(
             "scope-report",
             "Lists rows stored against a project that is not a live project of their workspace. "
-            + "Changes nothing; exits 3 when it finds any.");
+            + "Changes nothing unless --delete is given; exits 3 when it finds any.");
+        command.Add(delete);
+        command.Add(confirm);
 
-        command.SetAction((_, cancellationToken) => Runner.ScopeReportAsync(cancellationToken));
+        command.SetAction((result, cancellationToken) => result.GetValue(delete)
+            ? Runner.ScopePurgeAsync(result.GetValue(confirm), result.GetValue(Actor), cancellationToken)
+            : Runner.ScopeReportAsync(cancellationToken));
 
         return command;
     }

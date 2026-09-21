@@ -569,7 +569,10 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   administrator could write rows against another tenant's project identifier or a made-up one.
   A workspace-level request that names a project in its body, like `grant_membership`, has to
   check it itself. Rows from before are reported by the read-only `scope-report` console command,
-  not migrated (`info.md`). The Playwright suite in `tests/e2e` found this, and
+  not migrated (`info.md`). Since Phase 13 the operator can delete them with
+  `scope-report --delete --confirm <count> --actor <id>`: refused unless the count still matches
+  the report and the actor administers every workspace involved, and audited per project as
+  `StrayScopeRowsPurged` on the internal channel. Nothing runs it on its own. The Playwright suite in `tests/e2e` found this, and
   `bash tests/e2e/run.sh` runs it against a throwaway stack.
 - **Never execute repository scripts** — no builds, restores, or tests — while analysing a
   repository under study. Analysis is read-only.

@@ -65,6 +65,16 @@ what to do with rows written before it.
   object store. A composite foreign key would fail to apply on any installation that has such rows.
 - **devbox had none** when checked on 2026-09-17, by a read-only count across all nine
   project-scoped tables.
+- **Extended 2026-09-21 (Phase 13, D2): the operator now has the delete, and it is still theirs to
+  run.**
+  - `scope-report --delete --confirm <count> --actor <id>` deletes what the report lists, evidence
+    bytes included, with the same deletion `delete_project` performs, keyed on the workspace and the
+    project together.
+  - It is refused, with nothing changed, if the count has moved since the report, or if the actor
+    does not administer every workspace involved.
+  - It is audited per project.
+  - Nothing runs it automatically, and no migration does. The decision above, report rather than
+    migrate, stands.
 
 ## Confirmed a Screen for Every Operation, Fixes Before the Next Release, Releases on devbox, and HTTPS Deferred — 2026-09-17
 
