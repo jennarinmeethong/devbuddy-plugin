@@ -86,7 +86,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
 ## A — Work that can start at once
 
 ### A1 — Release `v1.4.0` from current `main`
-**Status: TODO**
+**Status: IN PROGRESS**
 
 - **Version:** `v1.4.0`, a minor release, because it adds capability:
   - the screens for every operation;
@@ -142,7 +142,8 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
 **Status: TODO** (with A1)
 
 - **Steps:**
-  1. Bump `plugins/claude/.claude-plugin/plugin.json` and the Codex package to `1.4.0`.
+  1. Bump `plugins/claude/.claude-plugin/plugin.json` to `1.4.0`. The Codex package carries no
+     version.
   2. Confirm `PluginPackageTests` still passes.
   3. Reinstall the plugin locally and call `list_projects` through it.
 - **Exit:** the package version matches the release, and one tool call succeeds through the

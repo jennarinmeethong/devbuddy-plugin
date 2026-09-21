@@ -26,6 +26,31 @@ progress log are in `docs/plan-phase-13.md`.
   cannot.** A downloaded copy cannot be recalled. Null audit channels are never backfilled, as the
   2026-09-15 entry requires.
 
+## Confirmed Cutting v1.4.0 — 2026-09-21
+
+The owner confirmed `v1.4.0`, cut from `main` as it stands, as item A1 of Phase 13
+(`docs/plan-phase-13.md`).
+
+- **A minor version.** It adds capability:
+  - a screen for every operation a person needs;
+  - `list_source_repositories`, human-only;
+  - the read-only `scope-report` console command.
+
+  It adds no migration. `release.yml` and everything under `docker` are unchanged since `v1.3.0`,
+  and only `ci.yml` gained the end-to-end job, so no throwaway prerelease tag is cut.
+- **The checklist is re-run in full**, with nothing carried over. The upgrade from `v1.3.0` runs on
+  amd64 and on arm64.
+- **Its release notes must say what a caller will notice:**
+  - A request naming a project that is not a live project of its workspace is now denied like any
+    other unreachable scope.
+  - Run `scope-report` once after upgrading, to list rows written against such a project before
+    the check.
+  - An audit reference too long for its entry is refused as invalid before anything runs.
+  - Semantic search no longer answers archived records or superseded revisions.
+  - The console writes its logs to standard error, so a `run` result on standard output parses.
+  - No manual upgrade step is needed.
+- **The Claude plugin package moves to `1.4.0`.** The Codex package carries no version.
+
 ## Confirmed a Report, Not a Migration, for Rows Written Against a Foreign Project — 2026-09-17
 
 The e2e suite found that authorization never checked that a scope's project belongs to the named
