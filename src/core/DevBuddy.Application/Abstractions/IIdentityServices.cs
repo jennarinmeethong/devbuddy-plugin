@@ -93,6 +93,14 @@ public interface ITokenService
 
     /// <summary>Revokes every refresh token a user holds, on sign-out everywhere or on suspicion.</summary>
     Task RevokeAllAsync(UserId userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether the session an access token was issued for is still live (Phase 13, D6): some
+    /// refresh token of that family is neither used, revoked nor expired. An access token is signed
+    /// and self-contained, so without this it outlived signing out, a revoke-all, and a restore
+    /// (which does not bring sessions back) for up to its fifteen-minute lifetime.
+    /// </summary>
+    Task<bool> IsSessionLiveAsync(UserId userId, Guid sessionId, CancellationToken cancellationToken);
 }
 
 /// <summary>An access token and the refresh token that will replace it.</summary>
@@ -230,3 +238,13 @@ public sealed record WorkspaceAccess(
     /// </para>
     /// </summary>
     IReadOnlyList<string> Permissions);
+
+/// <summary>Claims an access token carries beyond the registered ones.</summary>
+public static class SessionTokenClaims
+{
+    /// <summary>
+    /// The refresh-token family the access token was issued for (Phase 13, D6). A name of its own
+    /// rather than <c>sid</c>, which JWT bearer handling may remap to another claim type.
+    /// </summary>
+    public const string Session = "devbuddy_session";
+}

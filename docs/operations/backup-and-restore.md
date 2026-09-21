@@ -105,11 +105,13 @@ drill run against an older build could only ever have exercised five of the six 
 | Plugins | A machine token that worked before still works. Over stdio, which is where a machine token is presented; the HTTP transport takes a signed-in session instead. |
 
 **What "sessions are not restored" means, exactly.** The refresh-session rows are not in a backup,
-so nobody can refresh a session across a restore and everybody signs in again. It does **not** mean
-previously issued access tokens stop working: those are stateless JWTs signed with
-`Identity:SigningKey`, and one inside its lifetime still validates after a restore. Observed in the
-v1.1.0 drill. A restore cannot revoke an issued bearer token, and nothing about that is specific to
-restoring — rotating the signing key is what invalidates them.
+so nobody can refresh a session across a restore and everybody signs in again. **Since Phase 13
+(D6) it also means every access token issued before the disaster stops working.** Each access token
+names the refresh-token family it was issued for, and both web hosts refuse a token whose family
+has no live refresh token left. After a restore none does. Before this, a token inside its lifetime
+still validated after a restore; the v1.1.0 to v1.4.0 drills observed that and recorded it. The
+same check makes signing out, and the revoke-all that a password recovery performs, end access tokens
+at once rather than at expiry.
 
 **Destroy the evidence volume too, not just the database.** The drill below names
 `devbuddy_database`, and with the evidence volume left in place the artefact bytes were never

@@ -233,7 +233,9 @@ backup, the approval was still bound to the same content hash, and the machine t
 the disaster still resolved. `docs/operations/release-matrix.md` records it. It also found one
 overstatement in the documentation rather than in the code: an access token issued before a restore
 still validates afterwards, because it is a stateless JWT inside its lifetime, so "sessions are not
-restored" covers refreshing and not tokens already issued.
+restored" covers refreshing and not tokens already issued. **Closed in code by Phase 13 (D6):**
+every access token now names its session, and both web hosts refuse one whose session has no live
+refresh token. That covers a restore, a sign-out, and a revoke-all.
 
 **Still the operator's, and unchanged:** the residual lag before deleted data ages out of a
 backup, and the fact that a permission revoked today does not retrieve a copy somebody downloaded

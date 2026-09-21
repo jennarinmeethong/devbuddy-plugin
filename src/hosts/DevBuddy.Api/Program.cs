@@ -57,20 +57,25 @@ IdentitySettings identitySettings = HostComposition.ReadIdentitySettings(builder
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters
+    .AddJwtBearer(options =>
     {
-        ValidIssuer = identitySettings.Issuer,
-        ValidAudience = identitySettings.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(identitySettings.SigningKey)),
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateIssuerSigningKey = true,
-        ValidateLifetime = true,
+        // A valid signature is not enough: the session behind the token must still be live.
+        options.Events = new JwtBearerEvents { OnTokenValidated = SessionTokenCheck.ValidateAsync };
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = identitySettings.Issuer,
+            ValidAudience = identitySettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(identitySettings.SigningKey)),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
 
-        // Thirty seconds rather than the five-minute default. A short access-token lifetime is
-        // what makes an unrevokable signed token acceptable, and a generous skew gives it back.
-        ClockSkew = TimeSpan.FromSeconds(30),
+            // Thirty seconds rather than the five-minute default. A short access-token lifetime is
+            // what makes an unrevokable signed token acceptable, and a generous skew gives it back.
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
     });
 
 builder.Services.AddAuthorization();

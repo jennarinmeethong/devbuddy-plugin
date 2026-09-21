@@ -22,6 +22,7 @@ namespace DevBuddy.Infrastructure.Identity;
 /// </summary>
 internal sealed class TokenService : ITokenService
 {
+
     private readonly DevBuddyDbContext _db;
     private readonly IClock _clock;
     private readonly IdentitySettings _settings;
@@ -144,7 +145,20 @@ internal sealed class TokenService : ITokenService
         await _db.SaveChangesAsync(cancellationToken);
 
         return new TokenPair(
-            CreateAccessToken(userId, now, accessExpiry), accessExpiry, refreshToken, refreshExpiry);
+            CreateAccessToken(userId, familyId, now, accessExpiry), accessExpiry, refreshToken, refreshExpiry);
+    }
+
+    public Task<bool> IsSessionLiveAsync(UserId userId, Guid sessionId, CancellationToken cancellationToken)
+    {
+        DateTimeOffset now = _clock.UtcNow;
+
+        return _db.RefreshTokens.AnyAsync(
+            token => token.FamilyId == sessionId
+                && token.UserId == userId.Value
+                && token.UsedAt == null
+                && token.RevokedAt == null
+                && token.ExpiresAt > now,
+            cancellationToken);
     }
 
     private async Task RevokeFamilyAsync(
@@ -159,7 +173,7 @@ internal sealed class TokenService : ITokenService
     /// membership: those are re-checked server-side on every request (SB-11), and a token that
     /// asserted them would still be asserting them after a grant was revoked.
     /// </summary>
-    private string CreateAccessToken(UserId userId, DateTimeOffset issuedAt, DateTimeOffset expiresAt)
+    private string CreateAccessToken(UserId userId, Guid sessionId, DateTimeOffset issuedAt, DateTimeOffset expiresAt)
     {
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.SigningKey)),
@@ -178,6 +192,10 @@ internal sealed class TokenService : ITokenService
                 [ClaimTypes.NameIdentifier] = userId.Value.ToString(),
                 [JwtRegisteredClaimNames.Sub] = userId.Value.ToString(),
                 [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString(),
+
+                // The refresh-token family this token belongs to. Both web hosts refuse a token
+                // whose family has no live refresh token left (SessionTokenCheck).
+                [SessionTokenClaims.Session] = sessionId.ToString(),
                 [JwtRegisteredClaimNames.Iat] =
                     issuedAt.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture),
             },
