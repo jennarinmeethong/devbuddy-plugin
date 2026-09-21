@@ -117,13 +117,18 @@ export function mergeAccess(grantsHere: WorkspaceAccess[], projectId?: string): 
       ? workspaceWide
       : grantsHere;
 
-  const chosen = relevant.length > 0 ? relevant : grantsHere.slice(0, 1);
-  const permissions = [...new Set(chosen.flatMap((grant) => grant.permissions))];
+  const first = relevant[0] ?? grantsHere[0];
+
+  if (!first) {
+    return undefined;
+  }
+
+  const permissions = [...new Set(relevant.flatMap((grant) => grant.permissions))];
 
   return {
-    ...chosen[0],
-    scopedToProject: workspaceWide.length > 0 ? null : chosen[0].scopedToProject,
-    permissions: relevant.length > 0 ? permissions : [],
+    ...first,
+    scopedToProject: workspaceWide.length > 0 ? null : first.scopedToProject,
+    permissions,
   };
 }
 

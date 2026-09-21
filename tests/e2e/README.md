@@ -66,13 +66,23 @@ AI access closed on every project.
 | `mcp.spec.ts` | The tool list equals the manifest's AI allow-list. A project closed to AI is invisible. An assistant's draft is marked and audited as an assistant's whatever it claims. A viewer's assistant cannot write. |
 | `host.spec.ts` | The client's route fallback never shadows an API answer. The build has no source maps. No script errors while moving through the screens. |
 
+## After the suite
+
+`run.sh` runs two stages of its own once Playwright finishes, from the host, because neither can be
+driven from inside the runner:
+
+- **MCP over stdio** with a machine token, the path the plugins use (`stdio.log`).
+- **Destroy and restore** (`restore.log`): a backup of the stack the suite just filled, both the
+  database and the evidence volumes destroyed, a restore, and a comparison of accounts, records,
+  revisions, evidence rows, one artefact's bytes, and that an access token from before is refused.
+  `DEVBUDDY_E2E_RESTORE=0` skips it.
+
 ## What is not covered
 
 - **Embeddings and the workers.** They need a model server and a pgvector database, and the default
   stack has neither. `DevBuddy.Security.Tests` covers the egress path (SB-34). This suite checks only
   that semantic search explains why it cannot answer.
-- **The GitHub API source mode**, the observability overlay, and restore. Restore is a console
-  command, and the drill in `docs/operations/release-matrix.md` covers it.
+- **The GitHub API source mode** and the observability overlay.
 
 
 ## Writing a test

@@ -17,6 +17,7 @@
 #   DEVBUDDY_E2E_OUT       where results go (default tests/e2e/.out)
 #   DEVBUDDY_E2E_PROJECT   the Compose project name (default devbuddy-e2e)
 #   DEVBUDDY_E2E_WORKERS   parallel workers (default 4)
+#   DEVBUDDY_E2E_RESTORE=0 skip the destroy-and-restore stage that runs after the suite
 #   DEVBUDDY_E2E_KEEP=1    leave the stack running afterwards, to look at it; its env file path is
 #                          printed, and `down -v` with the same arguments removes it
 #
@@ -201,5 +202,93 @@ stdio_status=$?
 set -e
 [ "$stdio_status" -eq 0 ] || status=1
 
-echo "==> Results in $out (report/index.html, junit.xml, stack.log, stdio.log)" >&2
+# The destroy-and-restore drill, on the stack the suite just filled (Phase 13, C6). Both volumes
+# are destroyed, as in the release drill, and what comes back is compared with what was there.
+restore_checks() {
+  local log="$out/restore.log" failures=0
+  : >"$log"
+
+  check() {
+    if [ "$2" = yes ]; then echo "ok    $1" | tee -a "$log" >&2; else echo "FAIL  $1" | tee -a "$log" >&2; failures=$((failures + 1)); fi
+  }
+
+  counts() {
+    compose exec -T database psql -U devbuddy -d devbuddy -tAc \
+      "select (select count(*) from users) || ' ' || (select count(*) from knowledge_records) || ' ' || (select count(*) from record_revisions) || ' ' || (select count(*) from evidence_objects) || ' ' || (select count(*) from audit_events where channel is not null)" 2>>"$log"
+  }
+
+  # Signs in as the administrator in the runner's network and prints the access token, or reads
+  # /me with a given token and prints the status code.
+  node_in_runner() {
+    compose run --rm --no-deps -T --entrypoint node e2e --input-type=module -e "$1" 2>>"$log"
+  }
+
+  local workspace actor before after reference access evidence
+  workspace=$(awk '$1=="workspace"{print $2}' "$out/bootstrap.log")
+  actor=$(awk '$1=="actor"{print $2}' "$out/bootstrap.log")
+  before=$(counts)
+  echo "before: users records revisions evidence audit = $before" >>"$log"
+
+  access=$(node_in_runner "
+    const r = await fetch('http://api:8080/auth/sign-in', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: process.env.DEVBUDDY_E2E_ADMIN_EMAIL, password: process.env.DEVBUDDY_E2E_ADMIN_PASSWORD }) });
+    console.log((await r.json()).accessToken);")
+
+  evidence=$(compose exec -T database psql -U devbuddy -d devbuddy -tAc \
+    "select workspace_id || ' ' || project_id || ' ' || id || ' ' || size_bytes from evidence_objects where workspace_id = '$workspace' and redaction_state = 2 order by captured_at limit 1" 2>>"$log" | tr -d '\r')
+  echo "evidence sampled: $evidence" >>"$log"
+
+  reference=$(compose run --rm --no-deps -T migrate backup --workspace "$workspace" --actor "$actor" 2>>"$log" \
+    | grep -o '"reference": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  check "a backup was taken ($reference)" "$([ -n "$reference" ] && echo yes || echo no)"
+
+  compose stop api mcp retention database evidence >>"$log" 2>&1
+  compose rm -f api mcp retention database evidence >>"$log" 2>&1
+  docker volume rm "${project}_database" "${project}_evidence" >>"$log" 2>&1
+  check "both volumes were destroyed" "$(docker volume ls -q | grep -qE "^${project}_(database|evidence)\$" && echo no || echo yes)"
+
+  compose up --detach --wait database evidence >>"$log" 2>&1
+  compose run --rm --no-deps -T migrate >>"$log" 2>&1
+  compose run --rm --no-deps -T migrate restore --reference "$reference" >>"$log" 2>&1
+  check "restore succeeded" "$(grep -q 'Restored ' "$log" && echo yes || echo no)"
+  compose up --detach --wait api mcp >>"$log" 2>&1
+
+  after=$(counts)
+  echo "after:  users records revisions evidence audit = $after" >>"$log"
+  check "accounts, records, revisions, evidence rows and channelled audit entries all came back" \
+    "$([ -n "$before" ] && [ "$(echo "$before" | cut -d' ' -f1-4)" = "$(echo "$after" | cut -d' ' -f1-4)" ] && echo yes || echo no)"
+
+  if [ -n "$evidence" ]; then
+    set -- $evidence
+    local downloaded
+    downloaded=$(node_in_runner "
+      const s = await fetch('http://api:8080/auth/sign-in', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: process.env.DEVBUDDY_E2E_ADMIN_EMAIL, password: process.env.DEVBUDDY_E2E_ADMIN_PASSWORD }) });
+      const token = (await s.json()).accessToken;
+      const r = await fetch('http://api:8080/workspaces/$1/projects/$2/evidence/$3', { headers: { authorization: 'Bearer ' + token } });
+      console.log(r.status + ' ' + (await r.arrayBuffer()).byteLength);")
+    check "evidence bytes came back ($downloaded, expected 200 $4)" "$([ "$downloaded" = "200 $4" ] && echo yes || echo no)"
+  else
+    check "there was evidence to check" no
+  fi
+
+  local me
+  me=$(node_in_runner "
+    const r = await fetch('http://api:8080/me', { headers: { authorization: 'Bearer $access' } });
+    console.log(r.status);")
+  check "an access token from before the disaster is refused (got $me)" "$([ "$me" = 401 ] && echo yes || echo no)"
+
+  return "$failures"
+}
+
+if [ "${DEVBUDDY_E2E_RESTORE:-1}" = 1 ]; then
+  echo "==> Destroying both volumes and restoring" >&2
+  set +e
+  restore_checks
+  restore_status=$?
+  set -e
+  [ "$restore_status" -eq 0 ] || status=1
+fi
+
+echo "==> Results in $out (report/index.html, junit.xml, stack.log, stdio.log, restore.log)" >&2
 exit "$status"

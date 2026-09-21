@@ -81,6 +81,8 @@ public sealed class VoyageEmbeddingTests
 
     private sealed class RecordingHandler : HttpMessageHandler
     {
+        private static readonly float[] Vector = [1f, 0f, 0f];
+
         public HttpStatusCode Status { get; init; } = HttpStatusCode.OK;
 
         public List<JsonElement> Requests { get; } = [];
@@ -110,7 +112,7 @@ public sealed class VoyageEmbeddingTests
             string answer = JsonSerializer.Serialize(new
             {
                 @object = "list",
-                data = Enumerable.Range(0, count).Select(index => new { @object = "embedding", embedding = new[] { 1f, 0f, 0f }, index }),
+                data = Enumerable.Range(0, count).Select(index => new { @object = "embedding", embedding = Vector, index }),
                 model = "voyage-3.5",
                 usage = new { total_tokens = 10 },
             });
