@@ -182,7 +182,9 @@ implemented. The owner chose each proposal's first option.
   redacted whole.
 
 The AL-2 wording, "catches known shapes", still describes the rule set. Records embedded before
-this change are not re-embedded until they are revised.
+this change are not re-embedded until they are revised. *(Superseded on 2026-09-21 by Phase 13, D5: the
+embedding sweep keys its rows on the rule set's fingerprint as well as the content hash, so every
+record is re-embedded once under the rules in force, within the budget.)*
 
 ### Self-hosted embeddings on the devbox installation
 

@@ -290,8 +290,12 @@ rather than a formality: `list_projects` omits a project nobody opened to AI, so
 opened to AI is never embedded**; SB-18 redacts what the job reads; and SB-17 scans twice, so a
 record carrying a credential is skipped with nothing sent and the sweep continues. It embeds **the
 published revision and nothing else** — a draft is not knowledge yet, and indexing one would let a
-semantic search surface something nobody approved. It re-embeds only what changed, by content hash,
-so an unchanged record costs neither a read nor an embedding. **An archived record keeps its
+semantic search surface something nobody approved. It re-embeds only what changed, keyed on the
+content hash **and the personal-data rule set's fingerprint** (Phase 13, D5), so an unchanged
+record costs neither a read nor an embedding, but a change to the SB-18 rules re-embeds every
+record once, within the budget, because the redacted text it embedded is no longer what it would
+send. Bump `PersonalDataRules.ChecksVersion` when a rule's acceptance check changes without its
+pattern changing; the fingerprint cannot see code. **An archived record keeps its
 published revision**, so since 2026-09-17 the sweep removes its rows, and a newer published
 revision replaces the older one's row rather than ranking beside it. `search_similar_records` also
 answers only a record's current published revision, and never an archived record, because the

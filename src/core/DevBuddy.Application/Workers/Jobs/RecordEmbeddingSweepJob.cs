@@ -44,9 +44,20 @@ namespace DevBuddy.Application.Workers.Jobs;
 /// </para>
 /// </summary>
 public sealed class RecordEmbeddingSweepJob(
-    OperationDispatcher dispatcher, EmbeddingGateway gateway, IEmbeddingIndex index)
+    OperationDispatcher dispatcher, EmbeddingGateway gateway, IEmbeddingIndex index, string? ruleSetFingerprint = null)
     : CallerBoundWorkerJob
 {
+    /// <summary>
+    /// What an index row is keyed on (Phase 13, D5): the published revision's content hash, and
+    /// the personal-data rule set the embedded text was redacted under. An unchanged revision
+    /// redacted under new rules is different text, so it must embed again; keyed on the content
+    /// hash alone, it never would have. Without a fingerprint the key is the content hash alone,
+    /// which is what every row written before this carries, so each of those is embedded again
+    /// once, within the budget.
+    /// </summary>
+    private string IndexKey(string contentHash) =>
+        string.IsNullOrEmpty(ruleSetFingerprint) ? contentHash : $"{contentHash}:{ruleSetFingerprint}";
+
     private readonly OperationDispatcher _dispatcher = Guard.NotNull(dispatcher, nameof(dispatcher));
     private readonly EmbeddingGateway _gateway = Guard.NotNull(gateway, nameof(gateway));
     private readonly IEmbeddingIndex _index = Guard.NotNull(index, nameof(index));
@@ -178,7 +189,7 @@ public sealed class RecordEmbeddingSweepJob(
                 continue;
             }
 
-            if (alreadyIndexed.Contains(published.ContentHash))
+            if (alreadyIndexed.Contains(IndexKey(published.ContentHash)))
             {
                 current++;
                 continue;
@@ -255,7 +266,7 @@ public sealed class RecordEmbeddingSweepJob(
             [new EmbeddedRevision(
                 new KnowledgeRecordId(recordId),
                 published.Number,
-                published.ContentHash,
+                IndexKey(published.ContentHash),
                 outcome.Vectors[0])],
             cancellationToken);
 

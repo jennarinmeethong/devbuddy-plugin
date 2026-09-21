@@ -303,7 +303,8 @@ internal static class Runner
                     ? new RecordEmbeddingSweepJob(
                         dispatcher,
                         services.GetRequiredService<EmbeddingGateway>(),
-                        services.GetRequiredService<IEmbeddingIndex>())
+                        services.GetRequiredService<IEmbeddingIndex>(),
+                        services.GetRequiredService<IPersonalDataRedactor>().RuleSetFingerprint)
                     : new StaleRecordSweepJob(dispatcher, staleAfter!.Value);
 
                 WorkerRunReport report = await WorkerSchedule.PassAsync(

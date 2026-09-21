@@ -77,6 +77,8 @@ internal sealed class PersonalDataScanner : IPersonalDataScanner
 /// </summary>
 internal sealed class PersonalDataRedactor : IPersonalDataRedactor
 {
+    public string RuleSetFingerprint => PersonalDataRules.Fingerprint;
+
     public string Redact(string text)
     {
         if (string.IsNullOrEmpty(text))
