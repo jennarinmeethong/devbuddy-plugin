@@ -474,7 +474,7 @@ stated rather than claimed away.
   - an e2e run of an administrator resetting a user who then signs in.
 
 ### D2 — Rows stored against a foreign project
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Problem:** `scope-report` lists them and nothing removes them. `info.md` (2026-09-17) says
   deleting is the operator's call.
@@ -492,7 +492,7 @@ stated rather than claimed away.
 - Record the decision in `info.md` as an extension of the 2026-09-17 entry.
 
 ### D3 — AI drafts from before the 2026-09-15 fix
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Problem:** such a draft may be stored as a person's work, and nothing recorded the channel.
   This cannot be derived.
@@ -514,7 +514,7 @@ stated rather than claimed away.
   - the history shows the correction.
 
 ### D4 — Audit rows with no channel
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Constraint:** `info.md` and `CLAUDE.md` bind this. Null means "not recorded" and must never be
   backfilled with a guess. A backfill would make the audit trail less trustworthy, not more.
@@ -533,7 +533,7 @@ stated rather than claimed away.
   - the limitation remains, stated as permanent by design.
 
 ### D5 — Records embedded before the Thai SB-18 rules
-**Status: TODO**
+**Status: DONE (2026-09-21)** — merged to `main`; ships in the next release.
 
 - **Problem:** the sweep skips a record whose content hash is already indexed, so a change to the
   redaction rules never reaches it.
@@ -645,3 +645,8 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-21 | A1 (pre-tag) | **The full pre-tag checklist passed against `826b34e`, with nothing carried over.** On jmhp: 896 .NET tests, format, 73 web tests, the `linux-x64` publish, Compose from clean, non-root, tokens out of the log both ways, and the destroy-and-restore drill with both volumes. Three new checks: a made-up project refused, `scope-report` clean, `list_source_repositories` human-only. Also the upgrade from `v1.3.0` on amd64. On the Ubuntu 26.04.1 arm64 guest: the upgrade from `v1.3.0`. CI was green on `826b34e`, all four jobs. Recorded in `release-matrix.md`. **Script gap found:** since `0fad716` the console writes refusals to stderr, so the drill script's one-line refusal captures came back empty. Each refusal was read from the stderr log instead, and the AI-operation count was recounted with `awk '$NF=="ai"'` (20, identical to `v1.3.0`). **Not yet:** the tag, the post-tag artefact checks, and the smoke tests. |
 | 2026-09-21 | A1 (post-tag), A3 | **Tag `v1.4.0` pushed at `163243f`.** Release run 35562161924 was green first time and left a draft. The post-tag checklist passed and is in `release-matrix.md`: checksums, and attestations from outside the workflow (six archives and three images, wrong owner refused). SBOMs 36/38/56. Both architectures in every manifest. The published images started on amd64 (jmhp) and on arm64 (Ubuntu guest). Smoke tests: `win-x64` natively, `linux-x64`, `linux-musl-x64`, `osx-arm64` natively on the M4, `linux-arm64` natively in the arm64 guest, and `linux-musl-arm64` in Alpine. **`win-arm64` was not run and not downloaded**, on the owner's instruction. The release notes are on the draft. **A1 is not DONE:** publication waits for the owner. **A3:** `plugin.json` is `1.4.0` in the tag. `PluginPackageTests` passed in the 896-test run. Reinstalling the local plugin waits for publication. |
 | 2026-09-21 | D1 | **DONE.** `issue_password_reset` is human-only and needs `ManageAccounts`. It returns a single-use recovery token in its own response, and the token is never logged or audited. The Members screen has "Reset password". **The cross-tenant rule:** the reset is refused (Denied, audited as `AccessDenied`, refused by `account-reach`) unless the caller holds `ManageAccounts` workspace-wide in *every* workspace where the subject holds a live grant, because a password works in all of them. Also refused: resetting yourself, a disabled account, and somebody outside the workspace (NotFound). New port methods: `IAccountRecoveryService.IssueForAsync` and `IAccessDirectory.ListLiveMembershipsEverywhereAsync`. New audit action: `PasswordResetIssued = 42`. **Verified on jmhp:** 908 .NET tests passed, 0 failed, including 7 in `PasswordResetTests` over real PostgreSQL; format exit 0; web 73; **e2e 65 of 65**, including the UI reset and sign-in, and the API refusal across workspaces. **Mutation-checked:** disabling the everywhere rule fails `an_administrator_of_one_workspace_cannot_reset_somebody_who_also_belongs_to_another` and `a_project_scoped_administrator_elsewhere_is_not_enough`. Along the way the first run failed on its own tests, not the product: fakes missing the new port method, a registry entry missing, and an audit query without the `operation:` prefix. `operations.ts` regenerated, and the Thai handbook rebuilt (63 operations). `CLAUDE.md` and `release-readiness.md` updated. **Not in a release yet.** |
+| 2026-09-21 | D2 | **DONE.** `scope-report --delete --confirm <count> --actor <id>` performs the same deletion as `delete_project`, keyed on workspace and project together, so another tenant's project is never touched. Evidence bytes go too. It is refused, with nothing changed, if the count moved since the report or if the actor does not administer (workspace-wide `ManageProjects`) every workspace involved. Each purged project is audited as `StrayScopeRowsPurged` (43) on `InternalSystem`. The `info.md` 2026-09-17 entry is extended; the report-don't-migrate decision stands. **Test** `the_scope_report_deletes_only_when_the_count_and_the_actor_are_right` (real PostgreSQL): wrong count refused, non-admin refused, strays and bytes gone, legitimate rows and the other tenant's project intact, 2 audit rows, second run nothing to purge. **Mutation-checked:** disabling the administrator check fails it. |
+| 2026-09-21 | D3 | **DONE.** `mark_record_ai_generated`: human-only, `ManageProjects`, reason required (500 max). Every unmarked revision gains `Provenance.AiMarking` (who, when, why), stored in the provenance JSON with no migration. One way: refused when every revision is already AI, and never overwritten. Content and content hash are untouched, so approvals stay bound. It is the only change `UpdateRecordAsync` accepts on a stored revision. The record page shows the marking and offers the action; `get_record` returns `aiMarking`, redacted on the AI channel. **Tests:** 4 in `AiMarkingTests` over real PostgreSQL, plus a domain test. **Mutation-checked:** not persisting the mark fails two of them. |
+| 2026-09-21 | D4 | **DONE.** `read_audit_history` takes `channelNotRecorded`, and it is refused together with a channel (Invalid). The Audit screen offers "Channel not recorded (before v1.3.0)". `deployment.md` explains where such rows are and why they are never backfilled. The limitation stays by design (`info.md` 2026-09-15). **Test:** the existing legacy-row test also asserts the new filter returns exactly the null-channel rows and refuses the contradiction. **Mutation-checked:** ignoring the filter fails it. |
+| 2026-09-21 | D5 | **DONE.** The embedding sweep keys index rows on `contentHash:ruleSetFingerprint`. The fingerprint is SHA-256 over `PersonalDataRules.ChecksVersion` and each rule's name, pattern and options, in order, exposed as `IPersonalDataRedactor.RuleSetFingerprint`. Rows written before carry the bare hash, so each record re-embeds once, within budget. `ChecksVersion` must be bumped when an accept check changes without its pattern changing. **Tests:** a sweep test (stale key → re-embed with new key; same rules → nothing sent) and a fingerprint test (stable; changes with pattern, order, version). **Mutation-checked:** ignoring the fingerprint fails the sweep test. **Found while writing it:** a static initialiser declared above `All` would have hashed an empty rule set, so it is computed on read. **Devbox:** the next pass after deploying re-embeds its records; not yet deployed. |
+| 2026-09-21 | D2–D5 verification | One run on jmhp of the branch carrying all four: **916 .NET tests passed, 0 failed**, format exit 0, web 73, **e2e 65 of 65**. The four mutation checks were run separately, because the e2e runner consumed the rest of a piped script the first time and the D3 mutant silently did not run. `operations.ts` was regenerated and the Thai handbook rebuilt. |
