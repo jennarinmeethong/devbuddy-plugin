@@ -1,5 +1,43 @@
 # Project Decisions
 
+## Confirmed Cutting v1.5.0, Before B8 on the devbox — 2026-09-22
+
+The owner chose to release `v1.5.0` first, then enable the stale-record sweep on the devbox (B8).
+The narrow `IndexMaintainer` role B8 needs is not in `v1.4.0`.
+
+- **A minor version.** It carries everything else Phase 13 built since `v1.4.0` (`docs/plan-phase-13.md`):
+  - the `IndexMaintainer` role;
+  - administrator-issued password resets;
+  - `scope-report --delete`;
+  - `mark_record_ai_generated`;
+  - session-bound access tokens;
+  - the deletion ledger across a restore;
+  - member download reports;
+  - chunked embeddings and re-embedding on a rule change;
+  - structured bounded scopes;
+  - the Voyage dialect;
+  - `embedding-check`;
+  - the two defects the end-to-end stages found;
+  - the web client's first-fetch refetch fix.
+- **One migration**, `RecordEmbeddingChunks`, conditional like the table it changes: it does
+  nothing on the shipped `postgres:17-alpine`. `release.yml` is unchanged since `v1.4.0`, so no
+  throwaway prerelease tag is cut.
+- **The checklist is re-run in full**, with nothing carried over. The upgrade from `v1.4.0` runs on
+  amd64 and on arm64. The arm64 rows run on the Ubuntu arm64 guest, which the owner starts. The
+  archives are downloaded for the checklist, `win-arm64` excepted, as for `v1.4.0`.
+- **The end-to-end suite is taken from CI**, not re-run on jmhp: run 35682074421 on `96c511e`,
+  green twice. jmhp's root filesystem has too little space for another run (plan log, 2026-09-22).
+- **Publish when the checklist passes**, then move the devbox onto the tag and install plugin
+  1.5.0. That needs no further word from the owner.
+- **Its release notes must say what a caller will notice:**
+  - Everyone signs in once after upgrading, because an access token issued before carries no
+    session.
+  - `DEVBUDDY_EMBEDDING_CHUNK_CHARACTERS` and `DEVBUDDY_EMBEDDING_DIALECT` are new, and their
+    defaults change nothing.
+  - An installation running `record-embedding-sweep` re-embeds every record once, within its
+    budget, because of the rule-set fingerprint.
+  - A stored free-text bounded scope is still honoured, but a new one must name rules.
+
 ## Confirmed Phase 13 — Closing What v1.3.0 Left Open — 2026-09-21
 
 The owner reviewed the open items after `v1.3.0` and approved closing them. The plan and its
