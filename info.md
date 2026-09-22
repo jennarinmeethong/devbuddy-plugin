@@ -40,6 +40,9 @@ progress log are in `docs/plan-phase-13.md`.
 
 ## Confirmed Cutting v1.4.0 — 2026-09-21
 
+*(2026-09-22: published at the owner's instruction, and the devbox moved onto the tag the same day.
+Its `record-embedding-sweep` still runs as approved on 2026-09-16.)*
+
 The owner confirmed `v1.4.0`, cut from `main` as it stands, as item A1 of Phase 13
 (`docs/plan-phase-13.md`).
 

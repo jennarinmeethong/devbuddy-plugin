@@ -41,7 +41,13 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.3.0` is the current release**, published 2026-09-17 from `c850275` at the owner's
+**`v1.4.0` is the current release**, published 2026-09-22 from `163243f` at the owner's
+instruction (Phase 13, A1). It carries a screen for every operation, `list_source_repositories`,
+the project-scope check and `scope-report`, and adds no migration. Its checklist is in
+`docs/operations/release-matrix.md`. The devbox runs that tag. Everything else Phase 13 built is on
+`main` for `v1.5.0`.
+
+**`v1.3.0` was the release before it**, published 2026-09-17 from `c850275` at the owner's
 instruction. It carries the 2026-09-15 plugin test round's fixes, the audit channel column, the
 Thai SB-18 rules and the draft editor. Its source was verified at `84ee6d5`, and `c850275` adds
 documentation only. **Upgrading from `v1.2.1` needs no manual step.** Its checklist in

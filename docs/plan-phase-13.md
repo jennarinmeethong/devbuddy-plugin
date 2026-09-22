@@ -86,7 +86,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
 ## A — Work that can start at once
 
 ### A1 — Release `v1.4.0` from current `main`
-**Status: IN PROGRESS**
+**Status: DONE (2026-09-22)** — published at the owner's instruction, Latest.
 
 - **Version:** `v1.4.0`, a minor release, because it adds capability:
   - the screens for every operation;
@@ -125,7 +125,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
   - an `info.md` entry records the cut.
 
 ### A2 — Move the devbox onto the `v1.4.0` tag
-**Status: TODO** (after A1)
+**Status: DONE (2026-09-22)** — the devbox runs the `v1.4.0` tag.
 
 - **Steps:**
   1. `ssh devbox`, then in `/data/devbuddy` check out `v1.4.0`, or pull the published images.
@@ -139,7 +139,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
   runs a tag.
 
 ### A3 — Plugin package version
-**Status: TODO** (with A1)
+**Status: DONE (2026-09-22)** — plugin 1.4.0 installed; a tool call succeeded through it.
 
 - **Steps:**
   1. Bump `plugins/claude/.claude-plugin/plugin.json` to `1.4.0`. The Codex package carries no
@@ -218,7 +218,7 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
   Enabling it on a real installation is a separate owner acceptance and is outside this exit.
 
 ### B7 — Approving the provider and worker on other installations
-**Status: IN PROGRESS** — command and checklist merged; running it once on the devbox and recording the output is what is left.
+**Status: DONE (2026-09-22)** — run on the devbox, output in the log.
 
 - **Steps:**
   1. Write `docs/operations/embedding-approval.md`. It covers:
@@ -664,3 +664,7 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-21 | Defect (found by C5) | **No log line ever reached Loki on a stack with its file log on**, which is every stack `docker/compose.yaml` starts. Serilog owned the pipeline, so the OpenTelemetry exporter registered after it received nothing. Option 2 of `logging.md`, in force since 2026-09-10, never delivered. Serilog now writes to the other providers. `FileLoggingForwardingTests` holds it. **Mutation-checked.** Recorded in `info.md` and `logging.md`. |
 | 2026-09-21 | Verification | Branch tip on jmhp: **944 .NET tests passed, 0 failed**, format exit 0, web 77. Every item's mutation check was caught; the D6 and key checks were first written wrong and re-run until they applied. **Not yet:** these CI jobs on GitHub, the arm64 runner (C9), and a release carrying any of this. |
 | 2026-09-21 | C9, CI | **DONE.** CI run 35578883536 on `main` at `8b03a58` passed every job. That includes **End-to-end (Playwright, ubuntu-24.04-arm)**, the whole stack built natively for `linux/arm64` on GitHub's Arm server runner, the first arm64 run on server-class hardware. The other jobs that passed: e2e on x64 (three browsers, stdio and restore stages), the embeddings, GitHub source and observability modes, build and test on Linux and Windows, and the format check. Supply chain run 35593315251 passed too. C1–C7 are therefore verified in CI as well as on jmhp. |
+| 2026-09-22 | A1 | **DONE.** `v1.4.0` published from `163243f` at the owner's instruction, 02:27 UTC, and GitHub reports it as Latest. The checklist was already recorded in `release-matrix.md`. Nothing changed after that record. |
+| 2026-09-22 | A2 | **DONE.** On the devbox: backup `backup-20260922-022901-92cb396edef748dbb` taken first, and copied with `.env` to `/data/devbuddy-cache/backups/before-v140-20260922/`. `/data/devbuddy` checked out at `v1.4.0`; `git describe` reports `v1.4.0`. The source under `src` and `docker` is identical to `3e7cd47`, which it ran before, so no migration ran. Images were rebuilt, then `api`, `mcp`, `migrate`, `retention`, `evidence` and `record-embedding-sweep` recreated. **Probes:** `migrate` exited 0; `/health` 200; `/` 200; MCP `POST` 401; `scope-report` found nothing (exit 0). The application services run as uid 1654, the evidence store as 1000. **Worker pass:** as its Viewer account; embedded 0, skipped 3 (the project's three drafts), removed 0. |
+| 2026-09-22 | A3 | **DONE.** The installed package in `~/.devbuddy/claude-marketplace` was byte-identical to the `v1.3.0` tag's `plugins/claude`, with no local edits. It was replaced by the `v1.4.0` tag's, which differs only in the version. `claude plugin update devbuddy` reports 1.3.0 → 1.4.0. **Checks:** `list_projects` through the plugin returned `test_project`, and `search_similar_records` answered "Nothing is indexed". **Caveat:** that call went through the session's already-running MCP container. A new session starts one from the tag's image. |
+| 2026-09-22 | B7 | **DONE.** `v1.4.0` does not carry `embedding-check`: it is on `main` for `v1.5.0`. So it ran from a console image built from `main`, `b7a4af5`, used for this one run and deleted afterwards. The command ran in the sweep's own service settings, token included, against the live devbox database: `docker compose --profile workers run --rm --no-deps record-embedding-sweep embedding-check --budget 50`. It changed nothing and sent no text. The running worker was not recreated. **Output, exit 0:**<br>`ok provider SelfHosted, model qwen3-embedding:0.6b, 1024 dimensions, dialect OpenAiCompatible`<br>`ok vector index present (pgvector)`<br>`ok worker token valid; its owner holds Viewer`<br>`ok budget 50 text(s) per pass`<br>This matches the devbox entry in `info.md` of 2026-09-16. |

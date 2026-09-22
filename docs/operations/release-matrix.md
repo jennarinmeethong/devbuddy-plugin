@@ -338,7 +338,7 @@ The amd64 script ran in the Ubuntu 26.04.1 VMware guest, from fresh clones of `v
 
 Tag `v1.4.0` pushed from `163243f`, run 35562161924, 2026-09-21. Every job passed on the first
 attempt. Between `826b34e` and `163243f` only this file and `docs/plan-phase-13.md` changed. The
-release is a **draft** until the owner says to publish it. Downloading the archives was approved by
+release was a draft until the owner said to publish it. **It was published on 2026-09-22, 02:27 UTC**, and is Latest. Downloading the archives was approved by
 the owner for this checklist, `win-arm64` excepted.
 
 | Check | When | Result |
