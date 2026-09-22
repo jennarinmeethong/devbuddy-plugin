@@ -74,9 +74,21 @@ export const test = base.extend<Fixtures>({
  */
 export async function signIn(page: Page, person: Person, path = `/w/${cast().workspaceId}`): Promise<void> {
   await page.goto(path);
-  await page.getByRole("textbox", { name: /^Email/ }).fill(person.email);
-  await page.getByLabel(/^Password/).fill(person.password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+
+  // On the slow arm64 runner, Firefox once took the click and never submitted: no request left the
+  // page and the form stayed filled with no error. So the click counts only once the request is
+  // seen, and is made again if it is not. Signing in twice only opens a second session.
+  await expect(async () => {
+    await page.getByRole("textbox", { name: /^Email/ }).fill(person.email);
+    await page.getByLabel(/^Password/).fill(person.password);
+    const sent = page.waitForRequest(
+      (request) => request.method() === "POST" && new URL(request.url()).pathname === "/auth/sign-in",
+      { timeout: 5_000 },
+    );
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await sent;
+  }).toPass({ timeout: 30_000 });
+
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 }
 
