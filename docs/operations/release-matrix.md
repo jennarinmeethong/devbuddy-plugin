@@ -218,6 +218,134 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.5.0
+
+**Checked on 2026-09-22 against `50ccaaa`, before the tag.** This release carries everything else
+Phase 13 built since `v1.4.0` (`info.md`, 2026-09-22):
+- the `IndexMaintainer` role, administrator-issued password resets and `scope-report --delete`;
+- `mark_record_ai_generated`, session-bound access tokens and the deletion ledger;
+- member download reports, chunked embeddings with re-embedding on a rule change, and structured
+  bounded scopes;
+- the Voyage dialect and `embedding-check`;
+- the two defects the end-to-end stages found, and the web client's first-fetch refetch fix.
+
+It adds **one migration**, `RecordEmbeddingChunks`, which is conditional and does nothing on the
+shipped `postgres:17-alpine`. `release.yml` is unchanged since `v1.4.0`, so no throwaway prerelease
+tag was cut. Nothing is carried over.
+
+Everything below except the arm64 row ran on jmhp (Ubuntu 24.04.4, Docker 29.7.2). Each run used a
+clean clone from GitHub and a Compose project of its own, and the owner's `devbuddy` stack was not
+touched:
+- `devbuddy-v150` published on 127.0.0.1:18080 and 18081;
+- `devbuddy-up150` published on 127.0.0.1:28080 and 28081.
+
+The scripts are the `v1.4.0` ones with the versions changed and ten checks added: the rows marked
+**New** below. Refusals go to the console's standard error, so each is quoted from the stderr log.
+
+| Check | When | Result |
+| --- | --- | --- |
+| `dotnet test DevBuddy.slnx -c Release` on Linux with Docker | **Against `50ccaaa`, before the tag** | **Yes.** In `mcr.microsoft.com/dotnet/sdk:10.0` against the host's Docker daemon, all six test projects ran: **944 passed** and none failed. By project: Domain 62, Infrastructure 355, McpServer 31, Application 283, Security 154, Api 59. The format check exited 0. The web client built, and its suite passed **78 of 78** in `oven/bun:1`. CI passed on `50ccaaa`, every job. |
+| The end-to-end suite | **From CI, not re-run on jmhp** | **Yes, in CI:** run 35682074421 on `96c511e` passed every job twice. That covers both Playwright runners (205 tests each, Chromium, Firefox and WebKit, `ubuntu-latest` and `ubuntu-24.04-arm`) and the embeddings, GitHub-source and observability modes. `96c511e..50ccaaa` changes `info.md`, `plugin.json` and the plan only. jmhp's root filesystem had too little room for another run (`info.md`, 2026-09-22). |
+| `dotnet publish`, `linux-x64` console | **Against `50ccaaa`, before the tag** | **Yes**, self-contained, exit 0. The other RIDs are built by the workflow. |
+| Compose from clean to healthy | **Against `50ccaaa`, before the tag** | **Yes**, built from source. All six services came up:<br>• `api` was healthy 80 seconds after the build started.<br>• `migrate` exited 0 having applied **nine** migrations, the last being `RecordEmbeddingChunks`. There is no `record_embeddings` table on `postgres:17-alpine`, as designed.<br>• `retention` logged its first pass.<br>• The API answered `/health` 200, `/operations` 401 and the UI 200.<br>• The MCP server refused `POST /` with 401, against a 404 control.<br>• Nothing listened on 5432 or 9000.<br>• The console listed **twenty** AI operations. |
+| No service runs as root | **Against `50ccaaa`, before the tag** | **Yes**, read from the host:<br>• The API, MCP server and retention ran as uid 1654, each read-only with every capability dropped.<br>• PostgreSQL ran as uid 70.<br>• The evidence store ran as uid 1000, read-only with every capability dropped.<br>• A fresh install gave the evidence volume to `1000:1000` and the log volume to `1654:1654`. |
+| Tokens stay out of the log | **Against `50ccaaa`, before the tag** | **Yes**, in both directions:<br>• With the default setting, a recovery request answered 202. Standard output held one "could not be delivered" line, and the file on the volume held no token.<br>• With the opt-in, the same request wrote exactly one token, to the file.<br>• None of the opt-in's long values appear in the default capture.<br>• The API was put back on the default afterwards. |
+| Destroy-and-restore drill | **Run on 2026-09-22, against `50ccaaa`** | **Yes**, with both the database and the evidence volumes destroyed. See below. |
+| Upgrade from `v1.4.0` on amd64 | **Run on 2026-09-22, against `50ccaaa`** | **Yes.** See below. |
+| Upgrade from `v1.4.0` on arm64 | **Run on 2026-09-22, against `50ccaaa`** | **Yes, on arm64:** the Ubuntu 26.04.1 VMware guest on the Apple M4 (`aarch64`, kernel 7.0, 2 CPUs, Docker 29.1.3). It was the amd64 run with the published `1.4.0` arm64 images, and `50ccaaa` built natively there. HTTP ran in a `curlimages/curl` container on the stack's own network, because the guest has no curl. Every row matched amd64. See below. |
+
+### The destroy-and-restore drill for v1.5.0
+
+This is the `v1.4.0` drill, with one project added: it is in the backup, and is deleted after it.
+The record was:
+1. created with front matter;
+2. submitted and sent back with a reason;
+3. revised with more front matter and two evidence references;
+4. submitted, approved and published at revision 2.
+
+**Before the disaster**, the installation held:
+- a work item;
+- that record, whose approval was bound to content hash `03433A47…`;
+- two evidence artefacts, of 232 and 64 bytes;
+- an administrator account;
+- a machine token;
+- eighteen audit entries, all on the `Human` channel.
+
+These were refused, as they should be:
+- A file carrying a connection string and an AWS key was refused with 422 Blocked. The store kept
+  two artefacts.
+- Reading the record with no revision number while it was unpublished was refused: "has no
+  published revision. Ask for a revision number to read an unpublished one."
+- Approving it before it was submitted was refused: "Only a record pending approval can be
+  approved; this record is Draft."
+
+The backup came to 16,254 bytes and was copied off its volume before the disaster. After the
+backup, the second project was deleted with `delete_project`, and the deletion ledger held one line.
+
+| Row | Result |
+| --- | --- |
+| Records | **Back.** `get_record` returned exactly what it did before the disaster, front matter and both evidence references included. |
+| Approvals | **Back, and still bound.** The history was identical, correction and reason included, with content hash `03433A47…` before and after. |
+| Evidence | **Back, byte for byte**, into a store running as uid 1000 on a recreated volume owned by `1000:1000`. Both artefacts downloaded at 232 and 64 bytes, with matching SHA-256 hashes. |
+| Audit history | **Back, channel included.** All eighteen entries were present afterwards and unchanged. |
+| Accounts | **Back.** Sign-in with the same password succeeded. |
+| Plugins | **Back.** The machine token minted before the disaster answered `list_projects` identically over MCP stdio. A bogus token was refused with "No identity was resolved for this request". |
+| **New (D7):** a project deleted after the backup | **Stays deleted.** `restore` said "Deleted again 1 project(s) the ledger records as deleted after this backup", and no row for it was left. |
+| **New (D6):** an access token issued before the disaster | **Refused**, 401 on `/me`. On `v1.4.0` it still answered 200. |
+| A scope naming a made-up project | **Refused**, exit 1: "The caller has no access to this scope." No work item was stored against it. |
+| `scope-report` | **Clean.** Exit 0, and nothing was found. |
+| `list_source_repositories` | **Human-only**, as the console's operation list reports it. |
+| **New (B8):** the stale-record sweep as an `IndexMaintainer` | **Runs.** An account created with the `IndexMaintainer` role minted its own machine token. `worker stale-record-sweep --stale-after 1d` with that token completed, reporting the project and 0 stale records. The same pass with a Viewer's token was refused: "The role Viewer does not carry ManageIndex." |
+| **New (B8):** what the role does not carry | **Refused.** The `IndexMaintainer` could not create a project: "The role IndexMaintainer does not carry ManageProjects." |
+| **New (D1):** an administrator-issued password reset | **Works.** `issue_password_reset` for the Viewer returned a token, `/auth/recovery/complete` answered 204, and the Viewer signed in with the new password. |
+| **New (D3):** `mark_record_ai_generated` | **Marked** both revisions, and the content hash was unchanged, so the approval stays bound. |
+| **New (B7):** `embedding-check` with no provider | **Exit 0**, with one line: "ok provider None: embeddings are off, and full-text search is all there is." Off is a valid configuration rather than a problem. The script had expected 3, and that expectation was wrong. |
+| **New (D2):** `scope-report --delete` | **Nothing deleted.** With nothing to report, it said "Nothing was deleted" and exited 0. The refusal of a count that does not match is covered by `ProjectScopeTests.the_scope_report_deletes_only_when_the_count_and_the_actor_are_right`, not by this run. |
+
+A second restore was refused with "This installation already has data. Restore into an empty
+database."
+
+### The upgrade from v1.4.0 on amd64
+
+The run started from `v1.4.0` as shipped: the published `1.4.0` images for the API, the MCP server
+and the console, and that tag's Compose file.
+- **Seeded on `v1.4.0`:**
+  - a published record and a record still in Draft;
+  - an evidence artefact;
+  - a machine token;
+  - an access token from a sign-in;
+  - twelve audit entries, each with a channel.
+- **The upgrade:** only the Compose file and the images changed, to `50ccaaa` built from source.
+  The volumes and `.env` stayed the same. **No manual step was needed.**
+
+| Check | Result |
+| --- | --- |
+| Migration | `migrate` exited 0, having applied one migration, `RecordEmbeddingChunks`. Nine migrations are in the history table. |
+| **New (D6):** the access token from `v1.4.0` | **Refused**, 401 on `/me`: it carries no session. Signing in again with the same password worked. This is the "everyone signs in once" the release notes state. |
+| Old audit entries | All twelve are present, and every one keeps its channel. |
+| New audit entries | Written with `channel: Human`. Filtering on `Human` returned only `Human` entries. |
+| Published record | Identical, and so is its history. |
+| The never-published draft | Refused with no revision number, as on `v1.4.0`, and read normally as revision 1. |
+| Evidence | The artefact from `v1.4.0` downloaded byte for byte. A new capture and download worked. Both still answered 200 after the API, the MCP server and the evidence store were restarted, and the evidence store logged no error lines. |
+| Plugins | The machine token minted on `v1.4.0` still answered `list_projects` over MCP stdio. The answer differs from `v1.4.0`'s by one new field, `aiScopeUnstructured: false` (B9), so the script's byte comparison said NO. The project, its name and its access were the same. |
+| `scope-report` | Exit 0, nothing found. |
+| Users | The API, MCP server and retention ran as uid 1654, PostgreSQL as 70, and the evidence store as 1000. The API logged no error lines. |
+
+### The upgrade from v1.4.0 on arm64
+
+The amd64 script ran in the Ubuntu 26.04.1 VMware guest, from fresh clones of `v1.4.0` and
+`50ccaaa`, and every row came out the same:
+- `RecordEmbeddingChunks` was applied, and nine migrations are in the history table;
+- the access token from `v1.4.0` is refused with 401, and signing in again works;
+- all twelve entries written on `v1.4.0` kept their channel;
+- the published record and its history are identical;
+- the never-published draft is refused without a revision number, and read as revision 1;
+- the `v1.4.0` artefact downloads byte for byte, and a new capture works;
+- both artefacts still answer 200 after a restart;
+- the `v1.4.0` machine token still answers over MCP stdio, with the one new field;
+- `scope-report` finds nothing;
+- no service runs as root, and the API and the evidence store logged no errors.
+
 ## What was verified for v1.4.0
 
 **Checked on 2026-09-21 against `826b34e`, before the tag.** What this release adds:
