@@ -137,7 +137,9 @@ finish() {
   else
     # The runner planted working copies as its own account; it removes them the same way.
     compose run --rm --no-deps "${tty[@]}" --entrypoint sh e2e -c 'rm -rf /srv/projects/*' >/dev/null 2>&1 || true
-    compose down --volumes --remove-orphans >/dev/null 2>&1 || true
+    # A service behind a profile is left running by a plain `down`, holding its network and volume:
+    # the embeddings mode's worker ran on for 18 hours on jmhp that way. Name every profile.
+    compose --profile e2e --profile workers down --volumes --remove-orphans >/dev/null 2>&1 || true
     rm -rf "$work"
   fi
 
