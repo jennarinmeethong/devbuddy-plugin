@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Api, anonymous, signInForTokens } from "../support/api";
 import { password } from "../support/env";
-import { expect, signIn, submitUntilSent, test } from "../support/fixtures";
+import { clickUntilSent, expect, signIn, test } from "../support/fixtures";
 import { invite } from "../support/people";
 
 test.describe("signing in and out", () => {
@@ -9,13 +9,13 @@ test.describe("signing in and out", () => {
     await page.goto("/");
     await page.getByRole("textbox", { name: /^Email/ }).fill(people.viewer.email);
     await page.getByLabel(/^Password/).fill(`${people.viewer.password}-wrong`);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await clickUntilSent(page.getByRole("button", { name: "Sign in", exact: true }), "/auth/sign-in");
 
     const refusal = page.getByRole("alert");
     await expect(refusal).toHaveText("The email or password is not correct.");
 
     await page.getByRole("textbox", { name: /^Email/ }).fill("nobody-at-all@e2e.devbuddy.test");
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await clickUntilSent(page.getByRole("button", { name: "Sign in", exact: true }), "/auth/sign-in");
     await expect(refusal).toHaveText("The email or password is not correct.");
   });
 
@@ -53,13 +53,13 @@ test.describe("signing in and out", () => {
 
     for (let attempt = 0; attempt < 5; attempt++) {
       await page.getByLabel(/^Password/).fill(`not-the-password-${attempt}`);
-      await page.getByRole("button", { name: "Sign in", exact: true }).click();
+      await clickUntilSent(page.getByRole("button", { name: "Sign in", exact: true }), "/auth/sign-in");
       await expect(page.getByRole("alert")).toBeVisible();
     }
 
     // Even the right password is refused now, with the reason rather than "not correct".
     await page.getByLabel(/^Password/).fill(person.password);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await clickUntilSent(page.getByRole("button", { name: "Sign in", exact: true }), "/auth/sign-in");
     await expect(page.getByRole("alert")).toContainText("Locked until");
   });
 });
@@ -73,10 +73,8 @@ test.describe("recovery and setup tokens", () => {
     await page.getByRole("button", { name: "Forgot your password?" }).click();
 
     for (const email of [people.viewer.email, "no-such-person@e2e.devbuddy.test"]) {
-      await submitUntilSent(page, "/auth/recovery/begin", async () => {
-        await page.getByRole("textbox", { name: /^Email/ }).fill(email);
-        await page.getByRole("button", { name: "Send a recovery token" }).click();
-      });
+      await page.getByRole("textbox", { name: /^Email/ }).fill(email);
+      await clickUntilSent(page.getByRole("button", { name: "Send a recovery token" }), "/auth/recovery/begin");
       await expect(page.getByRole("status")).toContainText("If that address has an account");
     }
 
@@ -105,14 +103,14 @@ test.describe("recovery and setup tokens", () => {
     await expect(page.getByRole("alert")).toHaveText("The two passwords do not match.");
 
     await page.getByLabel(/^Confirm password/).fill(chosen);
-    await page.getByRole("button", { name: "Set password" }).click();
+    await clickUntilSent(page.getByRole("button", { name: "Set password" }), "/auth/recovery/complete");
     await expect(page.getByRole("status")).toContainText("Your password is set");
 
     // The same token again.
     await page.goto(`/set-password?token=${encodeURIComponent(created.setupToken)}`);
     await page.getByLabel(/^New password/).fill(password());
     await page.getByLabel(/^Confirm password/).fill(await page.getByLabel(/^New password/).inputValue());
-    await page.getByRole("button", { name: "Set password" }).click();
+    await clickUntilSent(page.getByRole("button", { name: "Set password" }), "/auth/recovery/complete");
     await expect(page.getByRole("alert")).toContainText("already used");
 
     await signIn(page, { ...people.viewer, email, password: chosen });

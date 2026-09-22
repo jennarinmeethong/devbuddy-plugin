@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { anonymous, Api } from "../support/api";
 import { password, unique } from "../support/env";
-import { expect, openAs, signIn, test } from "../support/fixtures";
+import { clickUntilSent, expect, openAs, signIn, test } from "../support/fixtures";
 import { invite } from "../support/people";
 
 test.describe("members", () => {
@@ -29,13 +29,13 @@ test.describe("members", () => {
     await tab.goto(`/set-password?token=${encodeURIComponent(token)}`);
     await tab.getByLabel(/^New password/).fill(chosen);
     await tab.getByLabel(/^Confirm password/).fill(chosen);
-    await tab.getByRole("button", { name: "Set password" }).click();
+    await clickUntilSent(tab.getByRole("button", { name: "Set password" }), "/auth/recovery/complete");
     await expect(tab.getByRole("status")).toContainText("Your password is set");
 
     await tab.getByRole("link", { name: "Sign in" }).click();
     await tab.getByRole("textbox", { name: /^Email/ }).fill(email);
     await tab.getByLabel(/^Password/).fill(chosen);
-    await tab.getByRole("button", { name: "Sign in", exact: true }).click();
+    await clickUntilSent(tab.getByRole("button", { name: "Sign in", exact: true }), "/auth/sign-in");
     await expect(tab.getByRole("banner")).toContainText("Reviewer");
     await newcomer.close();
   });
@@ -135,7 +135,7 @@ test.describe("members", () => {
     await tab.goto(`/set-password?token=${encodeURIComponent(token)}`);
     await tab.getByLabel(/^New password/).fill(chosen);
     await tab.getByLabel(/^Confirm password/).fill(chosen);
-    await tab.getByRole("button", { name: "Set password" }).click();
+    await clickUntilSent(tab.getByRole("button", { name: "Set password" }), "/auth/recovery/complete");
     await expect(tab.getByRole("status")).toContainText("Your password is set");
     await context.close();
 

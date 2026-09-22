@@ -1,4 +1,4 @@
-import { test as base, expect, type Browser, type Page } from "@playwright/test";
+import { test as base, expect, type Browser, type Locator, type Page } from "@playwright/test";
 import { Api } from "./api";
 import { unique } from "./env";
 import { cast, type Cast, type Person } from "./people";
@@ -75,33 +75,32 @@ export const test = base.extend<Fixtures>({
 export async function signIn(page: Page, person: Person, path = `/w/${cast().workspaceId}`): Promise<void> {
   await page.goto(path);
 
-  await submitUntilSent(page, "/auth/sign-in", async () => {
-    await page.getByRole("textbox", { name: /^Email/ }).fill(person.email);
-    await page.getByLabel(/^Password/).fill(person.password);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  });
+  await page.getByRole("textbox", { name: /^Email/ }).fill(person.email);
+  await page.getByLabel(/^Password/).fill(person.password);
+  await clickUntilSent(page.getByRole("button", { name: "Sign in", exact: true }), "/auth/sign-in");
 
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 }
 
 /**
- * Fills and submits a signed-out form, and repeats it until its request has left the page.
+ * Clicks a signed-out form's submit button, and clicks it again if its request never leaves.
  *
- * Firefox on the arm64 runner took the click on the sign-in button and sent nothing: no request,
- * the form still filled, no error (run 35602268050, from its trace). The recovery form then showed
- * the same outward symptom (run 35680015949), but that run's trace was lost to an upload failure,
- * so it is the same fault only by appearance. The cause is not identified. It has not been seen on
- * a signed-in screen, nor in Chromium or WebKit. A second submit of either form is harmless: a
- * second session, or a second identical recovery answer. So the test goes on only once the
- * request is seen, rather than asserting on a page that never asked.
+ * Firefox, on both CI runners, sometimes takes the click on a signed-out page's submit button and
+ * sends nothing: no request, the form still filled, no error. Traces show it on the sign-in form
+ * (run 35602268050) and on setting a password (35681490953); the recovery form and a sign-in after
+ * a reset failed the same way where the trace was lost. It happens on a page just loaded. It has
+ * not been seen on a signed-in screen, nor in Chromium or WebKit. **The cause is not identified.**
+ * So the test goes on only once the request is seen. The click is repeated only when nothing left
+ * within five seconds, so a request that did leave is not sent twice.
  */
-export async function submitUntilSent(page: Page, pathname: string, submit: () => Promise<void>): Promise<void> {
+export async function clickUntilSent(button: Locator, pathname: string): Promise<void> {
+  const page = button.page();
   await expect(async () => {
     const sent = page.waitForRequest(
       (request) => request.method() === "POST" && new URL(request.url()).pathname === pathname,
       { timeout: 5_000 },
     );
-    await submit();
+    await button.click();
     await sent;
   }).toPass({ timeout: 30_000 });
 }
