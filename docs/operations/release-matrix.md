@@ -346,6 +346,33 @@ The amd64 script ran in the Ubuntu 26.04.1 VMware guest, from fresh clones of `v
 - `scope-report` finds nothing;
 - no service runs as root, and the API and the evidence store logged no errors.
 
+### Against the release's own artefacts
+
+Tag `v1.5.0` pushed from `cb818a3`, run 35685837379, 2026-09-22. Every job passed on the first
+attempt. Between `50ccaaa` and `cb818a3` only this file and `docs/plan-phase-13.md` changed. The
+owner approved downloading the archives for this checklist, `win-arm64` excepted, and publishing
+once it passed (`info.md`, 2026-09-22). **Published on 2026-09-22, 04:22 UTC**, as Latest.
+
+| Check | When | Result |
+| --- | --- | --- |
+| The draft carries exactly the published RIDs | Re-run | **Yes.** Seven archives, `SHA256SUMS` and the three SBOMs; `prerelease=false`. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and the six archives downloaded. Provenance names `refs/tags/v1.5.0`, `release.yml` and `cb818a3`. A wrong `--owner` is refused for an image and for an archive. `win-arm64` was not downloaded, so its attestation was not checked. |
+| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all six downloaded, and again on every machine an archive was copied to. |
+| SBOM attached per image | Re-run | **Yes.** CycloneDX 1.7: 36, 38 and 56 components for the API, the MCP server and the console. |
+| Both architectures in every manifest | Re-run | **Yes.** `linux/amd64` and `linux/arm64` for all three images. `1.5.0`, `1.5` and `v1.5.0` resolve to one digest per image, and `1.4.0` still resolves to its own. |
+| Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp, with the tag's own Compose file and the published images in place of the build:<br>• The images were pulled as `1.5.0` and matched the published digests; `amd64`, user `1654`.<br>• `migrate` exited 0 with **nine** migrations, the last being `RecordEmbeddingChunks`.<br>• The API was healthy and answered 200, 401 and 200.<br>• The MCP server answered 401, against a 404 control.<br>• The API, MCP server and retention ran as uid 1654, read-only; PostgreSQL as 70; the evidence store as 1000, read-only.<br>• The console listed the twenty AI operations, and the API logged no error lines. |
+| Images **started** on `linux/arm64` | Re-run, against the published images | **Yes, on arm64:** the Ubuntu 26.04.1 VMware guest on the Apple M4 (`aarch64`). The same script, checks and results, with `arm64` and the same digests. |
+| `win-x64` smoke test | Re-run | **Yes, natively**, on the development machine: Windows 11 Pro 10.0.26200 on AMD64. Twenty operations, identical to the console image; `--every 24` refused with exit 2. Smart App Control read Off. |
+| `linux-x64` smoke test | Re-run | **Yes.** `ubuntu:24.04` (24.04.4) with `libicu74`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24.1) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively on the Apple M4 Mac mini, macOS 26.6.2. Twenty operations, identical; `--every 24` refused; the apphost is an ad-hoc signed arm64 Mach-O. |
+| `linux-arm64` smoke test | Re-run | **Yes, natively**, in the Ubuntu 26.04.1 VMware guest on the Apple M4, `aarch64`. Twenty operations, identical; `--every 24` refused with exit 2. The guest's clock was about 14.8 hours behind, so `tar` warned that every file's timestamp was in the future. Nothing checked depends on it. |
+| `linux-musl-arm64` smoke test | Re-run, **required since B10** | **Yes, in a container.** `alpine:3` (3.24.2) in the Ubuntu 26.04.1 arm64 guest, `aarch64`. Twenty operations, identical; `--every 24` refused. |
+| `win-arm64` smoke test | Not required | **Not run for this release.** The owner excluded `win-arm64` from Phase 13, and its archive was not downloaded. The RID stays built but unverified. |
+
+"Identical" means the same twenty names, in the same order, as `operations --ai` printed by the
+published `devbuddy-cli:1.5.0` image, on amd64 and on arm64 alike.
+
 ## What was verified for v1.4.0
 
 **Checked on 2026-09-21 against `826b34e`, before the tag.** What this release adds:

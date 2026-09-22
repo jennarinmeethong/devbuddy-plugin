@@ -2,6 +2,9 @@
 
 ## Confirmed Cutting v1.5.0, Before B8 on the devbox — 2026-09-22
 
+*(Done the same day: published 04:22 UTC once the checklist passed; the devbox moved onto the tag
+and plugin 1.5.0 was installed.)*
+
 The owner chose to release `v1.5.0` first, then enable the stale-record sweep on the devbox (B8).
 The narrow `IndexMaintainer` role B8 needs is not in `v1.4.0`.
 
