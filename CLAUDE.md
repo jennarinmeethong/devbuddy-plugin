@@ -364,7 +364,7 @@ installation other than the owner's devbox holding real project data — both st
 of their own. **The devbox is approved (`info.md`, 2026-09-16):** self-hosted `qwen3-embedding:0.6b`
 through Ollama inside the stack, real project data with no customer, production or personal data,
 no bounded scope, and `record-embedding-sweep` as a Viewer account of its own at 50 texts every 24h.
-No stale-record sweep there. **That worker has run there since 2026-09-17**, on v1.3.0, as the
+Since 2026-09-22 `stale-record-sweep` runs there too, as an account holding only `IndexMaintainer`, every 24h with `--stale-after 365d` (`info.md`). **That worker has run there since 2026-09-17**, on v1.3.0, as the
 owner's `test_worker` account with a token it minted. Its first pass with something to embed
 indexed one published test record, and `search_similar_records` found it over the plugin.
 

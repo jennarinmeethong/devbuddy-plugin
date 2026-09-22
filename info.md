@@ -1,5 +1,21 @@
 # Project Decisions
 
+## Confirmed the Stale-Record Sweep on the devbox — 2026-09-22
+
+The owner enabled `stale-record-sweep` on the devbox (Phase 13, B8), on `v1.5.0`. This replaces
+"No stale-record sweep there" in the 2026-09-16 entry.
+
+- **Account:** one of its own, displayed as `IndexMaintainer`. It holds the `IndexMaintainer` role
+  on the workspace and nothing else. It minted its own machine token, `stale_worker`, which expires
+  2027-09-22. The token is in the server's `.env` as `DEVBUDDY_STALE_SWEEP_TOKEN`, and was set by
+  the owner.
+- **Schedule:** every 24h, with `--stale-after 365d` (the owner chose a year, not the proposed 90
+  days).
+- **What it does:** it calls no model, sends nothing out, and writes nothing but audit entries. It
+  reports records untouched for longer than the threshold.
+- **Rollback:** revoke `stale_worker` on the Plugin access screen, and the next pass is refused.
+  Or stop the service with `docker compose --profile workers stop stale-record-sweep`.
+
 ## Confirmed Cutting v1.5.0, Before B8 on the devbox — 2026-09-22
 
 *(Done the same day: published 04:22 UTC once the checklist passed; the devbox moved onto the tag
