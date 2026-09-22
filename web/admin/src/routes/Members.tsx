@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import { useSession, useWorkspace } from "../api/session";
+import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 
@@ -32,7 +33,7 @@ export function Members() {
   const revoke = useMutation({
     mutationFn: (membershipId: string) =>
       invoke("revoke_membership", { workspaceId: workspaceId!, membershipId }),
-    onSuccess: () => queries.invalidateQueries({ queryKey: ["memberships", workspaceId] }),
+    onSuccess: () => refetchAfterWrite(queries, { queryKey: ["memberships", workspaceId] }),
   });
 
   return (
@@ -145,7 +146,7 @@ function ChangeRole({ workspaceId, membership }: { workspaceId: string; membersh
         throw new PartialChange(failure);
       }
     },
-    onSettled: () => queries.invalidateQueries({ queryKey: ["memberships", workspaceId] }),
+    onSettled: () => refetchAfterWrite(queries, { queryKey: ["memberships", workspaceId] }),
   });
 
   return (
@@ -302,7 +303,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
         role,
         scopedToProject: project || null,
       }),
-    onSuccess: () => queries.invalidateQueries({ queryKey: ["memberships", workspaceId] }),
+    onSuccess: () => refetchAfterWrite(queries, { queryKey: ["memberships", workspaceId] }),
   });
 
   if (people.length === 0) {
@@ -381,7 +382,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
     onSuccess: async () => {
       setEmail("");
       setDisplayName("");
-      await queries.invalidateQueries({ queryKey: ["memberships", workspaceId] });
+      await refetchAfterWrite(queries, { queryKey: ["memberships", workspaceId] });
     },
   });
 

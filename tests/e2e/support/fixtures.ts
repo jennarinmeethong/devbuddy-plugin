@@ -75,21 +75,35 @@ export const test = base.extend<Fixtures>({
 export async function signIn(page: Page, person: Person, path = `/w/${cast().workspaceId}`): Promise<void> {
   await page.goto(path);
 
-  // On the slow arm64 runner, Firefox once took the click and never submitted: no request left the
-  // page and the form stayed filled with no error. So the click counts only once the request is
-  // seen, and is made again if it is not. Signing in twice only opens a second session.
-  await expect(async () => {
+  await submitUntilSent(page, "/auth/sign-in", async () => {
     await page.getByRole("textbox", { name: /^Email/ }).fill(person.email);
     await page.getByLabel(/^Password/).fill(person.password);
-    const sent = page.waitForRequest(
-      (request) => request.method() === "POST" && new URL(request.url()).pathname === "/auth/sign-in",
-      { timeout: 5_000 },
-    );
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await sent;
-  }).toPass({ timeout: 30_000 });
+  });
 
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+}
+
+/**
+ * Fills and submits a signed-out form, and repeats it until its request has left the page.
+ *
+ * Firefox on the arm64 runner took the click on the sign-in button and sent nothing: no request,
+ * the form still filled, no error (run 35602268050, from its trace). The recovery form then showed
+ * the same outward symptom (run 35680015949), but that run's trace was lost to an upload failure,
+ * so it is the same fault only by appearance. The cause is not identified. It has not been seen on
+ * a signed-in screen, nor in Chromium or WebKit. A second submit of either form is harmless: a
+ * second session, or a second identical recovery answer. So the test goes on only once the
+ * request is seen, rather than asserting on a page that never asked.
+ */
+export async function submitUntilSent(page: Page, pathname: string, submit: () => Promise<void>): Promise<void> {
+  await expect(async () => {
+    const sent = page.waitForRequest(
+      (request) => request.method() === "POST" && new URL(request.url()).pathname === pathname,
+      { timeout: 5_000 },
+    );
+    await submit();
+    await sent;
+  }).toPass({ timeout: 30_000 });
 }
 
 /** A second person at the same time, in a browser context of their own. */

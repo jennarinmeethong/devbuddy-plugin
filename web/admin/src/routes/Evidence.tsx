@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { captureEvidence, downloadEvidence, invoke } from "../api/client";
 import { grants, useWorkspace } from "../api/session";
+import { refetchAfterWrite } from "../api/queries";
 import { Button, Empty, Field, Input, Panel, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
@@ -128,7 +129,7 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
         input.current.value = "";
       }
 
-      await queries.invalidateQueries({
+      await refetchAfterWrite(queries, {
         queryKey: ["evidence", scope.workspaceId, scope.projectId],
       });
     },

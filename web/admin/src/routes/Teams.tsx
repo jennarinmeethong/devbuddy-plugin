@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import { useWorkspace } from "../api/session";
+import { refetchAfterWrite } from "../api/queries";
 import { Alert, Button, Empty, Field, Input, Panel, Select, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
 
@@ -30,7 +31,7 @@ export function Teams() {
     mutationFn: (teamName: string) => invoke("create_team", { workspaceId: workspaceId!, name: teamName }),
     onSuccess: async () => {
       setName("");
-      await queries.invalidateQueries({ queryKey: ["teams", workspaceId] });
+      await refetchAfterWrite(queries, { queryKey: ["teams", workspaceId] });
     },
   });
 
@@ -115,7 +116,7 @@ function TeamRow({
   const [draft, setDraft] = useState(name);
   const [confirming, setConfirming] = useState(false);
 
-  const invalidate = () => queries.invalidateQueries({ queryKey: ["teams", workspaceId] });
+  const invalidate = () => refetchAfterWrite(queries, { queryKey: ["teams", workspaceId] });
 
   const rename = useMutation({
     mutationFn: () => invoke("rename_team", { workspaceId, teamId, name: draft }),
@@ -238,7 +239,7 @@ function TeamMembers({
     queryFn: () => invoke("list_memberships", { workspaceId }),
   });
 
-  const invalidate = () => queries.invalidateQueries({ queryKey: ["team-members", workspaceId, teamId] });
+  const invalidate = () => refetchAfterWrite(queries, { queryKey: ["team-members", workspaceId, teamId] });
 
   const add = useMutation({
     mutationFn: () => invoke("add_team_member", { workspaceId, teamId, userId }),

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
+import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 
@@ -38,14 +39,14 @@ export function PluginAccess() {
       invoke("issue_machine_token", { workspaceId: workspaceId!, name, lifetimeDays: days }),
     onSuccess: async () => {
       setName("");
-      await queries.invalidateQueries({ queryKey: ["machine-tokens", workspaceId] });
+      await refetchAfterWrite(queries, { queryKey: ["machine-tokens", workspaceId] });
     },
   });
 
   const revoke = useMutation({
     mutationFn: (tokenId: string) =>
       invoke("revoke_machine_token", { workspaceId: workspaceId!, tokenId }),
-    onSuccess: () => queries.invalidateQueries({ queryKey: ["machine-tokens", workspaceId] }),
+    onSuccess: () => refetchAfterWrite(queries, { queryKey: ["machine-tokens", workspaceId] }),
   });
 
   return (

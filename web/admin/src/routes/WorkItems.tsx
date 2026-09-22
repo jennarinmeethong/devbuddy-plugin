@@ -4,6 +4,7 @@ import { ProjectNav } from "../components/ProjectNav";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import { grants, useWorkspace } from "../api/session";
+import { refetchAfterWrite } from "../api/queries";
 import { Button, Empty, Field, Input, Panel, Select, Table, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 
@@ -96,7 +97,7 @@ function NewWorkItem({ scope }: { scope: { workspaceId: string; projectId: strin
       setGoal("");
       setInScope("");
       setExclusions("");
-      await queries.invalidateQueries({ queryKey: ["work-items", scope.workspaceId, scope.projectId] });
+      await refetchAfterWrite(queries, { queryKey: ["work-items", scope.workspaceId, scope.projectId] });
     },
   });
 

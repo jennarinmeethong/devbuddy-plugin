@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import type { GetRecordResult, ViewRecordHistoryResult } from "../api/operations";
 import { grants, useSession, useWorkspace } from "../api/session";
+import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Hash, Input, Panel, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 
@@ -262,9 +263,9 @@ function useRecordRefresh(scope: Scope, recordId: string): () => Promise<void> {
   const queries = useQueryClient();
 
   return async () => {
-    await queries.invalidateQueries({ queryKey: ["record", scope.workspaceId, scope.projectId, recordId] });
-    await queries.invalidateQueries({ queryKey: ["history", scope.workspaceId, scope.projectId, recordId] });
-    await queries.invalidateQueries({ queryKey: ["records", scope.workspaceId, scope.projectId] });
+    await refetchAfterWrite(queries, { queryKey: ["record", scope.workspaceId, scope.projectId, recordId] });
+    await refetchAfterWrite(queries, { queryKey: ["history", scope.workspaceId, scope.projectId, recordId] });
+    await refetchAfterWrite(queries, { queryKey: ["records", scope.workspaceId, scope.projectId] });
   };
 }
 

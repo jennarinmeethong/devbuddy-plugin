@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Api, anonymous, signInForTokens } from "../support/api";
 import { password } from "../support/env";
-import { expect, signIn, test } from "../support/fixtures";
+import { expect, signIn, submitUntilSent, test } from "../support/fixtures";
 import { invite } from "../support/people";
 
 test.describe("signing in and out", () => {
@@ -73,8 +73,10 @@ test.describe("recovery and setup tokens", () => {
     await page.getByRole("button", { name: "Forgot your password?" }).click();
 
     for (const email of [people.viewer.email, "no-such-person@e2e.devbuddy.test"]) {
-      await page.getByRole("textbox", { name: /^Email/ }).fill(email);
-      await page.getByRole("button", { name: "Send a recovery token" }).click();
+      await submitUntilSent(page, "/auth/recovery/begin", async () => {
+        await page.getByRole("textbox", { name: /^Email/ }).fill(email);
+        await page.getByRole("button", { name: "Send a recovery token" }).click();
+      });
       await expect(page.getByRole("status")).toContainText("If that address has an account");
     }
 

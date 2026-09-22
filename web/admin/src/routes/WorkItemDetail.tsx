@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import { grants, useSession, useWorkspace } from "../api/session";
 import type { GenerateHandoverResult } from "../api/operations";
+import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Select, Table, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
@@ -174,8 +175,8 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
         },
       }),
     onSuccess: async (result) => {
-      await queries.invalidateQueries({ queryKey: ["records", scope.workspaceId, scope.projectId] });
-      await queries.invalidateQueries({ queryKey: ["work-item", scope.workspaceId, scope.projectId, workItemId] });
+      await refetchAfterWrite(queries, { queryKey: ["records", scope.workspaceId, scope.projectId] });
+      await refetchAfterWrite(queries, { queryKey: ["work-item", scope.workspaceId, scope.projectId, workItemId] });
       navigate(`/w/${scope.workspaceId}/p/${scope.projectId}/records/${result.recordId}`);
     },
   });

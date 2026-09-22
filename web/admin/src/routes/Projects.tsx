@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import { grants, useWorkspace } from "../api/session";
+import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
 
@@ -31,7 +32,7 @@ export function Projects() {
       invoke("create_project", { workspaceId: workspaceId!, name: projectName }),
     onSuccess: async () => {
       setName("");
-      await queries.invalidateQueries({ queryKey: ["projects", workspaceId] });
+      await refetchAfterWrite(queries, { queryKey: ["projects", workspaceId] });
     },
   });
 
@@ -170,7 +171,7 @@ function DeleteProjectButton({
     onSuccess: async () => {
       setConfirming(false);
       setTyped("");
-      await queries.invalidateQueries({ queryKey: ["projects", workspaceId] });
+      await refetchAfterWrite(queries, { queryKey: ["projects", workspaceId] });
     },
   });
 
@@ -265,7 +266,7 @@ function BoundedScopeButton({
     onSuccess: async () => {
       setOpen(false);
       setConfirmed(false);
-      await queries.invalidateQueries({ queryKey: ["projects", workspaceId] });
+      await refetchAfterWrite(queries, { queryKey: ["projects", workspaceId] });
     },
   });
 
@@ -337,7 +338,7 @@ function AiAccessButton({
       enabled
         ? invoke("disable_project_ai_access", { scope: { workspaceId, projectId } })
         : invoke("enable_project_ai_access", { scope: { workspaceId, projectId } }),
-    onSuccess: () => queries.invalidateQueries({ queryKey: ["projects", workspaceId] }),
+    onSuccess: () => refetchAfterWrite(queries, { queryKey: ["projects", workspaceId] }),
   });
 
   return (
