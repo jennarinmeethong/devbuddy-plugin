@@ -135,7 +135,8 @@ not a matter of taste: it is where the machine is.**
 
 **A self-hosted endpoint on a public address is refused** (2026-09-23). An address literal is refused
 at start-up; a name is resolved before every call, and if any address it resolves to is public the
-call is refused with nothing sent, and the sweep reports the pass as refused. Text sent to a public
+call is refused with nothing sent: the worker logs that pass as failed, with the reason, and the
+schedule continues, and a semantic search fails the same way. Text sent to a public
 address leaves the installation, and the self-hosted mode is what tells `embedding-check` and the
 gateway that nothing does. "Private" is the definition the URL guard uses: loopback, link-local, the
 RFC 1918 ranges, `100.64.0.0/10`, and IPv6 unique-local. **What it cannot see** is a VPN: a cloud
@@ -157,8 +158,8 @@ DEVBUDDY_EMBEDDING_DIMENSIONS=1024           # must match the model
   server settings, and the embedding model has to be loaded there.
 - Neither has authentication by default and the traffic is plain HTTP. That is acceptable on a
   LAN the installation already trusts, and it is why the same setup on the internet is not.
-- When that machine is off, a pass is refused and the next one tries again, and semantic search
-  answers with the reason. Nothing else stops.
+- When that machine is off, the worker logs the pass as failed and the next one tries again, and
+  a semantic search fails until it is back. Full-text search and everything else are unaffected.
 
 **A model server on a cloud machine, hosted:**
 
