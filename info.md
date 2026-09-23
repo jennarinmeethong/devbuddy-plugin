@@ -1,5 +1,35 @@
 # Project Decisions
 
+## Confirmed Withdrawing Voyage AI, and Model Servers on Other Machines — 2026-09-23
+
+The owner withdrew Voyage AI as the hosted embedding vendor. Embeddings stay on a self-run model
+server, Ollama or LM Studio, and that server may now be on another machine.
+
+- **Voyage is removed from the code**, not only left unconfigured. That means `EmbeddingDialect`,
+  `DEVBUDDY_EMBEDDING_DIALECT`, the `input_type` field and the `EmbeddingPurpose` it needed on the
+  port. It was never enabled on any installation, so nothing that ran changes. `v1.5.0` still
+  carries it, so its release notes stay as published.
+- **No hosted vendor is named.** The 2026-09-21 entry's naming of Voyage is withdrawn. The hosted
+  mode stays in the code, because it is how a model server outside the installation's network is
+  reached.
+- **Which mode is where the machine is, not a preference:**
+  - the stack, or another machine on the same private network, is `SelfHosted`;
+  - a cloud machine, or anything reached over the internet, is `HostedApi`, even when the owner
+    runs it.
+- **The hosted mode still needs an acceptance per installation, with no exception for the owner's
+  own server.** It needs its host on `OutboundAccess:AllowedHosts`, a key the owner sets, and a TLS
+  proxy that checks that key. The acceptance names the cloud provider and the machine instead of
+  a vendor.
+- **`SelfHosted` refuses a public address.** An address literal is refused at start-up. A host name
+  is resolved before every call and refused with nothing sent if any address is public. Private
+  means what the URL guard already means by it. A VPN route to a cloud machine is not detectable,
+  and the operator has to state it.
+- **A machine on the LAN still needs its own `info.md` entry** before real project data is embedded
+  there, as for any installation (`docs/operations/embedding-approval.md`). The devbox's 2026-09-16
+  approval covers Ollama inside its stack, and does not cover a model server on another machine.
+- **Phase 13's C8 stays blocked**, for a different reason: there is no hosted server to exercise
+  until the owner runs one and accepts it.
+
 ## Confirmed Backfilling Every Skipped win-arm64 Release — 2026-09-22
 
 The owner asked to run everything previously skipped for `win-arm64`. The published archives for

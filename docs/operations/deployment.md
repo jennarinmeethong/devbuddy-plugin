@@ -119,30 +119,75 @@ broke.
 
 **Enabling a provider is a decision, not a setting.** A self-hosted model sends no project text out
 of the deployment. The hosted mode does, refuses to start unless its host is on
-`OutboundAccess:AllowedHosts`, and per `info.md` needs the vendor named and an acceptance of its
-own before it is used with real project data.
+`OutboundAccess:AllowedHosts`, and per `info.md` needs an acceptance of its own before it is used
+with real project data. **No vendor is named** since 2026-09-23, when the owner withdrew Voyage AI;
+the hosted mode is for an operator's own model server outside the network, below.
 
-**The named hosted vendor is Voyage AI** (`info.md`, 2026-09-21). The adapter is built and tested
-against a double shaped like its API; it has not been enabled on any installation. When an
-installation's own acceptance is in `info.md`, these are the settings:
+Both modes speak the OpenAI-compatible `/embeddings` shape, so the server can be Ollama, LM Studio,
+vLLM, llama.cpp or text-embeddings-inference, in the stack or on another machine. **Which mode is
+not a matter of taste: it is where the machine is.**
+
+| Where the model server is | Mode | Endpoint, for example |
+| --- | --- | --- |
+| A service in this Compose stack | `SelfHosted` | `http://ollama:11434/v1` |
+| Another machine on the same private network | `SelfHosted` | `http://192.168.1.20:11434/v1` (Ollama), `http://192.168.1.20:1234/v1` (LM Studio) |
+| A cloud machine, or anywhere reached over the internet | `HostedApi` | `https://embed.example.com/v1` |
+
+**A self-hosted endpoint on a public address is refused** (2026-09-23). An address literal is refused
+at start-up; a name is resolved before every call, and if any address it resolves to is public the
+call is refused with nothing sent, and the sweep reports the pass as refused. Text sent to a public
+address leaves the installation, and the self-hosted mode is what tells `embedding-check` and the
+gateway that nothing does. "Private" is the definition the URL guard uses: loopback, link-local, the
+RFC 1918 ranges, `100.64.0.0/10`, and IPv6 unique-local. **What it cannot see** is a VPN: a cloud
+machine reached over WireGuard or Tailscale has a private address and would pass. That is the
+operator's statement to get right, and such a machine belongs in the hosted mode.
+
+**Another machine on the LAN, self-hosted:**
+
+```bash
+DEVBUDDY_EMBEDDING_PROVIDER=SelfHosted
+DEVBUDDY_EMBEDDING_ENDPOINT=http://192.168.1.20:11434/v1
+DEVBUDDY_EMBEDDING_MODEL=qwen3-embedding:0.6b
+DEVBUDDY_EMBEDDING_DIMENSIONS=1024           # must match the model
+```
+
+- **Ollama** listens on `127.0.0.1` unless told otherwise: set `OLLAMA_HOST=0.0.0.0` on that
+  machine, and let its firewall admit only this installation's host.
+- **LM Studio** serves on `localhost:1234` until "serve on local network" is switched on in its
+  server settings, and the embedding model has to be loaded there.
+- Neither has authentication by default and the traffic is plain HTTP. That is acceptable on a
+  LAN the installation already trusts, and it is why the same setup on the internet is not.
+- When that machine is off, a pass is refused and the next one tries again, and semantic search
+  answers with the reason. Nothing else stops.
+
+**A model server on a cloud machine, hosted:**
 
 ```bash
 DEVBUDDY_EMBEDDING_PROVIDER=HostedApi
-DEVBUDDY_EMBEDDING_DIALECT=VoyageAi          # sends input_type: document / query
-DEVBUDDY_EMBEDDING_ENDPOINT=https://api.voyageai.com/v1
-DEVBUDDY_EMBEDDING_MODEL=voyage-3.5          # or the model the acceptance names
-DEVBUDDY_EMBEDDING_DIMENSIONS=1024           # must match the model
+DEVBUDDY_EMBEDDING_ENDPOINT=https://embed.example.com/v1
+DEVBUDDY_EMBEDDING_MODEL=qwen3-embedding:0.6b
+DEVBUDDY_EMBEDDING_DIMENSIONS=1024
 DEVBUDDY_EMBEDDING_API_KEY=...               # set by the owner, on the server
 ```
 
+- Put **a reverse proxy with TLS in front of it** (Caddy, for example) that refuses any request
+  without the bearer token, and have Ollama or LM Studio listen on `127.0.0.1` only, so the proxy is
+  the one way in. Neither checks a key itself, and the hosted mode refuses to start without one.
+  Exposing port 11434 or 1234 directly would let anybody embed with it, and carry project text in
+  clear.
+- The text is on a machine at a cloud provider. The acceptance names that provider and the machine.
+
 The allow-list entry is not a `docker/.env` variable, on purpose. Add it to the `api`, `mcp` and
 `record-embedding-sweep` services in `docker/compose.override.yaml`, as
-`DEVBUDDY_OutboundAccess__AllowedHosts__0: api.voyageai.com`, so that enabling egress is a file
+`DEVBUDDY_OutboundAccess__AllowedHosts__0: embed.example.com`, so that enabling egress is a file
 somebody wrote rather than a value somebody pasted. **The owner sets the key**, in `docker/.env`
 or a secret store, and it is never written anywhere else. The adapter sends it as a bearer header
-and never logs it or puts it in an error. A vendor refusal is reported by status code alone,
-because a vendor that echoes its input would put project text in the message. Changing model or
+and never logs it or puts it in an error. A server's refusal is reported by status code alone,
+because a server that echoes its input would put project text in the message. Changing model or
 dimension re-embeds every record, since vectors from two models are never compared.
+
+`DEVBUDDY_EMBEDDING_DIALECT` is gone with Voyage. An installation that still sets it is unaffected:
+nothing reads it.
 
 **Moving the database to `DEVBUDDY_DB_IMAGE=pgvector/pgvector:pg17` is a data-directory change, and
 not only in name.** Back up first. The pgvector image runs PostgreSQL as uid 999 and the default

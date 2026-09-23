@@ -11,7 +11,6 @@ public sealed record EmbeddingFacts(
     string Provider,
     string? Model,
     int Dimensions,
-    string? Dialect,
     bool LeavesTheBoundary,
     bool IndexAvailable,
     bool WorkerTokenPresent,
@@ -41,7 +40,7 @@ public static class EmbeddingReadiness
 
         lines.Add(new(
             "provider",
-            $"{facts.Provider}, model {facts.Model}, {facts.Dimensions} dimensions, dialect {facts.Dialect}",
+            $"{facts.Provider}, model {facts.Model}, {facts.Dimensions} dimensions",
             string.IsNullOrWhiteSpace(facts.Model) || facts.Dimensions <= 0));
 
         if (facts.LeavesTheBoundary)
@@ -49,7 +48,7 @@ public static class EmbeddingReadiness
             // Not a misconfiguration, and still the line an approver must read.
             lines.Add(new(
                 "egress",
-                "Hosted: project text leaves this installation for the vendor. It needs its own acceptance in info.md.",
+                "Hosted: project text leaves this installation for a model server outside it. It needs its own acceptance in info.md.",
                 false));
         }
 

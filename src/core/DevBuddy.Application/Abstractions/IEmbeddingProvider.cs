@@ -45,22 +45,6 @@ public interface IEmbeddingProvider
 
     Task<EmbeddingResult> EmbedAsync(
         IReadOnlyList<string> texts, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// The same, saying what the texts are for (Phase 13, B6). Some models embed a document and a
-    /// search query differently and retrieve better when told which is which; Voyage AI is one. A
-    /// provider that makes no such distinction ignores it.
-    /// </summary>
-    Task<EmbeddingResult> EmbedAsync(
-        IReadOnlyList<string> texts, EmbeddingPurpose purpose, CancellationToken cancellationToken) =>
-        EmbedAsync(texts, cancellationToken);
-}
-
-/// <summary>Whether texts are being indexed or searched with.</summary>
-public enum EmbeddingPurpose
-{
-    Document = 1,
-    Query = 2,
 }
 
 /// <summary>

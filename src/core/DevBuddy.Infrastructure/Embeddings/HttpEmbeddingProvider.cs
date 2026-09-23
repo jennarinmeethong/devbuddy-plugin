@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Domain.Common;
+using DevBuddy.Infrastructure.Scanning;
 using Microsoft.Extensions.Options;
 
 namespace DevBuddy.Infrastructure.Embeddings;
@@ -22,7 +23,9 @@ namespace DevBuddy.Infrastructure.Embeddings;
 /// <see cref="LeavesTheBoundary"/>, which the gateway reads, and as
 /// <see cref="EmbeddingOptions.Problems"/>, which refuses to start a hosted provider whose host
 /// nobody put on the outbound allow-list. This class sends what it is given; the decision about
-/// whether it may was taken before it was constructed.
+/// whether it may was taken before it was constructed. The one check it makes itself is that a
+/// self-hosted endpoint named by host still resolves to private addresses, because only a call
+/// can find that out (<see cref="SelfHostedEndpoint"/>).
 /// </para>
 /// <para>
 /// No retry. A provider that is down is a run that reports a refusal and tries again on its next
@@ -34,11 +37,14 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
 {
     private readonly HttpClient _http;
     private readonly EmbeddingOptions _options;
+    private readonly IHostResolver _resolver;
 
-    public HttpEmbeddingProvider(HttpClient http, IOptions<EmbeddingOptions> options)
+    public HttpEmbeddingProvider(
+        HttpClient http, IOptions<EmbeddingOptions> options, IHostResolver resolver)
     {
         _http = Guard.NotNull(http, nameof(http));
         _options = Guard.NotNull(options, nameof(options)).Value;
+        _resolver = Guard.NotNull(resolver, nameof(resolver));
 
         _http.BaseAddress = new Uri(
             _options.Endpoint.EndsWith('/') ? _options.Endpoint : _options.Endpoint + "/");
@@ -57,19 +63,18 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
 
     public bool LeavesTheBoundary => _options.Provider == EmbeddingProviderKind.HostedApi;
 
-    public Task<EmbeddingResult> EmbedAsync(
-        IReadOnlyList<string> texts, CancellationToken cancellationToken) =>
-        EmbedAsync(texts, EmbeddingPurpose.Document, cancellationToken);
-
     public async Task<EmbeddingResult> EmbedAsync(
-        IReadOnlyList<string> texts, EmbeddingPurpose purpose, CancellationToken cancellationToken)
+        IReadOnlyList<string> texts, CancellationToken cancellationToken)
     {
         Guard.NotNull(texts, nameof(texts));
 
-        // Voyage's input_type; null, and so omitted, for a provider that has no such field.
-        string? inputType = _options.Dialect == EmbeddingDialect.VoyageAi
-            ? purpose == EmbeddingPurpose.Query ? "query" : "document"
-            : null;
+        // Before anything is sent, and on every call: a name that resolved to the LAN yesterday
+        // can resolve to the internet today, and nothing else would notice.
+        if (_options.Provider == EmbeddingProviderKind.SelfHosted
+            && await SelfHostedEndpoint.RefusalAsync(_http.BaseAddress!, _resolver, cancellationToken) is { } refusal)
+        {
+            throw new InvalidOperationException(refusal);
+        }
 
         List<ReadOnlyMemory<float>> vectors = [];
         int calls = 0;
@@ -79,7 +84,7 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
         foreach (string[] batch in Batches(texts, _options.BatchSize))
         {
             HttpResponseMessage response = await _http.PostAsJsonAsync(
-                "embeddings", new EmbeddingRequestJson(_options.Model, batch, inputType), IgnoreNulls, cancellationToken);
+                "embeddings", new EmbeddingRequestJson(_options.Model, batch), cancellationToken);
 
             calls++;
 
@@ -122,15 +127,9 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
         }
     }
 
-    private static readonly System.Text.Json.JsonSerializerOptions IgnoreNulls = new()
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-
     private sealed record EmbeddingRequestJson(
         [property: JsonPropertyName("model")] string Model,
-        [property: JsonPropertyName("input")] IReadOnlyList<string> Input,
-        [property: JsonPropertyName("input_type")] string? InputType);
+        [property: JsonPropertyName("input")] IReadOnlyList<string> Input);
 
     private sealed record EmbeddingResponseJson(
         [property: JsonPropertyName("data")] IReadOnlyList<EmbeddingDatumJson>? Data);

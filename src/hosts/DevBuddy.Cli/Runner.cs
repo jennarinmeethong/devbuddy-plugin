@@ -198,7 +198,6 @@ internal static class Runner
                 options?.Provider.ToString() ?? "None",
                 options?.Model,
                 options?.Dimensions ?? 0,
-                options?.Dialect.ToString(),
                 options?.Provider == EmbeddingProviderKind.HostedApi,
                 await services.GetRequiredService<IEmbeddingIndex>().IsAvailableAsync(cancellationToken),
                 !string.IsNullOrWhiteSpace(token),

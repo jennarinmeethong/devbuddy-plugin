@@ -184,6 +184,8 @@ that went through the checklist, and `info.md` (2026-09-17) says the devbox runs
 ### B6 — Hosted embedding provider
 **Status: DONE (2026-09-21)** for the adapter, merged to `main`. Enabling it anywhere is not part of this item and needs an acceptance per installation.
 
+**Superseded 2026-09-23:** the owner withdrew Voyage AI, and its dialect is removed from the code. What follows is the record of what B6 decided and built, and not the current state (`info.md`).
+
 `HttpEmbeddingProvider` speaks the OpenAI-compatible `/embeddings` shape: `input` in, and
 `data[].embedding` out. How the three candidates differ in what this project has to do:
 
@@ -424,7 +426,7 @@ section when it is done.
 - Fix whatever differs in the client, not in the tests.
 
 ### C8 — The hosted provider mode, exercised
-**Status: BLOCKED (acceptance)** — the adapter is tested against a Voyage-shaped double (B6); a run against the real vendor waits for an installation's acceptance and the owner's key.
+**Status: BLOCKED (no hosted server)** — on 2026-09-23 the owner withdrew Voyage AI and it was removed from the code (`info.md`). The hosted mode stays, for the owner's own model server on a cloud machine. A real run waits for one to exist and for its acceptance.
 
 - A test against a recording double shaped like the named vendor (part of B6).
 - **A run against the real vendor happens only after the owner's acceptance**, with synthetic data,

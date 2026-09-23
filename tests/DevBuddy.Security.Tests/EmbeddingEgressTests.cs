@@ -13,6 +13,7 @@ using DevBuddy.Domain.Work;
 using DevBuddy.Infrastructure;
 using DevBuddy.Infrastructure.Embeddings;
 using DevBuddy.Infrastructure.Hosting;
+using DevBuddy.Infrastructure.Scanning;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DevBuddy.Security.Tests;
@@ -379,6 +380,11 @@ public sealed class EmbeddingEgressFixture : SecurityFixture
                 // The far side of the wire. Everything up to the handler is the adapter that ships.
                 services.ConfigureHttpClientDefaults(client =>
                     client.ConfigurePrimaryHttpMessageHandler(() => new RecordingEmbeddingHandler(recorder)));
+
+                // The stand-in model server's name answers with a private address, as a model in
+                // the stack would; the adapter refuses a self-hosted endpoint that resolves to a
+                // public one before it sends anything.
+                services.AddSingleton<IHostResolver>(new PrivateModelServerResolver());
             })
     {
         Recorder = recorder;
@@ -425,6 +431,13 @@ public sealed class EmbeddingRecorder
 /// Reads the request the real adapter sent, records its inputs, and answers in the OpenAI-compatible
 /// shape with one three-number vector per input.
 /// </summary>
+/// <summary>Resolves every name to a private address, which is what the stack's model server has.</summary>
+internal sealed class PrivateModelServerResolver : IHostResolver
+{
+    public Task<IReadOnlyList<IPAddress>> ResolveAsync(string host, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<IPAddress>>([IPAddress.Parse("172.18.0.9")]);
+}
+
 internal sealed class RecordingEmbeddingHandler(EmbeddingRecorder recorder) : HttpMessageHandler
 {
     private static readonly float[] Vector = [1f, 0f, 0f];

@@ -10,7 +10,7 @@ namespace DevBuddy.Application.Tests;
 public sealed class EmbeddingReadinessTests
 {
     private static readonly EmbeddingFacts Ready = new(
-        "SelfHosted", "qwen3-embedding:0.6b", 1024, "OpenAiCompatible", LeavesTheBoundary: false,
+        "SelfHosted", "qwen3-embedding:0.6b", 1024, LeavesTheBoundary: false,
         IndexAvailable: true, WorkerTokenPresent: true, WorkerTokenResolves: true, [Role.Viewer], Budget: 50);
 
     [Fact]

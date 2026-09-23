@@ -17,7 +17,7 @@ a problem:
 
 | Line | What it must show |
 | --- | --- |
-| `provider` | The mode, the model, its dimension, and the dialect. |
+| `provider` | The mode, the model, and its dimension. |
 | `egress` | Present only for the hosted mode: project text leaves the installation. The hosted mode needs everything below plus the acceptance in step 3. |
 | `vector index` | `present`. The database runs `pgvector/pgvector:pg17`, pinned by digest (`deployment.md` has the volume move). |
 | `worker token` | Valid, and its owner holds **Viewer** and nothing wider, in one workspace. The account is the sweep's own; a person's token is not used. |
@@ -25,8 +25,14 @@ a problem:
 
 ## 2. Check what the command cannot see
 
-- **The model server** publishes no port, runs as a non-root user, is read-only, and is pinned by
-  digest (self-hosted mode).
+- **Where the model server is**, which decides the mode (`deployment.md` has the table):
+  - in the stack: it publishes no port, runs as a non-root user, is read-only, and is pinned by
+    digest;
+  - on another machine on the LAN (Ollama, LM Studio): which machine, who administers it, and that
+    its firewall admits only this installation. `SelfHosted` refuses a public address, but not a
+    VPN route to a machine elsewhere, so say plainly that it is on the premises;
+  - on a cloud machine: the hosted mode, the cloud provider and the machine, and the TLS proxy that
+    checks the key in front of it.
 - **Which projects are open to AI.** Only those are embedded. Each one's owner opened it on the
   Projects screen, and any bounded scope is what the entry says.
 - **SB-18 stays in force.** With no bounded scope, personal data is redacted from what the sweep
@@ -39,9 +45,10 @@ a problem:
 ```markdown
 ## Confirmed Embeddings on <installation> — <date>
 
-- **Approved:** the <self-hosted | hosted (Voyage AI)> embedding provider on <installation>,
-  reachable <where>. Model <model> (<dimension> dimensions).
-- **Egress:** <none: no project text leaves the host | project text is sent to api.voyageai.com>.
+- **Approved:** the <self-hosted | hosted> embedding provider on <installation>,
+  reachable <where>. Model <model> (<dimension> dimensions), served by <Ollama | LM Studio | …> on
+  <in the stack | machine on the LAN | cloud machine at provider>.
+- **Egress:** <none: no project text leaves the <host | LAN> | project text is sent to <host>, at <cloud provider>>.
 - **Data:** <what the open projects hold>. <No bounded scope | the bounded scopes named>.
 - **What is indexed:** only projects whose owner enabled AI access, and only published revisions,
   in chunks of <n> characters.

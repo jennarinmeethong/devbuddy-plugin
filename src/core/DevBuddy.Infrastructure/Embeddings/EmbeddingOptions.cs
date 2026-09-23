@@ -4,22 +4,6 @@ namespace DevBuddy.Infrastructure.Embeddings;
 /// Which embedding provider, if any. <see cref="None"/> is the default and means the port is not
 /// registered at all — the same posture telemetry, SMTP and the GitHub API mode take.
 /// </summary>
-/// <summary>
-/// Which variant of the OpenAI-compatible <c>/embeddings</c> shape the provider speaks (Phase 13, B6).
-/// </summary>
-public enum EmbeddingDialect
-{
-    /// <summary><c>model</c> and <c>input</c>, nothing else. OpenAI, Ollama, vLLM, TEI, llama.cpp.</summary>
-    OpenAiCompatible = 1,
-
-    /// <summary>
-    /// Voyage AI (<c>api.voyageai.com/v1</c>): the same request and response, plus <c>input_type</c>
-    /// of <c>document</c> or <c>query</c>, which Voyage's models use to retrieve better. The vendor
-    /// the owner named for the hosted mode on 2026-09-21.
-    /// </summary>
-    VoyageAi = 2,
-}
-
 public enum EmbeddingProviderKind
 {
     /// <summary>
@@ -30,13 +14,17 @@ public enum EmbeddingProviderKind
     None = 1,
 
     /// <summary>
-    /// A model served inside the deployment. <b>No text leaves the trust boundary</b>, which is
-    /// the whole reason this mode exists as a distinct choice rather than as a different URL.
+    /// A model served inside the deployment, or on a machine on the same private network — Ollama
+    /// or LM Studio on another box in the LAN. <b>No text leaves the trust boundary</b>, which is
+    /// the whole reason this mode exists as a distinct choice rather than as a different URL, and
+    /// why it refuses an endpoint on a public address: a model server on the internet is a hosted
+    /// provider however it was installed, and calling it self-hosted would hide the egress.
     /// </summary>
     SelfHosted = 2,
 
     /// <summary>
-    /// A vendor's API. <b>Text leaves the boundary</b> — a third egress path beside the AI channel
+    /// A model server outside the deployment's network: a vendor's API, or the operator's own
+    /// Ollama or LM Studio on a cloud machine. <b>Text leaves the boundary</b> — a third egress path beside the AI channel
     /// and the telemetry exporter, and the only one that leaves a copy in somebody else's system
     /// by design. Refuses to start unless its host is on the outbound allow-list; see
     /// <see cref="EmbeddingOptions"/>.
@@ -62,10 +50,12 @@ public sealed class EmbeddingOptions
 
     /// <summary>
     /// Where the provider is. For <see cref="EmbeddingProviderKind.SelfHosted"/> this is operator
-    /// configuration pointing inside the deployment, in the same way
-    /// <c>Evidence:ServiceUrl</c> points at the bundled object store; it is not a URL derived from
-    /// analysed content, so it does not pass through <c>UrlGuard</c> and does not need
-    /// <c>OutboundAccess:AllowPrivateAddresses</c>.
+    /// configuration pointing inside the deployment or the private network around it, in the same
+    /// way <c>Evidence:ServiceUrl</c> points at the bundled object store; it is not a URL derived
+    /// from analysed content, so it does not pass through <c>UrlGuard</c> and does not need
+    /// <c>OutboundAccess:AllowPrivateAddresses</c>. It must resolve to private addresses only,
+    /// checked here for an address literal and by <see cref="SelfHostedEndpoint"/> before every
+    /// call for a name.
     /// </summary>
     public string Endpoint { get; set; } = string.Empty;
 
@@ -98,9 +88,6 @@ public sealed class EmbeddingOptions
     /// 4096-token model even for Thai text.
     /// </summary>
     public int ChunkCharacters { get; set; } = 3000;
-
-    /// <summary>Which variant of the request the provider expects. See <see cref="EmbeddingDialect"/>.</summary>
-    public EmbeddingDialect Dialect { get; set; } = EmbeddingDialect.OpenAiCompatible;
 
     /// <summary>
     /// What an operator has to have got right before this can start, as a list of problems rather
@@ -149,8 +136,15 @@ public sealed class EmbeddingOptions
             problems.Add("Embedding:ChunkCharacters must be at least 200.");
         }
 
-        if (Provider != EmbeddingProviderKind.HostedApi)
+        if (Provider == EmbeddingProviderKind.SelfHosted)
         {
+            // A literal can be judged now. A name is resolved before every call instead, because
+            // the model server may not be up while this host starts.
+            if (endpoint is not null && SelfHostedEndpoint.PublicLiteral(endpoint) is { } address)
+            {
+                problems.Add(SelfHostedEndpoint.Refusal(endpoint.DnsSafeHost, address));
+            }
+
             return problems;
         }
 

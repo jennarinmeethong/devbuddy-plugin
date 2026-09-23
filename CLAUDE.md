@@ -570,9 +570,13 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   search and structured filters alone, and an installation that configures no provider still runs
   exactly that. The derived vector index (ADR-0012) is opt-in and needs the pgvector extension the
   shipped `postgres:17-alpine` image does not carry, so its migration skips itself there and the
-  index reports as absent. **Enabling the hosted provider mode in a deployment needs the vendor
-  named, an `OutboundAccess:AllowedHosts` entry, and an acceptance of its own.** Never turn any of
-  it on by default.
+  index reports as absent. **Enabling the hosted provider mode in a deployment needs an
+  `OutboundAccess:AllowedHosts` entry and an acceptance of its own.** Never turn any of it on by
+  default. **Voyage AI was withdrawn and removed on 2026-09-23**; no vendor is named. The model
+  server is Ollama or LM Studio, and **the mode follows where that machine is**: in the stack or on
+  the LAN it is `SelfHosted`, and on a cloud machine it is `HostedApi`, even when the owner runs
+  it. `SelfHosted` refuses a public address, a literal at start-up and a name before every call
+  (`SelfHostedEndpoint`), because calling an internet server self-hosted would hide the egress.
 - **The MCP server's HTTP transport answers POST and nothing else.** A `GET` on it is 405 with
   `Allow: POST`, and that is correct, not a fault. `ModelContextProtocol.AspNetCore` 2.2.0 defaults
   to stateless mode, following protocol revision 2026-07-28 (SEP-2567), so `MapMcp()` maps no `GET`
