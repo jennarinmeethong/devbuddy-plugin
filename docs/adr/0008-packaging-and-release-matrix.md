@@ -1,6 +1,6 @@
 # ADR-0008: Self-contained publish tiers and Docker packaging
 
-- Status: Accepted; amended 2026-09-07, 2026-09-10 and 2026-09-13
+- Status: Accepted; amended 2026-09-07, 2026-09-10, 2026-09-13, 2026-09-14, 2026-09-21 and 2026-09-22
 - Date: 2026-09-01
 - Phase: 10
 
@@ -112,6 +112,17 @@ started.
 The owner moved it into the verified tier as Phase 13 item B10 (`info.md`, 2026-09-21), so every
 release now owes that smoke test and records it. `win-arm64` stays in the built-but-unverified tier
 by the same decision; it is the only row left there.
+
+## Amendment — 2026-09-22: skipped `win-arm64` evidence is backfilled
+
+At the owner's instruction, the published `win-arm64` archives skipped at release time were run
+after publication. Together with the releases already tested, every published release has now
+passed the native CLI smoke test on the Windows on ARM VMware guest. The backfilled archives'
+checksums and Sigstore provenance were verified too.
+
+This is an evidence amendment, not a tier change. The verified tier means committing to the smoke
+test before every future release. The owner has not made that commitment for `win-arm64`, so it
+remains the sole built-but-unverified RID.
 
 ## Consequences
 

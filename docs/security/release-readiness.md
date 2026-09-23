@@ -221,6 +221,14 @@ here. The acceptance above stands,
 with one change of wording: release notes now say what was run for these two, not that they were
 never started. Nobody may describe them as supported.
 
+**Every historical `win-arm64` release backfilled, and still unverified: 2026-09-22.** At the
+owner's instruction, `v1.0.0`, `v1.1.0`, `v1.4.0` and `v1.5.0` were downloaded and run on the
+Windows on ARM VMware guest; the intervening releases had already run there. Checksums and
+Sigstore provenance were verified for the four backfilled archives. This closes the historical
+evidence gap, but does not create the future per-release obligation that defines the verified
+tier. `win-arm64` remains unsupported and built-but-unverified until the owner chooses that
+obligation.
+
 **Closed rather than accepted: `linux/arm64` container images.** This section, ADR-0008 and the
 release matrix all said they were not built and not claimed. They are built now, published under
 the same tag as the amd64 images, and all three were started and answered. Cross-compiled rather

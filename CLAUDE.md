@@ -213,12 +213,11 @@ architecture**, because a manifest list can hold one image that drops root and o
 
 **One unverified RID keeps shipping.** `win-arm64` stays in the built-but-unverified tier,
 confirmed as a decision and not left as a gap. **`linux-musl-arm64` is verified since 2026-09-21**
-(Phase 13, B10), so every release owes it a smoke test in Alpine on arm64. What follows is the
-history of both. Each has been started
-once, for `v1.2.0` on 2026-09-14: `win-arm64` in a VMware VM on Apple silicon, and
-`linux-musl-arm64` in Alpine on the Mac mini. The owner kept both in the tier that day. So there is
-no per-release smoke test for them, every release's notes say exactly what was and was not run,
-and nobody may describe them as supported. **`osx-arm64` is verified since
+(Phase 13, B10), so every release owes it a smoke test in Alpine on arm64. `win-arm64` first ran
+for `v1.2.0` on 2026-09-14 in a VMware VM on Apple silicon. On 2026-09-22 the owner asked to
+backfill every skipped release, so every published archive has now passed there and its checksum
+and provenance have been checked. It remains unverified because there is still no future
+per-release obligation; nobody may describe it as supported. **`osx-arm64` is verified since
 2026-09-13**: it ran natively on the owner's Apple M4 Mac mini, including the Linux-built archive,
 which the SDK ad-hoc signs, so every release now owes a smoke test of it on that machine. **`osx-x64` is not published at
 all since 2026-09-13**: the owner dropped it, the release workflow no longer builds it, and it must

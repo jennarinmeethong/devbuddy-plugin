@@ -790,8 +790,8 @@ Both are in `docs/operations/plugin-hosts.md`.
 
   | Tier | RIDs | Meaning |
   |---|---|---|
-  | Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`, `osx-arm64` | Built **and** smoke-tested by hand, recorded per release. CI runs the full suite on `ubuntu-latest` and `windows-latest` only. |
-  | Built, unverified | `win-arm64`, `linux-musl-arm64` | Published as-is and not smoke-tested per release; each was started once, for `v1.2.0` (2026-09-14). Stated as unverified in the release notes, with what was run. |
+  | Verified | `linux-x64`, `linux-arm64`, `win-x64`, `linux-musl-x64`, `osx-arm64`, `linux-musl-arm64` | Built **and** smoke-tested by hand, recorded per release. CI runs the full suite on `ubuntu-latest` and `windows-latest` only. |
+  | Built, unverified | `win-arm64` | Every published release has now been smoke-tested retrospectively, but there is no future per-release obligation. It remains unverified and is labelled that way in release notes. |
   | Not published | everything else | Out of scope for v1; not claimed as supported. |
 
   Native OS dependencies are documented explicitly (ICU and OpenSSL on Linux unless invariant

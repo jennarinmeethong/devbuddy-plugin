@@ -1,5 +1,18 @@
 # Project Decisions
 
+## Confirmed Backfilling Every Skipped win-arm64 Release — 2026-09-22
+
+The owner asked to run everything previously skipped for `win-arm64`. The published archives for
+`v1.0.0`, `v1.1.0`, `v1.4.0` and `v1.5.0` were downloaded and checked on the Windows on ARM VMware
+guest; the three releases between them had already run there. Every published release has therefore
+now passed the native CLI smoke test, retrospectively. The checksums and Sigstore provenance of the
+four backfilled archives were verified too. `docs/operations/release-matrix.md` holds the exact
+commands and results.
+
+This closes the skipped historical evidence. It does not by itself change the accepted tier:
+`win-arm64` remains built-but-unverified until the owner separately chooses the future per-release
+smoke-test obligation that defines the verified tier.
+
 ## Confirmed the Stale-Record Sweep on the devbox — 2026-09-22
 
 The owner enabled `stale-record-sweep` on the devbox (Phase 13, B8), on `v1.5.0`. This replaces

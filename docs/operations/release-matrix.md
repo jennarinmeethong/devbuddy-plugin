@@ -18,7 +18,7 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `linux-arm64` | yes | **yes** | `ubuntu:24.04` under `linux/arm64` emulation. Emulated, not hardware. |
 | `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
 | `osx-arm64` | yes | **yes** | Natively, on an Apple M4 Mac mini running macOS 26.6.2. Hardware, not emulation. First run 2026-09-13, outside a release; see below. |
-| `win-arm64` | yes | once | **Not in the verified tier.** Started once, for `v1.2.0` on 2026-09-14, in a VMware guest on Apple silicon. Not smoke-tested per release. |
+| `win-arm64` | yes | every published release, retrospectively | **Not in the verified tier.** The releases skipped at the time were backfilled on 2026-09-22 in the VMware guest on Apple silicon. There is still no per-release commitment. |
 | `linux-musl-arm64` | yes | **yes** | `alpine:3` on arm64, after installing the dependencies below. **Verified since 2026-09-21** (Phase 13, B10): run for `v1.2.0`, `v1.2.1`, `v1.3.0` and `v1.4.0`, and smoke-tested every release from now on, in Alpine on the Ubuntu arm64 guest or the Mac mini. |
 
 **`linux-musl-arm64` moved to the verified tier on 2026-09-21** (`info.md`, Phase 13 B10). It had
@@ -26,13 +26,14 @@ been started for every release since `v1.2.0`, so the per-release smoke test is 
 rather than a courtesy. What follows describes both rows as they stood until then; `win-arm64`
 still stands there.
 
-The two rows reading **once** are a decision rather than an omission. They are published in this
-tier without the per-release smoke test the rows reading yes get, as confirmed by the project owner
-on 2026-09-10. Until 2026-09-14 neither had ever been started. That day both ran for `v1.2.0`:
-`win-arm64` in a VMware virtual machine on Apple silicon, and `linux-musl-arm64` in an Alpine
-container on the Mac mini. The owner confirmed that they stay in this tier (`info.md`, 2026-09-14).
-One run in a VM or a container is not a per-release commitment. Every release's notes say plainly
-what was and was not run for these two, and nobody may describe them as supported.
+The middle tier is a decision rather than an omission. It is published without the per-release
+smoke test the verified rows get. Until 2026-09-14 neither RID then in it had ever been started.
+That day both ran for `v1.2.0`: `win-arm64` in a VMware virtual machine on Apple silicon, and
+`linux-musl-arm64` in an Alpine container on the Mac mini. On 2026-09-22 the owner asked to run
+every `win-arm64` release that had been skipped, so all published releases have now passed
+retrospectively. That evidence does not by itself create the future per-release commitment that
+defines the verified tier. Release notes say plainly what was and was not run, and nobody may
+describe `win-arm64` as supported.
 
 **`osx-arm64` moved to the verified tier (2026-09-13).** The owner moved it after a Mac mini became
 available and the build was run on it. From the next release on it is smoke-tested by hand on that
@@ -356,8 +357,8 @@ once it passed (`info.md`, 2026-09-22). **Published on 2026-09-22, 04:22 UTC**, 
 | Check | When | Result |
 | --- | --- | --- |
 | The draft carries exactly the published RIDs | Re-run | **Yes.** Seven archives, `SHA256SUMS` and the three SBOMs; `prerelease=false`. |
-| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and the six archives downloaded. Provenance names `refs/tags/v1.5.0`, `release.yml` and `cb818a3`. A wrong `--owner` is refused for an image and for an archive. `win-arm64` was not downloaded, so its attestation was not checked. |
-| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all six downloaded, and again on every machine an archive was copied to. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and all seven archives. The `win-arm64` archive was verified after publication on 2026-09-22; its Sigstore bundle was checked against this repository, `.github/workflows/release.yml`, `refs/tags/v1.5.0` and `cb818a3`, and a wrong-owner control was refused. |
+| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all seven. The `win-arm64` archive was downloaded and matched after publication on 2026-09-22. |
 | SBOM attached per image | Re-run | **Yes.** CycloneDX 1.7: 36, 38 and 56 components for the API, the MCP server and the console. |
 | Both architectures in every manifest | Re-run | **Yes.** `linux/amd64` and `linux/arm64` for all three images. `1.5.0`, `1.5` and `v1.5.0` resolve to one digest per image, and `1.4.0` still resolves to its own. |
 | Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp, with the tag's own Compose file and the published images in place of the build:<br>• The images were pulled as `1.5.0` and matched the published digests; `amd64`, user `1654`.<br>• `migrate` exited 0 with **nine** migrations, the last being `RecordEmbeddingChunks`.<br>• The API was healthy and answered 200, 401 and 200.<br>• The MCP server answered 401, against a 404 control.<br>• The API, MCP server and retention ran as uid 1654, read-only; PostgreSQL as 70; the evidence store as 1000, read-only.<br>• The console listed the twenty AI operations, and the API logged no error lines. |
@@ -368,7 +369,7 @@ once it passed (`info.md`, 2026-09-22). **Published on 2026-09-22, 04:22 UTC**, 
 | `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively on the Apple M4 Mac mini, macOS 26.6.2. Twenty operations, identical; `--every 24` refused; the apphost is an ad-hoc signed arm64 Mach-O. |
 | `linux-arm64` smoke test | Re-run | **Yes, natively**, in the Ubuntu 26.04.1 VMware guest on the Apple M4, `aarch64`. Twenty operations, identical; `--every 24` refused with exit 2. The guest's clock was about 14.8 hours behind, so `tar` warned that every file's timestamp was in the future. Nothing checked depends on it. |
 | `linux-musl-arm64` smoke test | Re-run, **required since B10** | **Yes, in a container.** `alpine:3` (3.24.2) in the Ubuntu 26.04.1 arm64 guest, `aarch64`. Twenty operations, identical; `--every 24` refused. |
-| `win-arm64` smoke test | Not required | **Not run for this release.** The owner excluded `win-arm64` from Phase 13, and its archive was not downloaded. The RID stays built but unverified. |
+| `win-arm64` smoke test | Run after publication, not required | **Yes, after publication on 2026-09-22, in a VM.** Natively on Windows on ARM (10.0.26200.9457) in the VMware guest on Apple silicon. The published archive's SHA-256 matched `SHA256SUMS`, and the CLI apphost's PE machine was `0xAA64` (ARM64). `operations --ai` exited 0, listed the same twenty names as the published console images, and wrote nothing to stderr; `retention --every 24` was refused with the interval guidance and exit 2; `migrate` with no connection string reached the refusal inside Infrastructure and exited 2. The RID stays built but unverified: this post-release run does not create a per-release smoke-test commitment. |
 
 "Identical" means the same twenty names, in the same order, as `operations --ai` printed by the
 published `devbuddy-cli:1.5.0` image, on amd64 and on arm64 alike.
@@ -499,8 +500,8 @@ the owner for this checklist, `win-arm64` excepted.
 | Check | When | Result |
 | --- | --- | --- |
 | The draft carries exactly the published RIDs | Re-run | **Yes.** Seven archives, `SHA256SUMS` and the three SBOMs; `prerelease=false`. `v1.3.0` stays Latest while this is a draft. |
-| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and the six archives downloaded. Provenance names `refs/tags/v1.4.0`, `163243f` and `release.yml`. A wrong `--owner` is refused for an image and for an archive. `win-arm64` was not downloaded, so its attestation was not checked. |
-| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all six downloaded, and again on every machine an archive was copied to. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and all seven archives. The `win-arm64` archive was verified after publication on 2026-09-22 against this repository, `release.yml`, `refs/tags/v1.4.0` and `163243f`. |
+| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all seven; `win-arm64` was downloaded and matched after publication on 2026-09-22. |
 | SBOM attached per image | Re-run | **Yes.** CycloneDX 1.7: 36, 38 and 56 components for the API, the MCP server and the console. Each is attached to its image as an attestation. |
 | Both architectures in every manifest | Re-run | **Yes.** `linux/amd64` and `linux/arm64` for all three images. `1.4.0`, `1.4` and `v1.4.0` resolve to one digest per image, and `1.3.0` still resolves to its own. |
 | Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp, with the tag's own Compose file and the published images in place of the build:<br>• The images were pulled as `1.4.0` and matched the published digests; `amd64`, user `1654`.<br>• `migrate` exited 0 with eight migrations.<br>• The API was healthy and answered 200, 401 and 200.<br>• The MCP server answered 401, against a 404 control.<br>• The API, MCP server and retention ran as uid 1654, read-only; PostgreSQL as 70; the evidence store as 1000, read-only.<br>• The console listed the twenty AI operations, and the API logged no error lines. |
@@ -510,7 +511,7 @@ the owner for this checklist, `win-arm64` excepted.
 | `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24.1) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
 | `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively on the Apple M4 Mac mini, macOS 26.6.2. Twenty operations, identical; `--every 24` refused; the apphost is an ad-hoc signed arm64 Mach-O. |
 | `linux-arm64` smoke test | Re-run | **Yes, natively**, in the Ubuntu 26.04.1 VMware guest on the Apple M4, `aarch64`. Twenty operations, identical; `--every 24` refused with exit 2. |
-| `win-arm64` smoke test | Not required | **Not run for this release.** The owner excluded `win-arm64` from Phase 13, and its archive was not downloaded. The RID stays built but unverified. |
+| `win-arm64` smoke test | Run after publication, not required | **Yes, after publication on 2026-09-22, in a VM.** Windows on ARM 10.0.26200.9457; SHA-256 matched, the apphost was PE `0xAA64`, twenty operations were identical with exit 0 and empty stderr, invalid `--every 24` exited 2, and `migrate` reached the missing-connection-string refusal with exit 2. The RID stays built but unverified. |
 | `linux-musl-arm64` smoke test | Run for this release, not required | **Yes, in a container.** `alpine:3` (3.24.2) in the Ubuntu 26.04.1 arm64 guest, `aarch64`. Twenty operations, identical; `--every 24` refused. The RID stays built but unverified until Phase 13's B10 moves it. |
 
 "Identical" means the same twenty names, in the same order, as `operations --ai` printed by the
@@ -891,8 +892,8 @@ nothing it could honestly have carried anyway.
 | Check | When | Result |
 | --- | --- | --- |
 | All 14 workflow jobs | Re-run | **Yes.** The full suite, the format check and the web build gated it; eight RIDs published; three images pushed and attested. |
-| Attestations verify from outside the workflow | Re-run, after the build | **Yes.** All three images and the `linux-x64` archive. Provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.1.0` and source commit `4253a5b`. Checked against a negative control — a deliberately wrong `--owner` is refused for both an image and an archive — so a pass means something. |
-| `SHA256SUMS` matches the published archive | Re-run | **Yes.** `devbuddy-linux-x64.tar.gz` downloaded from the draft release hashes to `a183cd57…`, matching both `SHA256SUMS` and the attested digest. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes.** All three images, the `linux-x64` archive, and—after publication on 2026-09-22—the `win-arm64` archive. Its provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.1.0` and `4253a5b`. The wrong-owner negative control is refused. |
+| `SHA256SUMS` matches the published archive | Re-run | **Yes.** The original `linux-x64` check passed, and the `win-arm64` archive downloaded on 2026-09-22 matched `2179fc0646ca2c9796270b3f8090dc1838a8b806a48eb08b0616b29ebd07a4f8`. |
 | SBOM attached per image | Re-run | **Yes.** CycloneDX, still distinct per host: 36, 38 and 56 components for the API, the MCP server and the console. |
 | Both architectures in every manifest | Re-run | **Yes.** `docker buildx imagetools inspect` reports `linux/amd64` and `linux/arm64` for all three images, plus the two buildx attestation manifests. This is the first release to carry arm64 at all. |
 | `linux/arm64` images **started** | Re-run, against the published images | **Yes.** Pulled by digest: the console reports `arm64`, user `1654`, and applied all six migrations against `postgres:17-alpine`; the API answered `/health` 200, `/operations` 401 and the UI 200 at the root; the MCP server refused `POST /` with 401 against a control showing an unmapped path answers 404. Under emulation, not hardware. |
@@ -904,7 +905,8 @@ nothing it could honestly have carried anyway.
 | `linux-arm64` smoke test | Re-run | **Yes.** `ubuntu:24.04` under `linux/arm64` with `libicu74`, `uname -m` reporting `aarch64`, from the published archive. Eighteen operations, exit 0, and `--every 24` refused with its reason. Emulated, not hardware. |
 | `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24.1) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, from the published archive. Eighteen operations, exit 0, and nothing Phase 12 added on the AI surface. |
 | Destroy-and-restore drill | **Re-run by hand, 2026-09-10** | **Yes, and against a harder disaster than the documented one.** See below. |
-| `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | — | **Not run, again.** Built and published as-is, per the 2026-09-10 decision to keep shipping them. No macOS and no Windows on ARM available. The release notes must say this verbatim. |
+| `win-arm64` smoke test | Run after publication, not required | **Yes, on 2026-09-22, in a VM.** SHA-256 matched, the apphost was PE `0xAA64`, eighteen operations matched the release catalogue with exit 0 and empty stderr, `retention --every 24` was refused with exit 2, and `migrate` reached the missing-connection-string refusal with exit 2. |
+| `osx-arm64`, `osx-x64`, `linux-musl-arm64` | — | **Not run for this release.** Built and published as-is under the decision then in force. |
 
 ### The destroy-and-restore drill for v1.1.0
 
@@ -974,7 +976,7 @@ and a release that carries everything is not a verified release.
 
 | Check | When | Result |
 | --- | --- | --- |
-| Attestations verify from outside the workflow | Re-run, after publication | **Yes.** All three images and the `linux-x64` archive. Provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.0.0`, and source commit `9a8ebf0`; the archive was downloaded from the published release and its SHA-256 matches both the attested digest and `SHA256SUMS`. Checked against a negative control — a deliberately wrong `--owner` is refused — so a passing check means something. |
+| Attestations verify from outside the workflow | Re-run, after publication | **Yes.** All three images, the `linux-x64` archive, and—after publication on 2026-09-22—the `win-arm64` archive. Its SHA-256 matched `5575776abba9e6a108aef5be7a1743a55fa8c9ed43e60ca9b4dc2b5870126319`; provenance names this repository, `.github/workflows/release.yml`, `refs/tags/v1.0.0` and `9a8ebf0`. The wrong-owner negative control is refused. |
 | SBOM attached per image | Re-run | **Yes.** CycloneDX, attested under predicate `https://cyclonedx.org/bom`, and distinct per host: 36, 38 and 56 components for the API, the MCP server and the console. That they differ is the point of one document per image rather than one per archive. |
 | `win-x64` smoke test | Re-run | **Yes.** Natively on the development machine, from the published archive. Eighteen AI-exposed operations, exit 0. |
 | `linux-x64` smoke test | Re-run | **Yes.** `ubuntu:24.04` with `libicu74`, `uname -m` reporting `x86_64`. Eighteen operations, exit 0. |
@@ -983,7 +985,8 @@ and a release that carries everything is not a verified release.
 | `linux-musl-x64` smoke test | Carried over | **Yes**, against `6a60a48`. `alpine:3` with `libstdc++`, `libgcc` and `icu-libs`. |
 | Compose from clean to healthy | Carried over | **Yes**, against `6a60a48` plus the MinIO key this tag carries. All services up, `migrate` exited 0, `/health` 200, and `/operations`, the evidence upload route and the MCP transport all 401 unauthenticated — against a control showing an unmapped path answers 404, so those 401s mean the routes exist rather than that everything is refused. Neither 5432 nor 9000 is reachable from the host (SB-30, confirmed against the running stack rather than against the file). The log volume came back owned by the application user with a rolled file in it. |
 | Destroy-and-restore drill | Carried over | **Yes, by hand, 2026-09-06.** A published record with an approval bound to its content hash, two attached artefacts, twelve audit entries, an account and a machine token; backed up, the backup copied off the volume, the database volume destroyed, migrated empty, restored, and every one of the six rows in `backup-and-restore.md` checked. The artefact came back **byte for byte** — the same SHA-256 as the file that went in, not merely a row saying bytes exist. Sessions were not restored, as designed. Restoring a second time was refused with "This installation already has data". |
-| `osx-arm64`, `osx-x64`, `win-arm64`, `linux-musl-arm64` | — | **Not run, for either tag.** Built and published as-is. No macOS and no Windows on ARM available; the musl arm64 build was not run, and the x64 musl one that was is the only reason its dependency list is believed to carry over. The release notes say this verbatim. |
+| `win-arm64` smoke test | Run after publication, not required | **Yes, on 2026-09-22, in a VM.** SHA-256 matched, the apphost was PE `0xAA64`, eighteen operations matched the release catalogue with exit 0 and empty stderr, and `migrate` reached the missing-connection-string refusal with exit 2. This release predates the scheduled-retention flag, so no `--every` result is claimed. |
+| `osx-arm64`, `osx-x64`, `linux-musl-arm64` | — | **Not run for this release.** Built and published as-is under the decision then in force. |
 
 SB-29 is **`TESTED`**: a published release carries the SBOMs and the attestations, and they were
 verified from outside the workflow after publication rather than on the strength of a signing step
