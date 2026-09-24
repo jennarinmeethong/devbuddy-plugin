@@ -1,5 +1,34 @@
 # Project Decisions
 
+## Confirmed Cutting v1.6.0 — 2026-09-24
+
+The owner asked for a new release once the Voyage withdrawal was merged and green in CI.
+
+- **A minor version, `v1.6.0`.** It removes a setting and adds a refusal, and both can change how
+  an installation starts:
+  - Voyage and `DEVBUDDY_EMBEDDING_DIALECT` are gone. A setting still present is ignored, not
+    refused.
+  - `SelfHosted` refuses an endpoint on a public address. An installation that pointed the
+    self-hosted mode at an internet server stops starting until it moves to `HostedApi` with an
+    acceptance. None is known to exist.
+- **No migration.** The Claude plugin moves to 1.6.0 with its content unchanged, to stay in step
+  with the release.
+- **The checklist is re-run in full**, as for `v1.5.0`, including the upgrade from `v1.5.0` on
+  amd64 and arm64. The arm64 rows need the Ubuntu arm64 guest, which the owner starts.
+  `win-arm64` is not required.
+- **New checks:**
+  - a public self-hosted literal is refused at start-up;
+  - a private name passes `embedding-check`;
+  - a leftover `DEVBUDDY_EMBEDDING_DIALECT` survives the upgrade harmlessly.
+- **Publish when the checklist passes**, then move the devbox onto the tag, with a backup first,
+  and install plugin 1.6.0, as for `v1.5.0`. The devbox's `http://ollama:11434/v1` resolves to a
+  private address, so the new refusal does not touch it. The Playwright embeddings mode showed the
+  same shape passing on 2026-09-24.
+- **Its release notes must say what a caller will notice:**
+  - `DEVBUDDY_EMBEDDING_DIALECT` no longer exists;
+  - a self-hosted endpoint must be private, and a model server on a cloud machine is `HostedApi`;
+  - nobody has to sign in again, unlike `v1.5.0`.
+
 ## Confirmed Withdrawing Voyage AI, and Model Servers on Other Machines — 2026-09-23
 
 The owner withdrew Voyage AI as the hosted embedding vendor. Embeddings stay on a self-run model
