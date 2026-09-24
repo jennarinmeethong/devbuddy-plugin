@@ -219,6 +219,117 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.6.0
+
+**Checked on 2026-09-24 against `ac2a117`, before the tag.** This release withdraws Voyage AI and
+holds the self-hosted embedding mode to a private address (`info.md`, 2026-09-23 and 2026-09-24):
+- `EmbeddingDialect`, `DEVBUDDY_EMBEDDING_DIALECT`, `input_type` and `EmbeddingPurpose` are removed;
+- a `SelfHosted` endpoint on a public address is refused, a literal at start-up and a name before
+  every call;
+- the Claude plugin moves to 1.6.0 with its content unchanged.
+
+It adds **no migration**. `release.yml` is unchanged since `v1.4.0`, so no throwaway prerelease tag
+was cut. Nothing is carried over.
+
+Everything below except the arm64 row ran on jmhp. That is Ubuntu 24.04.4 with Docker 29.7.2. The
+scripts are the `v1.5.0` ones, with the versions changed and the rows marked **New** added. Each
+run used a clean clone from GitHub and a Compose project of its own:
+- `devbuddy-v160`, published on 127.0.0.1:18080 and 18081;
+- `devbuddy-up160`, published on 127.0.0.1:28080 and 28081.
+
+The owner's `devbuddy` stack was not touched. Refusals go to the console's standard error, so each
+is quoted from the stderr log.
+
+| Check | When | Result |
+| --- | --- | --- |
+| `dotnet test DevBuddy.slnx -c Release` on Linux with Docker | **Against `ac2a117`, before the tag** | **Yes.** In `mcr.microsoft.com/dotnet/sdk:10.0` against the host's Docker daemon: **958 passed**, none failed. By project: Domain 62, Infrastructure 369, McpServer 31, Application 283, Security 154, Api 59. The format check exited 0. The web client built, and its suite passed **78 of 78** in `oven/bun:1`. CI run 35954269823 passed on `ac2a117`, every job. |
+| The end-to-end suite | **Against `746c7c4` on jmhp, and in CI** | **Yes.** On jmhp on 2026-09-24 it passed 205 of 205, and 211 in the embeddings mode. CI run 35947885621 on `73a5a6e` passed both Playwright runners and the three mode jobs. `73a5a6e..ac2a117` changes documentation and `plugin.json` only. |
+| `dotnet publish`, `linux-x64` console | **Against `ac2a117`, before the tag** | **Yes**, self-contained, exit 0. |
+| Compose from clean to healthy | **Against `ac2a117`, before the tag** | **Yes**, built from source. `api` was healthy 22 seconds after the build started, with images cached from the day's earlier runs. `migrate` exited 0 having applied **nine** migrations; there is no `record_embeddings` table on `postgres:17-alpine`. `retention` logged its first pass. `/health` answered 200, `/operations` 401 and the UI 200. The MCP server refused `POST /` with 401, against a 404 control. Nothing listened on 5432 or 9000. The console listed **twenty** AI operations. |
+| No service runs as root | **Against `ac2a117`, before the tag** | **Yes.** The API, the MCP server and retention ran as uid 1654, the evidence store as 1000, all read-only with every capability dropped. PostgreSQL ran as 70. The evidence volume was owned by `1000:1000` and the log volume by `1654:1654`. |
+| Tokens stay out of the log | **Against `ac2a117`, before the tag** | **Yes**, in both directions. With the default, the recovery request answered 202 and left one "could not be delivered" line and no token. The opt-in wrote exactly one token, which the default capture did not contain. |
+| Destroy-and-restore drill | **Run on 2026-09-24, against `ac2a117`** | **Yes**, with both volumes destroyed. It is the `v1.5.0` drill, and every row came out the same. See below. |
+| Upgrade from `v1.5.0` on amd64 | **Run on 2026-09-24, against `ac2a117`** | **Yes.** See below. |
+| Upgrade from `v1.5.0` on arm64 | **Run on 2026-09-24, against `ac2a117`** | **Yes, on arm64:** the Ubuntu 26.04.1 VMware guest on the Apple M4 (`aarch64`). It was the amd64 run with the published `1.5.0` arm64 images, and `ac2a117` was built natively there. Every row matched amd64. See below. |
+
+### The destroy-and-restore drill for v1.6.0
+
+The `v1.5.0` drill ran with no change except the release name:
+- **The record:** published at revision 2, front matter and two evidence references included, and
+  bound to content hash `3146997C…`. It came back identical, with its history and correction.
+- **Evidence:** both artefacts came back byte for byte, 232 and 64 bytes, into a store running as
+  uid 1000.
+- **Audit history:** all eighteen entries from before came back, each with its channel.
+- **Accounts and the plugin:** the same password signed in. The machine token answered
+  `list_projects` identically over MCP stdio. A bogus token was refused.
+- **The project deleted after the backup** stayed deleted: "Deleted again 1 project(s)".
+- **An access token issued before the disaster** was refused with 401.
+- **A second restore** was refused: "This installation already has data. Restore into an empty
+  database."
+
+The checks carried from `v1.5.0` passed again:
+- A scope naming a made-up project was refused, and nothing was stored against it.
+- `scope-report` found nothing, and `scope-report --delete` deleted nothing.
+- The stale-record sweep ran as an `IndexMaintainer`. A Viewer was refused: "The role Viewer does not
+  carry ManageIndex."
+- The `IndexMaintainer` could not create a project.
+- An administrator-issued reset worked.
+- AI marking left the content hash unchanged.
+- `embedding-check` with no provider exited 0.
+
+| **New** check | Result |
+| --- | --- |
+| `SelfHosted` on a public literal, `http://203.0.113.10:11434/v1` | **Refused at start-up**, exit 2: "…is on the public address 203.0.113.10." |
+| `SelfHosted` on a private name, `http://ollama:11434/v1` | **Starts.** `embedding-check` printed "ok provider SelfHosted, model qwen3-embedding:0.6b, 1024 dimensions". It exited 3 for the missing index and token, as expected on this stack. |
+| `SelfHosted` on a LAN literal, `http://192.168.1.20:11434/v1` | **Starts**, the same as the private name. |
+| The word "dialect" in `embedding-check`'s output | **Absent.** |
+| A leftover `Embedding:Dialect=VoyageAi` | **Ignored**, exit 0. |
+
+### The upgrade from v1.5.0 on amd64
+
+The run started from `v1.5.0` as shipped: the published `1.5.0` images and that tag's Compose file.
+It seeded:
+- a published record and a record still in Draft;
+- an evidence artefact;
+- a machine token;
+- an access token from a sign-in;
+- twelve audit entries.
+
+Before the upgrade, **`DEVBUDDY_EMBEDDING_DIALECT=OpenAiCompatible` was added to `.env`**, as an
+installation that set it on `v1.5.0` would have. The upgrade then changed only the Compose file and
+the images, to `ac2a117` built from source. **No manual step was needed.**
+
+| Check | Result |
+| --- | --- |
+| Migration | `migrate` exited 0, and nothing was applied. Nine migrations are in the history table. |
+| The leftover dialect setting | **Harmless.** Every service started, and the API logged no error lines. |
+| The access token from `v1.5.0` | **Still valid**: 200 on `/me`. Nobody signs in again, unlike `v1.5.0`. |
+| Old audit entries | All twelve are present, and each keeps its channel. The filter on `Human` returned only `Human` entries. |
+| Published record | Identical, and so is its history. |
+| The never-published draft | Refused with no revision number, and read normally as revision 1. |
+| Evidence | The artefact from `v1.5.0` downloaded byte for byte, and a new capture worked. Both answered 200 after a restart, and the evidence store logged no errors. |
+| Plugins | The `v1.5.0` machine token answered `list_projects` over MCP stdio, **identically**. |
+| `scope-report` | Exit 0, nothing found. |
+| Users | The API, the MCP server and retention ran as uid 1654, PostgreSQL as 70, and the evidence store as 1000. |
+
+### The upgrade from v1.5.0 on arm64
+
+The amd64 script ran in the Ubuntu 26.04.1 VMware guest, from fresh clones of `v1.5.0` and
+`ac2a117`. The guest's build cache was pruned first, for room. Every row came out the same:
+- no migration was applied, and nine are in the history table;
+- the leftover `DEVBUDDY_EMBEDDING_DIALECT` did no harm;
+- the `v1.5.0` access token is still valid (200);
+- all twelve entries kept their channel;
+- the published record and its history are identical;
+- the draft is refused without a revision number and read as revision 1;
+- the `v1.5.0` artefact downloads byte for byte, a new capture works, and both answer 200 after a
+  restart;
+- the `v1.5.0` machine token answers identically over MCP stdio;
+- `scope-report` finds nothing;
+- no service runs as root, and the API logged no error lines.
+
+The checklist stacks on jmhp and in the guest are stopped, with their volumes kept.
+
 ## What was verified for v1.5.0
 
 **Checked on 2026-09-22 against `50ccaaa`, before the tag.** This release carries everything else
