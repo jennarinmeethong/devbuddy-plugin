@@ -24,7 +24,7 @@ repository.
 **v1 is released, and Phase 12 followed it.** Phases 0 to 11 are complete, the v1 gaps named at the end of Phase 11 are
 closed, and `v1.0.0` is published from `9a8ebf0` — signed, an SBOM per image, and the attestations
 verified from outside the workflow that built them. Phase 1 delivered `DevBuddy.Domain`; Phase 2
-the `UseCaseExecutor` pipeline and the first 41 of what is now 63 operations; Phase 3 PostgreSQL,
+the `UseCaseExecutor` pipeline and the first 41 of what is now 65 operations; Phase 3 PostgreSQL,
 full-text search, and MinIO; Phase 4 identity, authorization, and tenant isolation; Phase 5 the
 lifecycle and audit history; Phase 6 read-only analysis, the real secret scanner and redactor, the
 path and URL guards, and source synchronisation from a mounted working copy; Phase 7 the three
@@ -32,11 +32,11 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 896 .NET tests and 73 web tests exist. The .NET suite passed on 2026-09-18 in the SDK
-container on the owner's Linux test machine, and the web suite passed on 2026-09-18 in a Bun
-container there. Count them rather than trusting this sentence, which has been stale many times
+enforcement. 958 .NET tests and 78 web tests exist. Both suites passed on 2026-09-24 on the owner's
+Linux test machine, the .NET suite in the SDK container and the web suite in a Bun container, and
+in CI. Count them rather than trusting this sentence, which has been stale many times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, and at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, and at 896 and 73 until Phase 13 and the Voyage withdrawal. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -520,8 +520,9 @@ prefixed `DEVBUDDY_`, and refuse to start without a connection string rather tha
 
 The whole system is tested end to end by Playwright in `tests/e2e`: `bash tests/e2e/run.sh` builds
 the images, starts a throwaway stack under its own Compose project, and drives the web client, the
-HTTP API and the MCP server's HTTP transport. 62 tests passed on 2026-09-18 on the Windows
-development machine's Docker Desktop. `tests/e2e/README.md` says what it does not cover.
+HTTP API and the MCP server's HTTP transport, in Chromium, Firefox and WebKit. 205 tests passed on
+2026-09-24 on the owner's Linux test machine, and 211 with `DEVBUDDY_E2E_EMBEDDINGS=1`. CI runs it
+on amd64 and arm64 runners, with the embeddings, GitHub-source and observability modes. `tests/e2e/README.md` says what it does not cover.
 
 The web client uses **Bun**, not npm — that is what this machine has:
 
