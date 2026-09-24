@@ -61,6 +61,39 @@ a problem:
 - **`embedding-check` output:** <pasted, with the date it ran>.
 ```
 
+## Retrieval quality
+
+`tools/retrieval/evaluate.sh` measures whether semantic search finds the right record. It uses a
+fixed synthetic set of 32 records and 64 questions, in English and Thai, and runs them through the
+product: the real sweep, and `search_similar_records` over MCP (Phase 14, C2). `tools/retrieval/README.md`
+says how to run it and how to read it. Change a setting on an installation only when a
+measurement here supports the change.
+
+Measured on jmhp on 2026-09-24:
+- **Set:** `set.json` at hash `bfcf9292e1fa`.
+- **Model:** `qwen3-embedding:0.6b`, the devbox's own model files, mounted read-only into an Ollama
+  from the image the devbox pins.
+- **Query instruction:** none, as shipped.
+
+| Chunk | Questions | recall@1 | recall@5 | MRR |
+| --- | --- | --- | --- | --- |
+| 3000 (shipped) | all 64 | **0.813** | **0.953** | **0.883** |
+| 3000 | English question, English record | 0.938 | 1.0 | 0.95 |
+| 3000 | Thai question, Thai record | 1.0 | 1.0 | 1.0 |
+| 3000 | English question, Thai record | 0.813 | 1.0 | 0.906 |
+| 3000 | Thai question, English record | 0.5 | 0.813 | 0.676 |
+| 3000 | the two long records, answer past the first chunk | 0.75 | 1.0 | 0.875 |
+| 1500 | all 64 | 0.813 | 0.953 | 0.882 |
+
+- **Repeatable.** A second run at 3000 gave the same rank for every question.
+- **Chunk size makes no difference on this set.** At 1500, three ranks moved by one place each, all
+  outside first place, so recall did not change.
+- **The weak case is a Thai question about an English record.** Half of those questions find it
+  first, and three fall outside the top five. Every other language pair finds the right record in
+  the top five every time. C1 (a query instruction) is the next thing to measure against this.
+- **Not measured yet:** the LM Studio standby on JMPC, whose server is off by default, and any query
+  instruction, which does not exist until C1.
+
 ## Rolling back
 
 1. Revoke the worker's token on the Plugin access screen. The next pass is refused.

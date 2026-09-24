@@ -1,0 +1,295 @@
+{
+  "about": "Phase 14, C2: a fixed retrieval evaluation set. Synthetic records about an invented payments product, in English and Thai, and questions labelled with the record each should find. Nothing here is project data. Records come in pairs that share a topic, so a model is judged on telling near neighbours apart, and two long records carry their answer past the default chunk boundary of 3000 characters. Every record has a question in its own language and one in the other. Changing this file changes every number measured with it: record the date of the version used.",
+  "records": [
+    {
+      "key": "en-idempotency",
+      "lang": "en",
+      "kind": "Decision",
+      "title": "Payment requests carry an idempotency key",
+      "body": "Every call to the card processor carries an idempotency key generated when the customer presses Pay. Retries reuse the key of the first attempt, so a timeout followed by a retry can never charge the card twice. The processor keeps keys for twenty-four hours; a retry later than that is refused by our side before it is sent. We chose this over checking for an existing charge before retrying, because that check races with the processor's own delayed confirmation."
+    },
+    {
+      "key": "en-backoff",
+      "lang": "en",
+      "kind": "TechnicalKnowledge",
+      "title": "Outbound HTTP calls retry with jittered exponential backoff",
+      "body": "The shared HTTP client retries a failed call up to four times, waiting 200 milliseconds, then 400, 800 and 1600, each with up to fifty percent random jitter. Only connection failures, 502, 503 and 504 are retried; a 4xx answer is returned at once. The jitter exists because the warehouse service fell over in March when every client retried on the same schedule after a deploy."
+    },
+    {
+      "key": "en-cache-catalogue",
+      "lang": "en",
+      "kind": "TechnicalKnowledge",
+      "title": "The product catalogue is cached for five minutes",
+      "body": "Catalogue pages read from an in-process cache that holds each product for five minutes. A price change therefore reaches the storefront within five minutes, which merchandising accepted in writing. The cache is not shared between instances, so two customers can briefly see different prices for the same product. Stock levels are never cached, because selling an item that is out of stock costs more than the extra database reads."
+    },
+    {
+      "key": "en-cache-session",
+      "lang": "en",
+      "kind": "Decision",
+      "title": "Shopping carts live in Redis, not in the browser",
+      "body": "The cart is stored server side in Redis, keyed by the session, and expires after seven days without activity. Keeping it in browser storage was rejected because a customer who starts on a phone and finishes on a laptop expected to find the same cart. Redis runs with persistence switched on so that a restart does not empty every cart at once."
+    },
+    {
+      "key": "en-migration-lock",
+      "lang": "en",
+      "kind": "TechnicalKnowledge",
+      "title": "Schema migrations take an advisory lock before running",
+      "body": "The migration runner takes a PostgreSQL advisory lock before applying anything, so two instances starting together cannot both run the same migration. The second instance waits for the lock, then finds nothing left to apply and continues. Before this, a rolling deploy occasionally created a column twice and the second instance crashed on start."
+    },
+    {
+      "key": "en-migration-expand",
+      "lang": "en",
+      "kind": "Decision",
+      "title": "Column renames are done in three releases",
+      "body": "A column is never renamed in one step. The first release adds the new column and writes to both; the second backfills and switches reads to the new column; the third drops the old one. This keeps the previous release working during a rolling deploy, when old and new instances share one database. It costs two extra releases per rename, which the team accepted after an outage caused by a single-step rename."
+    },
+    {
+      "key": "en-feature-flags",
+      "lang": "en",
+      "kind": "Decision",
+      "title": "Unfinished features ship behind flags that expire",
+      "body": "Work that is merged before it is finished is hidden behind a feature flag. Every flag has an owner and an expiry date set when it is created; a flag past its expiry fails the build until it is removed or renewed with a reason. This came from finding forty flags nobody remembered, some guarding code paths that no longer compiled."
+    },
+    {
+      "key": "en-oncall",
+      "lang": "en",
+      "kind": "ContextReference",
+      "title": "How on-call hands over at the end of a week",
+      "body": "The outgoing on-call engineer writes a handover note on Monday morning listing open incidents, alerts that fired without action, and anything silenced. The incoming engineer reads it and confirms in the channel before the pager rotates at ten. An alert silenced for more than a week must be either fixed or deleted at handover, never carried over again."
+    },
+    {
+      "key": "en-refunds",
+      "lang": "en",
+      "kind": "TechnicalKnowledge",
+      "title": "Refunds are queued and settled overnight",
+      "body": "A refund requested in the admin screen is written to a queue, not sent to the processor at once. A job settles the queue each night at two, so a refund issued by mistake can be cancelled until then. Customers see the refund as pending in their order history. Partial refunds are allowed down to one unit of currency; below that the processor rejects them."
+    },
+    {
+      "key": "en-timezones",
+      "lang": "en",
+      "kind": "Decision",
+      "title": "Timestamps are stored in UTC and shown in the shop's time zone",
+      "body": "Every timestamp is stored in UTC. Screens convert to the time zone of the shop being viewed, not of the person viewing it, so a report for the Bangkok shop reads the same from anywhere. Daily totals close at midnight shop time. We stopped storing local times after a daylight-saving change produced an hour that appeared twice in a European shop's sales report."
+    },
+    {
+      "key": "en-logging",
+      "lang": "en",
+      "kind": "Decision",
+      "title": "Card numbers never reach the application logs",
+      "body": "Request logging records the path, status and duration of a request and never its body. Checkout forms post directly to the processor's hosted fields, so card numbers do not pass through our servers at all. A log line that looks like a card number is replaced before it is written, as a second line of defence, and each replacement raises an alert so the source can be found."
+    },
+    {
+      "key": "en-search-index",
+      "lang": "en",
+      "kind": "TechnicalKnowledge",
+      "title": "Product search is rebuilt from the database every night",
+      "body": "The search index is a derived copy. A nightly job rebuilds it from the product tables, and edits during the day are pushed to it within a minute by a change listener. If the index and the database disagree, the database wins and the next rebuild corrects the index. Nobody writes to the index directly."
+    },
+    {
+      "key": "en-mobile-release",
+      "lang": "en",
+      "kind": "ContextReference",
+      "title": "Mobile app releases go out every second Thursday",
+      "body": "The mobile apps are released on alternate Thursdays. The build is frozen on the Monday before, tested by the QA team on real devices for two days, and submitted to both stores on Wednesday so that review finishes by Thursday. A fix that cannot wait goes out as an expedited review, which needs the head of product's approval."
+    },
+    {
+      "key": "en-rate-limit",
+      "lang": "en",
+      "kind": "TechnicalKnowledge",
+      "title": "The public API allows sixty requests a minute per key",
+      "body": "Each API key may make sixty requests a minute, counted over a sliding window. A request over the limit is answered with 429 and a Retry-After header in seconds. Partners who need more ask for a raised limit, which is set per key rather than per partner, so a leaked key cannot use a partner's whole allowance."
+    },
+    {
+      "key": "en-long-incident",
+      "lang": "en",
+      "kind": "TechnicalKnowledge",
+      "title": "Runbook: the checkout service is slow or failing",
+      "body": "This runbook covers the checkout service when it is slow, returning errors, or both. Start by confirming the symptom from the outside rather than from the service's own dashboards: place a test order from the public storefront using the internal test card, and time it. A checkout that completes in under three seconds is healthy even if a dashboard disagrees, and the dashboard should be investigated separately. If the test order fails, note the step at which it failed, because the three steps have different owners. The basket step belongs to the storefront team, the payment step to the payments team, and the confirmation step to the orders team. Page the owning team as soon as the failing step is known; do not wait to finish this runbook. Next, look at the error rate by endpoint over the last hour. A rise on one endpoint only usually means a dependency of that endpoint is unhealthy. A rise on every endpoint at once usually means the service itself is starved of something: database connections, memory, or threads. Check the connection pool first, because it is the most common cause. The pool holds forty connections per instance. If all forty are in use and requests are queueing for a connection, find the slowest queries from the last fifteen minutes. A single report query run against the primary by mistake has caused this twice. Cancel it, then find out who started it. If the pool is not exhausted, check memory. Each instance should stay under seventy percent of its limit. Above that the runtime collects garbage often enough to add hundreds of milliseconds to every request. Restarting instances one at a time buys time but does not fix anything; record that you did it and why. If memory is fine, check the processor's status page and our own synthetic payment check. The processor has a partial outage roughly once a quarter, and it usually shows as slow payment calls rather than failures. Our client waits up to ten seconds for the processor before giving up, so a processor slowdown shows as checkouts taking about ten seconds and then failing. In that case there is nothing to fix on our side; put the storefront banner up and inform customer support. If none of the above explains it, look at what changed. Check the deploy log for the last six hours, the feature flags changed today, and any configuration pushed to the checkout service. Roll back the most recent change first, even if it looks unrelated; it is cheaper to roll back and redeploy than to reason about whether a change could matter. Keep the incident channel updated every fifteen minutes, even if the update is that nothing is known yet. Once the service has recovered, leave it under observation for thirty minutes before closing the incident. During that time watch the error rate and the latency of the payment step in particular, because a recovered processor sometimes fails again within minutes. Write down the timeline while it is fresh. Finally, one step that is easy to forget: after any checkout incident longer than ten minutes, the orders team must run the reconciliation report for the affected window, because a customer can be charged by the processor while our confirmation step fails, leaving a payment with no order. The report lists every captured payment without a matching order, and each one is either turned into an order by hand or refunded within one business day. Customer support needs the list too, because those customers usually write in before the report is run."
+    },
+    {
+      "key": "en-accessibility",
+      "lang": "en",
+      "kind": "Decision",
+      "title": "Every checkout screen must work with a keyboard alone",
+      "body": "A checkout screen is not finished until it can be completed with the keyboard only and a screen reader announces every error next to the field it concerns. Colour is never the only sign of an error. This is checked in review with an automated audit and by one person completing the flow without a mouse, because the audit alone missed a trap in the address form."
+    },
+    {
+      "key": "th-idempotency",
+      "lang": "th",
+      "kind": "Decision",
+      "title": "คำขอโอนเงินให้ร้านค้าต้องมีรหัสกันทำซ้ำ",
+      "body": "ทุกครั้งที่ระบบสั่งโอนเงินค่าสินค้าให้ร้านค้า จะแนบรหัสกันทำซ้ำที่สร้างขึ้นตอนสร้างรอบการโอน ถ้าการเรียกหมดเวลาแล้วระบบลองใหม่ จะใช้รหัสเดิมเสมอ ธนาคารจึงไม่โอนซ้ำสองครั้ง ธนาคารเก็บรหัสไว้สามวัน รอบการโอนที่ค้างเกินสามวันต้องให้ฝ่ายการเงินตรวจก่อนสั่งใหม่ เราเลือกวิธีนี้แทนการถามธนาคารว่าโอนไปแล้วหรือยัง เพราะธนาคารยืนยันผลช้าและคำตอบไม่แน่นอน"
+    },
+    {
+      "key": "th-backoff",
+      "lang": "th",
+      "kind": "TechnicalKnowledge",
+      "title": "การส่งข้อความแจ้งเตือนลองใหม่แบบเว้นระยะห่างขึ้นเรื่อย ๆ",
+      "body": "บริการส่งข้อความแจ้งเตือนทาง SMS และแอป จะลองส่งใหม่สูงสุดห้าครั้ง เว้นระยะหนึ่งวินาที สองวินาที สี่วินาที แปดวินาที และสิบหกวินาที โดยสุ่มคลาดเคลื่อนเล็กน้อยทุกครั้ง ข้อความที่ส่งไม่สำเร็จครบห้าครั้งจะเก็บไว้ในคิวข้อความเสีย ให้ทีมดูแลตรวจทุกเช้า ข้อผิดพลาดที่บอกว่าเบอร์ปลายทางไม่ถูกต้องจะไม่ลองใหม่เลย"
+    },
+    {
+      "key": "th-cache-exchange",
+      "lang": "th",
+      "kind": "TechnicalKnowledge",
+      "title": "อัตราแลกเปลี่ยนเก็บไว้ในหน่วยความจำหนึ่งชั่วโมง",
+      "body": "อัตราแลกเปลี่ยนเงินตราต่างประเทศดึงจากผู้ให้บริการทุกชั่วโมง แล้วเก็บไว้ในหน่วยความจำของแต่ละเครื่อง ราคาที่ลูกค้าเห็นจึงอาจช้ากว่าตลาดได้ไม่เกินหนึ่งชั่วโมง ฝ่ายการเงินยอมรับข้อนี้เป็นลายลักษณ์อักษร แต่ตอนชำระเงินจริงระบบจะดึงอัตราล่าสุดอีกครั้งเสมอ ถ้าอัตราต่างจากที่แสดงเกินหนึ่งเปอร์เซ็นต์ ลูกค้าจะต้องยืนยันราคาใหม่"
+    },
+    {
+      "key": "th-cache-cdn",
+      "lang": "th",
+      "kind": "Decision",
+      "title": "รูปสินค้าเสิร์ฟผ่าน CDN และตั้งชื่อไฟล์ตามเนื้อหา",
+      "body": "รูปสินค้าทุกรูปเสิร์ฟผ่าน CDN โดยชื่อไฟล์มีค่าแฮชของเนื้อหารูปอยู่ด้วย จึงตั้งให้ CDN เก็บไว้ได้นานหนึ่งปี เมื่อร้านค้าเปลี่ยนรูป ชื่อไฟล์จะเปลี่ยนตาม ไม่ต้องสั่งล้างแคช เคยใช้วิธีสั่งล้างแคชทุกครั้งที่แก้รูป แต่ค่าใช้จ่ายสูงและบางครั้งรูปเก่ายังค้างอยู่หลายชั่วโมง"
+    },
+    {
+      "key": "th-migration-backfill",
+      "lang": "th",
+      "kind": "TechnicalKnowledge",
+      "title": "การเติมข้อมูลย้อนหลังในตารางใหญ่ทำทีละห้าพันแถว",
+      "body": "เมื่อต้องเติมข้อมูลคอลัมน์ใหม่ในตารางคำสั่งซื้อซึ่งมีหลายสิบล้านแถว ให้ทำเป็นชุดละห้าพันแถว พักระหว่างชุดครึ่งวินาที และทำนอกช่วงเวลาขายของ ห้ามเขียนคำสั่งเดียวที่แก้ทั้งตาราง เพราะจะล็อกตารางนานจนหน้าชำระเงินใช้งานไม่ได้ สคริปต์เติมข้อมูลต้องหยุดแล้วเริ่มต่อจากจุดเดิมได้ เผื่อถูกยกเลิกกลางทาง"
+    },
+    {
+      "key": "th-migration-review",
+      "lang": "th",
+      "kind": "Decision",
+      "title": "ไฟล์ย้ายโครงสร้างฐานข้อมูลต้องมีผู้ดูแลฐานข้อมูลตรวจ",
+      "body": "ทุกไฟล์ที่เปลี่ยนโครงสร้างฐานข้อมูลต้องมีผู้ดูแลฐานข้อมูลอย่างน้อยหนึ่งคนอนุมัติก่อนรวมเข้าสาขาหลัก ผู้ตรวจดูว่าคำสั่งล็อกตารางนานแค่ไหน สร้างดัชนีแบบไม่ขวางการเขียนหรือไม่ และย้อนกลับได้หรือเปล่า ข้อนี้เริ่มใช้หลังจากการเพิ่มดัชนีครั้งหนึ่งล็อกตารางสินค้ายี่สิบนาทีในวันลดราคา"
+    },
+    {
+      "key": "th-code-review",
+      "lang": "th",
+      "kind": "Decision",
+      "title": "การตรวจโค้ดต้องเสร็จภายในหนึ่งวันทำการ",
+      "body": "คำขอรวมโค้ดทุกรายการต้องได้รับการตรวจครั้งแรกภายในหนึ่งวันทำการ ถ้าผู้ตรวจที่ถูกเลือกไม่ว่าง ให้ส่งต่อคนอื่นแทนที่จะปล่อยค้าง คำขอที่ใหญ่เกินสี่ร้อยบรรทัดให้แบ่งก่อนส่งตรวจ ทีมตกลงเรื่องนี้เพราะเคยมีงานค้างรอตรวจนานเกินหนึ่งสัปดาห์ จนโค้ดขัดกันต้องแก้ใหม่ทั้งหมด"
+    },
+    {
+      "key": "th-onboarding",
+      "lang": "th",
+      "kind": "ContextReference",
+      "title": "สัปดาห์แรกของวิศวกรที่เข้าทีมใหม่",
+      "body": "วิศวกรใหม่ได้รับเครื่องและสิทธิ์เข้าระบบในวันแรก วันที่สองติดตั้งสภาพแวดล้อมพัฒนาตามคู่มือ และแก้คู่มือทันทีถ้าพบว่าขั้นตอนไหนล้าสมัย ภายในสัปดาห์แรกต้องส่งการแก้ไขเล็ก ๆ หนึ่งชิ้นขึ้นระบบจริง โดยมีพี่เลี้ยงคอยช่วย พี่เลี้ยงคือคนในทีมเดียวกันที่อยู่มาแล้วอย่างน้อยหกเดือน"
+    },
+    {
+      "key": "th-backup",
+      "lang": "th",
+      "kind": "TechnicalKnowledge",
+      "title": "สำรองฐานข้อมูลทุกคืนและทดสอบกู้คืนทุกเดือน",
+      "body": "ฐานข้อมูลหลักสำรองเต็มทุกคืนเวลาตีสาม และเก็บบันทึกธุรกรรมต่อเนื่อง จึงกู้คืนได้ถึงจุดเวลาใดก็ได้ในสามสิบวันที่ผ่านมา ทุกต้นเดือนทีมดูแลระบบจะกู้คืนข้อมูลสำรองลงเครื่องทดสอบแล้วนับจำนวนแถวเทียบกับของจริง การสำรองที่ไม่เคยทดสอบกู้คืนถือว่ายังไม่มี"
+    },
+    {
+      "key": "th-tax-invoice",
+      "lang": "th",
+      "kind": "TechnicalKnowledge",
+      "title": "ใบกำกับภาษีออกได้ภายในเจ็ดวันหลังชำระเงิน",
+      "body": "ลูกค้าที่ต้องการใบกำกับภาษีเต็มรูปต้องขอภายในเจ็ดวันนับจากวันชำระเงิน หลังจากนั้นระบบจะไม่ให้ขอเอง ต้องติดต่อฝ่ายบัญชี เลขที่ใบกำกับออกเรียงต่อกันตามปีภาษีและห้ามข้ามเลข ใบที่ออกผิดต้องยกเลิกด้วยใบลดหนี้ ไม่ใช่ลบทิ้ง"
+    },
+    {
+      "key": "th-promotion",
+      "lang": "th",
+      "kind": "Decision",
+      "title": "โค้ดส่วนลดใช้ได้ครั้งเดียวต่อบัญชี",
+      "body": "โค้ดส่วนลดทุกโค้ดใช้ได้หนึ่งครั้งต่อบัญชีลูกค้า และตรวจที่ฝั่งเซิร์ฟเวอร์ตอนยืนยันคำสั่งซื้อ ไม่ใช่ตอนกรอกโค้ด เพราะเคยมีคนเปิดหลายแท็บแล้วใช้โค้ดเดียวกันพร้อมกัน ส่วนลดรวมกันไม่ได้ ถ้ามีหลายโค้ดระบบเลือกโค้ดที่ลดมากที่สุดให้"
+    },
+    {
+      "key": "th-monitoring",
+      "lang": "th",
+      "kind": "TechnicalKnowledge",
+      "title": "การแจ้งเตือนต้องบอกว่าผู้ใช้ได้รับผลกระทบอะไร",
+      "body": "การแจ้งเตือนที่ปลุกคนเวรกลางคืนต้องผูกกับสิ่งที่ลูกค้าเจอจริง เช่น อัตราคำสั่งซื้อที่ล้มเหลว หรือเวลาตอบของหน้าชำระเงิน ไม่ใช่ตัวเลขภายในอย่างการใช้หน่วยประมวลผล ตัวเลขภายในยังเก็บไว้ดูบนแดชบอร์ดได้ แต่ห้ามปลุกคน การแจ้งเตือนทุกตัวต้องมีลิงก์ไปยังคู่มือแก้ปัญหาของมัน"
+    },
+    {
+      "key": "th-data-retention",
+      "lang": "th",
+      "kind": "Decision",
+      "title": "ลบประวัติการค้นหาของลูกค้าหลังเก้าสิบวัน",
+      "body": "ประวัติการค้นหาสินค้าของลูกค้าเก็บไว้เก้าสิบวันเพื่อใช้แนะนำสินค้า หลังจากนั้นลบทิ้งโดยงานที่ทำทุกคืน ข้อมูลสรุปที่ไม่ระบุตัวบุคคล เช่น คำค้นยอดนิยมของแต่ละสัปดาห์ เก็บได้นานกว่านั้น ลูกค้าที่ขอลบบัญชีจะถูกลบประวัติการค้นหาทันทีโดยไม่ต้องรอครบกำหนด"
+    },
+    {
+      "key": "th-warehouse",
+      "lang": "th",
+      "kind": "ContextReference",
+      "title": "คลังสินค้าตัดรอบจัดส่งตอนบ่ายสองโมง",
+      "body": "คำสั่งซื้อที่ชำระเงินก่อนบ่ายสองโมงจะแพ็กและส่งในวันเดียวกัน หลังจากนั้นส่งวันทำการถัดไป วันเสาร์ตัดรอบเที่ยง วันอาทิตย์และวันหยุดนักขัตฤกษ์ไม่มีการจัดส่ง หน้าชำระเงินต้องแสดงวันที่คาดว่าจะได้รับสินค้าตามรอบนี้ ถ้าคลังเปลี่ยนเวลาตัดรอบต้องแจ้งทีมหน้าร้านล่วงหน้าหนึ่งสัปดาห์"
+    },
+    {
+      "key": "th-long-deploy",
+      "lang": "th",
+      "kind": "TechnicalKnowledge",
+      "title": "คู่มือการปล่อยเวอร์ชันใหม่ของระบบหลังบ้าน",
+      "body": "คู่มือนี้ใช้กับการปล่อยเวอร์ชันใหม่ของระบบหลังบ้านทุกครั้ง ไม่ว่าจะเป็นการปล่อยตามรอบหรือการแก้ไขเร่งด่วน ก่อนเริ่มให้ตรวจว่าไม่มีเหตุขัดข้องที่ยังเปิดอยู่ และไม่อยู่ในช่วงห้ามปล่อย ช่วงห้ามปล่อยคือสามวันก่อนวันลดราคาใหญ่จนถึงหนึ่งวันหลังจากนั้น รวมถึงทุกวันศุกร์หลังบ่ายสามโมง ถ้าจำเป็นต้องปล่อยในช่วงห้ามจริง ต้องได้รับอนุมัติจากหัวหน้าฝ่ายวิศวกรรมเป็นลายลักษณ์อักษร ขั้นแรกให้สร้างบันทึกการปล่อยในช่องทางของทีม ระบุเวอร์ชันที่จะปล่อย รายการเปลี่ยนแปลงสำคัญ ผู้ปล่อย และผู้สำรอง ผู้สำรองต้องอยู่หน้าจอตลอดการปล่อย เพื่อรับช่วงต่อถ้าผู้ปล่อยติดธุระ ขั้นที่สองให้ตรวจว่าชุดทดสอบทั้งหมดผ่านบนสาขาที่จะปล่อย และไฟล์ย้ายโครงสร้างฐานข้อมูลทุกไฟล์ได้รับการอนุมัติจากผู้ดูแลฐานข้อมูลแล้ว ถ้ามีการย้ายโครงสร้างที่ใช้เวลานาน ให้รันแยกก่อนการปล่อยโค้ด ไม่ใช่พร้อมกัน ขั้นที่สามปล่อยไปยังเครื่องชุดทดลองก่อน ชุดทดลองรับทราฟฟิกจริงประมาณห้าเปอร์เซ็นต์ เฝ้าดูอัตราข้อผิดพลาดและเวลาตอบอย่างน้อยสิบห้านาที เปรียบเทียบกับเครื่องที่ยังเป็นเวอร์ชันเดิม ถ้าอัตราข้อผิดพลาดของชุดทดลองสูงกว่าเดิมอย่างเห็นได้ชัด ให้หยุดและถอยกลับทันที ไม่ต้องหาสาเหตุก่อน ขั้นที่สี่ถ้าชุดทดลองปกติ ให้ขยายไปยังเครื่องที่เหลือทีละหนึ่งในสี่ พักระหว่างแต่ละช่วงห้านาที ระหว่างนี้ผู้สำรองเฝ้าดูแดชบอร์ดของหน้าชำระเงินเป็นพิเศษ เพราะเป็นส่วนที่กระทบรายได้โดยตรง ขั้นที่ห้าเมื่อปล่อยครบทุกเครื่อง ให้ลองสั่งซื้อจริงหนึ่งรายการด้วยบัตรทดสอบภายใน ตรวจว่าคำสั่งซื้อไปถึงคลังสินค้าและอีเมลยืนยันถูกส่ง แล้วปรับบันทึกการปล่อยว่าเสร็จสิ้น ใส่เวลาเริ่มและเวลาจบ หลังปล่อยเสร็จแล้ว ผู้ปล่อยยังต้องเฝ้าระบบต่ออีกหนึ่งชั่วโมง ดูอัตราข้อผิดพลาด เวลาตอบของหน้าชำระเงิน จำนวนคำสั่งซื้อต่อนาทีเทียบกับเวลาเดียวกันของสัปดาห์ก่อน และขนาดของคิวงานเบื้องหลัง ถ้าคิวงานเบื้องหลังโตขึ้นเรื่อย ๆ โดยไม่ลดลง มักแปลว่าตัวประมวลผลงานในเวอร์ชันใหม่ช้ากว่าเดิม ให้แจ้งผู้เขียนโค้ดส่วนนั้นทันที การเปลี่ยนค่าตั้งค่าของระบบไม่ถือเป็นการปล่อยเวอร์ชัน แต่ให้ใช้ขั้นตอนเดียวกันในแบบย่อ คือบันทึกในช่องทางของทีมว่าเปลี่ยนค่าอะไร จากเท่าไรเป็นเท่าไร และเพราะอะไร แล้วเปลี่ยนที่ชุดทดลองก่อนเสมอ ค่าตั้งค่าที่เกี่ยวกับการชำระเงิน เช่น เวลารอผู้ให้บริการบัตร หรือจำนวนครั้งที่ลองใหม่ ต้องมีคนที่สองตรวจก่อนเปลี่ยนทุกครั้ง เลขเวอร์ชันใช้รูปแบบปี เดือน และลำดับการปล่อยในเดือนนั้น เวอร์ชันแก้ไขเร่งด่วนเพิ่มตัวอักษรต่อท้าย ห้ามนำเลขเวอร์ชันที่เคยปล่อยแล้วกลับมาใช้ซ้ำ แม้เวอร์ชันนั้นจะถูกถอยกลับไปแล้วก็ตาม เพราะบันทึกเหตุขัดข้องและรายงานต่าง ๆ อ้างถึงเลขเวอร์ชัน ถ้าใช้ซ้ำจะไม่รู้ว่าหมายถึงโค้ดชุดไหน เมื่อการปล่อยมีปัญหาจนต้องถอยกลับ ให้เขียนสรุปภายในสองวันทำการ ระบุว่าพบปัญหาจากอะไร ใช้เวลาตัดสินใจถอยกลับนานเท่าไร และมีลูกค้ากี่รายได้รับผลกระทบ สรุปนี้ไม่ใช่การหาคนผิด แต่เพื่อปรับคู่มือและชุดทดสอบไม่ให้พลาดแบบเดิมอีก ทุกสรุปต้องจบด้วยรายการสิ่งที่จะแก้ พร้อมชื่อผู้รับผิดชอบและวันที่คาดว่าจะเสร็จ ทีมหน้าร้านและฝ่ายบริการลูกค้าต้องได้รับแจ้งล่วงหน้าหนึ่งวันทำการสำหรับการปล่อยที่เปลี่ยนสิ่งที่ลูกค้าเห็น เช่น หน้าตาของหน้าชำระเงิน ข้อความแจ้งเตือน หรือเงื่อนไขส่วนลด เพื่อเตรียมตอบคำถามลูกค้าได้ถูกต้อง การถอยกลับทำได้ด้วยการปล่อยเวอร์ชันก่อนหน้าซ้ำตามขั้นตอนเดิม แต่ข้ามชุดทดลองได้ ถ้าเวอร์ชันใหม่มีการย้ายโครงสร้างฐานข้อมูลที่ถอยกลับไม่ได้ ต้องเขียนไว้ในบันทึกการปล่อยตั้งแต่ต้น และต้องมีแผนแก้ไขไปข้างหน้าแทนการถอยกลับ ข้อที่มักลืมคือ หลังการปล่อยทุกครั้งที่มีการเปลี่ยนรูปแบบข้อความในคิว ต้องรอให้คิวเก่าว่างก่อนจึงลบตัวอ่านข้อความรูปแบบเดิมออก ถ้าลบเร็วเกินไป ข้อความที่ค้างในคิวจะอ่านไม่ได้และตกไปอยู่ในคิวข้อความเสีย ต้องให้ทีมดูแลนำกลับมาประมวลผลเองทีละรายการ ซึ่งเคยทำให้คำสั่งซื้อค้างหลายร้อยรายการในคืนเดียว"
+    },
+    {
+      "key": "th-accessibility",
+      "lang": "th",
+      "kind": "Decision",
+      "title": "ข้อความในแอปต้องขยายตัวอักษรได้สองเท่าโดยไม่ล้นจอ",
+      "body": "ทุกหน้าจอในแอปต้องรองรับการขยายขนาดตัวอักษรตามการตั้งค่าเครื่องได้ถึงสองเท่า โดยข้อความไม่ถูกตัดและปุ่มไม่ซ้อนกัน ผู้ทดสอบต้องตรวจข้อนี้บนเครื่องจอเล็กที่สุดที่เรารองรับทุกครั้งก่อนปล่อย เรื่องนี้มาจากคำร้องเรียนของลูกค้าสูงอายุที่กดปุ่มยืนยันคำสั่งซื้อไม่ได้เพราะปุ่มหลุดออกนอกจอ"
+    }
+  ],
+  "queries": [
+    { "lang": "en", "expects": "en-idempotency", "text": "How do we stop a customer's card being charged twice when the payment call times out and we try again?" },
+    { "lang": "th", "expects": "en-idempotency", "text": "ถ้าเรียกผู้ให้บริการบัตรแล้วหมดเวลาและลองใหม่ จะป้องกันไม่ให้ลูกค้าโดนตัดเงินสองรอบอย่างไร" },
+    { "lang": "en", "expects": "en-backoff", "text": "What waiting schedule do our HTTP clients use between attempts after a server error?" },
+    { "lang": "th", "expects": "en-backoff", "text": "ไคลเอนต์ HTTP ของเราเว้นช่วงลองใหม่นานเท่าไรเมื่อเซิร์ฟเวอร์ตอบ 503" },
+    { "lang": "en", "expects": "en-cache-catalogue", "text": "How long after merchandising changes a price does the storefront show it?" },
+    { "lang": "th", "expects": "en-cache-catalogue", "text": "เปลี่ยนราคาสินค้าแล้วต้องรอนานแค่ไหนกว่าหน้าร้านจะแสดงราคาใหม่" },
+    { "lang": "en", "expects": "en-cache-session", "text": "Why can a customer start an order on their phone and finish it on a laptop?" },
+    { "lang": "th", "expects": "en-cache-session", "text": "ตะกร้าสินค้าเก็บไว้ที่ไหน และหมดอายุเมื่อไร" },
+    { "lang": "en", "expects": "en-migration-lock", "text": "What stops two instances applying the same database change at the same moment during a deploy?" },
+    { "lang": "th", "expects": "en-migration-lock", "text": "ถ้าเครื่องสองเครื่องเริ่มพร้อมกัน อะไรกันไม่ให้ย้ายโครงสร้างฐานข้อมูลซ้ำ" },
+    { "lang": "en", "expects": "en-migration-expand", "text": "What is the safe way to change the name of a database column without breaking the running release?" },
+    { "lang": "th", "expects": "en-migration-expand", "text": "ถ้าจะเปลี่ยนชื่อคอลัมน์ในฐานข้อมูล ต้องทำกี่รอบการปล่อย" },
+    { "lang": "en", "expects": "en-feature-flags", "text": "What happens when a feature toggle is left in the code past its deadline?" },
+    { "lang": "th", "expects": "en-feature-flags", "text": "ฟีเจอร์ที่ยังทำไม่เสร็จแต่รวมโค้ดแล้ว ซ่อนไว้อย่างไร และต้องเอาออกเมื่อไร" },
+    { "lang": "en", "expects": "en-oncall", "text": "What does the engineer coming off the pager rotation have to write down, and when?" },
+    { "lang": "th", "expects": "en-oncall", "text": "ตอนเปลี่ยนเวรดูแลระบบนอกเวลา คนเก่าต้องส่งต่ออะไรให้คนใหม่" },
+    { "lang": "en", "expects": "en-refunds", "text": "Can a refund issued by mistake still be stopped, and until when?" },
+    { "lang": "th", "expects": "en-refunds", "text": "คืนเงินให้ลูกค้าแล้วเงินออกจริงตอนไหน ยกเลิกได้ไหม" },
+    { "lang": "en", "expects": "en-timezones", "text": "Which time zone does a daily sales report use when someone in another country opens it?" },
+    { "lang": "th", "expects": "en-timezones", "text": "เวลาในฐานข้อมูลเก็บเป็นเขตเวลาอะไร และแสดงผลตามเขตเวลาไหน" },
+    { "lang": "en", "expects": "en-logging", "text": "Could a credit card number end up in our request logs?" },
+    { "lang": "th", "expects": "en-logging", "text": "เลขบัตรเครดิตของลูกค้ามีโอกาสหลุดไปอยู่ในไฟล์ล็อกของระบบหรือไม่" },
+    { "lang": "en", "expects": "en-search-index", "text": "If product search results disagree with the product tables, which one is right?" },
+    { "lang": "th", "expects": "en-search-index", "text": "ดัชนีค้นหาสินค้าสร้างใหม่บ่อยแค่ไหน และแก้สินค้าระหว่างวันแล้วค้นเจอเมื่อไร" },
+    { "lang": "en", "expects": "en-mobile-release", "text": "When is the build frozen before a phone app goes to the app stores?" },
+    { "lang": "th", "expects": "en-mobile-release", "text": "แอปมือถือออกเวอร์ชันใหม่วันไหน และส่งให้สโตร์ตรวจเมื่อไร" },
+    { "lang": "en", "expects": "en-rate-limit", "text": "How many calls a minute can a partner make before our API starts answering 429?" },
+    { "lang": "th", "expects": "en-rate-limit", "text": "พาร์ทเนอร์เรียก API ได้กี่ครั้งต่อนาที และขอเพิ่มได้อย่างไร" },
+    { "lang": "en", "expects": "en-long-incident", "text": "After a long checkout outage, how do we find customers who paid but never got an order?" },
+    { "lang": "th", "expects": "en-long-incident", "text": "หลังระบบชำระเงินล่มนาน จะหาลูกค้าที่ถูกตัดเงินแต่ไม่มีคำสั่งซื้อได้อย่างไร" },
+    { "lang": "en", "expects": "en-accessibility", "text": "Does the payment flow have to be usable without a mouse?" },
+    { "lang": "th", "expects": "en-accessibility", "text": "หน้าชำระเงินต้องใช้งานด้วยคีย์บอร์ดอย่างเดียวได้หรือไม่" },
+    { "lang": "th", "expects": "th-idempotency", "text": "ถ้าสั่งโอนเงินให้ร้านค้าแล้วระบบค้าง ลองใหม่จะโอนซ้ำไหม" },
+    { "lang": "en", "expects": "th-idempotency", "text": "How do we make sure a merchant payout is not sent twice when the bank call is retried?" },
+    { "lang": "th", "expects": "th-backoff", "text": "ส่ง SMS แจ้งเตือนไม่สำเร็จ ระบบจะลองใหม่กี่ครั้ง ห่างกันเท่าไร" },
+    { "lang": "en", "expects": "th-backoff", "text": "How many times is a failed notification message retried before it goes to the dead-letter queue?" },
+    { "lang": "th", "expects": "th-cache-exchange", "text": "ราคาที่แปลงสกุลเงินแล้วที่ลูกค้าเห็นช้ากว่าตลาดได้นานเท่าไร" },
+    { "lang": "en", "expects": "th-cache-exchange", "text": "How stale can the currency conversion rate shown to a customer be?" },
+    { "lang": "th", "expects": "th-cache-cdn", "text": "เปลี่ยนรูปสินค้าแล้วต้องล้างแคชหรือเปล่า" },
+    { "lang": "en", "expects": "th-cache-cdn", "text": "Why don't we purge the CDN when a product image changes?" },
+    { "lang": "th", "expects": "th-migration-backfill", "text": "จะเติมค่าในคอลัมน์ใหม่ของตารางที่มีข้อมูลหลายล้านแถวอย่างไรไม่ให้หน้าเว็บล่ม" },
+    { "lang": "en", "expects": "th-migration-backfill", "text": "What batch size should a backfill of the orders table use?" },
+    { "lang": "th", "expects": "th-migration-review", "text": "ใครต้องอนุมัติไฟล์ที่แก้โครงสร้างตารางก่อนรวมโค้ด" },
+    { "lang": "en", "expects": "th-migration-review", "text": "Who has to approve a schema change before it is merged?" },
+    { "lang": "th", "expects": "th-code-review", "text": "ส่งโค้ดให้ตรวจแล้วควรได้คำตอบภายในกี่วัน" },
+    { "lang": "en", "expects": "th-code-review", "text": "How quickly must a pull request get its first review, and how large may it be?" },
+    { "lang": "th", "expects": "th-onboarding", "text": "พนักงานใหม่ฝ่ายวิศวกรรมต้องทำอะไรบ้างในสัปดาห์แรก" },
+    { "lang": "en", "expects": "th-onboarding", "text": "What is a new engineer expected to ship in their first week, and who helps them?" },
+    { "lang": "th", "expects": "th-backup", "text": "กู้ข้อมูลฐานข้อมูลย้อนหลังได้ไกลแค่ไหน และทดสอบการกู้คืนบ่อยเท่าไร" },
+    { "lang": "en", "expects": "th-backup", "text": "How often do we prove that a database backup can actually be restored?" },
+    { "lang": "th", "expects": "th-tax-invoice", "text": "ลูกค้าขอใบกำกับภาษีย้อนหลังได้กี่วัน" },
+    { "lang": "en", "expects": "th-tax-invoice", "text": "How is a wrongly issued tax invoice corrected?" },
+    { "lang": "th", "expects": "th-promotion", "text": "ใช้คูปองส่วนลดหลายใบในคำสั่งซื้อเดียวได้ไหม" },
+    { "lang": "en", "expects": "th-promotion", "text": "Where is a discount code checked, so it cannot be used twice from two browser tabs?" },
+    { "lang": "th", "expects": "th-monitoring", "text": "สัญญาณเตือนแบบไหนที่อนุญาตให้ปลุกคนเวรตอนกลางคืน" },
+    { "lang": "en", "expects": "th-monitoring", "text": "Which alerts are allowed to page someone at night?" },
+    { "lang": "th", "expects": "th-data-retention", "text": "เก็บประวัติคำค้นของลูกค้าไว้นานเท่าไร" },
+    { "lang": "en", "expects": "th-data-retention", "text": "How long do we keep what customers searched for?" },
+    { "lang": "th", "expects": "th-warehouse", "text": "สั่งของตอนบ่ายสามจะได้ส่งวันไหน" },
+    { "lang": "en", "expects": "th-warehouse", "text": "What is the cut-off time for same-day shipping?" },
+    { "lang": "th", "expects": "th-long-deploy", "text": "หลังเปลี่ยนรูปแบบข้อความในคิว ลบตัวอ่านแบบเก่าได้เมื่อไร" },
+    { "lang": "en", "expects": "th-long-deploy", "text": "When may the consumer of the old queue message format be removed after a release?" },
+    { "lang": "th", "expects": "th-accessibility", "text": "ต้องทดสอบการขยายตัวอักษรในแอปอย่างไรก่อนปล่อย" },
+    { "lang": "en", "expects": "th-accessibility", "text": "How large may the system font get before our app's screens must still fit?" }
+  ]
+}
