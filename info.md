@@ -1,5 +1,26 @@
 # Project Decisions
 
+## Confirmed Ollama on the devbox, and LM Studio on JMPC as a Standby — 2026-09-24
+
+The owner tried LM Studio as a model server on another machine and decided to keep it as a standby.
+
+- **The devbox keeps Ollama inside its stack**, as approved on 2026-09-16. Nothing changes there.
+  It is always on, and JMPC is not.
+- **LM Studio on JMPC (`192.168.1.111`) is a tested standby, not an approved provider.** It holds
+  `text-embedding-qwen3-embedding-0.6b` (`Qwen3-Embedding-0.6B`, GGUF Q8_0, 639 MB).
+- **Tested on 2026-09-24, with synthetic text only:**
+  - it answered from the devbox over the LAN with 1024 dimensions;
+  - `embedding-check` passed every line with the endpoint and model pointed at it, run once with
+    the settings overridden and `.env` untouched;
+  - one sentence embedded by it and by the devbox's Ollama had a cosine similarity of 0.9997.
+- **Its server is stopped, and the model stays downloaded.** Served with
+  `lms server start --port 1234 --bind 0.0.0.0`, it has no authentication and offers every model on
+  that machine to the whole LAN, chat models included. It should run only while it is in use.
+- **Switching the devbox to it needs an `info.md` entry of its own** first
+  (`docs/operations/embedding-approval.md`). It also means changing `DEVBUDDY_EMBEDDING_ENDPOINT`
+  and `DEVBUDDY_EMBEDDING_MODEL` and recreating `api`, `mcp` and the worker. Every record is
+  re-embedded once, because the model name differs.
+
 ## Confirmed `win-arm64` as a Client Platform — 2026-09-24
 
 The owner decided that `win-arm64` is **a client platform, and verified as one**:
