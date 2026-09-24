@@ -330,6 +330,32 @@ The amd64 script ran in the Ubuntu 26.04.1 VMware guest, from fresh clones of `v
 
 The checklist stacks on jmhp and in the guest are stopped, with their volumes kept.
 
+### Against the release's own artefacts
+
+Tag `v1.6.0` was pushed from `c9a0d4d`, and release run 35957756037 passed every job on the first
+attempt. Between `ac2a117` and `c9a0d4d` only this file and `docs/plan-phase-13.md` changed. The
+owner asked for the release on 2026-09-24. It was **published at 05:11 UTC that day**, as Latest.
+
+| Check | When | Result |
+| --- | --- | --- |
+| The draft carries exactly the published RIDs | Re-run | **Yes.** Seven archives, `SHA256SUMS` and the three SBOMs; `prerelease=false`. |
+| Attestations verify from outside the workflow | Re-run, after the build | **Yes**, for all three images and the six archives downloaded, against this repository, `release.yml`, `refs/tags/v1.6.0` and `c9a0d4d…` in full. A wrong `--owner` was refused for an image and for an archive. `win-arm64` was not downloaded, so its attestation was not checked. |
+| `SHA256SUMS` matches the published archives | Re-run | **Yes**, all six downloaded, and again on every machine an archive was copied to. |
+| SBOM attached per image | Re-run | **Yes.** CycloneDX 1.7: 36, 38 and 56 components for the API, the MCP server and the console. |
+| Both architectures in every manifest | Re-run | **Yes.** `linux/amd64` and `linux/arm64` for all three images. `1.6.0`, `1.6` and `v1.6.0` resolve to one digest per image, and `1.5.0` still resolves to its own. |
+| Images **started** on `linux/amd64` | Re-run, against the published images | **Yes**, on jmhp, with the tag's own Compose file. The images were `amd64` with user `1654`, at the published digests. `migrate` exited 0 with nine migrations. `/health` answered 200, `/operations` 401 and the UI 200. The MCP server answered 401, against a 404 control. The API, the MCP server and retention ran as uid 1654, read-only. PostgreSQL ran as 70, and the evidence store as 1000, read-only. The console listed twenty AI operations, the same twenty as `1.5.0`, and the API logged no error lines. |
+| Images **started** on `linux/arm64` | Re-run, against the published images | **Yes, on arm64:** the Ubuntu 26.04.1 VMware guest on the Apple M4. The same script, checks and results, with `arm64` and the same digests. |
+| `win-x64` smoke test | Re-run | **Yes, natively**, on Windows 11 Pro 10.0.26200 on AMD64. Twenty operations, identical to the console image; `--every 24` refused with exit 2. |
+| `linux-x64` smoke test | Re-run | **Yes.** `ubuntu:24.04` (24.04.4) with `libicu74`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `linux-musl-x64` smoke test | Re-run | **Yes.** `alpine:3` (3.24.1) with `libstdc++`, `libgcc` and `icu-libs`, `x86_64`, on jmhp. Twenty operations, identical; `--every 24` refused. |
+| `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively on the Apple M4 Mac mini, macOS 26.6.2. Twenty operations, identical; `--every 24` refused; the apphost is an ad-hoc signed arm64 Mach-O. |
+| `linux-arm64` smoke test | Re-run | **Yes, natively**, in the Ubuntu 26.04.1 VMware guest, `aarch64`. Twenty operations, identical; `--every 24` refused with exit 2. |
+| `linux-musl-arm64` smoke test | Re-run, **required since B10** | **Yes, in a container.** `alpine:3` (3.24.2) in the Ubuntu 26.04.1 arm64 guest, `aarch64`. Twenty operations, identical; `--every 24` refused. |
+| `win-arm64` smoke test | Not required | **Not run for this release.** The RID stays built but unverified. |
+
+"Identical" means the same twenty names, in the same order, as `operations --ai` printed by the
+published `devbuddy-cli:1.6.0` image.
+
 ## What was verified for v1.5.0
 
 **Checked on 2026-09-22 against `50ccaaa`, before the tag.** This release carries everything else

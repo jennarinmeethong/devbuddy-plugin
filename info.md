@@ -2,6 +2,9 @@
 
 ## Confirmed Cutting v1.6.0 — 2026-09-24
 
+*(Done the same day. It was published at 05:11 UTC once the checklist passed. The devbox moved onto
+the tag, and plugin 1.6.0 was installed.)*
+
 The owner asked for a new release once the Voyage withdrawal was merged and green in CI.
 
 - **A minor version, `v1.6.0`.** It removes a setting and adds a refusal, and both can change how

@@ -41,10 +41,15 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.5.0` is the current release**, published 2026-09-22 from `cb818a3` at the owner's
+**`v1.6.0` is the current release**, published 2026-09-24 from `c9a0d4d` at the owner's
+instruction. It withdraws Voyage AI and holds `SelfHosted` to a private address. It adds no
+migration, and nobody signs in again. Its checklist is in `docs/operations/release-matrix.md`, and
+the devbox runs that tag.
+
+**`v1.5.0` was the release before it**, published 2026-09-22 from `cb818a3` at the owner's
 instruction. It carries the rest of Phase 13 and one conditional migration, `RecordEmbeddingChunks`.
 **Everyone signs in once after upgrading to it**, because an access token from before carries no
-session. Its checklist is in `docs/operations/release-matrix.md`, and the devbox runs that tag.
+session.
 
 **`v1.4.0` was published the same morning** from `163243f` (Phase 13, A1). It carries a screen for
 every operation, `list_source_repositories`, the project-scope check and `scope-report`, and adds no
