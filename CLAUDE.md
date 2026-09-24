@@ -216,8 +216,9 @@ the Compose stack of `v1.2.0` ran from clean on arm64 too, with the published im
 Ubuntu 26.04 VMware guest (2 CPUs, 5.3 GB). `docs/operations/release-matrix.md` records it. The release workflow checks the non-root user **per
 architecture**, because a manifest list can hold one image that drops root and one that does not.
 
-**One unverified RID keeps shipping.** `win-arm64` stays in the built-but-unverified tier,
-confirmed as a decision and not left as a gap. **`linux-musl-arm64` is verified since 2026-09-21**
+**`win-arm64` is a client platform (2026-09-24, `info.md`).** Every release owes a smoke test of
+the console and `DevBuddy.McpServer --stdio` there; **the API in the same archive is not supported
+on it**. The tier moves once that runs for `v1.6.0`. What follows is the history. **`linux-musl-arm64` is verified since 2026-09-21**
 (Phase 13, B10), so every release owes it a smoke test in Alpine on arm64. `win-arm64` first ran
 for `v1.2.0` on 2026-09-14 in a VMware VM on Apple silicon. On 2026-09-22 the owner asked to
 backfill every skipped release, so every published archive has now passed there and its checksum

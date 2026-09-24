@@ -124,6 +124,18 @@ This is an evidence amendment, not a tier change. The verified tier means commit
 test before every future release. The owner has not made that commitment for `win-arm64`, so it
 remains the sole built-but-unverified RID.
 
+## Amendment — 2026-09-24: `win-arm64` is verified as a client
+
+The owner decided that `win-arm64` is a client platform (`info.md`, 2026-09-24):
+- **The console and the MCP server over stdio** are smoke-tested from the published archive before
+  every release is published, on the Windows on ARM VMware guest. That is a per-release commitment,
+  which is what the verified tier means.
+- **The API**, which is in the same archive, is **not supported** on `win-arm64`, and is not
+  tested there.
+
+No RID is left in the built-but-unverified tier once the first such run is recorded. The tier
+itself stays defined, for the next RID that needs it.
+
 ## Consequences
 
 - The middle tier is the honest part of this decision: those artifacts are useful and untested, and

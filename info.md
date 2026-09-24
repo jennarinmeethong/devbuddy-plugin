@@ -1,5 +1,25 @@
 # Project Decisions
 
+## Confirmed `win-arm64` as a Client Platform — 2026-09-24
+
+The owner decided that `win-arm64` is **a client platform, and verified as one**:
+- **The client** is the console (`DevBuddy.Cli`) and the MCP server over stdio
+  (`DevBuddy.McpServer --stdio`), which is what a plugin starts.
+- **The API** is the server half. It is built into the same archive and is **not supported** on
+  `win-arm64`. Nobody may describe it as supported there.
+- **Every release owes a client smoke test** on the Windows on ARM VMware guest, from the published
+  archive:
+  - the console lists the same AI operations as the published console image, refuses
+    `--every 24` with exit 2, and refuses `migrate` with no connection string with exit 2;
+  - the MCP server started with `--stdio` answers `initialize` and `tools/list` with the same
+    names, writes nothing but JSON-RPC to standard output, and exits 0 when its input closes.
+    This needs no database, which is a client machine's situation.
+- **The archive's checksum and attestation are checked**, as for every verified RID.
+- **The tier moves once the smoke test has run for a release.** `v1.6.0` is that release, as soon
+  as the guest is running (as B10 did for `linux-musl-arm64`).
+- **The archive is not split.** The API stays in it, unsupported, because splitting it would change
+  `release.yml` for no gain in what is verified.
+
 ## Confirmed Cutting v1.6.0 — 2026-09-24
 
 *(Done the same day. It was published at 05:11 UTC once the checklist passed. The devbox moved onto
