@@ -1217,6 +1217,23 @@ installation that a self-contained executable does not use; and any run of `win-
 Before publishing the draft, and recorded per release. Nothing is carried over from a previous
 tag: that licence was spent on `v1.0.0` and is closed by the 2026-09-10 decision above.
 
+**Since Phase 14 (A1) the checklist is scripted in `tools/release/`**, and a release runs the
+scripts from its own tag. `tools/release/README.md` says which machine runs each one and how a
+release adds a check. Every row a release records here names the script that produced it:
+
+| Step | Script |
+| --- | --- |
+| 1, and the format check and web suite | `setup-and-suite.sh` |
+| 2 | `setup-and-suite.sh` publishes `linux-x64`; the release workflow publishes every RID |
+| 3 | `smoke.sh`, and `client-smoke.ps1` for `win-arm64` |
+| 4 and 6, and tokens staying out of the log | `stack-drill-tokens.sh` |
+| 5 | `post-images.sh`, once per architecture |
+| The upgrade from the previous release | `upgrade.sh`, once per architecture |
+| 7 and 8 | By hand, with `gh`, as below |
+
+Up to `v1.6.0` these rows came from scripts copied between releases on each machine, and those
+copies are not in the repository.
+
 1. `dotnet test DevBuddy.slnx -c Release` on Linux, with Docker available, so the integration and
    drill tests actually run. (The workflow does this too; doing it locally is what lets you read
    the failures.)

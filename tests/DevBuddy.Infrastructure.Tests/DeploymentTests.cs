@@ -131,6 +131,45 @@ public sealed partial class DeploymentTests
         Assert.Empty(findings);
     }
 
+    /// <summary>
+    /// Control SB-32, for the release checklist in <c>tools/release</c> (Phase 14, A1). Those scripts
+    /// stand up throwaway stacks with real secrets, so every secret-looking name in them has to be
+    /// given a value made at run time: a command substitution, or a variable holding one.
+    /// </summary>
+    [Fact]
+    public void no_release_checklist_script_carries_a_secret()
+    {
+        FileInfo[] scripts =
+        [
+            .. ReleaseToolsDirectory().EnumerateFiles("*.sh"),
+            .. ReleaseToolsDirectory().EnumerateFiles("*.ps1"),
+        ];
+        Assert.NotEmpty(scripts);
+        List<string> findings = [];
+
+        foreach (FileInfo script in scripts)
+        {
+            foreach (string line in File.ReadAllLines(script.FullName))
+            {
+                if (line.TrimStart().StartsWith('#'))
+                {
+                    continue;
+                }
+
+                foreach (Match match in SecretValue().Matches(line))
+                {
+                    string value = match.Groups["value"].Value.TrimStart('"', '\'');
+                    if (!value.StartsWith('$'))
+                    {
+                        findings.Add($"{script.Name}: {line.Trim()}");
+                    }
+                }
+            }
+        }
+
+        Assert.Empty(findings);
+    }
+
     [Fact]
     public void the_object_store_has_a_key_to_encrypt_with()
     {
@@ -659,6 +698,9 @@ public sealed partial class DeploymentTests
         DockerDirectory().EnumerateFiles("*", SearchOption.AllDirectories)
             .Where(file => !string.Equals(file.Name, ".env", StringComparison.Ordinal));
 
+    private static DirectoryInfo ReleaseToolsDirectory() =>
+        new(Path.Combine(RepositoryRoot().FullName, "tools", "release"));
+
     private static DirectoryInfo DockerDirectory() =>
         new(Path.Combine(RepositoryRoot().FullName, "docker"));
 
@@ -681,6 +723,10 @@ public sealed partial class DeploymentTests
     /// <summary>A secret-looking name with something other than a variable reference after it.</summary>
     [GeneratedRegex(@"(?i)(password|secret|signing_?key|access_?key|token)\s*[:=]\s*\S")]
     private static partial Regex AssignedSecret();
+
+    /// <summary>A secret-looking name and the value given to it, in a shell or PowerShell line.</summary>
+    [GeneratedRegex(@"(?i)(password|secret|signing_?key|access_?key|token)\s*[:=]\s*(?<value>[^\s,;}]+)")]
+    private static partial Regex SecretValue();
 
     /// <summary>A variable Compose refuses to start without: <c>${NAME:?message}</c>.</summary>
     [GeneratedRegex(@"\$\{(?<name>[A-Z0-9_]+):\?")]

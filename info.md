@@ -1,5 +1,24 @@
 # Project Decisions
 
+## Confirmed Phase 14 — Making Releases Repeatable, and Search Measurable — 2026-09-24
+
+The owner approved `docs/plan-phase-14.md` "as recommended" on 2026-09-24, and asked for A1 to
+start. That file is now the plan of record for Phase 14 and its progress log.
+
+- **The order of work is the plan's:** A1, A3, C3, C2 before C1, A2 after B4, the B items, then
+  `v1.7.0` with the devbox on that tag.
+- **Out of scope, as the plan says:** a generative model, automatic failover between model servers,
+  and growing the AI surface past twenty operations.
+- **B4 is answered by its recommendation.** A2's runner results **replace** the hand smoke tests
+  for `win-arm64`, `linux-arm64`, `linux-musl-arm64` and `osx-arm64`, once A2 exists. The Mac mini
+  still runs `osx-arm64` for a release that changes the macOS build. Until A2 runs for a release,
+  the hand smoke tests stay owed.
+- **B1, B2 and B3 are not answered by this approval**, and stay waiting on the owner:
+  - B1's recommendation depends on a fact the plan does not have: Tailscale or ZeroTier if only the
+    owner's devices use the devbox, an owned domain if anyone else will.
+  - B2 (code-signing) and B3 (a hosted model server) carry options and no recommendation.
+  - D1, Phase 13's C8, stays blocked until B3 is answered.
+
 ## Confirmed Ollama on the devbox, and LM Studio on JMPC as a Standby — 2026-09-24
 
 The owner tried LM Studio as a model server on another machine and decided to keep it as a standby.
