@@ -18,7 +18,7 @@ single-file and does not mean Native AOT**; neither is claimed and neither is bu
 | `linux-arm64` | yes | **yes** | `ubuntu:24.04` under `linux/arm64` emulation. Emulated, not hardware. |
 | `linux-musl-x64` | yes | **yes** | `alpine:3`, after installing the dependencies below. |
 | `osx-arm64` | yes | **yes** | Natively, on an Apple M4 Mac mini running macOS 26.6.2. Hardware, not emulation. First run 2026-09-13, outside a release; see below. |
-| `win-arm64` | yes | **client only, every release** | **Client-verified since 2026-09-24** (`info.md`): the console and `DevBuddy.McpServer --stdio`, from the published archive, in the Windows on ARM VMware guest on Apple silicon. The API in the same archive is **not supported** on this RID. Every earlier release was backfilled on 2026-09-22. |
+| `win-arm64` | yes | **client only, every release** | **Client-verified since 2026-09-24** (`info.md`), first run against `v1.6.0`: the console and `DevBuddy.McpServer --stdio`, from the published archive, in the Windows on ARM VMware guest on Apple silicon. The API in the same archive is **not supported** on this RID. Every earlier release was backfilled on 2026-09-22 (console only). |
 | `linux-musl-arm64` | yes | **yes** | `alpine:3` on arm64, after installing the dependencies below. **Verified since 2026-09-21** (Phase 13, B10): run for `v1.2.0`, `v1.2.1`, `v1.3.0` and `v1.4.0`, and smoke-tested every release from now on, in Alpine on the Ubuntu arm64 guest or the Mac mini. |
 
 **`linux-musl-arm64` moved to the verified tier on 2026-09-21** (`info.md`, Phase 13 B10). It had
@@ -351,7 +351,7 @@ owner asked for the release on 2026-09-24. It was **published at 05:11 UTC that 
 | `osx-arm64` smoke test | Re-run | **Yes, on hardware.** Natively on the Apple M4 Mac mini, macOS 26.6.2. Twenty operations, identical; `--every 24` refused; the apphost is an ad-hoc signed arm64 Mach-O. |
 | `linux-arm64` smoke test | Re-run | **Yes, natively**, in the Ubuntu 26.04.1 VMware guest, `aarch64`. Twenty operations, identical; `--every 24` refused with exit 2. |
 | `linux-musl-arm64` smoke test | Re-run, **required since B10** | **Yes, in a container.** `alpine:3` (3.24.2) in the Ubuntu 26.04.1 arm64 guest, `aarch64`. Twenty operations, identical; `--every 24` refused. |
-| `win-arm64` client smoke test | **Required since 2026-09-24**, decided after publication | **Pending:** waits for the Windows on ARM guest. The tier moves when it passes. |
+| `win-arm64` client smoke test | **Required since 2026-09-24**, run after publication | **Yes, in a VM**, on 2026-09-24: Windows on ARM 10.0.26200.9457, `ARM64`, in the VMware guest on Apple silicon. The archive was downloaded; its SHA-256 matched `SHA256SUMS`, and its attestation verified against `refs/tags/v1.6.0` and `c9a0d4d…`, with a wrong-owner control refused. Both apphosts are PE `0xAA64`. **Console:** twenty operations, identical to the console image; `--every 24` exited 2; `migrate` with no connection string exited 2. **MCP server, `--stdio`**, pointed at no database: answered `initialize` and `tools/list` with the same twenty names, wrote only JSON-RPC to standard output, and exited 0 when its input closed. The API was not run: it is not supported on this RID. **The RID is client-verified from this run on.** |
 
 "Identical" means the same twenty names, in the same order, as `operations --ai` printed by the
 published `devbuddy-cli:1.6.0` image.

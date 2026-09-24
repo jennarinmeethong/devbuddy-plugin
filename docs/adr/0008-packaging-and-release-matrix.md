@@ -133,8 +133,8 @@ The owner decided that `win-arm64` is a client platform (`info.md`, 2026-09-24):
 - **The API**, which is in the same archive, is **not supported** on `win-arm64`, and is not
   tested there.
 
-No RID is left in the built-but-unverified tier once the first such run is recorded. The tier
-itself stays defined, for the next RID that needs it.
+The first run passed against `v1.6.0` the same day, so no RID is left in the built-but-unverified
+tier. The tier itself stays defined, for the next RID that needs it.
 
 ## Consequences
 

@@ -232,7 +232,7 @@ obligation.
 **`win-arm64` is a client platform, verified as one: 2026-09-24.** The owner took the obligation
 for the client half only (`info.md`). The console and the MCP server over stdio are smoke-tested
 before every release. **The API is not supported on `win-arm64`**, and nothing here may be read as
-saying it is. The tier moves when the first run is recorded, against `v1.6.0`.
+saying it is. The first run passed against `v1.6.0` the same day, so the RID is client-verified.
 
 **Closed rather than accepted: `linux/arm64` container images.** This section, ADR-0008 and the
 release matrix all said they were not built and not claimed. They are built now, published under

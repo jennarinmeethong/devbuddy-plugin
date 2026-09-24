@@ -218,7 +218,8 @@ architecture**, because a manifest list can hold one image that drops root and o
 
 **`win-arm64` is a client platform (2026-09-24, `info.md`).** Every release owes a smoke test of
 the console and `DevBuddy.McpServer --stdio` there; **the API in the same archive is not supported
-on it**. The tier moves once that runs for `v1.6.0`. What follows is the history. **`linux-musl-arm64` is verified since 2026-09-21**
+on it**. It first passed against `v1.6.0` the same day, so no RID is left unverified. What follows
+is the history. **`linux-musl-arm64` is verified since 2026-09-21**
 (Phase 13, B10), so every release owes it a smoke test in Alpine on arm64. `win-arm64` first ran
 for `v1.2.0` on 2026-09-14 in a VMware VM on Apple silicon. On 2026-09-22 the owner asked to
 backfill every skipped release, so every published archive has now passed there and its checksum
