@@ -192,6 +192,23 @@ Claude Code needs the tools named before it will call them in print mode:
 claude -p "..." --mcp-config plugins/claude/.mcp.json --allowedTools "mcp__devbuddy__search_knowledge,mcp__devbuddy__create_draft"
 ```
 
+## After the server is upgraded
+
+**Restart every assistant session that was open during the upgrade.** An MCP server over stdio is a
+process the session started, and it keeps the version it started with until the session ends:
+- a plugin that runs `DevBuddy.McpServer` from a local build keeps the old binary loaded;
+- a plugin that reaches the stack through `docker compose run --rm -T mcp --stdio`, as the devbox's
+  SSH wrapper does, keeps a container on the old image.
+
+Nothing reuses an old image or binary. A session opened after the upgrade gets the new one, and
+closing a session removes its container. On 2026-09-24, though, three sessions opened before the
+devbox moved to `v1.6.0` were still answering from the old image hours later. Until they
+restarted, they were running a server without that release's changes.
+
+On the server, `tools/release/stale-sessions.sh` lists the stdio sessions on an image older than
+the running `mcp` service's, and changes nothing. Restart those sessions from the client. Stopping
+their containers instead cuts an assistant off in the middle of a call.
+
 ## Verifying an installation
 
 Ask for a search. A working installation answers; a broken one fails in a way that says which of

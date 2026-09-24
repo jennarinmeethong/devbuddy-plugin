@@ -23,8 +23,11 @@ secret-looking name a literal value.
 | `post-images.sh` | After the release workflow pushes the images | jmhp for amd64; the arm64 guest or the Mac mini for arm64 | `VERSION WORKDIR [DATABASE_IMAGE] [HELPER_IMAGE]` |
 | `smoke.sh` | After the tag, once per archive | Where the RID runs natively, or in a container with a third argument | `ARCHIVE EXPECTED [IMAGE]` |
 | `client-smoke.ps1` | After the tag | The Windows on ARM guest for `win-arm64`. It also runs against `win-x64`. | `-Archive -Expected -Work` |
+| `stale-sessions.sh` | After an upgrade of any installation | The installation's own host | `[COMPOSE_PROJECT]` |
 
 `lib.sh` holds what the Linux scripts share. It is sourced, not run.
+`stale-sessions.sh` is also step 6 of *Upgrading* in `docs/operations/deployment.md`. It only reads,
+so it is the one script meant for an installation's own stack.
 
 - **`setup-and-suite.sh`** clones the commit into `$DEVBUDDY_RELEASE_WORK/v<VERSION>/repo`. It runs
   the full .NET suite in the SDK container, against the host's Docker daemon, then the format check,
@@ -35,7 +38,9 @@ secret-looking name a literal value.
 - **`upgrade.sh`** installs the previous release from its published images and its tag's Compose
   file, then seeds data. It upgrades to the commit built from source, as Compose project
   `devbuddy-up<version>` on `127.0.0.1:28080/28081`, and checks that the data came across. The
-  script is the same on amd64 and arm64. A host with no `curl` gets one from a container.
+  script is the same on amd64 and arm64. A host with no `curl` gets one from a container. A plugin
+  session is held open across the upgrade, and it has to be listed on the old image and then go
+  away when its input closes (A3).
 - **`post-images.sh`** starts the three published images with the tag's Compose file, as Compose
   project `devbuddy-rel<version>` on `127.0.0.1:38080/38081`, then removes them. Its
   `results/ai-operations.txt` holds the published console image's AI operation names, in order.

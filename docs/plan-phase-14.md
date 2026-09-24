@@ -130,7 +130,8 @@ guess.
   by hand.
 
 ### A3 — A plugin session keeps the old image after an upgrade
-**Status: TODO**
+**Status: IN PROGRESS.** The documentation, the listing and the check are done. The exit still
+needs the next devbox upgrade to record its count.
 
 - **Problem:** `docker compose run mcp --stdio` starts a container per session. After an upgrade,
   a session that was open keeps the container, and so the image, it started with. On 2026-09-24
@@ -143,6 +144,12 @@ guess.
     not reuse one today, so this may be documentation only.
 - **Exit:** the upgrade section says it, and the next devbox upgrade records how many old sessions
   it found.
+- **Decided 2026-09-24: documentation and a listing, no wrapper change.** The wrapper never reuses
+  an image: every `compose run` takes the service's current one. On the devbox that day, all four
+  `mcp-run` containers still had a live SSH session and `compose run` above them, so they were open
+  assistant sessions, not orphans. The three from before the `v1.6.0` upgrade were on the old image.
+  Refusing an old image would mean killing an open session, which is what restarting it does
+  anyway, more cleanly.
 
 ---
 
@@ -288,3 +295,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-24 | Plan | Drafted after `v1.6.0` from the items left open. It waits for the owner's approval and the B answers. |
 | 2026-09-24 | Plan, B4 | The owner approved the plan "as recommended" (`info.md`). B4 is answered by its recommendation: the runners replace the hand smoke tests once A2 exists. B1, B2 and B3 carry no single recommendation, so they still wait. A1 started. |
 | 2026-09-24 | A1 | **In progress: built, and run on jmhp.** The v1.6.0 copies were collected from jmhp, the Ubuntu arm64 guest and the Windows on ARM guest (the Mac mini had only the v1.4.0 smoke script, which is identical). They were merged into `tools/release/`, parameterised by version, previous version and commit. The amd64 and arm64 upgrade scripts are now one script. The part-2 operations count reads the `ai` column, and the migration count and last migration are read from the checkout. Per-release checks are functions in a list. Run on jmhp from a bundle of the uncommitted change, against published `v1.6.0` as the previous release: **part 1** passed 7 of 7 (the .NET suite **959 passed**, the 958 plus the new guard; format; web 78 of 78; the `linux-x64` publish). **Part 2** passed 92 of 92 on its second run. The first run had 4 failures, all wrong expectations in the script and none in the product: the delivery line goes to standard output, `scope-report --delete` stops at "Nothing was deleted" on a clean installation, and `embedding-check` pads its columns. **Part 3** (upgrade from `v1.6.0` on amd64) passed 40 of 40. **`post-images.sh`** passed 29 of 29 against the published `1.6.0` images, and its twenty names are identical to the v1.6.0 run's. **`smoke.sh`** passed in `ubuntu:24.04` against part 1's own `linux-x64` publish packed as an archive. As a control, it failed with exit 1 in `alpine:3`. The guard test was mutation-checked on jmhp: a literal password planted in `lib.sh` failed it, and the revert passed. **Not run:** `upgrade.sh` on arm64, `post-images.sh` on arm64 or the Mac mini, `smoke.sh` natively on any machine, and `client-smoke.ps1` at all (a PowerShell parse check only). Each needs a machine other than jmhp, or a downloaded archive, and so the owner's approval. The throwaway stacks and volumes were removed; the work directory `/data/devbuddy-cache/a1-verify` is kept. |
+| 2026-09-24 | A3 | **In progress: everything except the next devbox upgrade's record.** `tools/release/stale-sessions.sh` lists the stdio session containers (Compose one-off `mcp` containers) whose image differs from the running `mcp` service's. It changes nothing. Run read-only against the devbox's live stack, it listed exactly the three sessions opened before the 05:12 UTC `v1.6.0` upgrade, of four open, all on image `abccc9341eb7`, and exited 2 for a project that does not exist. `deployment.md` gains step 6 of *Upgrading*, and `plugin-hosts.md` gains *After the server is upgraded*. `upgrade.sh` now holds a session open across the upgrade: on jmhp, upgrading from `v1.6.0`, it was listed as stale on `b24b44ff9296` (the published `mcp:1.6.0`), exited 0 when its input closed, and its container was gone afterwards. The script passed 44 of 44. **Not done:** the next devbox upgrade's count. No session on the devbox was stopped. |

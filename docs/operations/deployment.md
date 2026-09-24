@@ -315,6 +315,18 @@ curl and no shell, which is the point of one.
 5. Check the `retention` service came back up and logged a pass. It is the one service whose
    failure is invisible from the outside: nothing stops working, the windows just stop being
    applied.
+6. List the assistant sessions still on the old image, and restart them from their clients:
+
+   ```bash
+   sh tools/release/stale-sessions.sh
+   ```
+
+   A plugin over stdio runs one `mcp` container per session, started with `docker compose run`.
+   That container keeps the image it started with until the session closes, and `up -d` does not
+   touch it. A new session gets the new image. The script lists the sessions whose image differs
+   from the running `mcp` service's, ends with a count, and changes nothing.
+   `docs/operations/plugin-hosts.md` says why stopping those containers is the wrong fix. Record
+   the count for an upgrade you document.
 
 A migration that fails leaves the servers not started rather than started against a schema they do
 not match.

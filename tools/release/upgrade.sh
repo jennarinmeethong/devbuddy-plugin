@@ -198,9 +198,33 @@ leftover_dialect() {
   note "a leftover DEVBUDDY_EMBEDDING_DIALECT is in .env before the upgrade"
 }
 
-BEFORE_UPGRADE=(previous_release seed leftover_dialect)
+# Phase 14, A3: a plugin session open across the upgrade keeps the old image, stale-sessions.sh
+# lists it, and closing the session removes it. The session is held open by a file descriptor on a
+# FIFO, so closing that descriptor is the session's input closing.
+open_session_across_upgrade() {
+  mkfifo "$OUT/session.in"
+  "${C[@]}" run --rm -T --no-deps mcp --stdio < "$OUT/session.in" > /dev/null 2>>"$ERR" &
+  SESSION_PID=$!
+  exec 7> "$OUT/session.in"
+  sleep 10
+  expect "a stdio session on v$PREVIOUS, open" "$(sh "$RELEASE_TOOLS/stale-sessions.sh" "$P" | tail -1)" \
+    "sessions 1, on an older image than the mcp service 0"
+}
+session_left_on_the_old_image() {
+  sh "$RELEASE_TOOLS/stale-sessions.sh" "$P" > "$D/stale-sessions.out"
+  cat "$D/stale-sessions.out" | tee -a "$RES"
+  expect "the session open across the upgrade is listed as stale" "$(tail -1 "$D/stale-sessions.out")" \
+    "sessions 1, on an older image than the mcp service 1"
+  exec 7>&-
+  wait "$SESSION_PID"
+  expect "the session exits when its input closes" "$?" 0
+  expect "and its container is gone" "$(sh "$RELEASE_TOOLS/stale-sessions.sh" "$P" | tail -1)" \
+    "sessions 0, on an older image than the mcp service 0"
+}
+
+BEFORE_UPGRADE=(previous_release seed leftover_dialect open_session_across_upgrade)
 DURING_UPGRADE=(upgrade)
-AFTER_UPGRADE=(access_token_from_before after_upgrade)
+AFTER_UPGRADE=(session_left_on_the_old_image access_token_from_before after_upgrade)
 
 for step in "${BEFORE_UPGRADE[@]}" "${DURING_UPGRADE[@]}" "${AFTER_UPGRADE[@]}"; do
   "$step"
