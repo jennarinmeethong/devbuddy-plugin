@@ -247,7 +247,8 @@ mini still runs `osx-arm64` for a release that changes the macOS build (`info.md
   chunk size and the instruction they came from.
 
 ### C3 — Firefox loses the first click on a signed-out form
-**Status: TODO**
+**Status: CLOSED — NOT POSSIBLE (the press never reaches the page, so there is nothing in the
+client to fix).** 2026-09-24. `clickUntilSent` stays.
 
 - **Known:**
   - In CI, Firefox sometimes sends nothing on the first submit of a freshly loaded signed-out page,
@@ -265,6 +266,34 @@ mini still runs `osx-arm64` for a release that changes the macOS build (`info.md
   3. Fix it in the client, not in the tests, as C7 required.
 - **Exit:** either the cause is fixed and `clickUntilSent` goes back to a plain click, with CI
   green twice, or the item is `CLOSED — NOT POSSIBLE` with what was ruled out.
+- **Found (2026-09-24):**
+  - **The instrument.** With `DEVBUDDY_E2E_FIRST_CLICK` set, every page in the suite records the
+    input events it receives, on `window` in the capture phase, ahead of anything the client
+    does. `clickUntilSent` prints that record for every click that sent nothing.
+  - **Where it is lost.** Six CI runs of the diagnostic branch `c3-first-click` caught three lost
+    clicks: 35998589217 on the recovery form, then 36001555287 and 36001564458 on the sign-in form.
+    All three were Firefox on the arm64 runner, and all three have the same record: the button
+    received `mouseup` and never `pointerdown`, `mousedown` or `click`. The press was dropped before
+    it reached the document.
+  - **How often.** On the arm64 runner, about 348 clicks lost 3; on the x64 runner, about 348 lost
+    none. On jmhp none of 922 were lost, across every configuration below.
+- **Ruled out:**
+  - **The form rendering before its handler is attached.** The page never received the press, and
+    before clicking, the diagnostic saw React's handlers on the form and the button.
+  - **A submit during the first `/me` check.** A signed-out page makes none, and the record shows
+    no request in flight.
+  - **The client at all.** No code in `web/admin` runs before a capture listener on `window`, so
+    nothing there can drop an event that listener never saw.
+  - **Firefox's insecure-login warning, and its form-history dropdown.** Either would take a press
+    to close itself, which fits the record. Neither reproduced: 40 sign-ins and 120 recoveries
+    with a 1.5 s pause for a dropdown to open, with one worker so form history built up, and with
+    the warning switched off as a control. All were sent.
+  - **Load on x64.** None was lost on jmhp: 200 single clicks, the full Firefox suite three times
+    with 8 workers, and the full suite in all three browsers twice with 12 workers. None was lost
+    on the x64 runner either.
+- **Left open:** whether the press is dropped by Firefox or by Playwright's Firefox driver on that
+  runner. Nothing a page can observe tells the two apart. Whether a person clicking by hand in
+  Firefox is ever affected is still unanswered, and only someone with Firefox can answer it.
 
 ---
 
@@ -296,3 +325,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-24 | Plan, B4 | The owner approved the plan "as recommended" (`info.md`). B4 is answered by its recommendation: the runners replace the hand smoke tests once A2 exists. B1, B2 and B3 carry no single recommendation, so they still wait. A1 started. |
 | 2026-09-24 | A1 | **In progress: built, and run on jmhp.** The v1.6.0 copies were collected from jmhp, the Ubuntu arm64 guest and the Windows on ARM guest (the Mac mini had only the v1.4.0 smoke script, which is identical). They were merged into `tools/release/`, parameterised by version, previous version and commit. The amd64 and arm64 upgrade scripts are now one script. The part-2 operations count reads the `ai` column, and the migration count and last migration are read from the checkout. Per-release checks are functions in a list. Run on jmhp from a bundle of the uncommitted change, against published `v1.6.0` as the previous release: **part 1** passed 7 of 7 (the .NET suite **959 passed**, the 958 plus the new guard; format; web 78 of 78; the `linux-x64` publish). **Part 2** passed 92 of 92 on its second run. The first run had 4 failures, all wrong expectations in the script and none in the product: the delivery line goes to standard output, `scope-report --delete` stops at "Nothing was deleted" on a clean installation, and `embedding-check` pads its columns. **Part 3** (upgrade from `v1.6.0` on amd64) passed 40 of 40. **`post-images.sh`** passed 29 of 29 against the published `1.6.0` images, and its twenty names are identical to the v1.6.0 run's. **`smoke.sh`** passed in `ubuntu:24.04` against part 1's own `linux-x64` publish packed as an archive. As a control, it failed with exit 1 in `alpine:3`. The guard test was mutation-checked on jmhp: a literal password planted in `lib.sh` failed it, and the revert passed. **Not run:** `upgrade.sh` on arm64, `post-images.sh` on arm64 or the Mac mini, `smoke.sh` natively on any machine, and `client-smoke.ps1` at all (a PowerShell parse check only). Each needs a machine other than jmhp, or a downloaded archive, and so the owner's approval. The throwaway stacks and volumes were removed; the work directory `/data/devbuddy-cache/a1-verify` is kept. |
 | 2026-09-24 | A3 | **In progress: everything except the next devbox upgrade's record.** `tools/release/stale-sessions.sh` lists the stdio session containers (Compose one-off `mcp` containers) whose image differs from the running `mcp` service's. It changes nothing. Run read-only against the devbox's live stack, it listed exactly the three sessions opened before the 05:12 UTC `v1.6.0` upgrade, of four open, all on image `abccc9341eb7`, and exited 2 for a project that does not exist. `deployment.md` gains step 6 of *Upgrading*, and `plugin-hosts.md` gains *After the server is upgraded*. `upgrade.sh` now holds a session open across the upgrade: on jmhp, upgrading from `v1.6.0`, it was listed as stale on `b24b44ff9296` (the published `mcp:1.6.0`), exited 0 when its input closed, and its container was gone afterwards. The script passed 44 of 44. **Not done:** the next devbox upgrade's count. No session on the devbox was stopped. |
+| 2026-09-24 | C3 | **CLOSED — NOT POSSIBLE.** Three lost clicks in six CI runs of the diagnostic branch `c3-first-click`, all Firefox on the arm64 runner, all with the same record: the button got `mouseup` and never `pointerdown`, `mousedown` or `click`. The press never reached the page, so nothing in the client can be fixed, and `clickUntilSent` stays with the finding in its comment. jmhp reproduced nothing in 922 clicks, and the x64 runner nothing in about 348. The item above lists what was ruled out. The event recorder stays in the suite behind `DEVBUDDY_E2E_FIRST_CLICK`. The one-off diagnostic spec was not merged, and it remains on the branch. |

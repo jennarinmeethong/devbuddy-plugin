@@ -24,6 +24,8 @@
 #   DEVBUDDY_E2E_EMBEDDINGS=1  pgvector, a stand-in model server and the embedding sweep, for
 #                          specs/embeddings.spec.ts; off by default, so the default run tests the
 #                          shipped default stack
+#   DEVBUDDY_E2E_FIRST_CLICK=1  every page records its input events, and a signed-out click that
+#                          sent nothing prints them as CLICK-LOST (Phase 14, C3)
 #   DEVBUDDY_E2E_KEEP=1    leave the stack running afterwards, to look at it; its env file path is
 #                          printed, and `down -v` with the same arguments removes it
 #

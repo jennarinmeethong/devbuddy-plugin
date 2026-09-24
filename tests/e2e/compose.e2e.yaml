@@ -78,6 +78,8 @@ services:
       DEVBUDDY_E2E_ADMIN_PASSWORD: ${DEVBUDDY_E2E_ADMIN_PASSWORD:?run tests/e2e/run.sh, which sets this}
       DEVBUDDY_E2E_PROJECTS: /srv/projects
       DEVBUDDY_E2E_OUTPUT: /out
+      # Phase 14, C3: every page records its input events, and a click that sent nothing prints them.
+      DEVBUDDY_E2E_FIRST_CLICK: ${DEVBUDDY_E2E_FIRST_CLICK:-}
       DEVBUDDY_E2E_STATE: /tmp/state
       DEVBUDDY_E2E_WORKERS: ${DEVBUDDY_E2E_WORKERS:-4}
     volumes:

@@ -28,7 +28,43 @@ interface Fixtures {
   workItem: { workItemId: string; key: string; title: string };
 }
 
+/**
+ * Phase 14, C3: with DEVBUDDY_E2E_FIRST_CLICK set, every page records the input events it receives,
+ * so a click that sent nothing can say whether the page saw it at all.
+ */
+function recordEvents(): void {
+  const log: string[] = [];
+  const start = performance.now();
+  const at = () => Math.round(performance.now() - start);
+  (window as unknown as { __firstClick: string[] }).__firstClick = log;
+  for (const type of ["pointerdown", "mousedown", "mouseup", "click", "submit", "invalid", "focusin", "blur"]) {
+    window.addEventListener(
+      type,
+      (event) => {
+        const target = event.target as HTMLElement | null;
+        const name = target?.getAttribute?.("name");
+        const label = target?.tagName === "BUTTON" ? `(${target.textContent?.trim()})` : "";
+        log.push(`${at()} ${type} ${target?.tagName?.toLowerCase() ?? "window"}${name ? `[${name}]` : ""}${label}`);
+      },
+      true,
+    );
+  }
+  const fetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    log.push(`${at()} fetch ${init?.method ?? "GET"} ${typeof input === "string" ? input : String(input)}`);
+    return fetch(input, init);
+  };
+  window.addEventListener("load", () => log.push(`${at()} load`));
+}
+
 export const test = base.extend<Fixtures>({
+  context: async ({ context }, use) => {
+    if (process.env.DEVBUDDY_E2E_FIRST_CLICK) {
+      await context.addInitScript(recordEvents);
+    }
+    await use(context);
+  },
+
   // Playwright requires the first argument of a fixture to be destructured, even when it is unused.
   // eslint-disable-next-line no-empty-pattern
   people: async ({}, use) => {
@@ -85,29 +121,49 @@ export async function signIn(page: Page, person: Person, path = `/w/${cast().wor
 /**
  * Clicks a signed-out form's submit button, and clicks it again if its request never leaves.
  *
- * Firefox, on both CI runners, sometimes takes the click on a signed-out page's submit button and
- * sends nothing: no request, the form still filled, no error. Traces show it on the sign-in form
- * (run 35602268050) and on setting a password (35681490953); the recovery form and a sign-in after
- * a reset failed the same way where the trace was lost. It happens on a page just loaded. It has
- * not been seen on a signed-in screen, nor in Chromium or WebKit. **The cause is not identified.**
- * So the test goes on only once the request is seen. The click is repeated only when nothing left
- * within five seconds, so a request that did leave is not sent twice.
+ * Firefox sometimes takes the click on a signed-out page's submit button and sends nothing: no
+ * request, the form still filled, no error. It was seen on the sign-in, set-password and recovery
+ * forms, in CI only, never in Chromium or WebKit. **Phase 14, C3 found where it is lost, and it is
+ * not in this client.** With `DEVBUDDY_E2E_FIRST_CLICK` set, every page records its input events.
+ * In three lost clicks (CI runs 35998589217, 36001555287 and 36001564458), each on the arm64
+ * runner, the page received the `mouseup` and never the `pointerdown`, `mousedown` or `click`. The
+ * press was dropped before it reached the document, where no page code can see it. The same
+ * recorder saw 922 clicks on jmhp and about 348 on the x64 runner, all delivered.
+ * `docs/plan-phase-14.md` lists what was ruled out. So the test goes on only once the request is
+ * seen. The click is repeated only when nothing left within five seconds, so a request that did
+ * leave is not sent twice.
  */
 export async function clickUntilSent(button: Locator, pathname: string): Promise<void> {
   const page = button.page();
+  let attempts = 0;
   await expect(async () => {
+    attempts++;
     const sent = page.waitForRequest(
       (request) => request.method() === "POST" && new URL(request.url()).pathname === pathname,
       { timeout: 5_000 },
     );
     await button.click();
-    await sent;
+    try {
+      await sent;
+    } catch (failure) {
+      if (process.env.DEVBUDDY_E2E_FIRST_CLICK) {
+        const log = await page.evaluate(() => (window as unknown as { __firstClick?: string[] }).__firstClick ?? []);
+        console.log(`CLICK-LOST ${pathname} attempt ${attempts} ${JSON.stringify(log)}`);
+      }
+      throw failure;
+    }
   }).toPass({ timeout: 30_000 });
+  if (process.env.DEVBUDDY_E2E_FIRST_CLICK) {
+    console.log(`CLICK-ATTEMPTS ${attempts} ${pathname} ${button.page().context().browser()?.browserType().name()}`);
+  }
 }
 
 /** A second person at the same time, in a browser context of their own. */
 export async function openAs(browser: Browser, person: Person, path?: string): Promise<Page> {
   const context = await browser.newContext();
+  if (process.env.DEVBUDDY_E2E_FIRST_CLICK) {
+    await context.addInitScript(recordEvents);
+  }
   const page = await context.newPage();
   await signIn(page, person, path);
   return page;
