@@ -22,7 +22,7 @@ The owner decided that `win-arm64` is **a client platform, and verified as one**
 
 *(Done the same day: the client smoke test passed against the published `v1.6.0` archive in the
 guest, so `win-arm64` is client-verified. The script is `client-smoke.ps1` in
-`%USERPROFILE%\devbuddy-smoke160` there.)*
+`%USERPROFILE%\devbuddy-smoke\v160` there.)*
 
 ## Confirmed Cutting v1.6.0 — 2026-09-24
 
