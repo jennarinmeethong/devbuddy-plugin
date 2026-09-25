@@ -133,7 +133,14 @@ fi
 finish() {
   local status=$?
 
-  compose logs --no-color api mcp migrate >"$out/stack.log" 2>&1 || true
+  # The restore stage replaces the servers, and their logs go with them, so what they logged while
+  # the suite ran was taken before it. What the restored servers logged is added after.
+  if [ "${logs_taken:-0}" = 1 ]; then
+    echo "===== after the restore stage =====" >>"$out/stack.log"
+    compose logs --no-color api mcp migrate >>"$out/stack.log" 2>&1 || true
+  else
+    compose logs --no-color api mcp migrate >"$out/stack.log" 2>&1 || true
+  fi
   [ "${embeddings:-0}" = 1 ] && compose --profile workers logs --no-color record-embedding-sweep embedder >>"$out/stack.log" 2>&1 || true
 
   if [ "$keep" = 1 ]; then
@@ -329,10 +336,8 @@ zap_scans() {
   run_zap api zap-api-scan.py -t http://api:8080/openapi/v1.json -f openapi \
     -r api.html -J api.json -w api.md -z "-config scanner.maxScanDurationInMins=10"
 
-  # What the servers logged while being scanned, taken now: the restore stage after this replaces
-  # the containers, and their logs go with them. A 500 in a report means nothing without the
-  # exception behind it.
-  compose logs --no-color --timestamps api mcp >"$dir/stack.log" 2>&1 || true
+  # What the servers logged while being scanned is in stack.log, which is taken before the restore
+  # stage replaces them. A 500 in a report means nothing without the exception behind it.
 }
 
 if [ "${DEVBUDDY_E2E_ZAP:-0}" = 1 ]; then
@@ -420,6 +425,11 @@ restore_checks() {
 }
 
 if [ "${DEVBUDDY_E2E_RESTORE:-1}" = 1 ]; then
+  # Before the servers are replaced, or everything they logged during the suite, and any
+  # exception behind a 500, is lost with them. With timestamps, to line up with a report.
+  compose logs --no-color --timestamps api mcp migrate >"$out/stack.log" 2>&1 || true
+  logs_taken=1
+
   echo "==> Destroying both volumes and restoring" >&2
   set +e
   restore_checks

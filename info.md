@@ -16,6 +16,10 @@ scans. It is Phase 14, C4.
   triaged with the owner before any rule is set to fail a run.
 - **Not yet:** a weekly full active scan, and an authenticated scan. The owner decides each later.
 - **ZAP is a scanner, not a control.** It moves no row in `verification-matrix.md`.
+- **After the first findings, the same day, the owner approved three fixes and the merge:** the two
+  requests that answered 500 (a NUL character in text, and a duplicate work item key) answer as
+  refusals, the API host sends security headers on every answer, and the e2e run keeps the servers'
+  logs from before its restore stage.
 
 ## Confirmed Cutting v1.7.0 — 2026-09-25
 

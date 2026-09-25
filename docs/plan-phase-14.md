@@ -314,6 +314,15 @@ first run's findings wait on triage with the owner.
     job summary. A scan that did not finish is a warning.
   - At no cost. ZAP is open source, and it runs on the same GitHub-hosted runners, which a public
     repository does not pay for.
+- **Fixed from the first findings,** at the owner's word the same day:
+  - A NUL character in any text answers 400, not PostgreSQL's 500. `TextInput` checks every
+    operation's arguments in the dispatcher, the `/auth` routes through an endpoint filter, and the
+    evidence form in its handler.
+  - A duplicate work item key answers 409 with the key in the reason. The repository translates the
+    unique-index violation and detaches the row, so the audit entry for the attempt is written.
+  - Every answer from the API host carries a content security policy, `frame-ancestors 'none'`,
+    `X-Frame-Options`, `nosniff`, a referrer policy, a permissions policy, and COOP, CORP and COEP.
+  - The e2e run keeps the servers' logs from before its restore stage.
 - **Exit:** the first findings are triaged with the owner, and the accepted ones are written into a
   rules file, so that a new finding at the level the owner chooses fails a run.
 - **Later, if the owner says so:** a weekly full active scan on the supply-chain schedule, and an

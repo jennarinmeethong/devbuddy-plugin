@@ -5,6 +5,7 @@ using DevBuddy.Domain.Tenancy;
 using DevBuddy.Domain.Work;
 using DevBuddy.Infrastructure.Persistence.Mapping;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace DevBuddy.Infrastructure.Persistence.Repositories;
 
@@ -104,10 +105,38 @@ internal sealed class KnowledgeRepository(DevBuddyDbContext db) : IKnowledgeRepo
         return [.. rows.Select(RowMappers.ToDomain)];
     }
 
+    /// <summary>
+    /// Adds a work item, and refuses one whose key the project already uses.
+    /// <para>
+    /// The unique index is what decides, because two people registering the same key at the same
+    /// moment would both pass any check made first. Before Phase 14 (C4) its violation escaped as
+    /// an unhandled exception, so a duplicate key answered 500. Worse, the row stayed tracked, so
+    /// the pipeline's audit entry for the failed attempt tried to insert it again and failed too.
+    /// The row is detached before the refusal, so the refusal is what gets audited.
+    /// </para>
+    /// </summary>
     public async Task AddWorkItemAsync(WorkItem workItem, CancellationToken cancellationToken)
     {
-        _db.WorkItems.Add(RowMappers.ToRow(Guard.NotNull(workItem, nameof(workItem))));
-        await _db.SaveChangesAsync(cancellationToken);
+        Guard.NotNull(workItem, nameof(workItem));
+
+        WorkItemRow row = RowMappers.ToRow(workItem);
+        _db.WorkItems.Add(row);
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException failure) when (failure.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "ix_work_items_workspace_id_project_id_key",
+        })
+        {
+            _db.Entry(row).State = EntityState.Detached;
+
+            throw new DomainValidationException(
+                $"The key {workItem.Key} is already used by another work item in this project.");
+        }
     }
 
     public async Task AddRecordAsync(KnowledgeRecord record, CancellationToken cancellationToken)

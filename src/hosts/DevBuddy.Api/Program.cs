@@ -145,6 +145,9 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 
 WebApplication app = builder.Build();
 
+// First, so every answer carries them, the exception handler's included (Phase 14, C4).
+app.UseSecurityHeaders();
+
 app.UseExceptionHandler();
 
 // The administration UI, when this image was built with one. `docker/Dockerfile.api` builds

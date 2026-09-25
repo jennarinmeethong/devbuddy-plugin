@@ -1,5 +1,5 @@
 import { anonymous } from "../support/api";
-import { expect, signIn, test } from "../support/fixtures";
+import { expect, projectPath, signIn, test } from "../support/fixtures";
 
 /**
  * The API host serves the web client from its own image. The part that could break silently is the
@@ -99,4 +99,54 @@ test("the page raises no script errors while a person works through it", async (
   }
 
   expect(errors).toEqual([]);
+});
+
+// Phase 14, C4: the headers ZAP's first scans found missing, from the image a deployment runs.
+test("the client and the API answer with the security headers", async () => {
+  const http = await anonymous();
+
+  try {
+    for (const path of ["/", "/health", "/operations"]) {
+      const headers = (await http.get(path)).headers();
+      expect(headers["content-security-policy"], path).toContain("frame-ancestors 'none'");
+      expect(headers["x-frame-options"], path).toBe("DENY");
+      expect(headers["x-content-type-options"], path).toBe("nosniff");
+      expect(headers["cross-origin-opener-policy"], path).toBe("same-origin");
+    }
+  } finally {
+    await http.dispose();
+  }
+});
+
+// A policy that blocked the stylesheet would not fail a functional test: the buttons still work.
+// So the browser's own report of every load the policy blocked is collected, on every screen.
+test("the client runs under its content security policy without a single violation", async ({
+  page,
+  people,
+  project,
+}) => {
+  const violations: string[] = [];
+  await page.exposeFunction("reportPolicyViolation", (text: string) => violations.push(text));
+  await page.addInitScript(() => {
+    document.addEventListener("securitypolicyviolation", (event) => {
+      (window as unknown as { reportPolicyViolation: (text: string) => void }).reportPolicyViolation(
+        `${event.effectiveDirective} blocked ${event.blockedURI} on ${location.pathname}`,
+      );
+    });
+  });
+
+  await signIn(page, people.admin);
+  const nav = page.getByRole("navigation", { name: "Workspace" });
+
+  for (const screen of ["Members", "Teams", "Workspaces", "Audit", "Health", "Plugin access", "Projects"]) {
+    await nav.getByRole("link", { name: screen }).click();
+    await expect(page.getByRole("main")).not.toContainText("Loading…");
+  }
+
+  for (const rest of ["", "/records", "/evidence"]) {
+    await page.goto(projectPath(project, rest));
+    await expect(page.getByRole("main")).not.toContainText("Loading…");
+  }
+
+  expect(violations).toEqual([]);
 });

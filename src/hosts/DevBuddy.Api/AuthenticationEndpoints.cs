@@ -1,4 +1,5 @@
 using DevBuddy.Application.Abstractions;
+using DevBuddy.Application.Dispatch;
 
 namespace DevBuddy.Api;
 
@@ -15,31 +16,35 @@ internal static class AuthenticationEndpoints
 {
     public static void MapAuthentication(this IEndpointRouteBuilder routes)
     {
-        routes.MapPost("/auth/sign-in", SignInAsync)
+        // Every route here takes text a caller typed, and none of it goes through the dispatcher's
+        // NUL check, so the group applies the same rule (Phase 14, C4).
+        RouteGroupBuilder auth = routes.MapGroup("/auth").AddEndpointFilter<RefuseNulText>();
+
+        auth.MapPost("/sign-in", SignInAsync)
             .AllowAnonymous()
             .RequireRateLimiting("auth")
             .WithName("SignIn")
             .WithSummary("Exchanges an email and password for an access token and a refresh token.");
 
-        routes.MapPost("/auth/refresh", RefreshAsync)
+        auth.MapPost("/refresh", RefreshAsync)
             .AllowAnonymous()
             .RequireRateLimiting("auth")
             .WithName("Refresh")
             .WithSummary("Exchanges a refresh token for a new pair. The old one is retired.");
 
-        routes.MapPost("/auth/sign-out", SignOutAsync)
+        auth.MapPost("/sign-out", SignOutAsync)
             .AllowAnonymous()
             .RequireRateLimiting("auth")
             .WithName("SignOut")
             .WithSummary("Revokes one refresh token.");
 
-        routes.MapPost("/auth/recovery/begin", BeginRecoveryAsync)
+        auth.MapPost("/recovery/begin", BeginRecoveryAsync)
             .AllowAnonymous()
             .RequireRateLimiting("auth")
             .WithName("BeginRecovery")
             .WithSummary("Starts account recovery. Answers the same way whether or not the address exists.");
 
-        routes.MapPost("/auth/recovery/complete", CompleteRecoveryAsync)
+        auth.MapPost("/recovery/complete", CompleteRecoveryAsync)
             .AllowAnonymous()
             .RequireRateLimiting("auth")
             .WithName("CompleteRecovery")
@@ -165,10 +170,59 @@ internal static class AuthenticationEndpoints
     }
 }
 
-internal sealed record SignInRequest(string Email, string Password);
+/// <summary>
+/// A request body carrying text a caller typed. A method rather than a property, so it never
+/// appears in the OpenAPI document as a field somebody might try to send.
+/// </summary>
+internal interface ICarriesText
+{
+    IEnumerable<string?> Texts();
+}
 
-internal sealed record RefreshRequest(string RefreshToken);
+/// <summary>
+/// Answers 400 before the handler runs when any text in the body holds a NUL character. PostgreSQL
+/// cannot store one, and a lookup that reaches it with one fails with a 500 — the same whether or
+/// not the account exists, but a 500 all the same (<see cref="TextInput"/>).
+/// </summary>
+internal sealed class RefuseNulText : IEndpointFilter
+{
+    public async ValueTask<object?> InvokeAsync(
+        EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(next);
 
-internal sealed record BeginRecoveryRequest(string Email);
+        foreach (object? argument in context.Arguments)
+        {
+            if (argument is ICarriesText request && request.Texts().Any(TextInput.ContainsNul))
+            {
+                return Results.Problem(
+                    title: "Invalid request",
+                    detail: TextInput.NulRefusal,
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
 
-internal sealed record CompleteRecoveryRequest(string Token, string NewPassword);
+        return await next(context);
+    }
+}
+
+internal sealed record SignInRequest(string Email, string Password) : ICarriesText
+{
+    public IEnumerable<string?> Texts() => [Email, Password];
+}
+
+internal sealed record RefreshRequest(string RefreshToken) : ICarriesText
+{
+    public IEnumerable<string?> Texts() => [RefreshToken];
+}
+
+internal sealed record BeginRecoveryRequest(string Email) : ICarriesText
+{
+    public IEnumerable<string?> Texts() => [Email];
+}
+
+internal sealed record CompleteRecoveryRequest(string Token, string NewPassword) : ICarriesText
+{
+    public IEnumerable<string?> Texts() => [Token, NewPassword];
+}

@@ -122,6 +122,14 @@ public sealed record OperationBinding(
             typeof(TResponse),
             async (arguments, caller, cancellationToken) =>
             {
+                // Before anything reads the arguments. Every operation on every host passes here,
+                // so this is the one place a NUL in any text becomes a 400 rather than PostgreSQL's
+                // 500 (Phase 14, C4).
+                if (TextInput.ContainsNul(arguments))
+                {
+                    return DispatchResult.Invalid(useCase.Descriptor.Name, TextInput.NulRefusal);
+                }
+
                 TRequest request;
 
                 try

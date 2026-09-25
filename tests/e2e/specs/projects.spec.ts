@@ -128,6 +128,10 @@ test("a duplicate work item key is refused with the server's reason", async ({ p
   await page.getByRole("textbox", { name: /^Goal/ }).fill("Should not be accepted.");
   await page.getByRole("button", { name: "Register" }).click();
 
-  await expect(page.getByRole("alert")).toBeVisible();
+  // The server's reason, not just any alert. This test passed while the server answered 500,
+  // because a 500 raises an alert too; ZAP's first run found it (Phase 14, C4).
+  await expect(page.getByRole("alert")).toContainText(
+    `The key ${workItem.key} is already used by another work item in this project.`,
+  );
   await expect(page.getByRole("row", { name: /Same key again/ })).toHaveCount(0);
 });

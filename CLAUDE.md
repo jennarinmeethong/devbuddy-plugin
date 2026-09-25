@@ -622,6 +622,18 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   when checking an installation. Stateless mode means the server cannot push messages to a client,
   and nothing here needs it: every MCP call is a tool call the client makes. Confirmed on the devbox
   on 2026-09-18.
+- **Text holding a NUL character is refused before it reaches PostgreSQL** (Phase 14, C4). The
+  database cannot store U+0000, and until ZAP found it a NUL in any text was a 500. `TextInput`
+  is the rule, applied in `OperationDispatcher` for every operation, by an endpoint filter on the
+  `/auth` group, and in the evidence form's handler. **Do not move it into a JSON converter for
+  `string`:** a custom converter makes the schema exporter describe every string field as
+  anything, which strips the types from the MCP tool schemas and the generated client.
+- **The API host sends security headers on every answer** (Phase 14, C4), from `SecurityHeaders`.
+  They are set when the response starts, because the exception handler clears headers set
+  earlier. The content security policy fits the built client exactly: one same-origin script,
+  one stylesheet, no inline code. A client change that needs more, such as an inline style
+  element or a font from another host, has to change the policy too, and the e2e suite fails on
+  any violation the browser reports. There is no HSTS, because that belongs to the reverse proxy.
 - **Warnings are errors.** Fix them rather than suppressing them.
 - **AI access is denied by default per project.** Nothing reaches the MCP tool surface unless it is
   added to the allow-list on purpose.

@@ -23,7 +23,9 @@ Results go to `tests/e2e/.out`:
 - `report/index.html`: the HTML report, with a trace, screenshot and video for every failure.
   Open it with `bunx playwright show-report tests/e2e/.out/report`.
 - `junit.xml`
-- `stack.log`: what the API, the MCP server and `migrate` logged.
+- `stack.log`: what the API, the MCP server and `migrate` logged. It is taken before the restore
+  stage replaces them, with timestamps, and what the restored servers logged is added after. Until
+  Phase 14 (C4) only the second half was kept, so an exception during the suite left no trace.
 
 Arguments after the script go to `playwright test`:
 

@@ -69,6 +69,9 @@ public sealed class AdminUiTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
         Assert.Contains(Marker, await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        // The page a person signs in on is the one the headers matter most for (Phase 14, C4).
+        ScanFindingTests.AssertSecurityHeaders(response);
     }
 
     [Fact]

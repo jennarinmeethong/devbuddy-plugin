@@ -179,6 +179,15 @@ internal static class OperationEndpoints
         MutableTenantContext tenant,
         CancellationToken cancellationToken)
     {
+        // A form, not JSON, so the dispatcher's NUL check never sees it; both texts are stored.
+        if (TextInput.ContainsNul(description) || TextInput.ContainsNul(file.ContentType))
+        {
+            return Results.Problem(
+                title: "Invalid request",
+                detail: TextInput.NulRefusal,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var scope = new ProjectScope(new WorkspaceId(workspaceId), new ProjectId(projectId));
         tenant.EnterWorkspace(scope.WorkspaceId);
 
