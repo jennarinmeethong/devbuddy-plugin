@@ -219,6 +219,60 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.7.0
+
+**Checked on 2026-09-25 against `f76c6c0`, before the tag, and not yet complete.** The release is
+proposed in `docs/plan-phase-14.md`, under *14.7*, and waits on the owner's confirmation. It carries:
+- C1, the optional query instruction;
+- the evidence store built from MinIO's source;
+- A1's `tools/release/` and A3's `stale-sessions.sh`.
+
+It adds **no migration**, and `release.yml` is unchanged since `v1.4.0`.
+
+**This is the first release checked by the scripts in `tools/release/`, not by copies edited with
+`sed` (A1).** Each row names the script behind it. They ran on jmhp (Ubuntu 24.04.4, x64) from a git
+bundle of `f76c6c0`, through `DEVBUDDY_REPOSITORY_URL`, because the commit was not pushed. They used
+`DEVBUDDY_RELEASE_WORK=/data/devbuddy-cache/work`. The owner's `devbuddy` stack was not touched. The
+throwaway stacks `devbuddy-v170` and `devbuddy-up170` are stopped, and their volumes are kept.
+
+| Check | Script | Result |
+| --- | --- | --- |
+| .NET suite, format, web client, `linux-x64` publish | `setup-and-suite.sh` | **7 of 7.** **968 passed**, none failed. The format check exited 0, the web suite passed 78 of 78, the publish exited 0, and the run changed no tracked file. |
+| Compose from clean, no service as root, the AI surface, the drill, tokens out of the log, the checks earlier releases added | `stack-drill-tokens.sh` | **101 of 101.** `api` was healthy 183 seconds after the build started, most of it the first compile of MinIO and `mc`. Nine migrations, and twenty AI operations. The drill destroyed both volumes, and every row came back. |
+| Upgrade from published `v1.6.0` on amd64 | `upgrade.sh` | **45 of 45.** See below. |
+| Upgrade from published `v1.6.0` on arm64 | `upgrade.sh` | **Not run.** It needs the Ubuntu guest, and that guest has to still hold the arm64 `quay.io/minio/minio` image to build `v1.6.0`'s evidence store. |
+| Everything after the tag | `post-images.sh`, `smoke.sh`, `client-smoke.ps1` | **Not run**, because there is no tag. |
+
+| **New** check (`stack-drill-tokens.sh`) | Result |
+| --- | --- |
+| Qwen3's published query instruction | **Starts**, and `embedding-check` prints its `ok provider SelfHosted` line. |
+| An instruction with a line break | **Refused at start-up**, exit 2: "Embedding:QueryInstruction must be a single line." |
+| An instruction of 501 characters | **Refused at start-up**, exit 2: "…must be at most 500 characters." |
+| `minio` and `mc` in the evidence image | Report `RELEASE.2025-04-22T22-12-26Z` and `RELEASE.2025-04-16T18-13-26Z`. |
+| A shell in the evidence image | **None to run.** `/usr/bin` holds `mc` and `minio` only. |
+
+### The upgrade from v1.6.0 on amd64
+
+The run started from `v1.6.0` as shipped: the published `1.6.0` images and that tag's Compose
+file. It built `v1.6.0`'s evidence store from jmhp's cached `quay.io` image. It seeded:
+- a published record and a draft;
+- an evidence artefact;
+- a machine token and an access token;
+- eleven audit entries;
+- a plugin session held open over MCP stdio.
+
+The upgrade changed only the Compose file and the images. The evidence store changed from the
+`quay.io` image to the one built from source, on the same volume. **No manual step was needed.**
+
+| Check | Result |
+| --- | --- |
+| Migration | `migrate` exited 0. Nine are in the history table, and the last is `RecordEmbeddingChunks`. |
+| Evidence from `v1.6.0` | Downloaded byte for byte from the store built from source, and a new capture works. Both still answered 200 after a restart, and the store logged no errors. |
+| The session open across the upgrade (A3) | Listed as stale on `b24b44ff9296`. It exited 0 when its input closed, and its container was gone. |
+| The access token from `v1.6.0` | **Still valid**: 200 on `/me`. Nobody signs in again. |
+| Records, audit, plugins | The published record and its history are identical. The draft is refused without a revision number, and read as revision 1. All eleven entries are present, each with its channel. The machine token answered identically over MCP stdio. |
+| `scope-report`, users, errors | Exit 0, and nothing was found. The API, MCP server and retention ran as uid 1654, the database as 70, and the evidence store as 1000. The API logged no error lines. |
+
 ## What was verified for v1.6.0
 
 **Checked on 2026-09-24 against `ac2a117`, before the tag.** This release withdraws Voyage AI and
