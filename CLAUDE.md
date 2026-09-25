@@ -46,8 +46,18 @@ ADR-0012 required a control for, closed on 2026-09-13.
 **`v1.7.0` is the current release**, published 2026-09-25 from `b126c27` at the owner's
 approval. It builds MinIO from source, and adds the optional query instruction (C1) and
 `tools/release/`. It adds no migration, and nobody signs in again. It is the first release checked
-by `tools/release/`, and its checklist is in `docs/operations/release-matrix.md`. The devbox runs
-that tag, with Qwen3's published query instruction.
+by `tools/release/`, and its checklist is in `docs/operations/release-matrix.md`. The devbox ran
+that tag, with Qwen3's published query instruction, until the owner reinstalled that machine the
+same day. The tag now runs in an LXC there, below.
+
+**The devbox is an LXC since 2026-09-25.** The owner reinstalled jmhp as Proxmox, and DevBuddy now
+runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run inside. It is
+`v1.7.0` from the tag's own Compose file, with the API and web UI on the LAN over plain HTTP and
+MCP on loopback. **It was installed from clean, so nothing came across:** no records, no vector
+index, no Ollama, and no worker accounts or tokens. It runs no embedding provider and no worker.
+The plugin reaches it the way it reached the old machine: SSH with a key restricted to one command,
+which starts the MCP server over stdio inside the stack, with the machine token kept on the server.
+The SDK-container wrapper the suites ran in on jmhp went with the reinstall; CI still runs them.
 
 **`v1.6.0` was the release before it**, published 2026-09-24 from `c9a0d4d` at the owner's
 instruction. It withdraws Voyage AI and holds `SelfHosted` to a private address. It adds no
@@ -373,13 +383,15 @@ in the audit trail under its own Viewer account. **Moving an existing database v
 as uid 999 and the Alpine default as uid 70; `docs/operations/deployment.md` has the fix.
 
 **What does not exist:** a hosted provider enabled anywhere, and any provider or worker on any
-installation other than the owner's devbox holding real project data — both still need an approval
-of their own. **The devbox is approved (`info.md`, 2026-09-16):** self-hosted `qwen3-embedding:0.6b`
+installation holding real project data — both still need an approval of their own. **The devbox
+was approved (`info.md`, 2026-09-16):** self-hosted `qwen3-embedding:0.6b`
 through Ollama inside the stack, real project data with no customer, production or personal data,
 no bounded scope, and `record-embedding-sweep` as a Viewer account of its own at 50 texts every 24h.
-Since 2026-09-22 `stale-record-sweep` runs there too, as an account holding only `IndexMaintainer`, every 24h with `--stale-after 365d` (`info.md`). **That worker has run there since 2026-09-17**, on v1.3.0, as the
+From 2026-09-22 `stale-record-sweep` ran there too, as an account holding only `IndexMaintainer`, every 24h with `--stale-after 365d` (`info.md`). **That worker ran there from 2026-09-17**, on v1.3.0, as the
 owner's `test_worker` account with a token it minted. Its first pass with something to embed
 indexed one published test record, and `search_similar_records` found it over the plugin.
+**None of that survived the move to the LXC on 2026-09-25.** Whether the approval covers the LXC
+is for `info.md` to say, and until it does, turn neither the provider nor a worker on there.
 
 **The console logs to standard error (2026-09-17).** With `Logging:File:Path` set it used to write
 every SQL statement to standard output ahead of a `run` result, so nothing could parse that output.

@@ -211,7 +211,8 @@ mini still runs `osx-arm64` for a release that changes the macOS build (`info.md
 
 ### C1 — A query instruction for the embedding model
 **Status: DONE 2026-09-25.** Built, tested and measured, and it helps. `v1.7.0` carries it, and
-the devbox runs Qwen3's published instruction (`info.md`).
+the devbox ran Qwen3's published instruction (`info.md`) until the owner reinstalled that machine
+the same day. Its LXC successor runs no embedding provider, so nothing uses the instruction there.
 
 - **Problem:** Qwen3-Embedding is trained to receive a query as
   `Instruct: <task>\nQuery: <text>` and a document as plain text. DevBuddy sends both plain, which
