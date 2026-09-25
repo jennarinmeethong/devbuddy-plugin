@@ -37,14 +37,36 @@ bash tests/e2e/run.sh specs/mcp.spec.ts --workers 1
 You need Docker with Compose 2.24 or later, and bash; Git Bash works on Windows. Nothing from the
 repository runs on the host. The .NET build, the client build and the tests each run in a container.
 
+## Security scan
+
+`DEVBUDDY_E2E_ZAP=1` adds two OWASP ZAP scans after the suite, against the same stack (Phase 14,
+C4):
+
+- **A baseline scan** of what the API host serves: the web client, and whatever its spider reaches.
+  It only reads responses, so it attacks nothing.
+- **An API scan** from the API's own OpenAPI document at `/openapi/v1.json`. It sends attacks to
+  every route the document names, and it stops after ten minutes.
+
+Both are unauthenticated, so they cover the sign-in page and every route's answer to a caller with
+no token. Both are **report-only**. What they find never fails the run. The reports go to `zap/`
+under the output directory, as HTML, JSON and Markdown. `zap/status.txt` says whether each scan
+finished, because a scan that broke would otherwise look like a clean report.
+`zap/baseline-rules.conf` lists every rule the baseline ran with its default level. Once findings
+are triaged, that file becomes the rules file that decides which findings fail a run.
+
+CI runs it on the amd64 run only and puts both reports in the job summary. A scan that did not
+finish, or never ran, is a warning there, not a failure.
+
 ## What the stack differs in
 
-Three things, all in `compose.e2e.yaml`:
+Four things, all in `compose.e2e.yaml`:
 
 - **No host ports.** A run cannot collide with an installation already on 8080 and 8081.
 - **A higher sign-in rate limit.** The suite signs in hundreds of times from one address, which the
   limit exists to stop. `DevBuddy.Api.Tests` covers the limit itself.
 - **The runner service.** It sits behind the `e2e` profile.
+- **ZAP.** It sits behind a `zap` profile of its own, pinned by digest, and only
+  `DEVBUDDY_E2E_ZAP=1` starts it.
 
 Everything else is the shipped stack, including the defaults: no embedding provider, no SMTP, and
 AI access closed on every project.

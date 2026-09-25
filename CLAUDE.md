@@ -542,6 +542,9 @@ the images, starts a throwaway stack under its own Compose project, and drives t
 HTTP API and the MCP server's HTTP transport, in Chromium, Firefox and WebKit. 205 tests passed on
 2026-09-24 on the owner's Linux test machine, and 211 with `DEVBUDDY_E2E_EMBEDDINGS=1`. CI runs it
 on amd64 and arm64 runners, with the embeddings, GitHub-source and observability modes. `tests/e2e/README.md` says what it does not cover.
+`DEVBUDDY_E2E_ZAP=1` adds OWASP ZAP's baseline scan and API scan against the same stack (Phase 14,
+C4). They are **report-only** until the owner triages the findings, so a finding never fails a run.
+CI runs them on the amd64 run and puts both reports in the job summary.
 
 The web client uses **Bun**, not npm — that is what this machine has:
 

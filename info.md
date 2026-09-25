@@ -1,5 +1,22 @@
 # Project Decisions
 
+## Confirmed OWASP ZAP in CI, report-only — 2026-09-25
+
+The owner asked whether builds should move to the DevBuddy LXC to avoid cost, and for a ZAP scan in
+CI at no cost. The owner approved the proposal the same day, starting with the baseline and API
+scans. It is Phase 14, C4.
+
+- **Builds stay on GitHub-hosted runners.** The repository is public, so they cost nothing. A
+  self-hosted runner on the DevBuddy LXC would let anyone who opens a pull request run code on the
+  machine holding the installation's data and secrets, with Docker, which is root there. Revisit
+  only if the repository goes private, and then on a machine of its own that runs pushes only.
+- **ZAP runs after the e2e suite, against the same throwaway stack.** It runs a baseline scan and an
+  API scan from `/openapi/v1.json`, both unauthenticated, on the amd64 run only.
+- **Report-only.** A finding never fails CI. A scan that did not finish is a warning. Findings are
+  triaged with the owner before any rule is set to fail a run.
+- **Not yet:** a weekly full active scan, and an authenticated scan. The owner decides each later.
+- **ZAP is a scanner, not a control.** It moves no row in `verification-matrix.md`.
+
 ## Confirmed Cutting v1.7.0 — 2026-09-25
 
 *(Done the same day. It was published at 13:39 UTC once the checklist passed. The arm64 upgrade ran

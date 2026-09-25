@@ -16,6 +16,7 @@
 #     covered by DevBuddy.Api.Tests.
 #   - The runner is added, behind a profile so a plain `up` never starts it.
 #   - Mail is delivered over SMTP to a Mailpit container, so delivery itself is tested.
+#   - OWASP ZAP is added, behind a profile of its own, for `DEVBUDDY_E2E_ZAP=1` (Phase 14, C4).
 #
 # Everything else — images, read-only filesystems, dropped capabilities, the embedding provider
 # left off — is the shipped stack as it is.
@@ -92,4 +93,26 @@ services:
         condition: service_healthy
       mcp:
         condition: service_started
+    networks: [internal]
+
+  # OWASP ZAP (Phase 14, C4): a passive baseline scan of what the API host serves, and a scan of the
+  # API from its own OpenAPI document. Report-only: run.sh writes what it finds to the output
+  # directory and nothing it finds fails the run.
+  #
+  # Pinned by digest. `stable` is rebuilt as ZAP's scan rules change, and two reports taken under
+  # the same name with different rules cannot be compared. Not read-only, because ZAP keeps its
+  # session and add-ons under its home directory; it runs as its own non-root `zap` account.
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef
+    profiles: [zap]
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ${DEVBUDDY_E2E_OUT:?run tests/e2e/run.sh, which sets this}/zap:/zap/wrk
+    depends_on:
+      api:
+        condition: service_healthy
     networks: [internal]

@@ -26,6 +26,8 @@
 #                          shipped default stack
 #   DEVBUDDY_E2E_FIRST_CLICK=1  every page records its input events, and a signed-out click that
 #                          sent nothing prints them as CLICK-LOST (Phase 14, C3)
+#   DEVBUDDY_E2E_ZAP=1     OWASP ZAP's baseline scan and API scan against the same stack, after the
+#                          suite; report-only, results in zap/ under the output directory (Phase 14, C4)
 #   DEVBUDDY_E2E_KEEP=1    leave the stack running afterwards, to look at it; its env file path is
 #                          printed, and `down -v` with the same arguments removes it
 #
@@ -291,6 +293,48 @@ stdio_status=$?
 set -e
 [ "$stdio_status" -eq 0 ] || status=1
 
+# OWASP ZAP (Phase 14, C4), report-only. A passive baseline scan of what the API host serves, then a
+# scan of the API from its own OpenAPI document, both unauthenticated. What they find never changes
+# the run's status: it goes to $out/zap, and in CI to the job summary. A scan that did not finish is
+# written down as not finishing, so it cannot pass for a clean report.
+zap_scans() {
+  local dir="$out/zap"
+  mkdir -p "$dir"
+  # ZAP writes as its own account, the same as the runner; the directory is throwaway.
+  chmod 0777 "$dir"
+  : >"$dir/status.txt"
+
+  run_zap() {
+    local name=$1 code
+    shift
+    set +e
+    compose --profile zap run --rm --no-deps -T zap "$@" >"$dir/$name.log" 2>&1
+    code=$?
+    set -e
+    # Both scripts exit 0 when clean, 1 for at least one FAIL, 2 for warnings only, and 3 when the
+    # scan itself went wrong. Only the last is not a report.
+    case $code in
+      0 | 1 | 2) echo "$name: completed (exit $code)" | tee -a "$dir/status.txt" >&2 ;;
+      *) echo "$name: DID NOT COMPLETE (exit $code), see zap/$name.log" | tee -a "$dir/status.txt" >&2 ;;
+    esac
+  }
+
+  # -g writes every rule the scan ran with its default level. That file becomes the rules file (-c)
+  # once the findings have been triaged and some are accepted.
+  run_zap baseline zap-baseline.py -t http://api:8080 \
+    -r baseline.html -J baseline.json -w baseline.md -g baseline-rules.conf
+
+  # The API scan attacks what the document describes, so its length is bounded. Unauthenticated,
+  # nearly every route answers 401, which is part of what this run shows.
+  run_zap api zap-api-scan.py -t http://api:8080/openapi/v1.json -f openapi \
+    -r api.html -J api.json -w api.md -z "-config scanner.maxScanDurationInMins=10"
+}
+
+if [ "${DEVBUDDY_E2E_ZAP:-0}" = 1 ]; then
+  echo "==> OWASP ZAP: baseline and API scans, report-only" >&2
+  zap_scans
+fi
+
 # The destroy-and-restore drill, on the stack the suite just filled (Phase 13, C6). Both volumes
 # are destroyed, as in the release drill, and what comes back is compared with what was there.
 restore_checks() {
@@ -379,5 +423,5 @@ if [ "${DEVBUDDY_E2E_RESTORE:-1}" = 1 ]; then
   [ "$restore_status" -eq 0 ] || status=1
 fi
 
-echo "==> Results in $out (report/index.html, junit.xml, stack.log, stdio.log, restore.log)" >&2
+echo "==> Results in $out (report/index.html, junit.xml, stack.log, stdio.log, restore.log, and zap/ with DEVBUDDY_E2E_ZAP=1)" >&2
 exit "$status"

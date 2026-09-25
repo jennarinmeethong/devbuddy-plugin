@@ -93,6 +93,33 @@ jobs:
         env:
           CI: "true"
           DEVBUDDY_E2E_OUT: ${{ github.workspace }}/e2e-results
+          # OWASP ZAP after the suite (Phase 14, C4), on one architecture: a second scan of the
+          # same stack on arm64 would find the same things. Report-only.
+          DEVBUDDY_E2E_ZAP: ${{ matrix.runner == 'ubuntu-latest' && '1' || '0' }}
+
+      # ZAP's findings go to the job summary and never fail the job. A scan that did not finish, or
+      # never ran, is a warning, so it cannot be mistaken for a clean report.
+      - name: ZAP summary
+        if: always() && matrix.runner == 'ubuntu-latest'
+        shell: bash
+        run: |
+          dir="$GITHUB_WORKSPACE/e2e-results/zap"
+          if [ ! -s "$dir/status.txt" ]; then
+            echo "::warning title=ZAP::ZAP did not run, so there is no report."
+            echo "## OWASP ZAP: did not run" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "## OWASP ZAP (report-only)"
+            echo
+            sed 's/^/- /' "$dir/status.txt"
+            for name in baseline api; do
+              if [ -s "$dir/$name.md" ]; then echo; cat "$dir/$name.md"; fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -q "DID NOT COMPLETE" "$dir/status.txt"; then
+            echo "::warning title=ZAP::A ZAP scan did not complete. See zap/ in the e2e-results artifact."
+          fi
 
       - name: Upload the report
         if: always()

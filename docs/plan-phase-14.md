@@ -71,6 +71,7 @@ These come from `info.md`, `CLAUDE.md` and `AGENTS.md`, and nothing in this phas
 14.5  A2 automated release rows                (after B4)
 14.6  B items the owner approves               (B1 HTTPS, B2 signing, B3 hosted server)
 14.7  release v1.7.0, devbox to that tag
+14.8  C4 ZAP scan in CI, report-only         (asked for after 14.7, 2026-09-25)
 ```
 
 A1 comes first because every later release runs the checklist, and the next one would otherwise be
@@ -298,6 +299,25 @@ client to fix).** 2026-09-24. `clickUntilSent` stays.
 - **Left open:** whether the press is dropped by Firefox or by Playwright's Firefox driver on that
   runner. Nothing a page can observe tells the two apart. Whether a person clicking by hand in
   Firefox is ever affected is still unanswered, and only someone with Firefox can answer it.
+
+### C4 — An OWASP ZAP scan in CI
+**Status: IN PROGRESS.** Asked for and approved on 2026-09-25 (`info.md`). It is built, and the
+first run's findings wait on triage with the owner.
+
+- **Problem:** nothing in CI looks at the running system the way an outside scanner would. That
+  means headers, error pages, and how each route answers a caller it should refuse.
+- **Work:**
+  - `DEVBUDDY_E2E_ZAP=1` in `tests/e2e/run.sh` runs ZAP's baseline scan and its API scan from
+    `/openapi/v1.json` after the suite, against the same stack. ZAP is a `zap` service pinned by
+    digest in `compose.e2e.yaml`.
+  - Report-only. The reports go to `zap/` under the output directory, and on the amd64 run to the
+    job summary. A scan that did not finish is a warning.
+  - At no cost. ZAP is open source, and it runs on the same GitHub-hosted runners, which a public
+    repository does not pay for.
+- **Exit:** the first findings are triaged with the owner, and the accepted ones are written into a
+  rules file, so that a new finding at the level the owner chooses fails a run.
+- **Later, if the owner says so:** a weekly full active scan on the supply-chain schedule, and an
+  authenticated scan.
 
 ---
 
