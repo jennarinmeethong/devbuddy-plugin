@@ -43,10 +43,15 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.6.0` is the current release**, published 2026-09-24 from `c9a0d4d` at the owner's
+**`v1.7.0` is the current release**, published 2026-09-25 from `b126c27` at the owner's
+approval. It builds MinIO from source, and adds the optional query instruction (C1) and
+`tools/release/`. It adds no migration, and nobody signs in again. It is the first release checked
+by `tools/release/`, and its checklist is in `docs/operations/release-matrix.md`. The devbox runs
+that tag, with Qwen3's published query instruction.
+
+**`v1.6.0` was the release before it**, published 2026-09-24 from `c9a0d4d` at the owner's
 instruction. It withdraws Voyage AI and holds `SelfHosted` to a private address. It adds no
-migration, and nobody signs in again. Its checklist is in `docs/operations/release-matrix.md`, and
-the devbox runs that tag.
+migration, and nobody signs in again.
 
 **`v1.5.0` was the release before it**, published 2026-09-22 from `cb818a3` at the owner's
 instruction. It carries the rest of Phase 13 and one conditional migration, `RecordEmbeddingChunks`.

@@ -2,6 +2,10 @@
 
 ## Confirmed Cutting v1.7.0 — 2026-09-25
 
+*(Done the same day. It was published at 13:39 UTC once the checklist passed. The arm64 upgrade ran
+with a substitute evidence store, at the owner's choice. The devbox moved onto the tag with Qwen3's
+published query instruction, and plugin 1.7.0 was installed.)*
+
 The owner asked for `v1.7.0` to be prepared, and on the same day approved it **as proposed** under
 *14.7* in `docs/plan-phase-14.md`. That section is the decision: what it carries, a minor version
 with no migration, plugin 1.7.0, the checklist from `tools/release/`, the new checks, the release

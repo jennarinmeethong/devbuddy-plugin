@@ -242,7 +242,7 @@ throwaway stacks `devbuddy-v170` and `devbuddy-up170` are stopped, and their vol
 | Compose from clean, no service as root, the AI surface, the drill, tokens out of the log, the checks earlier releases added | `stack-drill-tokens.sh` | **101 of 101.** `api` was healthy 183 seconds after the build started, most of it the first compile of MinIO and `mc`. Nine migrations, and twenty AI operations. The drill destroyed both volumes, and every row came back. |
 | Upgrade from published `v1.6.0` on amd64 | `upgrade.sh` | **45 of 45.** See below. |
 | Upgrade from published `v1.6.0` on arm64 | `upgrade.sh` at `f8c6d73`, with `DEVBUDDY_PREVIOUS_EVIDENCE_FROM_SOURCE=1` | **45 of 45, with a substitute evidence store.** It ran in the Ubuntu 26.04.1 VMware guest on the Apple M4 (`aarch64`). Neither that guest nor the Mac mini holds the arm64 `quay.io/minio/minio` image, and quay.io refuses anonymous pulls. So at the owner's decision, `v1.6.0`'s evidence store was built from the new commit's `docker/evidence`: the same MinIO release, built from source. The published `1.6.0` application images upgraded exactly as on amd64. **This row does not show** that the new store reads a volume written by the `quay.io` image. Only the amd64 row shows that. |
-| Everything after the tag | `post-images.sh`, `smoke.sh`, `client-smoke.ps1` | **Not run**, because there is no tag. |
+| Everything after the tag | `post-images.sh`, `smoke.sh`, `client-smoke.ps1` | See *After the tag* below. |
 
 | **New** check (`stack-drill-tokens.sh`) | Result |
 | --- | --- |
@@ -273,6 +273,32 @@ The upgrade changed only the Compose file and the images. The evidence store cha
 | The access token from `v1.6.0` | **Still valid**: 200 on `/me`. Nobody signs in again. |
 | Records, audit, plugins | The published record and its history are identical. The draft is refused without a revision number, and read as revision 1. All eleven entries are present, each with its channel. The machine token answered identically over MCP stdio. |
 | `scope-report`, users, errors | Exit 0, and nothing was found. The API, MCP server and retention ran as uid 1654, the database as 70, and the evidence store as 1000. The API logged no error lines. |
+
+### After the tag
+
+`v1.7.0` was tagged at `b126c27` once CI passed there (run 36139496248, all eight jobs, and supply
+chain 36139496021). Release run 36140305195 passed. It left a draft with seven archives,
+`SHA256SUMS` and three SBOMs, and `prerelease=false`. The downloads were approved with the release.
+Every script ran from a clone at the tag.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match.** |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives**, checked against the release workflow, `refs/tags/v1.7.0` and the source commit. **All three images**, with their CycloneDX SBOM attestations. A wrong-owner control was refused. Both architectures are in every image manifest. |
+| Published images on amd64 | `post-images.sh`, jmhp | **29 of 29.** Twenty AI operations. |
+| Published images on arm64 | `post-images.sh`, the Ubuntu arm64 guest | **29 of 29**, on the second run. The first run failed when the guest's disk filled while compiling MinIO. It was re-run in a fresh work directory after the throwaway upgrade stack and the build cache were removed. The twenty names are identical to amd64's. |
+| `linux-x64`, `linux-musl-x64` | `smoke.sh`, jmhp, in `ubuntu:24.04` and `alpine:3` | **Pass.** |
+| `linux-arm64` | `smoke.sh`, natively in the Ubuntu arm64 guest | **Pass.** |
+| `linux-musl-arm64` | `smoke.sh`, in `alpine:3` in that guest | **Pass.** |
+| `osx-arm64` | `smoke.sh`, natively on the Mac mini (Apple M4) | **Pass.** |
+| `win-arm64` client | `client-smoke.ps1`, the Windows on ARM VMware guest | **Pass.** ARM64 PE on both executables. The console and `DevBuddy.McpServer --stdio` list the same twenty names. `--every 24` and `migrate` with no connection string exit 2. Standard output carried only JSON-RPC, and the server exited 0 when its input closed. |
+| `win-x64` | `client-smoke.ps1`, natively on JMPC (Windows 11 x64) | **Pass**, every row as for `win-arm64`, with an x64 PE. |
+
+**Published on 2026-09-25 at 13:39 UTC**, as Latest, at the owner's approval of *14.7*. The devbox
+moved onto the tag afterwards (`docs/plan-phase-14.md`).
+
+With these rows, A1's exit is met: the checklist ran from `tools/release/` at the tag, on every
+machine.
 
 ## What was verified for v1.6.0
 

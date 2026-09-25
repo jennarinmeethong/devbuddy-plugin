@@ -82,7 +82,8 @@ guess.
 ## A — Work that can start at once
 
 ### A1 — The release checklist, in the repository
-**Status: IN PROGRESS**
+**Status: DONE 2026-09-25.** `v1.7.0`'s checklist ran from `tools/release/` at the tag, on every
+machine, and `release-matrix.md` names the script behind each row.
 
 - **Problem:** the checklist scripts live on jmhp, the Ubuntu arm64 guest, the Mac mini and the
   Windows on ARM guest. Each release copies the last one's with `sed`. Part 2 prints "AI
@@ -130,8 +131,8 @@ guess.
   by hand.
 
 ### A3 — A plugin session keeps the old image after an upgrade
-**Status: IN PROGRESS.** The documentation, the listing and the check are done. The exit still
-needs the next devbox upgrade to record its count.
+**Status: DONE 2026-09-25.** The devbox's move to `v1.7.0` left two sessions on the old image,
+and `stale-sessions.sh` listed both.
 
 - **Problem:** `docker compose run mcp --stdio` starts a container per session. After an upgrade,
   a session that was open keeps the container, and so the image, it started with. On 2026-09-24
@@ -209,8 +210,8 @@ mini still runs `osx-arm64` for a release that changes the macOS build (`info.md
 ## C — Search quality and test gaps
 
 ### C1 — A query instruction for the embedding model
-**Status: IN PROGRESS.** Built, tested and measured, and it helps. Setting it on the devbox waits
-on the owner choosing the instruction, and on the devbox running a release that carries it.
+**Status: DONE 2026-09-25.** Built, tested and measured, and it helps. `v1.7.0` carries it, and
+the devbox runs Qwen3's published instruction (`info.md`).
 
 - **Problem:** Qwen3-Embedding is trained to receive a query as
   `Instruct: <task>\nQuery: <text>` and a document as plain text. DevBuddy sends both plain, which
@@ -307,7 +308,8 @@ client to fix).** 2026-09-24. `clickUntilSent` stays.
 ---
 
 ## 14.7 — Cutting v1.7.0
-**Status: IN PROGRESS.** Proposed on 2026-09-25 and approved as proposed the same day (`info.md`).
+**Status: DONE 2026-09-25.** Proposed and approved as proposed the same day (`info.md`). Published
+at 13:39 UTC, and the devbox runs the tag.
 
 - **What it carries since `v1.6.0`:**
   - **C1**, the optional query instruction (`DEVBUDDY_EMBEDDING_QUERY_INSTRUCTION`), empty by
@@ -381,3 +383,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-25 | Defect (supply chain), fixed | **MinIO is built from source**, at the owner's decision (`info.md`). `docker/evidence/Dockerfile` fetches MinIO and `mc` by commit, builds them with Go 1.24.2 pinned by digest, and puts them in a `scratch` image as uid 1000. Both binaries report the upstream release names and commits. `EvidenceStoreTests` builds the same Dockerfile through Testcontainers. The new `DeploymentTests` guard replaces the quay.io one and was mutation-checked four ways. Verified on jmhp at `8f6edad`: .NET 968, format, web 78, and e2e 205 with the restore stage. It also ran confined as Compose runs it, and `mc ready local` answered. **CI passed on clean runners** at `1160df8` (run 36129000799, every job, arm64 included; supply chain 36129000686), so CI is green again for the first time since `7390c6d`. C1's code, pushed in `7ad3406`, passed in that same run. |
 | 2026-09-25 | 14.7, A1 | **`v1.7.0` prepared, and its pre-tag checklist passed on jmhp.** The owner asked for the release to be prepared (`info.md`). The proposal is under *14.7* and waits on the owner. `f76c6c0` bumps the Claude plugin to 1.7.0. It adds the `query_instruction` and `evidence_built_from_source` checks, and drops `leftover_dialect`. It was run from `tools/release/` on jmhp, from a bundle, because the commit is not pushed: `setup-and-suite.sh` passed 7 of 7 (.NET **968**, format, web 78, publish), `stack-drill-tokens.sh` 101 of 101, and `upgrade.sh` from published `v1.6.0` on amd64 45 of 45. The evidence volume the `quay.io` image wrote was read byte for byte by the store built from source. `release-matrix.md` has every row. **Not run:** the arm64 upgrade, and everything after the tag. A1's exit still needs the run from the tag on every machine. |
 | 2026-09-25 | 14.7 | **Approved as proposed, and the arm64 upgrade passed with a substitute.** The owner approved *14.7*. CI and supply chain passed on `5f435b0`. The Ubuntu arm64 guest and the Mac mini hold no arm64 `quay.io/minio/minio`, so `v1.6.0`'s evidence store cannot be built there. At the owner's choice, `upgrade.sh` gained `DEVBUDDY_PREVIOUS_EVIDENCE_FROM_SOURCE=1` (`f8c6d73`), which builds it from the new commit's source instead. In the guest, `upgrade.sh` passed 45 of 45 from GitHub at `f8c6d73`. The quay-written volume crossing is proven on amd64 only. |
+| 2026-09-25 | 14.7, A1, A3, C1 | **`v1.7.0` published, A1, A3 and C1 done.** Tag `v1.7.0` at `b126c27`, after CI 36139496248 and supply chain 36139496021 passed there. Release run 36140305195 passed. **After the tag, every row passed**, each from `tools/release/` at the tag:<ul><li>all seven archives match `SHA256SUMS`; attestations were verified for seven archives and three images with their SBOMs, and a wrong-owner control was refused;</li><li>`post-images.sh` passed 29 of 29 on amd64 (jmhp) and on arm64 (the Ubuntu guest, second run: the first filled the guest's disk compiling MinIO);</li><li>`smoke.sh` passed for `linux-x64`, `linux-musl-x64`, `linux-arm64` natively, `linux-musl-arm64` in Alpine, and `osx-arm64` natively on the M4;</li><li>`client-smoke.ps1` passed for `win-arm64` in the Windows on ARM guest and for `win-x64` natively.</li></ul>It was **published** at 13:39 UTC as Latest, at the owner's approval of *14.7*.<br>**The devbox:** backup `backup-20260925-134018-7c296e236f0d4ba5b` and `.env` were copied to `/data/devbuddy-cache/backups/before-v170-20260925/`. It was checked out at `v1.7.0`, and `DEVBUDDY_EMBEDDING_QUERY_INSTRUCTION` was set to Qwen3's published instruction (C1). It was rebuilt, with MinIO from source, and recreated with the workers profile. Nine migrations, none applied. `/health` answered 200 and an MCP `POST` 401. `scope-report` was clean. `embedding-check` was all ok with the worker's settings. Both workers completed a pass. The instruction is in the environment of `api`, `mcp` and the sweep. Every service runs as its non-root user. **A3:** `stale-sessions.sh` listed **2 of 2** open sessions on the old image `97b96486dfdc`. They were left running. **Plugin 1.7.0** was installed from the tag. A fresh MCP stdio on the new image listed twenty tools, answered `list_projects`, and wrote only JSON-RPC to standard output. **Not checked:** a semantic search through the instruction on the devbox. It was measured on jmhp only. |
