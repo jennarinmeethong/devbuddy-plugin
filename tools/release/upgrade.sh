@@ -69,7 +69,10 @@ previous_release() {
   note "=== v$PREVIOUS, published images"
   "${C[@]}" pull api mcp migrate retention >> "$ERR" 2>&1
   expect "pull exit" "$?" 0
+  # v1.6.0's evidence store is FROM quay.io/minio/minio, which has refused anonymous pulls since
+  # 2026-09-24, so this build only succeeds on a machine that still holds that image.
   "${C[@]}" build evidence >> "$ERR" 2>&1
+  expect "evidence build of v$PREVIOUS" "$?" 0
   "${C[@]}" up -d --no-build >> "$ERR" 2>&1
   wait_healthy "$P-api-1"
   expect "api health on v$PREVIOUS" "$(docker inspect -f '{{.State.Health.Status}}' "$P-api-1")" healthy
@@ -192,12 +195,6 @@ access_token_from_before() {
   expect "access token issued on v$PREVIOUS, GET /me" "$(code -H "Authorization: Bearer $ACCESS_OLD" "$API/me")" "$SESSION_SURVIVES"
 }
 
-# v1.6.0: an installation that set DEVBUDDY_EMBEDDING_DIALECT on v1.5.0 still starts.
-leftover_dialect() {
-  echo "DEVBUDDY_EMBEDDING_DIALECT=OpenAiCompatible" >> "$U/docker/.env"
-  note "a leftover DEVBUDDY_EMBEDDING_DIALECT is in .env before the upgrade"
-}
-
 # Phase 14, A3: a plugin session open across the upgrade keeps the old image, stale-sessions.sh
 # lists it, and closing the session removes it. The session is held open by a file descriptor on a
 # FIFO, so closing that descriptor is the session's input closing.
@@ -222,7 +219,7 @@ session_left_on_the_old_image() {
     "sessions 0, on an older image than the mcp service 0"
 }
 
-BEFORE_UPGRADE=(previous_release seed leftover_dialect open_session_across_upgrade)
+BEFORE_UPGRADE=(previous_release seed open_session_across_upgrade)
 DURING_UPGRADE=(upgrade)
 AFTER_UPGRADE=(session_left_on_the_old_image access_token_from_before after_upgrade)
 

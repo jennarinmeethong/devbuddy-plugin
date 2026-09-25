@@ -306,6 +306,53 @@ client to fix).** 2026-09-24. `clickUntilSent` stays.
 
 ---
 
+## 14.7 — Cutting v1.7.0
+**Status: PROPOSED (2026-09-25).** The owner asked for it to be prepared (`info.md`). Everything
+below waits on the owner's confirmation, and nothing is tagged before it.
+
+- **What it carries since `v1.6.0`:**
+  - **C1**, the optional query instruction (`DEVBUDDY_EMBEDDING_QUERY_INSTRUCTION`), empty by
+    default, so an installation that does not set it sends exactly what `v1.6.0` sent;
+  - **the evidence store built from MinIO's source**, pinned by commit (`info.md`, 2026-09-25);
+  - **A1 and A3**: `tools/release/`, `stale-sessions.sh`, and the upgrade step telling an operator
+    to restart plugin sessions;
+  - **C2**'s evaluation tool, which ships in the source only.
+- **A minor version.** It adds a setting, and it changes how the evidence store is obtained. No
+  migration, so the count stays at nine and nobody signs in again. The Claude plugin moves to 1.7.0
+  with its content unchanged, to stay in step, as for `v1.6.0`.
+- **`release.yml` is unchanged since `v1.4.0`**, so no throwaway prerelease tag is needed.
+- **The checklist runs from `tools/release/` at the release commit**, which is A1's exit:
+  - on jmhp: `setup-and-suite.sh`, `stack-drill-tokens.sh`, and `upgrade.sh` from `v1.6.0`;
+  - on arm64: `upgrade.sh` in the Ubuntu guest, which the owner starts. **It can only build
+    `v1.6.0`'s evidence store if the guest still holds `quay.io/minio/minio` for arm64.** If it does
+    not, that row cannot run as written and needs the owner's decision;
+  - after the tag: `post-images.sh`, and `smoke.sh` or `client-smoke.ps1` per archive. These owe
+    `win-arm64`, `osx-arm64`, `linux-arm64` and `linux-musl-arm64` smoke tests by hand, because A2
+    does not exist yet. Downloading an archive and running on a machine other than jmhp each need
+    the owner's approval.
+- **New checks** (`stack-drill-tokens.sh`):
+  - Qwen3's published instruction starts; an instruction with a line break, or of 501 characters,
+    is refused at start-up with exit 2;
+  - the evidence image's `minio` and `mc` report the pinned releases, it has no shell, and
+    `/usr/bin` holds those two binaries only.
+
+  `leftover_dialect` is dropped from `upgrade.sh`, because it described `v1.5.0`. The upgrade's
+  existing evidence rows are what prove the source-built store reads a volume the `quay.io` image
+  wrote.
+- **After publishing:** move the devbox onto the tag with a backup first, set Qwen3's published
+  query instruction there (`info.md`, 2026-09-25), record A3's `stale-sessions.sh` count, and
+  install plugin 1.7.0.
+- **Its release notes must say what a caller will notice:**
+  - the first `docker compose build` compiles MinIO and `mc`, which takes three to five minutes and
+    needs `golang` from Docker Hub and the two repositories from GitHub;
+  - **an installation of `v1.6.0` or earlier cannot be built on a clean machine any more**, because
+    quay.io refuses anonymous pulls; upgrading to `v1.7.0` is the fix, and the evidence volume
+    carries across unchanged;
+  - the query instruction is optional and off by default;
+  - after an upgrade, restart assistant sessions, and `tools/release/stale-sessions.sh` lists the
+    ones left on the old image;
+  - nobody has to sign in again.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.

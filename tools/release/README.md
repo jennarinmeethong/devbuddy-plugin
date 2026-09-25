@@ -102,7 +102,8 @@ A release adds lines. It does not change the logic.
   for later checks. Name the release that added the check in a comment above it.
 - **`upgrade.sh`:** add the function to `BEFORE_UPGRADE`, `DURING_UPGRADE` or `AFTER_UPGRADE`.
   Checks that describe only the previous release are removed when the next one is cut. An example
-  is `leftover_dialect`, which exists because `v1.5.0` had the setting. Set `SESSION_SURVIVES` to
+  was `leftover_dialect`, which existed because `v1.5.0` had the setting, and went when `v1.7.0`
+  was cut. Set `SESSION_SURVIVES` to
   401 for a release that makes everyone sign in again.
 - **Figures that come from the checkout, never from the script:** the migration count and the name
   of the last migration are read from the source, so a new migration does not need an edit. The

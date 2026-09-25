@@ -360,6 +360,34 @@ selfhosted_is_private() {
   expect "a leftover Embedding:Dialect setting is ignored" "$?" 0
 }
 
+# v1.7.0 (Phase 14, C1): the query instruction is optional, one line, and at most 500 characters.
+query_instruction() {
+  note "=== the query instruction (v1.7.0)"
+  qi() { "${C[@]}" run --rm -T --no-deps -e DEVBUDDY_Embedding__Provider=SelfHosted -e DEVBUDDY_Embedding__Endpoint=http://ollama:11434/v1 -e DEVBUDDY_Embedding__Model=qwen3-embedding:0.6b -e DEVBUDDY_Embedding__Dimensions=1024 -e DEVBUDDY_Embedding__QueryInstruction="$1" migrate embedding-check --budget 0; }
+  qi 'Given a web search query, retrieve relevant passages that answer the query' > "$D/qi-published.out" 2> "$D/qi-published.err"
+  expect "Qwen3's published instruction starts" "$(grep -cE '^ok +provider +SelfHosted' "$D/qi-published.out")" 1
+  qi "$(printf 'one line\nQuery: a second')" > "$D/qi-lines.out" 2> "$D/qi-lines.err"
+  expect "an instruction with a line break is refused at start-up" "$?" 2
+  expect "  and says why" "$(grep -c 'QueryInstruction must be a single line' "$D/qi-lines.err")" "[1-9][0-9]*"
+  qi "$(printf 'x%.0s' $(seq 501))" > "$D/qi-long.out" 2> "$D/qi-long.err"
+  expect "an instruction of 501 characters is refused at start-up" "$?" 2
+  expect "  and says why" "$(grep -c 'QueryInstruction must be at most 500 characters' "$D/qi-long.err")" "[1-9][0-9]*"
+}
+
+# v1.7.0: the evidence store is MinIO built from its source, pinned by commit, in an image holding
+# nothing else (info.md, 2026-09-25).
+evidence_built_from_source() {
+  note "=== the evidence store is built from source (v1.7.0)"
+  local image
+  image=$(docker inspect -f '{{.Config.Image}}' "$P-evidence-1")
+  note "evidence image: $image $(docker image inspect -f '{{.Id}}' "$image" | cut -c1-19)"
+  expect "  minio reports the pinned release" "$(docker run --rm "$image" --version 2>&1 | grep -c 'RELEASE.2025-04-22T22-12-26Z')" "[1-9][0-9]*"
+  expect "  mc reports the pinned release" "$(docker run --rm --entrypoint mc "$image" --version 2>&1 | grep -c 'RELEASE.2025-04-16T18-13-26Z')" "[1-9][0-9]*"
+  docker run --rm --entrypoint sh "$image" -c true > /dev/null 2>&1
+  expect "  there is no shell to run" "$([ $? -ne 0 ] && echo refused || echo ran)" refused
+  expect "  it holds two binaries and nothing else in /usr/bin" "$(docker create "$image" > "$D/evidence-cid" && docker export "$(cat "$D/evidence-cid")" | tar -t | grep -E '^usr/bin/.' | sort | tr '\n' ' '; docker rm "$(cat "$D/evidence-cid")" > /dev/null)" "usr/bin/mc usr/bin/minio "
+}
+
 # The order matters: drill makes the workspace every later check works in.
 CHECKS=(
   compose_from_clean
@@ -373,6 +401,8 @@ CHECKS=(
   ai_marking
   embedding_check_and_scope_delete
   selfhosted_is_private
+  query_instruction
+  evidence_built_from_source
 )
 
 for check in "${CHECKS[@]}"; do

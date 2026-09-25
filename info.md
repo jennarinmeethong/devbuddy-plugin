@@ -1,5 +1,12 @@
 # Project Decisions
 
+## Confirmed Preparing v1.7.0 — 2026-09-25
+
+The owner asked for `v1.7.0` to be prepared. It comes **before A2 and B1–B3**, which the approved
+order of Phase 14 put ahead of it; those stay open and do not ride this release. What `v1.7.0`
+carries, and how it is checked, is proposed under *14.7* in `docs/plan-phase-14.md`. It is not
+decided until the owner confirms it, and **nothing is tagged or published before that**.
+
 ## Confirmed MinIO Built from Source, and the Devbox's Query Instruction — 2026-09-25
 
 **quay.io stopped serving MinIO anonymously** at about 13:00 UTC on 2026-09-24. Its API answers
