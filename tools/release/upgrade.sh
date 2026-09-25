@@ -9,6 +9,10 @@
 #   upgrade.sh VERSION PREVIOUS COMMIT
 #
 # DEVBUDDY_RELEASE_WORK  as for setup-and-suite.sh. Creates $WORK/v$VERSION-upgrade-<arch>.
+# DEVBUDDY_PREVIOUS_EVIDENCE_FROM_SOURCE=1  builds the previous release's evidence store from the
+#   new commit's docker/evidence instead of its own Dockerfile. For a machine that cannot pull the
+#   image the previous release names (v1.6.0's quay.io/minio/minio, refused since 2026-09-24). The
+#   result then does not prove that the new store reads a volume the old image wrote.
 #
 # A release adds a step by writing a function and adding its name to BEFORE_UPGRADE,
 # DURING_UPGRADE or AFTER_UPGRADE at the bottom.
@@ -41,6 +45,10 @@ note "new $(git -C "$R" log --oneline -1); previous $(git -C "$U" log --oneline 
 make_env "$U/docker/.env"
 ports_override "$OUT/ports.yaml" 28080 28081
 published_images "$OUT/published-$PREVIOUS.yaml" "$PREVIOUS"
+if [ "${DEVBUDDY_PREVIOUS_EVIDENCE_FROM_SOURCE:-}" = 1 ]; then
+  printf '  evidence:\n    build:\n      context: %s\n' "$R/docker/evidence" >> "$OUT/published-$PREVIOUS.yaml"
+  note "SUBSTITUTE: v$PREVIOUS's evidence store is built from $(git -C "$R" rev-parse --short HEAD)'s docker/evidence"
+fi
 
 P=devbuddy-up$(compact "$VERSION")
 OLD=(docker compose -p "$P" --env-file "$U/docker/.env" -f "$U/docker/compose.yaml" -f "$OUT/published-$PREVIOUS.yaml" -f "$OUT/ports.yaml")

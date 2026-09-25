@@ -64,6 +64,7 @@ published `devbuddy-cli` image prints.
 | `DEVBUDDY_SDK_IMAGE` | `mcr.microsoft.com/dotnet/sdk:10.0` | |
 | `DEVBUDDY_REPOSITORY_URL` | this repository on GitHub | |
 | `DEVBUDDY_REGISTRY` | `ghcr.io/jennarinmeethong/devbuddy-plugin` | |
+| `DEVBUDDY_PREVIOUS_EVIDENCE_FROM_SOURCE` | unset | unset. `upgrade.sh` only: `1` builds the previous release's evidence store from the new commit's `docker/evidence`, for a machine that cannot pull `v1.6.0`'s `quay.io` image. The upgrade then no longer proves that the new store reads a volume the old image wrote. Used on arm64 for `v1.7.0` at the owner's decision. |
 
 A script refuses a work directory that already exists. Results from two runs are never mixed.
 
