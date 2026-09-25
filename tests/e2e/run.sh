@@ -328,6 +328,11 @@ zap_scans() {
   # nearly every route answers 401, which is part of what this run shows.
   run_zap api zap-api-scan.py -t http://api:8080/openapi/v1.json -f openapi \
     -r api.html -J api.json -w api.md -z "-config scanner.maxScanDurationInMins=10"
+
+  # What the servers logged while being scanned, taken now: the restore stage after this replaces
+  # the containers, and their logs go with them. A 500 in a report means nothing without the
+  # exception behind it.
+  compose logs --no-color --timestamps api mcp >"$dir/stack.log" 2>&1 || true
 }
 
 if [ "${DEVBUDDY_E2E_ZAP:-0}" = 1 ]; then
