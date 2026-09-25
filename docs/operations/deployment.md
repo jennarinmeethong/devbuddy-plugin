@@ -187,6 +187,14 @@ and never logs it or puts it in an error. A server's refusal is reported by stat
 because a server that echoes its input would put project text in the message. Changing model or
 dimension re-embeds every record, since vectors from two models are never compared.
 
+**A query instruction, optional (Phase 14, C1).** `DEVBUDDY_EMBEDDING_QUERY_INSTRUCTION` is empty by
+default. Set, it tells the model the task a search query is for, in the form Qwen3-Embedding was
+trained on (`Instruct: <task>` then `Query: <text>`). Documents never carry it, so setting it,
+changing it or clearing it re-embeds nothing. It must be one line. It is scanned with every query
+like the query itself. Set it only if `tools/retrieval/evaluate.sh` shows that it helps, and
+recreate `api` and `mcp` afterwards. `docs/operations/embedding-approval.md` records what was
+measured.
+
 `DEVBUDDY_EMBEDDING_DIALECT` is gone with Voyage. An installation that still sets it is unaffected:
 nothing reads it.
 

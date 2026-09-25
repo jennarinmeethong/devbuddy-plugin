@@ -136,7 +136,7 @@ public sealed class SearchSimilarRecordsUseCase(
         // No budget. An interactive search is one call per query and is bounded by the request
         // rate limiter (SB-21); the budget exists for a worker loop nobody is watching.
         EmbeddingOutcome embedded = await _gateway.EmbedAsync(
-            caller, [request.QueryText], budget: null, cancellationToken);
+            caller, [request.QueryText], EmbeddingPurpose.Query, budget: null, cancellationToken);
 
         if (embedded.Refused)
         {

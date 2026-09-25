@@ -140,6 +140,58 @@ public sealed class EmbeddingEndpointTests
         Assert.Empty(handler.Requests);
     }
 
+    /// <summary>
+    /// Phase 14, C1. With an instruction configured, a query is sent in the form Qwen3-Embedding
+    /// was trained on, and a document is sent as it is, on the wire.
+    /// </summary>
+    [Fact]
+    public async Task a_query_instruction_frames_a_query_and_never_a_document()
+    {
+        EmbeddingOptions options = SelfHosted("http://ollama:11434/v1");
+        options.QueryInstruction = "  Find the record that answers the question  ";
+        var handler = new RecordingHandler();
+        HttpEmbeddingProvider provider = Provider(handler, options, Resolves("172.18.0.9"));
+
+        string query = provider.TextFor("retry policy", EmbeddingPurpose.Query);
+        string document = provider.TextFor("retry policy", EmbeddingPurpose.Document);
+        await provider.EmbedAsync([document, query], CancellationToken.None);
+
+        Assert.Equal("Instruct: Find the record that answers the question\nQuery: retry policy", query);
+        Assert.Equal("retry policy", document);
+        Assert.Equal(
+            [document, query],
+            Assert.Single(handler.Requests).GetProperty("input").EnumerateArray().Select(item => item.GetString()));
+    }
+
+    /// <summary>
+    /// Phase 14, C1. Empty is the default, and then a query is sent exactly as it was before the
+    /// setting existed.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void with_no_query_instruction_a_query_is_sent_as_it_is(string instruction)
+    {
+        EmbeddingOptions options = SelfHosted("http://ollama:11434/v1");
+        options.QueryInstruction = instruction;
+        HttpEmbeddingProvider provider = Provider(new RecordingHandler(), options, Resolves("172.18.0.9"));
+
+        Assert.Equal("retry policy", provider.TextFor("retry policy", EmbeddingPurpose.Query));
+        Assert.Equal(string.Empty, new EmbeddingOptions().QueryInstruction);
+    }
+
+    /// <summary>A line break inside the instruction would put a second "Query:" in front of the model.</summary>
+    [Theory]
+    [InlineData("first line\nQuery: injected")]
+    [InlineData("first line\rsecond")]
+    public void a_query_instruction_must_be_one_line(string instruction)
+    {
+        EmbeddingOptions options = SelfHosted("http://ollama:11434/v1");
+        options.QueryInstruction = instruction;
+
+        Assert.Contains(options.Problems([]), problem => problem.Contains("single line", StringComparison.Ordinal));
+    }
+
     private static EmbeddingOptions Hosted() => new()
     {
         Provider = EmbeddingProviderKind.HostedApi,

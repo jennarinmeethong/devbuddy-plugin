@@ -392,6 +392,11 @@ public sealed class RecordEmbeddingSweepJobTests
         Assert.All(index.Written, row => Assert.Equal("HASH-LONG", row.ContentHash));
         Assert.Contains(provider.Texts, text => text.Contains("Step 60:", StringComparison.Ordinal));
 
+        // Phase 14, C1: every chunk is a document, so none of them is ever sent with a query's
+        // instruction, and changing the instruction re-embeds nothing.
+        Assert.Equal(provider.Texts.Count, provider.Purposes.Count);
+        Assert.All(provider.Purposes, purpose => Assert.Equal(EmbeddingPurpose.Document, purpose));
+
         // A budget that cannot cover every chunk sends none of them: the record is skipped whole.
         FakeIndex untouched = new();
         CountingProvider idle = new();
@@ -443,6 +448,14 @@ public sealed class RecordEmbeddingSweepJobTests
     private sealed class CountingProvider : IEmbeddingProvider
     {
         public List<string> Texts { get; } = [];
+
+        public List<EmbeddingPurpose> Purposes { get; } = [];
+
+        public string TextFor(string text, EmbeddingPurpose purpose)
+        {
+            Purposes.Add(purpose);
+            return text;
+        }
 
         public string Description => $"SelfHosted embeddings, model {Model}";
 

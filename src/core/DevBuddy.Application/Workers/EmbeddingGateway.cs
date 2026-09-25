@@ -80,6 +80,11 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
     /// Embeds <paramref name="texts"/> on behalf of <paramref name="caller"/>, or refuses and
     /// sends nothing.
     /// </summary>
+    /// <param name="purpose">
+    /// Whether the texts are documents for the index or a query against it. Required, so no caller
+    /// can leave it to a default: a document sent as a query would put an instruction into the
+    /// index.
+    /// </param>
     /// <param name="budget">
     /// A worker run's remaining provider calls, or null for a caller that is not a worker.
     /// <para>
@@ -91,6 +96,7 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
     public async Task<EmbeddingOutcome> EmbedAsync(
         CallerContext caller,
         IReadOnlyList<string> texts,
+        EmbeddingPurpose purpose,
         WorkerBudget? budget,
         CancellationToken cancellationToken)
     {
@@ -121,9 +127,13 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
             return EmbeddingOutcome.Embedded([], 0);
         }
 
-        foreach (string text in texts)
+        // What will actually be sent, built before the scan so that the scan sees it: a query
+        // instruction is operator configuration, and it leaves with the text all the same.
+        string[] sent = [.. texts.Select(text => _provider.TextFor(text ?? string.Empty, purpose))];
+
+        foreach (string text in sent)
         {
-            SecretScanResult scan = await _scanner.ScanAsync(text ?? string.Empty, cancellationToken);
+            SecretScanResult scan = await _scanner.ScanAsync(text, cancellationToken);
 
             if (scan.HasFindings)
             {
@@ -148,7 +158,7 @@ public sealed class EmbeddingGateway(ISecretScanner scanner, IEmbeddingProvider?
                 + $"{budget.Remaining} left, which will not cover {texts.Count}.");
         }
 
-        EmbeddingResult result = await _provider.EmbedAsync(texts, cancellationToken);
+        EmbeddingResult result = await _provider.EmbedAsync(sent, cancellationToken);
 
         if (result.Vectors.Count != texts.Count)
         {

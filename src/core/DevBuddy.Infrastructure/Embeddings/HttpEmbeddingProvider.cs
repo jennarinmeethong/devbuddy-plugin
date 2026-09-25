@@ -63,6 +63,15 @@ internal sealed class HttpEmbeddingProvider : IEmbeddingProvider
 
     public bool LeavesTheBoundary => _options.Provider == EmbeddingProviderKind.HostedApi;
 
+    /// <summary>
+    /// A query in the form Qwen3-Embedding was trained on, when an instruction is configured.
+    /// Anything else, and every document, is sent unchanged.
+    /// </summary>
+    public string TextFor(string text, EmbeddingPurpose purpose) =>
+        purpose == EmbeddingPurpose.Query && _options.QueryInstruction.Trim() is { Length: > 0 } instruction
+            ? $"Instruct: {instruction}\nQuery: {text}"
+            : text;
+
     public async Task<EmbeddingResult> EmbedAsync(
         IReadOnlyList<string> texts, CancellationToken cancellationToken)
     {

@@ -17,7 +17,8 @@
 #   EVAL_ENDPOINT       any OpenAI-compatible server the containers can reach on a private address,
 #                       such as LM Studio on the LAN.
 # EVAL_MODEL (default qwen3-embedding:0.6b), EVAL_DIMENSIONS (default 1024), EVAL_CHUNK (default
-# 3000), EVAL_SET (default set.json beside this script).
+# 3000), EVAL_QUERY_INSTRUCTION (default none; Phase 14, C1), EVAL_SET (default set.json beside
+# this script).
 #
 # Synthetic data only. Secrets are generated here and never printed. The stack is removed at the
 # end unless EVAL_KEEP=1. WORKDIR must not exist.
@@ -30,6 +31,7 @@ SET=${EVAL_SET:-$HERE/set.json}
 MODEL=${EVAL_MODEL:-qwen3-embedding:0.6b}
 DIMENSIONS=${EVAL_DIMENSIONS:-1024}
 CHUNK=${EVAL_CHUNK:-3000}
+INSTRUCTION=${EVAL_QUERY_INSTRUCTION:-}
 OLLAMA_IMAGE=ollama/ollama@sha256:684d8674b4315fa18f4f0e973a118ec2652ed96f67563277839985175858e0ba
 R=$(git -C "$HERE" rev-parse --show-toplevel)
 P=devbuddy-retrieval
@@ -57,6 +59,7 @@ DEVBUDDY_EMBEDDING_MODEL=$MODEL
 DEVBUDDY_EMBEDDING_DIMENSIONS=$DIMENSIONS
 DEVBUDDY_EMBEDDING_BATCH_SIZE=8
 DEVBUDDY_EMBEDDING_CHUNK_CHARACTERS=$CHUNK
+DEVBUDDY_EMBEDDING_QUERY_INSTRUCTION=$INSTRUCTION
 EOF
 
 {
@@ -104,6 +107,7 @@ cleanup() {
 trap cleanup EXIT
 
 note "=== retrieval evaluation: $MODEL at $ENDPOINT, chunk $CHUNK, commit $(git -C "$R" rev-parse --short HEAD)"
+note "query instruction: ${INSTRUCTION:-none}"
 note "set $(sha256sum "$SET" | cut -c1-12): $(jq '.records | length' "$SET") records, $(jq '.queries | length' "$SET") questions"
 services=(api)
 [ -n "${EVAL_OLLAMA_VOLUME:-}" ] && services+=(ollama)

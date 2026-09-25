@@ -222,6 +222,21 @@ public sealed class SearchSimilarRecordsTests
         Assert.Equal("a fake model", index.LastModel);
     }
 
+    /// <summary>
+    /// Phase 14, C1. A search embeds its text as a query, which is what lets a provider tell the
+    /// model so. Asked as a document it would be sent without the instruction a query needs.
+    /// </summary>
+    [Fact]
+    public async Task the_search_text_is_embedded_as_a_query()
+    {
+        Harness harness = new();
+        CountingProvider provider = new();
+
+        await RunAsync(harness, new EmbeddingGateway(harness.Ports, provider), new IndexReturning([]));
+
+        Assert.Equal([EmbeddingPurpose.Query], provider.Purposes);
+    }
+
     [Theory]
     [InlineData("", 10)]
     [InlineData("   ", 10)]
@@ -280,6 +295,14 @@ public sealed class SearchSimilarRecordsTests
         public int Dimensions => 3;
 
         public bool LeavesTheBoundary => false;
+
+        public List<EmbeddingPurpose> Purposes { get; } = [];
+
+        public string TextFor(string text, EmbeddingPurpose purpose)
+        {
+            Purposes.Add(purpose);
+            return text;
+        }
 
         public Task<EmbeddingResult> EmbedAsync(
             IReadOnlyList<string> texts, CancellationToken cancellationToken)

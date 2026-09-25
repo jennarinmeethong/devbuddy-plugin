@@ -187,7 +187,11 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), new CountingProvider());
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            caller.Context, ["anything at all"], new WorkerBudget(10), CancellationToken.None);
+            caller.Context,
+            ["anything at all"],
+            EmbeddingPurpose.Document,
+            new WorkerBudget(10),
+            CancellationToken.None);
 
         Assert.True(outcome.Refused);
         Assert.Contains("AI channel", outcome.Reason!, StringComparison.Ordinal);
@@ -371,7 +375,11 @@ public sealed class WorkerAuthorizationTests
         Assert.Null(gateway.ProviderDescription);
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller().Context, ["some text"], new WorkerBudget(1), CancellationToken.None);
+            AiCaller().Context,
+            ["some text"],
+            EmbeddingPurpose.Document,
+            new WorkerBudget(1),
+            CancellationToken.None);
 
         Assert.True(outcome.Refused);
         Assert.Contains("no embedding provider", outcome.Reason!, StringComparison.Ordinal);
@@ -392,6 +400,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
             AiCaller().Context,
             ["Host=db;Username=devbuddy;Password=hunter2"],
+            EmbeddingPurpose.Document,
             new WorkerBudget(10),
             CancellationToken.None);
 
@@ -403,6 +412,85 @@ public sealed class WorkerAuthorizationTests
         Assert.Equal(0, provider.Calls);
     }
 
+    /// <summary>
+    /// Phase 14, C1. What the provider says a query looks like is what is sent, and a document is
+    /// sent as it is.
+    /// </summary>
+    [Fact]
+    public async Task a_query_is_sent_as_the_provider_frames_it_and_a_document_as_it_is()
+    {
+        InstructingProvider provider = new("Find the record that answers the question");
+        EmbeddingGateway gateway = new(new CleanScanner(), provider);
+
+        await gateway.EmbedAsync(
+            AiCaller().Context,
+            ["retry policy"],
+            EmbeddingPurpose.Document,
+            new WorkerBudget(2),
+            CancellationToken.None);
+        await gateway.EmbedAsync(
+            AiCaller().Context,
+            ["retry policy"],
+            EmbeddingPurpose.Query,
+            budget: null,
+            CancellationToken.None);
+
+        Assert.Equal(
+            ["retry policy", "Instruct: Find the record that answers the question\nQuery: retry policy"],
+            provider.Sent);
+    }
+
+    /// <summary>
+    /// Phase 14, C1. SB-17 scans the text as sent, instruction included: the instruction is
+    /// operator configuration, and it leaves with every query all the same. The scanner here finds
+    /// something only in the instruction, so the query is refused with nothing sent, while the same
+    /// text as a document goes through.
+    /// </summary>
+    [Fact]
+    public async Task the_secret_scan_sees_the_instruction_that_would_be_sent()
+    {
+        InstructingProvider provider = new("marker-only-in-the-instruction");
+        EmbeddingGateway gateway = new(new ScannerThatFindsText("marker-only-in-the-instruction"), provider);
+
+        EmbeddingOutcome query = await gateway.EmbedAsync(
+            AiCaller().Context,
+            ["retry policy"],
+            EmbeddingPurpose.Query,
+            budget: null,
+            CancellationToken.None);
+
+        Assert.True(query.BlockedBySecretScan);
+        Assert.Empty(provider.Sent);
+
+        EmbeddingOutcome document = await gateway.EmbedAsync(
+            AiCaller().Context,
+            ["retry policy"],
+            EmbeddingPurpose.Document,
+            new WorkerBudget(1),
+            CancellationToken.None);
+
+        Assert.False(document.Refused);
+        Assert.Equal(["retry policy"], provider.Sent);
+    }
+
+    /// <summary>Phase 14, C1. An instruction does not dilute the scan of the query itself.</summary>
+    [Fact]
+    public async Task a_secret_in_a_query_is_refused_with_an_instruction_configured()
+    {
+        InstructingProvider provider = new("Find the record that answers the question");
+        EmbeddingGateway gateway = new(new ScannerThatFindsText("ghp_"), provider);
+
+        EmbeddingOutcome outcome = await gateway.EmbedAsync(
+            AiCaller().Context,
+            ["how do I use ghp_1234567890abcdefghijklmnopqrstuvwxyzAB"],
+            EmbeddingPurpose.Query,
+            budget: null,
+            CancellationToken.None);
+
+        Assert.True(outcome.BlockedBySecretScan);
+        Assert.Empty(provider.Sent);
+    }
+
     [Fact]
     public async Task a_blocked_scan_names_its_rules_and_never_the_matched_text()
     {
@@ -412,6 +500,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
             AiCaller().Context,
             ["AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENG"],
+            EmbeddingPurpose.Document,
             new WorkerBudget(2),
             CancellationToken.None);
 
@@ -428,7 +517,12 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(
             new ScannerThatFinds("high-entropy-string"), new CountingProvider());
 
-        await gateway.EmbedAsync(AiCaller().Context, ["nope"], budget, CancellationToken.None);
+        await gateway.EmbedAsync(
+            AiCaller().Context,
+            ["nope"],
+            EmbeddingPurpose.Document,
+            budget,
+            CancellationToken.None);
 
         Assert.Equal(0, budget.Spent);
         Assert.Equal(1, budget.Remaining);
@@ -442,10 +536,10 @@ public sealed class WorkerAuthorizationTests
         WorkerBudget budget = new(1);
 
         EmbeddingOutcome first = await gateway.EmbedAsync(
-            AiCaller().Context, ["one"], budget, CancellationToken.None);
+            AiCaller().Context, ["one"], EmbeddingPurpose.Document, budget, CancellationToken.None);
 
         EmbeddingOutcome second = await gateway.EmbedAsync(
-            AiCaller().Context, ["two"], budget, CancellationToken.None);
+            AiCaller().Context, ["two"], EmbeddingPurpose.Document, budget, CancellationToken.None);
 
         Assert.False(first.Refused);
         Assert.True(second.Refused);
@@ -464,7 +558,11 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), new ShortProvider());
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller().Context, ["one", "two", "three"], new WorkerBudget(5), CancellationToken.None);
+            AiCaller().Context,
+            ["one", "two", "three"],
+            EmbeddingPurpose.Document,
+            new WorkerBudget(5),
+            CancellationToken.None);
 
         Assert.True(outcome.Refused);
         Assert.Contains("misaligned", outcome.Reason!, StringComparison.Ordinal);
@@ -479,7 +577,7 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), provider);
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller().Context, [], budget, CancellationToken.None);
+            AiCaller().Context, [], EmbeddingPurpose.Document, budget, CancellationToken.None);
 
         Assert.False(outcome.Refused);
         Assert.Empty(outcome.Vectors);
@@ -493,7 +591,11 @@ public sealed class WorkerAuthorizationTests
         EmbeddingGateway gateway = new(new CleanScanner(), new CountingProvider());
 
         EmbeddingOutcome outcome = await gateway.EmbedAsync(
-            AiCaller().Context, ["a", "b", "c"], new WorkerBudget(5), CancellationToken.None);
+            AiCaller().Context,
+            ["a", "b", "c"],
+            EmbeddingPurpose.Document,
+            new WorkerBudget(5),
+            CancellationToken.None);
 
         Assert.False(outcome.Refused);
         Assert.Equal(3, outcome.Vectors.Count);
@@ -555,6 +657,39 @@ public sealed class WorkerAuthorizationTests
     {
         public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken) =>
             Task.FromResult(new SecretScanResult([new SecretFinding(rule, 1, 8)]));
+    }
+
+    /// <summary>Finds something only in a text that contains <paramref name="needle"/>.</summary>
+    private sealed class ScannerThatFindsText(string needle) : ISecretScanner
+    {
+        public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken) =>
+            Task.FromResult(content.Contains(needle, StringComparison.Ordinal)
+                ? new SecretScanResult([new SecretFinding("test-rule", 1, 8)])
+                : SecretScanResult.Clean);
+    }
+
+    /// <summary>Frames a query the way the HTTP adapter does, and records what it was sent.</summary>
+    private sealed class InstructingProvider(string instruction) : IEmbeddingProvider
+    {
+        public List<string> Sent { get; } = [];
+
+        public string Description => "a fake that instructs queries";
+
+        public int Dimensions => 4;
+
+        public bool LeavesTheBoundary => false;
+
+        public string TextFor(string text, EmbeddingPurpose purpose) =>
+            purpose == EmbeddingPurpose.Query ? $"Instruct: {instruction}\nQuery: {text}" : text;
+
+        public Task<EmbeddingResult> EmbedAsync(
+            IReadOnlyList<string> texts, CancellationToken cancellationToken)
+        {
+            Sent.AddRange(texts);
+
+            return Task.FromResult(new EmbeddingResult(
+                [.. texts.Select(_ => new ReadOnlyMemory<float>([0f, 0f, 0f, 0f]))], 1));
+        }
     }
 
     private sealed class CountingProvider : IEmbeddingProvider

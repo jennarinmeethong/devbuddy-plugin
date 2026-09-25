@@ -96,7 +96,25 @@ Measured on jmhp on 2026-09-24:
 - **The weak case is a Thai question about an English record.** Half of those questions find it
   first, and three fall outside the top five. Every other language pair finds the right record in
   the top five every time. C1 (a query instruction) is the next thing to measure against this.
-- **Not measured yet:** a query instruction, which does not exist until C1.
+
+**With a query instruction (Phase 14, C1), 2026-09-25.** `Embedding:QueryInstruction` is measured
+at `9af7af1` against the same model files, with 3000-character chunks:
+
+| Instruction | recall@1 | recall@5 | MRR | Thai question, English record: recall@1 |
+| --- | --- | --- | --- | --- |
+| none (the default) | 0.813 | 0.953 | 0.883 | 0.5 |
+| `Given a web search query, retrieve relevant passages that answer the query` (Qwen3's published retrieval instruction) | 0.875 | 0.984 | 0.915 | 0.625 |
+| `Given a question about how a software team works, retrieve the knowledge record that answers it` | 0.906 | 0.984 | 0.936 | 0.75 |
+
+- **Empty changes nothing.** With no instruction, every rank was identical to the C2 baseline.
+- **Both instructions help, and help where search was weakest.** Every improvement was on a
+  question in the other language from its record. With Qwen3's instruction, 8 questions moved up
+  and 2 moved from second to third. With the second one, 9 moved up and 2 moved down, one from
+  fifth to seventh. Neither pushed any question out of first place.
+- **The second instruction was written after the set was seen**, so part of its lead may be fitted
+  to this set. Its margin over Qwen3's is 2 questions of 64, which is not a finding. Qwen3's
+  instruction was not chosen with this set in mind.
+- **Nothing is re-embedded.** Documents never carry the instruction.
 
 ## Rolling back
 

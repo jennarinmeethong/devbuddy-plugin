@@ -54,6 +54,7 @@ EVAL_ENDPOINT=http://192.168.1.111:1234/v1 EVAL_MODEL=text-embedding-qwen3-embed
 | `EVAL_MODEL` | `qwen3-embedding:0.6b` |
 | `EVAL_DIMENSIONS` | `1024` |
 | `EVAL_CHUNK` | `3000`, the shipped `Embedding:ChunkCharacters` |
+| `EVAL_QUERY_INSTRUCTION` | none; `Embedding:QueryInstruction` for the run (Phase 14, C1) |
 | `EVAL_SET` | `set.json` beside the script |
 | `EVAL_KEEP=1` | leave the stack running afterwards |
 

@@ -43,8 +43,34 @@ public interface IEmbeddingProvider
     /// </summary>
     bool LeavesTheBoundary { get; }
 
+    /// <summary>
+    /// The text that is sent for <paramref name="text"/> embedded as <paramref name="purpose"/>
+    /// (Phase 14, C1). Some models are trained to be told that a text is a query, which a document
+    /// never is. What that looks like belongs to the model, so the provider says it. By default
+    /// the text is sent as it is.
+    /// <para>
+    /// The gateway calls this <b>before</b> it scans. SB-17 scans the text as sent, instruction
+    /// included, and a provider must not change a text again inside <see cref="EmbedAsync"/>.
+    /// </para>
+    /// </summary>
+    string TextFor(string text, EmbeddingPurpose purpose) => text;
+
     Task<EmbeddingResult> EmbedAsync(
         IReadOnlyList<string> texts, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// What an embedded text is for: a <see cref="Document"/> the index keeps, or a
+/// <see cref="Query"/> compared against it. It does not name a vendor. A model that treats the
+/// two alike needs no instruction, and then both are sent unchanged.
+/// </summary>
+public enum EmbeddingPurpose
+{
+    /// <summary>A published record, or a chunk of one, written into the index.</summary>
+    Document = 1,
+
+    /// <summary>A question asked of the index, never written into it.</summary>
+    Query = 2,
 }
 
 /// <summary>

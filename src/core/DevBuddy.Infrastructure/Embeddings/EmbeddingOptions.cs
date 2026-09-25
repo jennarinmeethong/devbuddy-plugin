@@ -90,6 +90,20 @@ public sealed class EmbeddingOptions
     public int ChunkCharacters { get; set; } = 3000;
 
     /// <summary>
+    /// The task a query is embedded for, told to the model, or empty to send a query as it is
+    /// (Phase 14, C1). Empty by default, so nothing changes until an operator sets it.
+    /// <para>
+    /// Qwen3-Embedding is trained to receive a query as <c>Instruct: &lt;task&gt;\nQuery: &lt;text&gt;</c>
+    /// and a document as plain text, and that is the form sent. Documents never carry it, so
+    /// setting or changing it re-embeds nothing. It is operator configuration, not request data:
+    /// it is not audited as content, and the gateway's SB-17 scan sees it with every query.
+    /// Measure a change with <c>tools/retrieval/evaluate.sh</c> before making it on an
+    /// installation.
+    /// </para>
+    /// </summary>
+    public string QueryInstruction { get; set; } = string.Empty;
+
+    /// <summary>
     /// What an operator has to have got right before this can start, as a list of problems rather
     /// than a boolean.
     /// <para>
@@ -134,6 +148,18 @@ public sealed class EmbeddingOptions
         if (ChunkCharacters < 200)
         {
             problems.Add("Embedding:ChunkCharacters must be at least 200.");
+        }
+
+        // One line: a line break inside it would put a second "Query:" in front of the model.
+        if (QueryInstruction.Contains('\n', StringComparison.Ordinal)
+            || QueryInstruction.Contains('\r', StringComparison.Ordinal))
+        {
+            problems.Add("Embedding:QueryInstruction must be a single line.");
+        }
+
+        if (QueryInstruction.Length > 500)
+        {
+            problems.Add("Embedding:QueryInstruction must be at most 500 characters.");
         }
 
         if (Provider == EmbeddingProviderKind.SelfHosted)

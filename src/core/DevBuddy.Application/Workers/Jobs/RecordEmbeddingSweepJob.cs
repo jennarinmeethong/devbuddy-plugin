@@ -270,7 +270,7 @@ public sealed class RecordEmbeddingSweepJob(
         IReadOnlyList<string> chunks = TextChunks.Split(text, _chunkCharacters);
 
         EmbeddingOutcome outcome = await _gateway.EmbedAsync(
-            caller.Context, chunks, budget, cancellationToken);
+            caller.Context, chunks, EmbeddingPurpose.Document, budget, cancellationToken);
 
         if (outcome.Refused || outcome.Vectors.Count != chunks.Count)
         {
