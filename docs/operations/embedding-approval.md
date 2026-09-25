@@ -84,15 +84,19 @@ Measured on jmhp on 2026-09-24:
 | 3000 | Thai question, English record | 0.5 | 0.813 | 0.676 |
 | 3000 | the two long records, answer past the first chunk | 0.75 | 1.0 | 0.875 |
 | 1500 | all 64 | 0.813 | 0.953 | 0.882 |
+| 3000, LM Studio on JMPC | all 64 | 0.813 | 0.953 | 0.882 |
 
 - **Repeatable.** A second run at 3000 gave the same rank for every question.
+- **The LM Studio standby gives the same answers** (2026-09-25). It served
+  `text-embedding-qwen3-embedding-0.6b` (GGUF Q8_0) on JMPC. 63 of 64 ranks were identical to
+  Ollama's; one question moved from third to fourth. It can stand in for the devbox's Ollama without
+  a change in search quality. Switching still needs its own `info.md` entry.
 - **Chunk size makes no difference on this set.** At 1500, three ranks moved by one place each, all
   outside first place, so recall did not change.
 - **The weak case is a Thai question about an English record.** Half of those questions find it
   first, and three fall outside the top five. Every other language pair finds the right record in
   the top five every time. C1 (a query instruction) is the next thing to measure against this.
-- **Not measured yet:** the LM Studio standby on JMPC, whose server is off by default, and any query
-  instruction, which does not exist until C1.
+- **Not measured yet:** a query instruction, which does not exist until C1.
 
 ## Rolling back
 
