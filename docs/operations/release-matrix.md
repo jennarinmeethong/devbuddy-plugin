@@ -221,8 +221,9 @@ Compose run or drill was performed against it.
 
 ## What was verified for v1.7.0
 
-**Checked on 2026-09-25 against `f76c6c0`, before the tag, and not yet complete.** The release is
-proposed in `docs/plan-phase-14.md`, under *14.7*, and waits on the owner's confirmation. It carries:
+**Checked on 2026-09-25 before the tag**, against `f76c6c0` on jmhp and `f8c6d73` on arm64. The
+commits between them change documentation and `upgrade.sh`'s opt-in setting only. The release was
+approved as proposed in `docs/plan-phase-14.md`, under *14.7*. It carries:
 - C1, the optional query instruction;
 - the evidence store built from MinIO's source;
 - A1's `tools/release/` and A3's `stale-sessions.sh`.
@@ -240,7 +241,7 @@ throwaway stacks `devbuddy-v170` and `devbuddy-up170` are stopped, and their vol
 | .NET suite, format, web client, `linux-x64` publish | `setup-and-suite.sh` | **7 of 7.** **968 passed**, none failed. The format check exited 0, the web suite passed 78 of 78, the publish exited 0, and the run changed no tracked file. |
 | Compose from clean, no service as root, the AI surface, the drill, tokens out of the log, the checks earlier releases added | `stack-drill-tokens.sh` | **101 of 101.** `api` was healthy 183 seconds after the build started, most of it the first compile of MinIO and `mc`. Nine migrations, and twenty AI operations. The drill destroyed both volumes, and every row came back. |
 | Upgrade from published `v1.6.0` on amd64 | `upgrade.sh` | **45 of 45.** See below. |
-| Upgrade from published `v1.6.0` on arm64 | `upgrade.sh` | **Not run.** It needs the Ubuntu guest, and that guest has to still hold the arm64 `quay.io/minio/minio` image to build `v1.6.0`'s evidence store. |
+| Upgrade from published `v1.6.0` on arm64 | `upgrade.sh` at `f8c6d73`, with `DEVBUDDY_PREVIOUS_EVIDENCE_FROM_SOURCE=1` | **45 of 45, with a substitute evidence store.** It ran in the Ubuntu 26.04.1 VMware guest on the Apple M4 (`aarch64`). Neither that guest nor the Mac mini holds the arm64 `quay.io/minio/minio` image, and quay.io refuses anonymous pulls. So at the owner's decision, `v1.6.0`'s evidence store was built from the new commit's `docker/evidence`: the same MinIO release, built from source. The published `1.6.0` application images upgraded exactly as on amd64. **This row does not show** that the new store reads a volume written by the `quay.io` image. Only the amd64 row shows that. |
 | Everything after the tag | `post-images.sh`, `smoke.sh`, `client-smoke.ps1` | **Not run**, because there is no tag. |
 
 | **New** check (`stack-drill-tokens.sh`) | Result |
