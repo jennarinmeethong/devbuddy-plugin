@@ -122,9 +122,9 @@ jobs:
             docker build -f "docker/Dockerfile.$image" -t "devbuddy-$image:ci" .
           done
 
-          # The evidence store: upstream MinIO plus the non-root account it lacks. It is built here
-          # so the check below covers the one image in the stack that is not ours. Until 2026-09-14
-          # it was not checked, and it ran as root.
+          # The evidence store: MinIO compiled from its source since 2026-09-25, run as uid 1000. It
+          # is built here so the check below covers it too. Until 2026-09-14 it was not checked, and
+          # it ran as root.
           docker build -t devbuddy-evidence:ci docker/evidence
 
       - name: Check they run as a non-root user

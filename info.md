@@ -1,5 +1,29 @@
 # Project Decisions
 
+## Confirmed MinIO Built from Source, and the Devbox's Query Instruction — 2026-09-25
+
+**quay.io stopped serving MinIO anonymously** at about 13:00 UTC on 2026-09-24. Its API answers
+`401 Requires authentication`, even for the pinned digest. CI has been red since `00f552d`, and a
+clean machine cannot build the evidence store. This is the second registry to drop MinIO: Docker
+Hub stopped serving `minio/minio` by 2026-09-13. The owner chose between three options.
+
+- **The evidence store is built from MinIO's source.** `docker/evidence/Dockerfile` compiles the
+  same releases the pinned image carried, fetched by commit, not by tag:
+  - MinIO `RELEASE.2025-04-22T22-12-26Z`, commit `0d7408fc9969caf07de6a8c3a84f9fbb10a6739e`;
+  - `mc` `RELEASE.2025-04-16T18-13-26Z`, commit `b00526b153a31b36767991a4f5ce2cced435ee8e`;
+  - with Go 1.24.2, the version both upstream binaries report, from `golang` pinned by digest.
+
+  No registry is needed for MinIO itself. The binaries are the same source and the same Go version,
+  but they are not byte-identical to upstream's, because they are built here.
+- **Rejected:** mirroring the cached image to this project's GHCR, and making the filesystem store
+  the default.
+- **When the devbox moves to a release that carries C1**, it uses Qwen3's published retrieval
+  instruction: `DEVBUDDY_EMBEDDING_QUERY_INSTRUCTION=Given a web search query, retrieve relevant
+  passages that answer the query`. It measured recall@1 0.875 against 0.813 without it, and MRR
+  0.915 against 0.883 (`docs/operations/embedding-approval.md`). A product-specific instruction
+  scored higher, but it was written after the evaluation set was seen, so it was not chosen. Nothing
+  is re-embedded.
+
 ## Confirmed Phase 14 — Making Releases Repeatable, and Search Measurable — 2026-09-24
 
 The owner approved `docs/plan-phase-14.md` "as recommended" on 2026-09-24, and asked for A1 to

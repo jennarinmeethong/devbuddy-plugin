@@ -560,15 +560,22 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 - **`CR` is banned.** Change Request and Code Review are separate record types. Write
   `change_request` and `code_review` in full, in code, schema, API, and UI.
 - **No SQLite.** PostgreSQL in development and production, and in tests via Testcontainers.
-- **MinIO comes from `quay.io`, pinned by digest, and is built into an image that does not run as
-  root.** Docker Hub had stopped serving `minio/minio` by 2026-09-13, so a reference to it fails on
-  every machine without a cached copy. `docker/evidence/Dockerfile` starts FROM that pinned
-  reference, `EvidenceStoreTests` starts the identical one, and `DeploymentTests` fails if either
-  goes back to Docker Hub or loses the digest. Upstream's image has no account but root. Until
-  2026-09-14 the stack ran MinIO as uid 0 while its own comments said otherwise, and SB-31's checks
-  only ever looked at the three application images.
-  - The Dockerfile adds uid 1000 and keeps data at **`/srv/evidence`, not `/data`**: upstream
-    declares `VOLUME /data`, and a build discards any change to a declared volume path.
+- **MinIO is built from its source, pinned by commit, since 2026-09-25 (`info.md`).** Two registries
+  have dropped it: Docker Hub by 2026-09-13, and quay.io without a login on 2026-09-24. Each time,
+  every machine without a cached copy failed to build the evidence store, and CI went red while the
+  owner's test machine, holding the cached copy, kept passing. `docker/evidence/Dockerfile` compiles
+  MinIO `RELEASE.2025-04-22T22-12-26Z` and `mc` `RELEASE.2025-04-16T18-13-26Z` by commit, with Go
+  1.24.2 pinned by digest, into a `scratch` image holding the two binaries and nothing to execute.
+  It is built natively where it runs, never cross-compiled, and a cold build takes three or four
+  minutes. `EvidenceStoreTests` builds the same Dockerfile through Testcontainers. `DeploymentTests`
+  fails if a commit or the Go image loses its pin, if the runtime is not `scratch`, or if a registry
+  MinIO image comes back. Do not go back to a registry image. Until 2026-09-14 the stack ran MinIO as
+  uid 0 while its own comments said otherwise, and SB-31's checks only ever looked at the three
+  application images.
+  - The image runs as uid 1000 and keeps data at **`/srv/evidence`, not `/data`**. That path dates
+    from the upstream image, which declared `VOLUME /data`, and existing volumes are mounted there.
+    `/data` still exists, owned by uid 1000, only because Testcontainers' MinIO module starts
+    `server /data`.
   - Compose runs the service read-only, with every capability dropped and `no-new-privileges`.
   - `DeploymentTests.every_service_in_the_stack_runs_as_a_non_root_user` checks every service. It
     was mutation-checked against the old file.

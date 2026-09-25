@@ -189,32 +189,39 @@ public sealed partial class DeploymentTests
     }
 
     /// <summary>
-    /// The object store's image comes from quay.io, is pinned to a digest, and is the one the tests
-    /// start.
+    /// The object store is built from MinIO's source, pinned by commit, on a build image pinned by
+    /// digest, and it is the image the tests start.
     /// <para>
-    /// Docker Hub had stopped serving <c>minio/minio</c> by 2026-09-13. Every fresh install of this
-    /// stack then failed to start its evidence store, and every CI run failed on the tests that start
-    /// a MinIO container, while a machine with a cached copy carried on as if nothing had happened.
-    /// A tag alone would also let a registry move what it points at, so the digest is required, and
-    /// the fixture must name the identical reference so the image tested is the image shipped.
+    /// Two registries stopped serving MinIO: Docker Hub by 2026-09-13, and quay.io, without a login,
+    /// on 2026-09-24. Each time every fresh install failed to build its evidence store and every CI
+    /// run failed on the MinIO tests, while a machine with a cached copy carried on as if nothing had
+    /// happened. Since 2026-09-25 (<c>info.md</c>) nothing of MinIO's comes from a registry. A tag
+    /// could be moved by whoever controls it, so the source is fetched by commit. The runtime stage
+    /// is <c>scratch</c>, so the image holds nothing to execute but MinIO and <c>mc</c>. The fixture
+    /// builds this same Dockerfile, so the image tested is the image shipped.
     /// </para>
     /// </summary>
     [Fact]
-    public void the_object_store_image_comes_from_quay_pinned_by_digest_and_is_the_one_the_tests_start()
+    public void the_object_store_is_built_from_source_pinned_by_commit_and_is_the_one_the_tests_start()
     {
-        // The stack builds the evidence store from docker/evidence/Dockerfile, so the reference that
-        // matters is its FROM line. Compose must not name an image of its own beside the build.
-        string from = Assert.Single(
-            File.ReadAllLines(Path.Combine(DockerDirectory().FullName, "evidence", "Dockerfile")),
-            line => line.StartsWith("FROM ", StringComparison.Ordinal));
+        string[] dockerfile = File.ReadAllLines(Path.Combine(DockerDirectory().FullName, "evidence", "Dockerfile"));
+        string[] from = [.. dockerfile.Where(line => line.StartsWith("FROM ", StringComparison.Ordinal))];
 
-        string image = from["FROM ".Length..].Trim();
+        Assert.True(from.Length >= 2, "The object store image has no separate build stage.");
+        Assert.Equal("FROM scratch", from[^1].Trim());
 
-        Assert.StartsWith("quay.io/minio/minio:", image, StringComparison.Ordinal);
+        foreach (string line in from[..^1])
+        {
+            Assert.Matches(PinnedFrom(), line);
+        }
 
-        int digest = image.IndexOf("@sha256:", StringComparison.Ordinal);
-        Assert.True(digest > 0, $"The object store image is not pinned to a digest: {image}");
-        Assert.Equal(64, image[(digest + "@sha256:".Length)..].Length);
+        // Instructions only: the comments name the registry images this replaced.
+        string text = string.Join(
+            '\n', dockerfile.Where(line => !line.TrimStart().StartsWith('#')));
+
+        Assert.Matches(MinioFetchedByCommit(), text);
+        Assert.Matches(McFetchedByCommit(), text);
+        Assert.DoesNotMatch(RegistryMinio(), text);
 
         Assert.DoesNotContain(
             BlockFor(ComposeLines(), "evidence:"),
@@ -223,7 +230,9 @@ public sealed partial class DeploymentTests
         string fixture = File.ReadAllText(Path.Combine(
             RepositoryRoot().FullName, "tests", "DevBuddy.Infrastructure.Tests", "EvidenceStoreTests.cs"));
 
-        Assert.Contains($"\"{image}\"", fixture, StringComparison.Ordinal);
+        Assert.Contains("ImageFromDockerfileBuilder", fixture, StringComparison.Ordinal);
+        Assert.Contains("\"docker\", \"evidence\"", fixture, StringComparison.Ordinal);
+        Assert.DoesNotMatch(RegistryMinio(), fixture);
     }
 
     /// <summary>
@@ -727,6 +736,22 @@ public sealed partial class DeploymentTests
     /// <summary>A secret-looking name and the value given to it, in a shell or PowerShell line.</summary>
     [GeneratedRegex(@"(?i)(password|secret|signing_?key|access_?key|token)\s*[:=]\s*(?<value>[^\s,;}]+)")]
     private static partial Regex SecretValue();
+
+    /// <summary>A build stage from an image pinned to its digest.</summary>
+    [GeneratedRegex(@"^FROM \S+@sha256:[0-9a-f]{64}( AS \S+)?$")]
+    private static partial Regex PinnedFrom();
+
+    /// <summary>A registry's MinIO image, which is what the evidence store no longer depends on.</summary>
+    [GeneratedRegex(@"(quay\.io/minio/|(^|[\s""])minio/minio[:@\s""])", RegexOptions.Multiline)]
+    private static partial Regex RegistryMinio();
+
+    /// <summary>A git fetch of MinIO's server, by a full commit identifier.</summary>
+    [GeneratedRegex(@"git fetch [^\n]*https://github\.com/minio/minio\.git [0-9a-f]{40}\b")]
+    private static partial Regex MinioFetchedByCommit();
+
+    /// <summary>A git fetch of MinIO's client, by a full commit identifier.</summary>
+    [GeneratedRegex(@"git fetch [^\n]*https://github\.com/minio/mc\.git [0-9a-f]{40}\b")]
+    private static partial Regex McFetchedByCommit();
 
     /// <summary>A variable Compose refuses to start without: <c>${NAME:?message}</c>.</summary>
     [GeneratedRegex(@"\$\{(?<name>[A-Z0-9_]+):\?")]

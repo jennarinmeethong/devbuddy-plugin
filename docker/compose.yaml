@@ -99,10 +99,10 @@ services:
     networks: [internal]
 
   evidence:
-    # Built from docker/evidence/Dockerfile: the quay.io MinIO image pinned to its digest, plus the
-    # non-root account upstream does not have. Why it is pinned, and why the data lives at
-    # /srv/evidence rather than /data, are both explained there. Until 2026-09-14 this service
-    # used the upstream image directly, and MinIO ran as root.
+    # Built from docker/evidence/Dockerfile. Since 2026-09-25 that compiles MinIO and mc from their
+    # source, pinned by commit, into an image holding nothing else, run as uid 1000. The Dockerfile
+    # explains why no registry image is used, and why the data lives at /srv/evidence. Until
+    # 2026-09-14 this service used the upstream image directly, and MinIO ran as root.
     build:
       context: evidence
     restart: unless-stopped
@@ -115,10 +115,6 @@ services:
       # Home for MinIO's certificates directory and mc's configuration, owned by the account the
       # image runs as.
       - /tmp:uid=1000,gid=1000
-
-      # The upstream image declares VOLUME /data, and nothing is stored there any more. A small
-      # tmpfs stops Docker creating an anonymous volume nobody uses every time this is recreated.
-      - /data:size=1m
     command: server /srv/evidence
     environment:
       MINIO_ROOT_USER: ${DEVBUDDY_EVIDENCE_ACCESS_KEY:?set DEVBUDDY_EVIDENCE_ACCESS_KEY in docker/.env}

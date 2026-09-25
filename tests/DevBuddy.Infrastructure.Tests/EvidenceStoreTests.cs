@@ -9,6 +9,8 @@ using DevBuddy.Domain.Evidence;
 using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.Infrastructure.Persistence.Repositories;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Images;
 using Microsoft.Extensions.Options;
 using Testcontainers.Minio;
 
@@ -17,26 +19,69 @@ namespace DevBuddy.Infrastructure.Tests;
 /// <summary>
 /// A real MinIO. ADR-0004 makes object storage the default evidence store, so the default is what
 /// gets tested; covering only the filesystem fallback would prove the adapter we do not ship.
+/// <para>
+/// Built from <c>docker/evidence/Dockerfile</c>, the image <c>docker/compose.yaml</c> builds, so the
+/// image tested is the image shipped. Since 2026-09-25 that Dockerfile compiles MinIO from its source
+/// (<c>info.md</c>). Docker Hub stopped serving <c>minio/minio</c> by 2026-09-13 and quay.io stopped
+/// serving it without a login on 2026-09-24, and each time every test here failed on the pull. The
+/// image is built once per test run and shared by every class that starts a container from it.
+/// </para>
 /// </summary>
 public sealed class MinioFixture : IAsyncLifetime
 {
-    // The image docker/compose.yaml ships, from quay.io and pinned to its digest, because Docker Hub
-    // stopped serving minio/minio by 2026-09-13 and every test here failed on the pull.
-    private readonly MinioContainer _container = new MinioBuilder(
-        "quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e")
-        .WithUsername("devbuddy")
-        .WithPassword("devbuddy-test-only")
-        .Build();
+    private static readonly Lazy<Task<IFutureDockerImage>> Image = new(BuildImageAsync);
 
-    public string ServiceUrl => _container.GetConnectionString();
+    private MinioContainer? _container;
+
+    public string ServiceUrl => _container!.GetConnectionString();
 
     public static string AccessKey => "devbuddy";
 
     public static string SecretKey => "devbuddy-test-only";
 
-    public Task InitializeAsync() => _container.StartAsync();
+    public async Task InitializeAsync()
+    {
+        _container = new MinioBuilder(await Image.Value)
+            .WithUsername(AccessKey)
+            .WithPassword(SecretKey)
+            .Build();
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+        await _container.StartAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+        {
+            await _container.DisposeAsync();
+        }
+    }
+
+    private static async Task<IFutureDockerImage> BuildImageAsync()
+    {
+        IFutureDockerImage image = new ImageFromDockerfileBuilder()
+            .WithDockerfileDirectory(Path.Combine(RepositoryRoot(), "docker", "evidence"))
+            .WithDockerfile("Dockerfile")
+            .WithName("devbuddy-evidence-test:source")
+            .WithDeleteIfExists(false)
+            .Build();
+
+        await image.CreateAsync();
+        return image;
+    }
+
+    private static string RepositoryRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+
+        while (directory is not null && !directory.EnumerateFiles("DevBuddy.slnx").Any())
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName
+            ?? throw new InvalidOperationException("The repository root (DevBuddy.slnx) was not found.");
+    }
 }
 
 /// <summary>
