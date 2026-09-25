@@ -1,11 +1,12 @@
 # Project Decisions
 
-## Confirmed Preparing v1.7.0 — 2026-09-25
+## Confirmed Cutting v1.7.0 — 2026-09-25
 
-The owner asked for `v1.7.0` to be prepared. It comes **before A2 and B1–B3**, which the approved
-order of Phase 14 put ahead of it; those stay open and do not ride this release. What `v1.7.0`
-carries, and how it is checked, is proposed under *14.7* in `docs/plan-phase-14.md`. It is not
-decided until the owner confirms it, and **nothing is tagged or published before that**.
+The owner asked for `v1.7.0` to be prepared, and on the same day approved it **as proposed** under
+*14.7* in `docs/plan-phase-14.md`. That section is the decision: what it carries, a minor version
+with no migration, plugin 1.7.0, the checklist from `tools/release/`, the new checks, the release
+notes, and the devbox afterwards. It comes **before A2 and B1–B3**, which the approved order of
+Phase 14 put ahead of it; those stay open and do not ride this release.
 
 ## Confirmed MinIO Built from Source, and the Devbox's Query Instruction — 2026-09-25
 

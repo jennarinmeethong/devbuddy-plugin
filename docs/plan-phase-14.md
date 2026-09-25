@@ -307,8 +307,7 @@ client to fix).** 2026-09-24. `clickUntilSent` stays.
 ---
 
 ## 14.7 — Cutting v1.7.0
-**Status: PROPOSED (2026-09-25).** The owner asked for it to be prepared (`info.md`). Everything
-below waits on the owner's confirmation, and nothing is tagged before it.
+**Status: IN PROGRESS.** Proposed on 2026-09-25 and approved as proposed the same day (`info.md`).
 
 - **What it carries since `v1.6.0`:**
   - **C1**, the optional query instruction (`DEVBUDDY_EMBEDDING_QUERY_INSTRUCTION`), empty by
