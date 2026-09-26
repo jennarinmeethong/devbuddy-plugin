@@ -53,6 +53,24 @@ be a certificate. Put a reverse proxy in front — Caddy, nginx, whatever you al
 that hold it. Both application ports are bound to loopback specifically so that the proxy is the
 only way in.
 
+**With no domain, an internal CA works.** The devbox has run this way since 2026-09-26: Caddy in
+a Compose project of its own beside the stack, on the stack's network, proxying to `api:8080`, with
+`tls internal` for an IP address and each device trusting Caddy's root once. Three things cost
+time there:
+
+- **A client that connects to an IP address sends no SNI**, browsers included. Without
+  `default_sni <address>` in the global options, Caddy has no certificate to choose and ends the
+  handshake with an internal error alert, while `openssl s_client`, which sends one anyway, works.
+- **The official Caddy image's binary carries the file capability `cap_net_bind_service`.** With
+  `cap_drop: [ALL]` and `no-new-privileges`, the kernel refuses to exec it ("operation not
+  permitted"), even on unprivileged ports. Add that one capability back.
+- **The root lives in Caddy's data directory.** Losing it means every device trusts a new one, so
+  back that directory up with the host.
+
+**Behind a proxy, the rate limits see the proxy's address.** The API does not read
+`X-Forwarded-For`, so every signed-out caller shares one sign-in limit. On an installation with a
+handful of people that is tolerable; raise `RateLimiting:AuthPermitLimit` if it is not.
+
 **The database and the object store publish no ports at all.** They are reachable on the internal
 network and nowhere else. If you need a `psql` session, run it inside the network:
 
@@ -325,8 +343,9 @@ Configurable, with defaults that suit a self-hosted installation:
 | `Analysis:Timeout` | 60 s | One analysis (SB-22). |
 | `Analysis:MaxConcurrentAnalyses` | 4 | Analyses at once, process-wide. Over that, callers wait `Analysis:QueueTimeout` and are then told the system is busy. |
 
-Raise the request limit if a reverse proxy collapses many people onto one address — the limiter
-sees what the proxy tells it.
+Raise the request limit if a reverse proxy collapses many people onto one address. The limiter
+sees the proxy's own address, not what the proxy tells it: the API reads no `X-Forwarded-For`.
+Until 2026-09-26 this line said the opposite.
 
 ## Health
 

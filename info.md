@@ -1,5 +1,25 @@
 # Project Decisions
 
+## Confirmed HTTPS for the Devbox Through an Internal CA and Caddy in LXC 100 — 2026-09-26
+
+The owner answered B1 of `docs/plan-phase-14.md`: "no domain, use an internal CA, install Caddy
+in LXC 100". The rule set in `samples/` (HomeHub) says the same for a name with no DNS API: an
+internal CA and a trusted root, not a certificate that pretends.
+
+- **Caddy 2.11.4, pinned by digest, as a Compose project of its own** in
+  `/data/devbuddy-tools/gateway`, not in the product's stack, whose images have no shell on
+  purpose. It is not a system package, because `jm` has no root. It runs as uid 1000, read-only,
+  with one capability (`NET_BIND_SERVICE`, which the image's binary needs in order to be executed at
+  all), and joins `devbuddy_internal` to reach `api:8080`.
+- **`https://192.168.1.160` is the only way the LAN reaches the API and web UI.** Port 80
+  redirects to it. The API is published on `127.0.0.1:5010` only.
+- **The CA is Caddy's own** (`DevBuddy devbox CA`, an ECC root valid until 2036), separate from
+  the HomeHub gateway's on the same LXC. Each device that uses the UI trusts its root once. That is
+  the owner's to do, not Claude's, because it changes a trust store.
+- **HSTS is not sent yet.** It comes once every device that uses the UI trusts the root.
+- **Accepted:** behind the proxy every signed-out caller shares one sign-in rate limit, because the
+  API reads no forwarded address. On this box that means the owner.
+
 ## Confirmed Gitleaks, Trivy, CodeQL, Actions Pinned by Commit, and Dependabot — 2026-09-26
 
 The owner approved the first recommendation from comparing this project with the HomeHub rule set
