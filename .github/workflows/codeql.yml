@@ -1,0 +1,55 @@
+name: CodeQL
+
+# Static analysis of the source, approved 2026-09-26 (`info.md`).
+#
+# Three languages: the C# of the core and the hosts, the TypeScript of the web client and the
+# end-to-end suite, and the workflows themselves, since a workflow is code that runs with this
+# repository's token. Findings go to the repository's code scanning alerts, and a pull request
+# shows the ones it introduces.
+#
+# C# is analysed without a build. A manual build would analyse exactly what CI compiles, but it
+# would tie this job to the SDK pin and double the build; buildless extraction reads the same
+# sources and needs neither.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    # Weekly, Monday morning UTC, beside the supply-chain scan: a new query finds old code.
+    - cron: "30 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, javascript-typescript, actions]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          # The extended suite: the default set plus the security queries of lower precision.
+          queries: security-extended
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          category: /language:${{ matrix.language }}

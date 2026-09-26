@@ -1,5 +1,26 @@
 # Project Decisions
 
+## Confirmed Gitleaks, Trivy, CodeQL, Actions Pinned by Commit, and Dependabot — 2026-09-26
+
+The owner approved the first recommendation from comparing this project with the HomeHub rule set
+the owner placed in `samples/`: "Gitleaks Trivy CodeQL pin SHA Dependabot". It is item C5 of
+`docs/plan-phase-14.md`. What was decided, where the owner named nothing more precise:
+
+- **Gitleaks** scans the whole history on every push, pull request and the weekly schedule, and
+  any finding fails the run. `.gitleaksignore` accepts a finding by exact fingerprint only.
+- **Trivy** scans the repository and the four built images. **The gate is HIGH and CRITICAL with a
+  fix available.** Medium and below are reported in the log and do not fail the run. That is
+  looser than HomeHub, which blocks Medium by default; the owner may tighten it. An accepted
+  finding goes in `.trivyignore.yaml` with a statement and an expiry, and renewing one is a
+  decision recorded here.
+- **`bun audit` fails the run at HIGH.** It had been a warning.
+- **CodeQL** runs `security-extended` for C#, TypeScript and the workflows. Its alerts go to the
+  repository's code scanning page. A pull request shows the ones it introduces.
+- **Every action is pinned by commit**, and both scanner images by digest. They run as containers,
+  not as third-party actions.
+- **Dependabot** opens grouped weekly pull requests for actions, NuGet, Bun and base images. It
+  merges nothing. MinIO's commit pins are left to a decision, as on 2026-09-25.
+
 ## Confirmed Cutting v1.8.0, and devrelease for the Checklist — 2026-09-26
 
 *(Done the same day. It was published at 14:20 UTC once the checklist passed on devrelease and

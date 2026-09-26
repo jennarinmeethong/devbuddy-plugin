@@ -1,0 +1,22 @@
+# Trivy findings accepted on purpose, approved 2026-09-26 (`info.md`).
+#
+# The rule, from the project's exception governance: every entry names one finding by ID, narrows
+# it to the paths it applies to where Trivy allows that, says why in `statement`, and expires.
+# Trivy stops honouring an entry after `expired_at`, so an expired acceptance fails the scan again
+# rather than lasting forever. `SupplyChainPolicyTests` fails the build if an entry lacks either.
+# Renewing one is a decision, recorded in `info.md`, not an edit to make the build pass.
+
+misconfigurations:
+  - id: DS-0026
+    paths:
+      - docker/Dockerfile.api
+      - docker/Dockerfile.cli
+      - docker/Dockerfile.mcp
+      - docker/evidence/Dockerfile
+      - tests/e2e/Dockerfile
+    statement: >-
+      No HEALTHCHECK in the Dockerfile. The images are chiseled or scratch, with no shell or curl
+      for one to run, so docker/compose.yaml declares each health check where it can name the
+      binary: the API runs `DevBuddy.Api.dll --health-check`, the evidence store `mc ready local`.
+      The console runs one command and exits; the e2e image is a test runner.
+    expired_at: 2027-03-26

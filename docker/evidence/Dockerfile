@@ -20,9 +20,10 @@ FROM golang:1.24.2-bookworm@sha256:79390b5e5af9ee6e7b1173ee3eac7fadf6751a5452976
 # Static binaries, as upstream builds them, and the pinned Go only: never a downloaded toolchain.
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 
-WORKDIR /src
+# A directory per repository, entered with WORKDIR rather than `cd` inside a RUN (Trivy DS-0013).
+WORKDIR /src/minio
 
-RUN git init -q minio && cd minio \
+RUN git init -q \
     && git fetch -q --depth 1 https://github.com/minio/minio.git 0d7408fc9969caf07de6a8c3a84f9fbb10a6739e \
     && git checkout -q FETCH_HEAD \
     && go build -tags kqueue -trimpath \
@@ -30,7 +31,9 @@ RUN git init -q minio && cd minio \
        -o /out/usr/bin/minio
 
 # mc is what the health check runs: `mc ready local`.
-RUN git init -q mc && cd mc \
+WORKDIR /src/mc
+
+RUN git init -q \
     && git fetch -q --depth 1 https://github.com/minio/mc.git b00526b153a31b36767991a4f5ce2cced435ee8e \
     && git checkout -q FETCH_HEAD \
     && go build -tags kqueue -trimpath \

@@ -22,18 +22,78 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # The scanners run as containers pinned by digest, like every other image this repository pulls,
+  # rather than through third-party actions: an action tag can be moved, and Trivy's own were in
+  # 2026. Dependabot does not read these two lines; move them by hand, digest and tag together.
+  GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+  TRIVY_IMAGE: aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
 
 jobs:
+  # Approved 2026-09-26 (`info.md`). The product exists to keep credentials out of what a team
+  # records; this is the same rule for the repository that builds it. The whole history is scanned,
+  # not the change, because a secret removed in a later commit is still published in the earlier
+  # one. `.gitleaksignore` accepts a finding by its exact fingerprint only.
+  secrets:
+    name: Secrets in history
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # The workspace belongs to the runner's user and the container's is another, so git would
+      # refuse the repository as unsafe. Configured through the environment, for this run only.
+      - name: Scan with Gitleaks
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+            "$GITLEAKS_IMAGE" \
+            git /repo --gitleaks-ignore-path /repo/.gitleaksignore \
+            --redact --verbose --no-banner --exit-code 1
+
+  # Approved 2026-09-26 (`info.md`). Trivy over the repository: the dependencies it can read from
+  # the lockfiles, and the Dockerfiles and Compose files for misconfiguration. The gate is HIGH and
+  # CRITICAL with a fix available; everything is reported in the log below it. A finding is
+  # accepted only in `.trivyignore.yaml`, with a statement and an expiry.
+  repository:
+    name: Repository scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan with Trivy
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy"
+          trivy() {
+            docker run --rm \
+              -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo \
+              -v "$RUNNER_TEMP/trivy:/cache" \
+              "$TRIVY_IMAGE" --cache-dir /cache "$@"
+          }
+
+          # The report first, every severity, so a failing gate still leaves the whole picture.
+          trivy fs --scanners vuln,misconfig --ignorefile .trivyignore.yaml \
+            --exit-code 0 .
+
+          trivy fs --scanners vuln,misconfig --ignorefile .trivyignore.yaml \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --quiet .
+
+
   vulnerabilities:
     name: Vulnerable dependencies
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
@@ -59,11 +119,16 @@ jobs:
           curl -fsSL https://bun.sh/install | bash
           export PATH="$HOME/.bun/bin:$PATH"
           bun install --frozen-lockfile
-          bun audit || echo "::warning::bun audit reported findings; see the log."
+
+          # A gate since 2026-09-26 (`info.md`). It was a warning, and react-router carried seven
+          # HIGH advisories and Vite three under it until Trivy was added and said so. Moderate
+          # and below are still printed by the first run.
+          bun audit || true
+          bun audit --audit-level=high
 
       - name: Upload the report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vulnerable-packages
           path: vulnerable.txt
@@ -75,10 +140,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
@@ -100,7 +165,7 @@ jobs:
           done
 
       - name: Upload
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
           path: sbom/*.json
@@ -111,7 +176,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Built, not pushed. The point here is that the Dockerfiles still build; publishing images is
       # a release step and needs a registry and credentials this workflow deliberately has neither
@@ -139,3 +204,34 @@ jobs:
 
             echo "devbuddy-$image runs as $user"
           done
+
+      # Approved 2026-09-26 (`info.md`). What ships is the image, not the lockfile: the .NET
+      # packages are read from each host's deps.json, transitive ones included, the chiseled base
+      # from its package manifest, and MinIO and mc from the Go build information in the binaries.
+      # Same gate and same exceptions file as the repository scan.
+      - name: Scan the images with Trivy
+        run: |
+          mkdir -p "$RUNNER_TEMP/trivy"
+          trivy() {
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$GITHUB_WORKSPACE/.trivyignore.yaml:/policy/.trivyignore.yaml:ro" \
+              -v "$RUNNER_TEMP/trivy:/cache" \
+              "$TRIVY_IMAGE" --cache-dir /cache "$@"
+          }
+
+          failed=0
+          for image in api mcp cli evidence; do
+            echo "::group::devbuddy-$image"
+            trivy image --ignorefile /policy/.trivyignore.yaml --exit-code 0 "devbuddy-$image:ci"
+            echo "::endgroup::"
+
+            if ! trivy image --ignorefile /policy/.trivyignore.yaml \
+                --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --quiet \
+                "devbuddy-$image:ci"; then
+              echo "::error::devbuddy-$image has HIGH or CRITICAL findings with a fix available."
+              failed=1
+            fi
+          done
+
+          exit "$failed"
