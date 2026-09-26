@@ -66,7 +66,8 @@ runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run i
 `v1.8.0` from the tag's own Compose file (`v1.7.0` until 2026-09-26), with MCP on loopback on
 5011. **Since 2026-09-26 the LAN reaches the API and web UI only at `https://192.168.1.160:5010`**
 (Phase 14, B1), through a Caddy gateway with its own internal CA in
-`/data/devbuddy-tools/gateway`, outside the stack. Plain HTTP on that port is redirected. The API
+`/data/devbuddy-tools/gateway`, outside the stack. Plain HTTP on that port is redirected, and a public address is dropped: outside the LAN it is
+reached through WireGuard on UDP 8840 in LXC 102 (`tools/devbox/`, `info.md` 2026-09-27). The API
 is on loopback on 5010, a different address from the gateway's, so the two do not collide. **It was installed from clean, so nothing came across:** no records, no vector
 index, no Ollama, and no worker accounts or tokens. **Since 2026-09-26 it runs the embedding
 provider and both workers**, on the devbox's old terms (`info.md`, same day): Ollama serving

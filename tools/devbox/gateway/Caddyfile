@@ -1,0 +1,54 @@
+# HTTPS for the DevBuddy devbox (info.md, 2026-09-26, Phase 14 B1).
+#
+# No domain, so the certificate comes from Caddy's own internal CA. Each device that opens the web
+# UI trusts its root once: /data/devbuddy-tools/gateway/data/caddy/pki/authorities/local/root.crt.
+# The root lasts ten years; the intermediate and the site certificate renew themselves.
+#
+# Separate from the HomeHub gateway on 5030, and from its CA.
+{
+	# No admin endpoint: a change is a container restart.
+	admin off
+	# Listens unprivileged inside the container; Compose maps 192.168.1.160:5010 onto 8443.
+	http_port 8080
+	https_port 8443
+	auto_https disable_redirects
+	# A client connecting to an IP address sends no SNI (RFC 6066), browsers included, and without
+	# this Caddy cannot choose a certificate and ends the handshake with an internal error alert.
+	default_sni 192.168.1.160
+	# Never try to install the root into this container's trust store.
+	skip_install_trust
+	# One port, 5010, since 2026-09-26 (the owner keeps 5030 for HomeHub). A plain-HTTP request on
+	# it is answered with a redirect to HTTPS on the same port instead of a TLS error, so an old
+	# http://192.168.1.160:5010 bookmark still lands.
+	servers {
+		listener_wrappers {
+			http_redirect
+			tls
+		}
+	}
+	pki {
+		ca local {
+			name "DevBuddy devbox CA"
+		}
+	}
+}
+
+https://192.168.1.160 {
+	tls internal
+	# LAN and VPN only (info.md, 2026-09-27). The router forwarded TCP 8840 here for a while; the
+	# owner chose WireGuard instead. Anything from a public address is dropped without an answer,
+	# whatever the router does. VPN peers arrive masqueraded as a LAN address.
+	@public not remote_ip private_ranges
+	abort @public
+	# Access log to stderr: remote address, method, path, status. Caddy redacts Authorization and
+	# Cookie headers unless told otherwise.
+	log {
+		output stderr
+	}
+	# Caddy sends X-Forwarded-Proto: https, which is what turns COOP and COEP on (SecurityHeaders).
+	reverse_proxy api:8080
+	# HSTS since 2026-09-26, once every device that uses the UI trusted the root (samples/docs/10).
+	# A browser does not record HSTS for an IP address (RFC 6797, 8.1.1), so this takes effect only
+	# if the devbox is later reached by a name. No includeSubDomains: an IP has none.
+	header Strict-Transport-Security "max-age=31536000"
+}

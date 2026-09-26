@@ -1,5 +1,23 @@
 # Project Decisions
 
+## Confirmed WireGuard on UDP 8840 for Reaching the Devbox from Outside — 2026-09-27
+
+On 2026-09-26 the owner's router forwarded TCP 8840 on `jennarin.thddns.net` to the devbox's
+gateway, which made DevBuddy reachable from the internet. Sign-in was open to anyone, and the
+shared rate limit let anybody lock the administrator's account. Asked to choose, the owner chose a
+VPN, as the HomeHub rule set in `samples/` prescribes.
+
+- **WireGuard on UDP 8840**, in an LXC of its own (102, `192.168.1.162`), not in LXC 100. A peer
+  reaches `192.168.1.160:5010/tcp` and nothing else, and each device has its own key.
+  `tools/devbox/vpn/devbuddy-vpn.sh` sets it up. The owner creates the LXC and changes the router,
+  because both need root on hardware Claude does not administer.
+- **The gateway drops every request from a public address** (`abort` unless `private_ranges`),
+  whatever the router forwards. Done on 2026-09-27, before the router changes. VPN peers arrive
+  masqueraded as the LXC's LAN address.
+- **TCP 8840 is to be removed from the router.** Until then, TLS handshakes and plain-HTTP
+  redirects still answer there, and nothing past them does.
+- **TCP 8841 to the HomeHub gateway is intended** and left as it is (owner, same day).
+
 ## Confirmed the Devbox's Web Port 5010, MinIO's Last Release, and Planning Its Replacement — 2026-09-26
 
 - **The devbox's HTTPS gateway listens on `192.168.1.160:5010`**, not 443. The owner keeps 5030
