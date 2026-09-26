@@ -133,6 +133,9 @@ internal static class AuthenticationEndpoints
             // With no SMTP configured, IEmailSender's fallback logs this instead — the same "an
             // operator completes recovery by hand" behaviour this always had, just fixed: the
             // token used to be described as written to the log without actually being in it.
+            // Neither sender throws when delivery fails, and that is what keeps this answer the
+            // same for an address with an account and one without: until 2026-09-26 a broken
+            // mail server made it 500 for the first and 202 for the second.
             await email.SendAsync(
                 new EmailMessage(
                     request.Email,

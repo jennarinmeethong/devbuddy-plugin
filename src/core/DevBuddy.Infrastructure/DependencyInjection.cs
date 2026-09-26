@@ -303,7 +303,7 @@ public static class DependencyInjection
             IOptions<EmailOptions> options = provider.GetRequiredService<IOptions<EmailOptions>>();
 
             return options.Value.Provider == EmailProvider.Smtp
-                ? new SmtpEmailSender(options)
+                ? new SmtpEmailSender(options, provider.GetRequiredService<ILogger<SmtpEmailSender>>())
                 : new LogEmailSender(
                     provider.GetRequiredService<ILogger<LogEmailSender>>(), options);
         });

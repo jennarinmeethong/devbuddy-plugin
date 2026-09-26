@@ -124,6 +124,36 @@ public sealed class AuthenticationEndpointTests(ApiFixture fixture)
         Assert.Equal(HttpStatusCode.Accepted, unknown.StatusCode);
     }
 
+    /// <summary>
+    /// The same answer when the mail server cannot be reached. Until 2026-09-26 the send failure
+    /// escaped for an address with an account, which answered 500, while an unknown address still
+    /// answered 202: a broken mail server told anybody who asked which addresses had accounts.
+    /// </summary>
+    [Fact]
+    public async Task recovery_answers_the_same_way_when_the_mail_server_cannot_be_reached()
+    {
+        var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        int closedPort = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+
+        using WebApplicationFactory<ApiHost> unreachable = fixture.BuildWith(
+            ("Email:Provider", "Smtp"),
+            ("Email:Host", "127.0.0.1"),
+            ("Email:Port", closedPort.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+        using HttpClient client = unreachable.CreateClient();
+
+        using HttpResponseMessage known = await client.PostAsJsonAsync(
+            "/auth/recovery/begin", new { email = fixture.AdministratorEmail });
+
+        using HttpResponseMessage unknown = await client.PostAsJsonAsync(
+            "/auth/recovery/begin", new { email = $"nobody-{Guid.NewGuid():N}@example.test" });
+
+        Assert.Equal(HttpStatusCode.Accepted, known.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, unknown.StatusCode);
+    }
+
     [Fact]
     public async Task repeated_wrong_passwords_lock_the_account_out()
     {

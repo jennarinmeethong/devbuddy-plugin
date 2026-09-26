@@ -458,7 +458,15 @@ concept anywhere in this system.
 **Setup and recovery tokens are delivered by `IEmailSender`.** `EmailOptions.Provider` defaults to
 `Log`, which since Phase 12B records that a message could not be delivered and writes the token
 nowhere unless `Email:AllowTokensInLog` is set; see above. Setting `Provider` to `Smtp` (MailKit)
-delivers it for real, to the account's own address.
+delivers it for real, to the account's own address. **Neither sender throws when delivery fails**
+(2026-09-26). The SMTP sender logs the recipient, the subject and the server, never the body, and
+returns. Until then a broken mail server made account recovery answer 500 for an address with an
+account and 202 for one without, which told anybody who asked who had one. It also made
+`create_user_account` answer 500 after writing the account. Do not let a send failure reach a
+caller. Delivery still happens inside the request, so recovery takes longer for an address that
+has an account while SMTP works. That timing difference is known and not fixed. The SMTP sender
+speaks STARTTLS or nothing: there is no implicit-TLS mode for port 465, and `UseStartTls=false`
+sends the password in clear.
 
 **A release is a `v*` tag, and the workflow signs what it publishes.**
 `.github/workflows/release.yml` gates on the full suite, then builds every RID in
