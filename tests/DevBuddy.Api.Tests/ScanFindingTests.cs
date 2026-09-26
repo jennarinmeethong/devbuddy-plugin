@@ -28,8 +28,14 @@ public sealed class ScanFindingTests(ApiFixture fixture)
         "X-Content-Type-Options",
         "Referrer-Policy",
         "Permissions-Policy",
-        "Cross-Origin-Opener-Policy",
         "Cross-Origin-Resource-Policy",
+    ];
+
+    // Honoured only on a secure origin. Over plain HTTP Chromium logs an error for COOP on every
+    // page load, so neither is sent unless the request arrived over HTTPS.
+    private static readonly string[] SecureOriginOnlyHeaders =
+    [
+        "Cross-Origin-Opener-Policy",
         "Cross-Origin-Embedder-Policy",
     ];
 
@@ -118,13 +124,48 @@ public sealed class ScanFindingTests(ApiFixture fixture)
         AssertSecurityHeaders(response);
     }
 
-    internal static void AssertSecurityHeaders(HttpResponseMessage response)
+    [Fact]
+    public async Task the_secure_origin_policies_are_sent_when_a_proxy_says_the_page_came_over_https()
+    {
+        using HttpClient client = fixture.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+
+        using HttpResponseMessage response = await client.SendAsync(request);
+
+        AssertSecurityHeaders(response, overHttps: true);
+        Assert.Equal("same-origin", string.Join(",", response.Headers.GetValues("Cross-Origin-Opener-Policy")));
+        Assert.Equal("require-corp", string.Join(",", response.Headers.GetValues("Cross-Origin-Embedder-Policy")));
+    }
+
+    [Theory]
+    [InlineData("http")]
+    [InlineData("http, https")]
+    public async Task they_are_not_sent_when_the_browser_reached_the_page_over_plain_http(string forwarded)
+    {
+        using HttpClient client = fixture.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health");
+        request.Headers.Add("X-Forwarded-Proto", forwarded);
+
+        using HttpResponseMessage response = await client.SendAsync(request);
+
+        AssertSecurityHeaders(response);
+    }
+
+    internal static void AssertSecurityHeaders(HttpResponseMessage response, bool overHttps = false)
     {
         foreach (string name in ExpectedHeaders)
         {
             Assert.True(
                 response.Headers.Contains(name) || response.Content.Headers.Contains(name),
                 $"{name} is missing from {response.RequestMessage?.RequestUri}");
+        }
+
+        foreach (string name in SecureOriginOnlyHeaders)
+        {
+            Assert.True(
+                response.Headers.Contains(name) == overHttps,
+                $"{name} was {(overHttps ? "missing from" : "sent over plain HTTP by")} {response.RequestMessage?.RequestUri}");
         }
 
         string policy = string.Join(";", response.Headers.GetValues("Content-Security-Policy"));

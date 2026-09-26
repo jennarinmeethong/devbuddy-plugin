@@ -634,6 +634,8 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   one stylesheet, no inline code. A client change that needs more, such as an inline style
   element or a font from another host, has to change the policy too, and the e2e suite fails on
   any violation the browser reports. There is no HSTS, because that belongs to the reverse proxy.
+  COOP and COEP are sent only when the page arrived over HTTPS, directly or as `X-Forwarded-Proto`
+  says: over plain HTTP a browser ignores both, and Chromium logs an error for COOP on every page.
 - **Warnings are errors.** Fix them rather than suppressing them.
 - **AI access is denied by default per project.** Nothing reaches the MCP tool surface unless it is
   added to the allow-list on purpose.

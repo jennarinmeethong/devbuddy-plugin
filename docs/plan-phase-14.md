@@ -321,7 +321,9 @@ first run's findings wait on triage with the owner.
   - A duplicate work item key answers 409 with the key in the reason. The repository translates the
     unique-index violation and detaches the row, so the audit entry for the attempt is written.
   - Every answer from the API host carries a content security policy, `frame-ancestors 'none'`,
-    `X-Frame-Options`, `nosniff`, a referrer policy, a permissions policy, and COOP, CORP and COEP.
+    `X-Frame-Options`, `nosniff`, a referrer policy, a permissions policy and CORP. COOP and COEP are
+    sent only when the page arrived over HTTPS, because over plain HTTP Chromium logs an error for
+    COOP on every page; the e2e suite found that.
   - The e2e run keeps the servers' logs from before its restore stage.
 - **Exit:** the first findings are triaged with the owner, and the accepted ones are written into a
   rules file, so that a new finding at the level the owner chooses fails a run.

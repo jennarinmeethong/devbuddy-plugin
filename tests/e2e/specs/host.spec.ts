@@ -111,7 +111,10 @@ test("the client and the API answer with the security headers", async () => {
       expect(headers["content-security-policy"], path).toContain("frame-ancestors 'none'");
       expect(headers["x-frame-options"], path).toBe("DENY");
       expect(headers["x-content-type-options"], path).toBe("nosniff");
-      expect(headers["cross-origin-opener-policy"], path).toBe("same-origin");
+      expect(headers["cross-origin-resource-policy"], path).toBe("same-origin");
+      // This stack is plain HTTP, where Chromium ignores COOP with a console error on every page,
+      // so it is sent only when the page arrived over HTTPS.
+      expect(headers["cross-origin-opener-policy"], path).toBeUndefined();
     }
   } finally {
     await http.dispose();
