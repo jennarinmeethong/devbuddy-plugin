@@ -2,6 +2,9 @@
 
 ## Confirmed Cutting v1.8.0, and devrelease for the Checklist — 2026-09-26
 
+*(Done the same day. It was published at 14:20 UTC once the checklist passed on devrelease and
+arm64, and the devbox moved onto the tag with plugin 1.8.0.)*
+
 The owner asked for `v1.8.0` to be released. *14.9* in `docs/plan-phase-14.md` says what it carries,
 the checks it adds, and what its notes must say. It is a minor version with no migration, and
 plugin 1.8.0. It comes before A2 and B1–B3, which stay open.

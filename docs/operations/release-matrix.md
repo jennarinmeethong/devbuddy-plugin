@@ -266,6 +266,29 @@ open over MCP stdio. **No manual step was needed.**
 | Records, audit, plugins | The published record and its history are identical. The draft is refused without a revision number, and read as revision 1. All eleven entries are present. The machine token answered identically over MCP stdio. |
 | `scope-report`, users, errors | Exit 0. The API, MCP server and retention ran as uid 1654, the database as 70, and the evidence store as 1000. The API logged no error lines. |
 
+### After the tag
+
+`v1.8.0` was tagged at `2317ac4` once CI passed there. Release run 36247214986 passed every job. It
+left a draft with seven archives, `SHA256SUMS` and three SBOMs. The downloads were approved with the
+release. Every script ran from a clone of the tagged commit.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match.** |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives**, checked against the release workflow, `refs/tags/v1.8.0` and the source commit. **All three images**, with their CycloneDX SBOM attestations. A wrong-owner control was refused. Both architectures are in every image manifest. |
+| Published images on amd64 | `post-images.sh`, devrelease | **29 of 29.** Twenty AI operations. |
+| Published images on arm64 | `post-images.sh`, the Ubuntu arm64 guest | **29 of 29.** The twenty names are identical to amd64's. |
+| `linux-x64`, `linux-musl-x64` | `smoke.sh`, devrelease, in `ubuntu:24.04` and `alpine:3` | **Pass.** |
+| `linux-arm64` | `smoke.sh`, natively in the Ubuntu arm64 guest | **Pass.** |
+| `linux-musl-arm64` | `smoke.sh`, in `alpine:3` in that guest | **Pass.** |
+| `osx-arm64` | `smoke.sh`, natively on the Mac mini (Apple M4) | **Pass.** |
+| `win-arm64` client | `client-smoke.ps1`, the Windows on ARM VMware guest | **Pass.** ARM64 PE on both executables. The console and `DevBuddy.McpServer --stdio` list the same twenty names. `--every 24` and `migrate` with no connection string exit 2. Standard output carried only JSON-RPC, and the server exited 0 when its input closed. |
+| `win-x64` | `client-smoke.ps1`, natively on JMPC (Windows 11 x64) | **Pass**, every row as for `win-arm64`, with an x64 PE. |
+
+**Published on 2026-09-26 at 14:20 UTC**, as Latest, at the owner's instruction. The devbox moved
+onto the tag afterwards (`docs/plan-phase-14.md`). The throwaway stacks on devrelease and the arm64
+guest were removed.
+
 ## What was verified for v1.7.0
 
 **Checked on 2026-09-25 before the tag**, against `f76c6c0` on jmhp and `f8c6d73` on arm64. The

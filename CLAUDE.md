@@ -46,17 +46,25 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.7.0` is the current release**, published 2026-09-25 from `b126c27` at the owner's
+**`v1.8.0` is the current release**, published 2026-09-26 from `2317ac4` at the owner's
+instruction. It carries C4's fixes (a NUL in text is 400, a duplicate work item key 409, security
+headers on every answer), the email fix, and the host ports from 5010. An installation behind a
+reverse proxy has to point it at 5010. It adds no migration, and nobody signs in again. Its
+checklist ran on devrelease, LXC 101 on the Proxmox host, which replaced jmhp for the amd64 rows,
+and in the Ubuntu arm64 guest; `docs/operations/release-matrix.md` has it. The devbox runs the tag,
+with plugin 1.8.0.
+
+**`v1.7.0` was the release before it**, published 2026-09-25 from `b126c27` at the owner's
 approval. It builds MinIO from source, and adds the optional query instruction (C1) and
 `tools/release/`. It adds no migration, and nobody signs in again. It is the first release checked
 by `tools/release/`, and its checklist is in `docs/operations/release-matrix.md`. The devbox ran
 that tag, with Qwen3's published query instruction, until the owner reinstalled that machine the
-same day. The tag now runs in an LXC there, below.
+same day. That tag ran in an LXC there, below, until `v1.8.0`.
 
 **The devbox is an LXC since 2026-09-25.** The owner reinstalled jmhp as Proxmox, and DevBuddy now
 runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run inside. It is
-`v1.7.0` from the tag's own Compose file, with the API and web UI on the LAN over plain HTTP and
-MCP on loopback. **It was installed from clean, so nothing came across:** no records, no vector
+`v1.8.0` from the tag's own Compose file (`v1.7.0` until 2026-09-26), with the API and web UI on
+the LAN over plain HTTP on 5010 and MCP on loopback on 5011. **It was installed from clean, so nothing came across:** no records, no vector
 index, no Ollama, and no worker accounts or tokens. **Since 2026-09-26 it runs the embedding
 provider and both workers**, on the devbox's old terms (`info.md`, same day): Ollama serving
 `qwen3-embedding:0.6b` inside the stack, pgvector, Qwen3's query instruction, and each worker as an
