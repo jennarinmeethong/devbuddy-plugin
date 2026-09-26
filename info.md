@@ -16,7 +16,9 @@ internal CA and a trusted root, not a certificate that pretends.
 - **The CA is Caddy's own** (`DevBuddy devbox CA`, an ECC root valid until 2036), separate from
   the HomeHub gateway's on the same LXC. Each device that uses the UI trusts its root once. That is
   the owner's to do, not Claude's, because it changes a trust store.
-- **HSTS is not sent yet.** It comes once every device that uses the UI trusts the root.
+- **HSTS is sent since the same day** (`max-age=31536000`), once the owner had trusted the root on
+  every device: Windows, the Mac mini, and the Ubuntu arm64 guest. A browser does not record HSTS
+  for an IP address, so it takes effect only if the devbox is later given a name.
 - **Accepted:** behind the proxy every signed-out caller shares one sign-in rate limit, because the
   API reads no forwarded address. On this box that means the owner.
 

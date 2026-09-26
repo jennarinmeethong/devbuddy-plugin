@@ -64,6 +64,8 @@ time there:
 - **The official Caddy image's binary carries the file capability `cap_net_bind_service`.** With
   `cap_drop: [ALL]` and `no-new-privileges`, the kernel refuses to exec it ("operation not
   permitted"), even on unprivileged ports. Add that one capability back.
+- **HSTS does nothing for an IP address.** A browser does not record it for one (RFC 6797,
+  8.1.1). It needs a name, which needs local DNS or a hosts entry on every device.
 - **The root lives in Caddy's data directory.** Losing it means every device trusts a new one, so
   back that directory up with the host.
 
