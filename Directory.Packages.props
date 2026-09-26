@@ -13,7 +13,7 @@
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
   </ItemGroup>
 
@@ -27,50 +27,50 @@
   <ItemGroup Label="Hosts (Phase 7)">
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
-    <PackageVersion Include="System.CommandLine" Version="2.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup Label="Identity (Phase 4)">
     <!-- The password hasher only. info.md keeps the product on its own account system, and the
          full ASP.NET Core Identity schema would replace tables we designed on purpose. -->
-    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
   </ItemGroup>
 
   <ItemGroup Label="Evidence storage (Phase 3)">
     <!-- S3-compatible client. MinIO is the default evidence store (ADR-0004); the same
          client works against any S3-compatible service without a code change. -->
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.4" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.103.4" />
   </ItemGroup>
 
   <ItemGroup Label="Hosting glue">
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.12" />
     <!-- AddHttpClient, for the GitHub API adapter (ADR-0010) — the one outbound HTTP call this
          system makes, and every request through it still goes through UrlGuard first (SB-03). -->
-    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup Label="Integration testing (Phase 3)">
     <!-- Real PostgreSQL, per info.md. No SQLite substitute: it would not exercise the
          isolation and full-text behaviour that matters most. -->
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <!-- MinIO is the default evidence store, so the default path is what gets tested. Covering
          only the filesystem fallback would prove the adapter we do not ship. -->
-    <PackageVersion Include="Testcontainers.Minio" Version="4.14.0" />
+    <PackageVersion Include="Testcontainers.Minio" Version="4.15.0" />
   </ItemGroup>
 
   <ItemGroup Label="Email delivery">
     <!-- SMTP only, and MailKit rather than the BCL's own SmtpClient: Microsoft has marked that
          one obsolete for new development, and this is exactly new development. -->
-    <PackageVersion Include="MailKit" Version="4.17.0" />
+    <PackageVersion Include="MailKit" Version="4.18.0" />
   </ItemGroup>
 
   <ItemGroup Label="Observability">
@@ -78,11 +78,11 @@
          Meter from the base library, written in DevBuddy.Application, which keeps that project's
          "Domain only, no packages" shape intact. Nothing here is on by default: an installation
          with no OTLP endpoint configured registers none of it. -->
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
   </ItemGroup>
 
   <ItemGroup Label="Logging">
@@ -91,7 +91,7 @@
          Infrastructure to the console, whose image is built on the smaller runtime base. The same
          trap the OpenTelemetry ASP.NET Core instrumentation fell into. -->
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="9.0.0" />
-    <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 
