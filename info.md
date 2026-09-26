@@ -14,8 +14,8 @@ VPN, as the HomeHub rule set in `samples/` prescribes.
 - **The gateway drops every request from a public address** (`abort` unless `private_ranges`),
   whatever the router forwards. Done on 2026-09-27, before the router changes. VPN peers arrive
   masqueraded as the LXC's LAN address.
-- **TCP 8840 is to be removed from the router.** Until then, TLS handshakes and plain-HTTP
-  redirects still answer there, and nothing past them does.
+- **TCP 8840 is removed from the router** (same day). UDP 8840 goes to LXC 102, and the first
+  device, `android`, connects through it.
 - **TCP 8841 to the HomeHub gateway is intended** and left as it is (owner, same day).
 
 ## Confirmed the Devbox's Web Port 5010, MinIO's Last Release, and Planning Its Replacement — 2026-09-26
