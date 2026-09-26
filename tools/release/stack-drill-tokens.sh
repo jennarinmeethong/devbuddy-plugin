@@ -388,6 +388,50 @@ evidence_built_from_source() {
   expect "  it holds two binaries and nothing else in /usr/bin" "$(docker create "$image" > "$D/evidence-cid" && docker export "$(cat "$D/evidence-cid")" | tar -t | grep -E '^usr/bin/.' | sort | tr '\n' ' '; docker rm "$(cat "$D/evidence-cid")" > /dev/null)" "usr/bin/mc usr/bin/minio "
 }
 
+# v1.8.0 (Phase 14, C4): a NUL in text is refused before PostgreSQL sees it, and every answer
+# carries the security headers, with COOP only when the page arrived over HTTPS.
+nul_and_headers() {
+  note "=== NUL refused, and the security headers (v1.8.0)"
+  local h
+  expect "a NUL in the recovery address is refused" \
+    "$(code -X POST "$API/auth/recovery/begin" -H 'Content-Type: application/json' -d '{"email":"a\u0000b@example.com"}')" 400
+  h=$(curl -s -D - -o /dev/null "$API/")
+  expect "  the client carries a CSP forbidding framing" "$(grep -ci "^content-security-policy:.*frame-ancestors 'none'" <<< "$h")" 1
+  expect "  and nosniff" "$(grep -ci '^x-content-type-options: nosniff' <<< "$h")" 1
+  expect "  and no COOP over plain HTTP" "$(grep -ci '^cross-origin-opener-policy:' <<< "$h")" 0
+  expect "  COOP when a proxy says HTTPS" \
+    "$(curl -s -D - -o /dev/null -H 'X-Forwarded-Proto: https' "$API/" | grep -ci '^cross-origin-opener-policy: same-origin')" 1
+}
+
+# v1.8.0: a mail server that fails is logged and never thrown, so account recovery answers the same
+# for an address with an account and one without.
+email_failure_not_thrown() {
+  note "=== a failing mail server (v1.8.0)"
+  local since nobody
+  nobody="nobody-$(cat /proc/sys/kernel/random/uuid)@example.com"
+  DEVBUDDY_EMAIL_PROVIDER=Smtp DEVBUDDY_SMTP_HOST=127.0.0.1 DEVBUDDY_SMTP_PORT=1 \
+    "${C[@]}" up -d --no-deps api > "$T/recreate-smtp.log" 2>&1
+  wait_healthy "$P-api-1"
+  since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  expect "recovery for the account, mail server refusing" "$(request_recovery)" 202
+  expect "recovery for an address with no account" \
+    "$(code -X POST "$API/auth/recovery/begin" -H 'Content-Type: application/json' -d "$(jq -nc --arg e "$nobody" '{email:$e}')")" 202
+  sleep 3
+  docker logs --since "$since" "$P-api-1" > "$T/smtp-stdout.log" 2>&1
+  expect "  the failure is logged" "$(grep -c 'could not be delivered through SMTP server' "$T/smtp-stdout.log")" "[1-9][0-9]*"
+  expect "  and nothing was unhandled" "$(grep -ciE 'unhandled exception' "$T/smtp-stdout.log")" 0
+  "${C[@]}" up -d --no-deps api > "$T/recreate-default-2.log" 2>&1
+  wait_healthy "$P-api-1"
+}
+
+# v1.8.0: the host ports start at 5010 (info.md, 2026-09-26), still on loopback.
+default_ports() {
+  note "=== the default host ports (v1.8.0)"
+  expect "published by default" \
+    "$(docker compose -p "$P" -f docker/compose.yaml config --format json | jq -r '[.services[] | .ports[]? | "\(.host_ip):\(.published)->\(.target)"] | sort | join(" ")')" \
+    "127.0.0.1:5010->8080 127.0.0.1:5011->8080"
+}
+
 # The order matters: drill makes the workspace every later check works in.
 CHECKS=(
   compose_from_clean
@@ -403,6 +447,9 @@ CHECKS=(
   selfhosted_is_private
   query_instruction
   evidence_built_from_source
+  nul_and_headers
+  email_failure_not_thrown
+  default_ports
 )
 
 for check in "${CHECKS[@]}"; do

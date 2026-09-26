@@ -1,5 +1,18 @@
 # Project Decisions
 
+## Confirmed Cutting v1.8.0, and devrelease for the Checklist — 2026-09-26
+
+The owner asked for `v1.8.0` to be released. *14.9* in `docs/plan-phase-14.md` says what it carries,
+the checks it adds, and what its notes must say. It is a minor version with no migration, and
+plugin 1.8.0. It comes before A2 and B1–B3, which stay open.
+
+jmhp ran the amd64 rows of the checklist until it was reinstalled. The owner chose between four
+places for them, and chose **a new LXC on the Proxmox host**, LXC 101 `devrelease` at
+192.168.1.161, created by the owner as root. The other choices were the devbox itself, Docker
+Desktop on the Windows development machine, and CI alone, which would have left
+`stack-drill-tokens.sh` and `upgrade.sh` unrun. It holds throwaway stacks only, never an
+installation. The arm64 rows stay in the Ubuntu guest, which the owner starts.
+
 ## Confirmed Port Range from 5010 — 2026-09-26
 
 The owner asked for the project's ports to start at 5010, development included. What changes is

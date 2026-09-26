@@ -17,10 +17,10 @@ secret-looking name a literal value.
 
 | Script | When | Where | Arguments |
 | --- | --- | --- | --- |
-| `setup-and-suite.sh` | Before the tag | jmhp, Linux x64 with Docker and no SDK | `VERSION COMMIT` |
-| `stack-drill-tokens.sh` | Before the tag, after the one above | jmhp | `VERSION` |
-| `upgrade.sh` | Before the tag | jmhp for amd64; the Ubuntu arm64 guest for arm64 | `VERSION PREVIOUS COMMIT` |
-| `post-images.sh` | After the release workflow pushes the images | jmhp for amd64; the arm64 guest or the Mac mini for arm64 | `VERSION WORKDIR [DATABASE_IMAGE] [HELPER_IMAGE]` |
+| `setup-and-suite.sh` | Before the tag | devrelease, Linux x64 with Docker and no SDK | `VERSION COMMIT` |
+| `stack-drill-tokens.sh` | Before the tag, after the one above | devrelease | `VERSION` |
+| `upgrade.sh` | Before the tag | devrelease for amd64; the Ubuntu arm64 guest for arm64 | `VERSION PREVIOUS COMMIT` |
+| `post-images.sh` | After the release workflow pushes the images | devrelease for amd64; the arm64 guest or the Mac mini for arm64 | `VERSION WORKDIR [DATABASE_IMAGE] [HELPER_IMAGE]` |
 | `smoke.sh` | After the tag, once per archive | Where the RID runs natively, or in a container with a third argument | `ARCHIVE EXPECTED [IMAGE]` |
 | `client-smoke.ps1` | After the tag | The Windows on ARM guest for `win-arm64`. It also runs against `win-x64`. | `-Archive -Expected -Work` |
 | `stale-sessions.sh` | After an upgrade of any installation | The installation's own host | `[COMPOSE_PROJECT]` |
@@ -55,12 +55,17 @@ so it is the one script meant for an installation's own stack.
 Checked against a published archive, "identical" means the same names in the same order as the
 published `devbuddy-cli` image prints.
 
+**devrelease** is LXC 101 on the Proxmox host, `jm@192.168.1.161` (`ssh devrelease`), since
+2026-09-26. It replaced jmhp, which ran these rows until the owner reinstalled it as that host. It
+is a Debian 13 unprivileged container with Docker, like the devbox beside it, and holds throwaway
+stacks only, never an installation.
+
 ## Settings
 
-| Variable | Default | On jmhp |
+| Variable | Default | On devrelease |
 | --- | --- | --- |
-| `DEVBUDDY_RELEASE_WORK` | `~/devbuddy-release` | `/data/devbuddy-cache/work`, because `/` is small there |
-| `DEVBUDDY_RELEASE_CACHE` | `$DEVBUDDY_RELEASE_WORK/cache` | `/data/devbuddy-cache`, to reuse its NuGet cache |
+| `DEVBUDDY_RELEASE_WORK` | `~/devbuddy-release` | the default |
+| `DEVBUDDY_RELEASE_CACHE` | `$DEVBUDDY_RELEASE_WORK/cache` | the default |
 | `DEVBUDDY_SDK_IMAGE` | `mcr.microsoft.com/dotnet/sdk:10.0` | |
 | `DEVBUDDY_REPOSITORY_URL` | this repository on GitHub | |
 | `DEVBUDDY_REGISTRY` | `ghcr.io/jennarinmeethong/devbuddy-plugin` | |
@@ -75,7 +80,6 @@ tagged, pushed to GitHub. The scripts are taken from that commit, so the checkli
 release's own.
 
 ```bash
-export DEVBUDDY_RELEASE_WORK=/data/devbuddy-cache/work DEVBUDDY_RELEASE_CACHE=/data/devbuddy-cache
 git clone -q https://github.com/jennarinmeethong/devbuddy-plugin.git /tmp/checklist
 git -C /tmp/checklist checkout -q --detach "$COMMIT"
 T=/tmp/checklist/tools/release
@@ -83,8 +87,8 @@ bash $T/setup-and-suite.sh 1.7.0 "$COMMIT"
 bash $T/stack-drill-tokens.sh 1.7.0
 bash $T/upgrade.sh 1.7.0 1.6.0 "$COMMIT"
 # after the release workflow has pushed the images:
-bash $T/post-images.sh 1.7.0 /data/devbuddy-cache/work/post170
-sh $T/smoke.sh devbuddy-linux-x64.tar.gz /data/devbuddy-cache/work/post170/results/ai-operations.txt ubuntu:24.04
+bash $T/post-images.sh 1.7.0 ~/devbuddy-release/post170
+sh $T/smoke.sh devbuddy-linux-x64.tar.gz ~/devbuddy-release/post170/results/ai-operations.txt ubuntu:24.04
 ```
 
 On the Mac mini over SSH, Docker Hub cannot be reached (see the release matrix). Give
@@ -92,7 +96,7 @@ On the Mac mini over SSH, Docker Hub cannot be reached (see the release matrix).
 `public.ecr.aws/docker/library/alpine:3`.
 
 Downloading a published archive onto a machine needs the owner's approval each time. So does
-running a script on any machine other than jmhp.
+running a script on any machine other than devrelease.
 
 ## Adding a check for a release
 

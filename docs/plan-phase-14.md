@@ -72,6 +72,7 @@ These come from `info.md`, `CLAUDE.md` and `AGENTS.md`, and nothing in this phas
 14.6  B items the owner approves               (B1 HTTPS, B2 signing, B3 hosted server)
 14.7  release v1.7.0, devbox to that tag
 14.8  C4 ZAP scan in CI, report-only         (asked for after 14.7, 2026-09-25)
+14.9  release v1.8.0, devbox to that tag     (asked for 2026-09-26)
 ```
 
 A1 comes first because every later release runs the checklist, and the next one would otherwise be
@@ -385,6 +386,45 @@ at 13:39 UTC, and the devbox runs the tag.
   - after an upgrade, restart assistant sessions, and `tools/release/stale-sessions.sh` lists the
     ones left on the old image;
   - nobody has to sign in again.
+
+## 14.9 — Cutting v1.8.0
+**Status: IN PROGRESS.** The owner asked for it on 2026-09-26 (`info.md`).
+
+- **What it carries since `v1.7.0`:**
+  - **C4**: `TextInput` refuses a NUL in any text with 400, a duplicate work item key answers 409,
+    and the API sends security headers on every answer, COOP and COEP only over HTTPS;
+  - **the email fix**: a mail server that fails is logged and never thrown, so recovery no longer
+    tells an address with an account from one without;
+  - **the host ports from 5010**: the API on 5010, MCP on 5011 and Grafana on 5012, each a variable
+    that sets only the port;
+  - in the source only: the ZAP scans in CI, the web suite in CI, and the dev ports.
+- **A minor version.** An installation behind a reverse proxy has to move it, so this is not a
+  patch. No migration, so the count stays at nine and nobody signs in again. The Claude plugin moves
+  to 1.8.0 with its content unchanged, to stay in step.
+- **`release.yml` is unchanged since `v1.4.0`**, so no throwaway prerelease tag is needed.
+- **The checklist runs from `tools/release/` at the release commit, on devrelease** (LXC 101 on the
+  Proxmox host) instead of jmhp, at the owner's choice:
+  - on devrelease: `setup-and-suite.sh`, `stack-drill-tokens.sh`, and `upgrade.sh` from `v1.7.0`;
+  - on arm64: `upgrade.sh` in the Ubuntu guest, which the owner starts;
+  - after the tag: `post-images.sh` on devrelease and on arm64, and `smoke.sh` or
+    `client-smoke.ps1` per archive.
+- **New checks** (`stack-drill-tokens.sh`): a NUL in the recovery address is 400; the client's
+  answer carries the CSP and `nosniff`, and COOP only when `X-Forwarded-Proto` says HTTPS; with the
+  SMTP server refusing, recovery answers 202 for an address with an account and one without, the
+  failure is logged, and nothing is unhandled; and the release's Compose file publishes
+  `127.0.0.1:5010` and `127.0.0.1:5011` by default.
+- **After publishing:** move the devbox onto the tag with a backup first. Its override already
+  publishes 5010 and 5011, so its address does not change. Record `stale-sessions.sh`'s count, and
+  install plugin 1.8.0.
+- **Its release notes must say what a caller will notice:**
+  - **the ports moved**: a reverse proxy, firewall rule or bookmark naming 8080, 8081 or 3000 stops
+    reaching the stack; move it, or set `DEVBUDDY_API_PORT=8080` and `DEVBUDDY_MCP_PORT=8081`;
+  - a proxy that sets its own `Content-Security-Policy` or `X-Frame-Options` now sends it twice,
+    and should drop its own;
+  - a NUL in any text is 400, and a duplicate work item key is 409 naming the key, where both were
+    500;
+  - recovery answers the same when SMTP fails, and the failure is in the API's log;
+  - no migration, nobody signs in again, and assistant sessions should be restarted.
 
 ## Exit criteria for Phase 14
 

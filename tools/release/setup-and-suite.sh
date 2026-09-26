@@ -7,7 +7,7 @@
 #
 #   setup-and-suite.sh VERSION COMMIT
 #
-# DEVBUDDY_RELEASE_WORK  where runs go (default ~/devbuddy-release). On jmhp: /data/devbuddy-cache/work.
+# DEVBUDDY_RELEASE_WORK  where runs go (default ~/devbuddy-release). On jmhp it was /data/devbuddy-cache/work; on devrelease, the default.
 # DEVBUDDY_RELEASE_CACHE NuGet and SDK home, kept between runs (default $DEVBUDDY_RELEASE_WORK/cache).
 #
 # Never points at an installation's own checkout. Creates $WORK/v$VERSION, and refuses to reuse it.
