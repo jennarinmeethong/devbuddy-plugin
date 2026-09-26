@@ -35,7 +35,18 @@ Written from `docs/operations/embedding-approval.md`.
   migration ran there with pgvector present, and backup `backup-20260926-053803-74bd1e66e57f41758`
   was restored into it: one account, the workspace, the project, its AI policy and the plugin's
   token. The old volume, `devbuddy_database`, is kept for rolling back.
-- **`embedding-check` output:** added once the workers' tokens are in place.
+- **`embedding-check` output,** run 2026-09-26 in the sweep's own service, exit 0:
+  ```
+  ok       provider       SelfHosted, model qwen3-embedding:0.6b, 1024 dimensions
+  ok       vector index   present (pgvector)
+  ok       worker token   valid; its owner holds Viewer
+  ok       budget         50 text(s) per pass
+  ```
+  Both tokens were written by the owner's run of a script that never printed them. Both workers
+  completed their first pass without a refusal. The project had nothing published, so nothing was
+  embedded, no record was stale, and no text reached the model. Before that, Ollama answered a
+  1024-dimension embedding inside the stack, and `search_similar_records` over the plugin answered
+  that nothing was indexed, not that no provider was configured.
 
 ## Confirmed OWASP ZAP in CI, report-only — 2026-09-25
 
