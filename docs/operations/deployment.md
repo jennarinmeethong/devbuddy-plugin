@@ -215,6 +215,29 @@ docker compose -f docker/compose.yaml up -d
 The second keeps the data in place. It was how the owner's test installation was moved on
 2026-09-13, after the first attempt restart-looped exactly as described.
 
+**The second leaves no vector index on an installation that migrated without pgvector.** The index
+migrations are conditional: on a database without the extension they skip their work, and are
+still recorded as applied. After a chown move, `migrate` finds nothing pending, the table is never
+created, and `embedding-check` reports the vector index as absent. For such an installation, which
+is any that ran `migrate` on `postgres:17-alpine`, take the first way: back up, give the database a
+fresh volume on the pgvector image, let `migrate` run every migration there, then restore.
+
+```bash
+docker compose run --rm --no-deps -T retention backup --workspace <workspace> --actor <administrator>
+# Point the database service at a new volume, for example in compose.override.yaml:
+#   database:
+#     volumes: !override
+#       - database_pgvector:/var/lib/postgresql/data
+docker compose up -d --wait database evidence
+docker compose run --rm --no-deps -T migrate
+docker compose run --rm --no-deps -T migrate restore --reference <reference>
+docker compose up -d
+```
+
+Accounts, passwords and machine tokens come back with the restore. Sessions do not, so everyone
+signs in once. The old volume is left as it was, which makes rolling back a matter of undoing the
+override and the image. The LXC devbox was moved this way on 2026-09-26.
+
 **Upgrading a stack from before the non-root evidence store takes one ownership change.** Until
 2026-09-14 MinIO ran as root and wrote its volume as root. The evidence service is now built from
 `docker/evidence/Dockerfile` and runs as uid 1000, so the new image cannot write to a volume the old

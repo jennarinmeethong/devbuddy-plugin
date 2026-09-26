@@ -54,7 +54,10 @@ same day. The tag now runs in an LXC there, below.
 runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run inside. It is
 `v1.7.0` from the tag's own Compose file, with the API and web UI on the LAN over plain HTTP and
 MCP on loopback. **It was installed from clean, so nothing came across:** no records, no vector
-index, no Ollama, and no worker accounts or tokens. It runs no embedding provider and no worker.
+index, no Ollama, and no worker accounts or tokens. **Since 2026-09-26 it runs the embedding
+provider and both workers**, on the devbox's old terms (`info.md`, same day): Ollama serving
+`qwen3-embedding:0.6b` inside the stack, pgvector, Qwen3's query instruction, and each worker as an
+account of its own with no password.
 The plugin reaches it the way it reached the old machine: SSH with a key restricted to one command,
 which starts the MCP server over stdio inside the stack, with the machine token kept on the server.
 The SDK-container wrapper the suites ran in on jmhp went with the reinstall; CI still runs them.
@@ -298,7 +301,10 @@ things about it are easy to get wrong.
   `create extension vector` fails inside `migrate`, which every deployment runs and both servers
   wait on, so a stack that never asked for embeddings would stop starting. `DEVBUDDY_DB_IMAGE`
   selects `pgvector/pgvector:pg17` for an installation that wants it; the default must never carry
-  pgvector and a test enforces that.
+  pgvector and a test enforces that. **An installation that migrated without pgvector has those
+  migrations recorded as applied,** so moving its existing volume to pgvector by chown leaves the
+  table uncreated for good. Restore a backup into a fresh volume instead, which runs every
+  migration with pgvector present. That is how the LXC devbox was moved on 2026-09-26.
 - **The table has no EF entity, so it has no global query filter.** The scope in every `where`
   clause is the only isolation it has. There is no port method that can be called without a
   `ProjectScope`, and the test that proves it seeds two projects with identical vectors so only the
@@ -390,8 +396,10 @@ no bounded scope, and `record-embedding-sweep` as a Viewer account of its own at
 From 2026-09-22 `stale-record-sweep` ran there too, as an account holding only `IndexMaintainer`, every 24h with `--stale-after 365d` (`info.md`). **That worker ran there from 2026-09-17**, on v1.3.0, as the
 owner's `test_worker` account with a token it minted. Its first pass with something to embed
 indexed one published test record, and `search_similar_records` found it over the plugin.
-**None of that survived the move to the LXC on 2026-09-25.** Whether the approval covers the LXC
-is for `info.md` to say, and until it does, turn neither the provider nor a worker on there.
+**None of that survived the move to the LXC on 2026-09-25**, and that approval did not carry over.
+**The owner approved the LXC on 2026-09-26** (`info.md`), on the same terms plus the stale-record
+sweep and Qwen3's query instruction. The two workers run as accounts of their own, with 365-day
+tokens and no password.
 
 **The console logs to standard error (2026-09-17).** With `Logging:File:Path` set it used to write
 every SQL statement to standard output ahead of a `run` result, so nothing could parse that output.

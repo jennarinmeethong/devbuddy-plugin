@@ -1,5 +1,42 @@
 # Project Decisions
 
+## Confirmed Embeddings and Both Workers on the LXC Devbox — 2026-09-26
+
+The owner approved them on 2026-09-26, on the terms the devbox had. This answers what `CLAUDE.md`
+left open after the move: the 2026-09-16 approval named the old machine and did not carry over.
+Written from `docs/operations/embedding-approval.md`.
+
+- **Approved:** the self-hosted embedding provider on the installation in LXC 100 on the Proxmox
+  host (192.168.1.160), reachable on the LAN only. It uses `qwen3-embedding:0.6b` (1024
+  dimensions), served by Ollama inside the stack: `ollama/ollama:0.34.4`, pinned by digest, with no
+  published port, uid 1000, read-only, and every capability dropped. The database is
+  `pgvector/pgvector:pg17`, pinned by digest.
+- **Egress:** none. No project text leaves the LXC.
+- **Data:** as on the devbox, real project data with no customer, production or personal data. No
+  bounded scope is approved, so SB-18 stays fully in force on the AI channel. *This line repeats the
+  devbox's terms, which is what the owner approved. The owner corrects it if the LXC will hold
+  anything else.*
+- **What is indexed:** only projects whose owner enabled AI access, and only published revisions,
+  in chunks of at most 3000 characters.
+- **Query instruction:** Qwen3's published retrieval instruction, as on the devbox (2026-09-25).
+- **The workers:**
+  - `record-embedding-sweep` runs as its own account, holding Viewer in the one workspace. It sends
+    at most **50** record texts per pass, every 24h.
+  - `stale-record-sweep` runs as its own account, holding only `IndexMaintainer`, every 24h with
+    `--stale-after 365d`.
+  - Each token is minted by its own account, for 365 days, and revoking it stops the next pass. The
+    two accounts have no password, so nobody signs in to the web UI as them.
+- **Not approved:** the hosted provider mode anywhere, any other installation, moving this one off
+  the LAN, and any generative model.
+- **How the database was moved.** The conditional vector-index migrations had already run on
+  `postgres:17-alpine` and recorded themselves as applied. The documented chown route would
+  therefore have left the index table uncreated for good. The database moved instead to a new
+  volume, `database_pgvector`, set in the installation's local `compose.override.yaml`. Every
+  migration ran there with pgvector present, and backup `backup-20260926-053803-74bd1e66e57f41758`
+  was restored into it: one account, the workspace, the project, its AI policy and the plugin's
+  token. The old volume, `devbuddy_database`, is kept for rolling back.
+- **`embedding-check` output:** added once the workers' tokens are in place.
+
 ## Confirmed OWASP ZAP in CI, report-only — 2026-09-25
 
 The owner asked whether builds should move to the DevBuddy LXC to avoid cost, and for a ZAP scan in
