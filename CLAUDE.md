@@ -34,11 +34,13 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 968 .NET tests and 78 web tests exist. Both suites passed on 2026-09-24 on the owner's
-Linux test machine, the .NET suite in the SDK container and the web suite in a Bun container, and
-in CI. Count them rather than trusting this sentence, which has been stale many times
+enforcement. 993 .NET tests and 78 web tests exist. The .NET suite passed at 993 in CI on
+2026-09-26, run 36238723460 on `f321f82`. The web suite passed at 78 on the Windows development
+machine the same day. **CI does not run the web suite**: the API image runs `bun run build`,
+which type-checks, and no workflow runs `bun test`. The owner's Linux test machine that ran both
+suites until 2026-09-25 is gone, above. Count them rather than trusting this sentence, which has been stale many times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -555,8 +557,11 @@ prefixed `DEVBUDDY_`, and refuse to start without a connection string rather tha
 
 The whole system is tested end to end by Playwright in `tests/e2e`: `bash tests/e2e/run.sh` builds
 the images, starts a throwaway stack under its own Compose project, and drives the web client, the
-HTTP API and the MCP server's HTTP transport, in Chromium, Firefox and WebKit. 205 tests passed on
-2026-09-24 on the owner's Linux test machine, and 211 with `DEVBUDDY_E2E_EMBEDDINGS=1`. CI runs it
+HTTP API and the MCP server's HTTP transport, in Chromium, Firefox and WebKit. It has 232 tests.
+On 2026-09-26, in CI run 36238723460 on `f321f82`, both Playwright runners passed 211 and skipped
+21, the tests that belong to the embeddings, GitHub-source and observability modes, which their
+own jobs run. It
+last ran outside CI on 2026-09-24, at 205, on the owner's Linux test machine, now gone. CI runs it
 on amd64 and arm64 runners, with the embeddings, GitHub-source and observability modes. `tests/e2e/README.md` says what it does not cover.
 `DEVBUDDY_E2E_ZAP=1` adds OWASP ZAP's baseline scan and API scan against the same stack (Phase 14,
 C4). **`tests/e2e/zap/rules.tsv` decides whether they pass:** a finding passes only if a rule there
