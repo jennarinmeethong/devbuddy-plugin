@@ -12,10 +12,17 @@ scans. It is Phase 14, C4.
   only if the repository goes private, and then on a machine of its own that runs pushes only.
 - **ZAP runs after the e2e suite, against the same throwaway stack.** It runs a baseline scan and an
   API scan from `/openapi/v1.json`, both unauthenticated, on the amd64 run only.
-- **Report-only.** A finding never fails CI. A scan that did not finish is a warning. Findings are
-  triaged with the owner before any rule is set to fail a run.
+- **Report-only at first,** until the rules file below: a finding did not fail CI, and a scan that did
+  not finish was a warning. Findings were triaged with the owner before any rule could fail a run.
 - **Not yet:** a weekly full active scan, and an authenticated scan. The owner decides each later.
 - **ZAP is a scanner, not a control.** It moves no row in `verification-matrix.md`.
+- **The rules file, 2026-09-26.** The owner asked for it once the fixes were merged. Report-only
+  ended with it. `tests/e2e/zap/rules.tsv` accepts the findings left after the fixes, each by name
+  with its reason: COOP and COEP absent on a plain-HTTP stack, the client's page for an unmatched
+  GET, client-error responses, and four informational rules. Anything else fails the run, which
+  includes a rule the file does not list, a scan that does not finish, and an unhandled exception
+  the API logs while scanned. The headers fixed after the first scans are listed as `FAIL`. Accepting
+  a new finding means adding it there with its reason.
 - **After the first findings, the same day, the owner approved three fixes and the merge:** the two
   requests that answered 500 (a NUL character in text, and a duplicate work item key) answer as
   refusals, the API host sends security headers on every answer, and the e2e run keeps the servers'

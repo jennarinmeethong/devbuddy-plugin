@@ -310,8 +310,8 @@ first run's findings wait on triage with the owner.
   - `DEVBUDDY_E2E_ZAP=1` in `tests/e2e/run.sh` runs ZAP's baseline scan and its API scan from
     `/openapi/v1.json` after the suite, against the same stack. ZAP is a `zap` service pinned by
     digest in `compose.e2e.yaml`.
-  - Report-only. The reports go to `zap/` under the output directory, and on the amd64 run to the
-    job summary. A scan that did not finish is a warning.
+  - Report-only at first. The reports go to `zap/` under the output directory, and on the amd64
+    run to the job summary. Since the rules file, the scans fail the run; see below.
   - At no cost. ZAP is open source, and it runs on the same GitHub-hosted runners, which a public
     repository does not pay for.
 - **Fixed from the first findings,** at the owner's word the same day:

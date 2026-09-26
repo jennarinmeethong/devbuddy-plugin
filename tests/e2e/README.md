@@ -50,14 +50,24 @@ C4):
   every route the document names, and it stops after ten minutes.
 
 Both are unauthenticated, so they cover the sign-in page and every route's answer to a caller with
-no token. Both are **report-only**. What they find never fails the run. The reports go to `zap/`
-under the output directory, as HTML, JSON and Markdown. `zap/status.txt` says whether each scan
-finished, because a scan that broke would otherwise look like a clean report.
-`zap/baseline-rules.conf` lists every rule the baseline ran with its default level. Once findings
-are triaged, that file becomes the rules file that decides which findings fail a run.
+no token. The reports go to `zap/` under the output directory, as HTML, JSON and Markdown.
 
-CI runs it on the amd64 run only and puts both reports in the job summary. A scan that did not
-finish, or never ran, is a warning there, not a failure.
+**`zap/rules.tsv` decides whether they pass.** Each finding has to be accepted there by name to
+pass. Every accepted rule says why, and the owner triaged them on 2026-09-26. The run fails when:
+
+- a rule the file marks `FAIL` raises a finding: the headers fixed after the first scans are listed
+  that way, so a regression fails by name;
+- a rule the file does not list raises one, because a finding nobody has triaged is not accepted by
+  being new;
+- a scan does not finish;
+- or the API logs an unhandled exception while being scanned. ZAP's rule 100000 covers a 401 and a
+  500 alike, so the file has to ignore it, and every 500 comes from such an exception.
+
+`zap/status.txt` says which of these happened. To accept a new finding, add it to `rules.tsv` as
+`IGNORE` with its reason, in the change that explains it.
+
+CI runs it on the amd64 run only. It puts both reports in the job summary, with an error for each
+check that failed.
 
 ## What the stack differs in
 

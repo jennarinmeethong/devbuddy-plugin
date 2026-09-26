@@ -1,0 +1,31 @@
+# OWASP ZAP rules for the scans tests/e2e/run.sh runs with DEVBUDDY_E2E_ZAP=1 (Phase 14, C4).
+#
+# Each line: rule id, TAB, level, TAB, (rule name), TAB, why. ZAP reads the id and the level, and
+# shows the why beside the finding in its report.
+#
+# How a run is judged:
+#   - A rule listed FAIL fails the run when it raises a finding.
+#   - A rule not listed at all is WARN, ZAP's default, and run.sh fails the run on a warning too. A
+#     finding nobody has looked at is not accepted by being new.
+#   - A rule listed IGNORE is accepted. Every IGNORE below says why, and the owner triaged them on
+#     2026-09-26 from the scans of the run that fixed the first findings.
+#   - Separately, run.sh fails the run on any unhandled exception the API logged while it was
+#     scanned, because that is where a 500 comes from, and rule 100000 below cannot tell a 500
+#     from a 401.
+#
+# To accept a new finding, add it here as IGNORE, with its reason, in the change that explains it.
+# To stop accepting one, change it to FAIL or delete the line.
+
+# Fixed after the first scans, and listed so that a regression fails by name.
+10038	FAIL	(Content Security Policy (CSP) Header Not Set)
+10020	FAIL	(Anti-clickjacking Header)
+10021	FAIL	(X-Content-Type-Options Header Missing)
+10063	FAIL	(Permissions Policy Header Not Set)
+
+# Accepted, each by design.
+90004	IGNORE	(Insufficient Site Isolation Against Spectre Vulnerability)	COOP and COEP are sent only over HTTPS, and this stack is plain HTTP. CORP, the third header the rule checks, is held by ScanFindingTests and host.spec.ts.
+100001	IGNORE	(Unexpected Content-Type was returned)	A GET that nothing maps is answered with the client's page, by design. AdminUiTests and host.spec.ts hold that no mapped route ever answers with it.
+100000	IGNORE	(A Client Error or Server Error response code was returned)	One rule for both. A client error is what an unauthenticated scan should get. A server error is not accepted: run.sh fails the run on any unhandled exception the API logged during the scans.
+10111	IGNORE	(Authentication Request Identified)	Informational. It finds the sign-in endpoint, which is meant to be there.
+10109	IGNORE	(Modern Web Application)	Informational. The client is a single-page application.
+10049	IGNORE	(Content Cacheability)	Informational. Hashed assets are cached for good and index.html never, by design, and AdminUiTests holds both.

@@ -305,44 +305,67 @@ set -e
 # the run's status: it goes to $out/zap, and in CI to the job summary. A scan that did not finish is
 # written down as not finishing, so it cannot pass for a clean report.
 zap_scans() {
-  local dir="$out/zap"
+  local dir="$out/zap" failures=0 start errors
   mkdir -p "$dir"
   # ZAP writes as its own account, the same as the runner; the directory is throwaway.
   chmod 0777 "$dir"
   : >"$dir/status.txt"
 
+  # The triaged rules (tests/e2e/zap/rules.tsv), where ZAP reads its working directory from.
+  cp "$here/zap/rules.tsv" "$dir/rules.tsv"
+  chmod 0644 "$dir/rules.tsv"
+
   run_zap() {
-    local name=$1 code
+    local name=$1 code=0
     shift
-    set +e
-    compose --profile zap run --rm --no-deps -T zap "$@" >"$dir/$name.log" 2>&1
-    code=$?
-    set -e
-    # Both scripts exit 0 when clean, 1 for at least one FAIL, 2 for warnings only, and 3 when the
-    # scan itself went wrong. Only the last is not a report.
+    # Not `set +e` and back: that is global, and turning errexit back on here would make the
+    # caller's own `set +e` around zap_scans end the whole script at the first failed scan.
+    compose --profile zap run --rm --no-deps -T zap "$@" -c rules.tsv >"$dir/$name.log" 2>&1 || code=$?
+    # Both scripts exit 0 when clean, 1 for a finding from a rule listed FAIL, 2 for one from a rule
+    # the file does not list (a warning), and 3 when the scan itself went wrong. Only 0 passes: a
+    # finding nobody has triaged is not accepted by being new.
     case $code in
-      0 | 1 | 2) echo "$name: completed (exit $code)" | tee -a "$dir/status.txt" >&2 ;;
+      0) echo "$name: passed" | tee -a "$dir/status.txt" >&2 ;;
+      1) echo "$name: FAILED, a finding from a rule rules.tsv marks FAIL" | tee -a "$dir/status.txt" >&2 ;;
+      2) echo "$name: FAILED, a finding from a rule rules.tsv does not list; triage it there" | tee -a "$dir/status.txt" >&2 ;;
       *) echo "$name: DID NOT COMPLETE (exit $code), see zap/$name.log" | tee -a "$dir/status.txt" >&2 ;;
     esac
+    [ "$code" -eq 0 ] || failures=$((failures + 1))
   }
 
-  # -g writes every rule the scan ran with its default level. That file becomes the rules file (-c)
-  # once the findings have been triaged and some are accepted.
+  # From here, so the servers' own record of the scans can be checked below.
+  start=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
   run_zap baseline zap-baseline.py -t http://api:8080 \
-    -r baseline.html -J baseline.json -w baseline.md -g baseline-rules.conf
+    -r baseline.html -J baseline.json -w baseline.md
 
   # The API scan attacks what the document describes, so its length is bounded. Unauthenticated,
   # nearly every route answers 401, which is part of what this run shows.
   run_zap api zap-api-scan.py -t http://api:8080/openapi/v1.json -f openapi \
     -r api.html -J api.json -w api.md -z "-config scanner.maxScanDurationInMins=10"
 
-  # What the servers logged while being scanned is in stack.log, which is taken before the restore
-  # stage replaces them. A 500 in a report means nothing without the exception behind it.
+  # Rule 100000 is one rule for a 401 and a 500 alike, so rules.tsv has to ignore it, and a server
+  # error is caught here instead: every 500 the API returns comes from an exception nothing
+  # translated, and the host logs each one. The exceptions themselves are in stack.log, which is
+  # taken before the restore stage replaces the servers.
+  errors=$(compose logs --no-color --since "$start" api 2>/dev/null | grep -c "An unhandled exception has occurred" || true)
+  if [ "${errors:-0}" -eq 0 ]; then
+    echo "server errors during the scans: none" | tee -a "$dir/status.txt" >&2
+  else
+    echo "server errors during the scans: FAILED, the API logged $errors unhandled exceptions; see stack.log" | tee -a "$dir/status.txt" >&2
+    failures=$((failures + 1))
+  fi
+
+  return "$failures"
 }
 
 if [ "${DEVBUDDY_E2E_ZAP:-0}" = 1 ]; then
-  echo "==> OWASP ZAP: baseline and API scans, report-only" >&2
+  echo "==> OWASP ZAP: baseline and API scans, judged by tests/e2e/zap/rules.tsv" >&2
+  set +e
   zap_scans
+  zap_status=$?
+  set -e
+  [ "$zap_status" -eq 0 ] || status=1
 fi
 
 # The destroy-and-restore drill, on the stack the suite just filled (Phase 13, C6). Both volumes

@@ -543,8 +543,11 @@ HTTP API and the MCP server's HTTP transport, in Chromium, Firefox and WebKit. 2
 2026-09-24 on the owner's Linux test machine, and 211 with `DEVBUDDY_E2E_EMBEDDINGS=1`. CI runs it
 on amd64 and arm64 runners, with the embeddings, GitHub-source and observability modes. `tests/e2e/README.md` says what it does not cover.
 `DEVBUDDY_E2E_ZAP=1` adds OWASP ZAP's baseline scan and API scan against the same stack (Phase 14,
-C4). They are **report-only** until the owner triages the findings, so a finding never fails a run.
-CI runs them on the amd64 run and puts both reports in the job summary.
+C4). **`tests/e2e/zap/rules.tsv` decides whether they pass:** a finding passes only if a rule there
+accepts it by name, with its reason. A rule the file marks `FAIL`, a rule it does not list, a scan
+that does not finish, or an unhandled exception the API logs while scanned fails the run. The last
+is checked from the logs, because ZAP's rule 100000 cannot tell a 500 from a 401. CI runs the scans
+on the amd64 run and puts both reports in the job summary.
 
 The web client uses **Bun**, not npm — that is what this machine has:
 
