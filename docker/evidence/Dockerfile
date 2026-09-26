@@ -5,17 +5,22 @@
 # install and every CI run failed, while machines with a cached copy carried on as if nothing had
 # happened. MinIO's source is public, so building it needs no registry of MinIO's.
 #
-# The same releases the pinned image carried, fetched by commit rather than by tag, so no one can
-# move what is built. They are built with the Go version both upstream binaries report (1.24.2), and
-# stamped with their release names the way upstream's own release builds are. They are the same
-# source and the same compiler, but not byte-identical to upstream's binaries. DeploymentTests fails
-# if a commit or the Go image stops being pinned. EvidenceStoreTests builds and starts this same
-# Dockerfile, so the image tested is the image shipped.
+# The last releases either project published, fetched by commit rather than by tag, so no one can
+# move what is built: MinIO RELEASE.2025-10-15T17-29-55Z, which fixes CVE-2025-62506, and mc
+# RELEASE.2025-08-13T08-35-41Z. Both repositories are archived upstream (mc since 2025-11, MinIO
+# since 2026-04), so nothing later will come; replacing MinIO is Phase 14 C6. Until 2026-09-26 this
+# built the April 2025 releases with Go 1.24.2, which Trivy failed on 44 HIGH and 2 CRITICAL
+# findings in minio alone (info.md). They are built with a supported Go, 1.26.8, not the one
+# upstream used, because most of those findings were in the standard library; both modules declare
+# an older minimum, which a newer compiler honours. They are stamped with their release names the
+# way upstream's own release builds are, and are not byte-identical to upstream's binaries.
+# DeploymentTests fails if a commit or the Go image stops being pinned. EvidenceStoreTests builds and
+# starts this same Dockerfile, so the image tested is the image shipped.
 #
 # Built for the machine that builds it, not cross-compiled. Compose builds it where it runs, and
 # nothing is published. Testcontainers builds it through the classic builder, which does not
 # provide the BuildKit platform arguments.
-FROM golang:1.24.2-bookworm@sha256:79390b5e5af9ee6e7b1173ee3eac7fadf6751a545297672916b59bfa0ecf6f71 AS build
+FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS build
 
 # Static binaries, as upstream builds them, and the pinned Go only: never a downloaded toolchain.
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
@@ -24,20 +29,20 @@ ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 WORKDIR /src/minio
 
 RUN git init -q \
-    && git fetch -q --depth 1 https://github.com/minio/minio.git 0d7408fc9969caf07de6a8c3a84f9fbb10a6739e \
+    && git fetch -q --depth 1 https://github.com/minio/minio.git 9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a \
     && git checkout -q FETCH_HEAD \
     && go build -tags kqueue -trimpath \
-       -ldflags "$(MINIO_RELEASE=RELEASE go run buildscripts/gen-ldflags.go 2025-04-22T22:12:26Z)" \
+       -ldflags "$(MINIO_RELEASE=RELEASE go run buildscripts/gen-ldflags.go 2025-10-15T17:29:55Z)" \
        -o /out/usr/bin/minio
 
 # mc is what the health check runs: `mc ready local`.
 WORKDIR /src/mc
 
 RUN git init -q \
-    && git fetch -q --depth 1 https://github.com/minio/mc.git b00526b153a31b36767991a4f5ce2cced435ee8e \
+    && git fetch -q --depth 1 https://github.com/minio/mc.git 7394ce0dd2a80935aded936b09fa12cbb3cb8096 \
     && git checkout -q FETCH_HEAD \
     && go build -tags kqueue -trimpath \
-       -ldflags "$(MC_RELEASE=RELEASE go run buildscripts/gen-ldflags.go 2025-04-16T18:13:26Z)" \
+       -ldflags "$(MC_RELEASE=RELEASE go run buildscripts/gen-ldflags.go 2025-08-13T08:35:41Z)" \
        -o /out/usr/bin/mc
 
 # The data directory, owned by uid 1000, so a new volume mounted there is writable without root.

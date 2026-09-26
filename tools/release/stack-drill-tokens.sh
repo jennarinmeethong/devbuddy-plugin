@@ -381,8 +381,8 @@ evidence_built_from_source() {
   local image
   image=$(docker inspect -f '{{.Config.Image}}' "$P-evidence-1")
   note "evidence image: $image $(docker image inspect -f '{{.Id}}' "$image" | cut -c1-19)"
-  expect "  minio reports the pinned release" "$(docker run --rm "$image" --version 2>&1 | grep -c 'RELEASE.2025-04-22T22-12-26Z')" "[1-9][0-9]*"
-  expect "  mc reports the pinned release" "$(docker run --rm --entrypoint mc "$image" --version 2>&1 | grep -c 'RELEASE.2025-04-16T18-13-26Z')" "[1-9][0-9]*"
+  expect "  minio reports the pinned release" "$(docker run --rm "$image" --version 2>&1 | grep -c 'RELEASE.2025-10-15T17-29-55Z')" "[1-9][0-9]*"
+  expect "  mc reports the pinned release" "$(docker run --rm --entrypoint mc "$image" --version 2>&1 | grep -c 'RELEASE.2025-08-13T08-35-41Z')" "[1-9][0-9]*"
   docker run --rm --entrypoint sh "$image" -c true > /dev/null 2>&1
   expect "  there is no shell to run" "$([ $? -ne 0 ] && echo refused || echo ran)" refused
   expect "  it holds two binaries and nothing else in /usr/bin" "$(docker create "$image" > "$D/evidence-cid" && docker export "$(cat "$D/evidence-cid")" | tar -t | grep -E '^usr/bin/.' | sort | tr '\n' ' '; docker rm "$(cat "$D/evidence-cid")" > /dev/null)" "usr/bin/mc usr/bin/minio "

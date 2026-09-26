@@ -353,6 +353,45 @@ controlled update process. This repository had none of the five.
 - **Exit:** all three workflows pass on `main`, and whatever the image scan finds is fixed or
   accepted in `.trivyignore.yaml` at the owner's word.
 
+### C6 — Replacing MinIO
+**Status: TODO. Planned at the owner's word (`info.md`, 2026-09-26). Nothing is built until the
+owner chooses a store.**
+
+- **Why:** `minio/minio` is archived upstream since 2026-04-24, and `minio/mc` since 2025-11. C5's
+  first image scan failed the evidence store. Moving to the last releases and Go 1.26.8 cleared the
+  standard library and MinIO's own CVE-2025-62506, but 39 findings in `minio` and 23 in `mc` remain
+  in modules MinIO pins. They are accepted in `.trivyignore.yaml` until **2026-12-26**, and nothing
+  upstream will fix them. That date is this item's deadline.
+- **What DevBuddy needs from a store** (read from `EvidenceStore.cs`, not assumed): `PutObject`,
+  `GetObject`, `DeleteObject`, `ListBuckets`, `PutBucket`, over the AWS SDK with path-style
+  addressing, and **SSE-S3 (`AES256`)** on every write, which `MINIO_KMS_SECRET_KEY` backs today.
+  Plus the project's own rules: built from source pinned by commit, non-root, read-only,
+  `scratch` or chiseled, native on amd64 and arm64, and started by `EvidenceStoreTests`.
+- **Candidates:**
+  1. **The filesystem adapter that already exists** behind `IEvidenceStore`. It needs no second
+     service and no third-party code, and the backup already carries the bytes. It loses
+     encryption at rest, which would have to be added in the adapter, and the store stops being
+     separate from the API's process.
+  2. **SeaweedFS** (Apache-2.0, Go). It is maintained, has an S3 gateway, and has supported
+     SSE-S3 since 2025. It is several components where MinIO was one.
+  3. **Garage** (AGPL-3.0, Rust). It is small, a single static binary, and maintained. **It supports
+     SSE-C only, not SSE-S3**, so the adapter would change what it sends, and the key would move
+     into the API.
+  4. **RustFS** (Apache-2.0, Rust). It is built as a MinIO replacement, but it is young. It needs
+     its maintenance, SSE-S3 support and release cadence checked before it counts.
+- **How existing data moves:** a backup carries every evidence object. Restoring one into a stack
+  with the new store is the migration, and the restore drill in `tools/release/` is its test. No
+  in-place conversion.
+- **Work once the owner chooses:** an ADR replacing ADR-0004. Then the Dockerfile, Compose,
+  `EvidenceStoreTests` and `DeploymentTests` for the new store, the drill run through a
+  restore, `deployment.md`'s upgrade step, and removing the MinIO entries from
+  `.trivyignore.yaml`.
+- **Recommendation, to be confirmed by a spike:** SeaweedFS if SSE-S3 holds up as the adapter
+  uses it; otherwise the filesystem adapter with encryption added. Garage's lack of SSE-S3 and
+  RustFS's age count against them.
+- **Exit:** the evidence store passes the image gate with no MinIO entries accepted, and a backup
+  from a MinIO installation restores into it.
+
 ---
 
 ## D — Carried over
@@ -491,3 +530,5 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-26 | B1 | **In progress: the gateway runs, and plain HTTP is off the LAN.** The owner chose an internal CA and Caddy in LXC 100 (`info.md`). `/data/devbuddy-tools/gateway` holds a Compose project with Caddy 2.11.4 pinned by digest, uid 1000, read-only, and `tls internal` for 192.168.1.160. Two faults on the way, both now in `deployment.md`. The image's binary has a file capability, so with every capability dropped it would not exec; `NET_BIND_SERVICE` is kept. A client connecting to an IP sends no SNI, so Caddy refused the handshake until `default_sni` was set. Verified from the devbox with the root as the only trust anchor: `/health` 200 over HTTP/2, `/operations` 401, COOP and COEP present (so `X-Forwarded-Proto` arrives), and a client without the root refused. Port 80 redirects with the path. The API moved to `127.0.0.1:5010` (override backed up to `~/compose.override.yaml.bak-20260926-https`) and came back healthy. From the Windows machine, `http://192.168.1.160:5010` no longer connects, and `openssl s_client` verifies the chain. The plugin's `list_projects` still answers. **Found:** the API reads no `X-Forwarded-For`, so behind any proxy the sign-in limit is shared, and `deployment.md` said the opposite; corrected there. **Left:** the owner trusts the root on each device, then HSTS. |
 | 2026-09-26 | B1 | **DONE.** The owner trusted the root on the Windows machine, the Mac mini and the Ubuntu arm64 guest. On the Ubuntu guest `openssl s_client` against the system store and Python's `urllib` both verified. The guest's clock had been 7 h 18 min slow, so the root was "not yet valid". Its time service was switched off: Ubuntu 26.04 uses chrony, not systemd-timesyncd. The owner enabled chrony and it synchronised. Caddy then sends `Strict-Transport-Security: max-age=31536000` (Caddyfile backed up to `~/Caddyfile.bak-20260926-hsts`). Verified: the header is on HTTPS answers, `/health` is 200, and port 80 still redirects. **Its effect is nil while the devbox is reached by IP** (RFC 6797, 8.1.1). |
 | 2026-09-26 | C5 | **CI ran on PR #2: seventeen checks passed, one failed as the gate intended.** Supply chain run 36251388666 passed Gitleaks, the repository scan and CodeQL for all three languages. The API, MCP and console images each have eight MEDIUM findings and none above. **The evidence store fails:** `minio` has 44 HIGH and 2 CRITICAL with a fix available, and `mc` 58 and 5. The sources are Go 1.24.2's standard library (for example CVE-2025-68121, CRITICAL, fixed in 1.24.13), gRPC, `golang.org/x/*`, `amqp091-go`, `thrift`, and MinIO itself (CVE-2025-62506, fixed in `RELEASE.2025-10-15T17-29-55Z`). **`minio/minio` has been archived on GitHub since 2026-04-24**, so no later fix will come from upstream. Waits on the owner: see the reply of the same day. Not merged. |
+| 2026-09-26 | B1 | **The gateway moved to port 5010**, at the owner's request, who keeps 5030 for another web project (HomeHub). Caddy publishes `192.168.1.160:5010`, and the API stays on `127.0.0.1:5010`. The addresses differ, so the two do not collide. Caddy's `http_redirect` listener wrapper answers plain HTTP on the same port with a 308 to HTTPS, keeping the path and query. 443 and 80 are no longer published. Backups: `~/Caddyfile.bak-20260926-port5010`, `~/gateway-compose.yaml.bak-20260926-port5010`. Verified from the devbox: `https://192.168.1.160:5010/health` 200 over HTTP/2 with HSTS, `http://192.168.1.160:5010/records?x=1` 308 to the same URL over HTTPS, 443 refused, loopback API 200. The owner means to point DDNS at 5010. See the reply of the same day before that happens. |
+| 2026-09-26 | C5 | **The evidence store moved to MinIO `RELEASE.2025-10-15T17-29-55Z` and mc `RELEASE.2025-08-13T08-35-41Z`**, the last releases of both, built with Go 1.26.8 pinned by digest. This is the owner's option 1. Built on devrelease from the same Dockerfile: both binaries report their release, their commit and `go1.26.8`. Trivy at the gate's settings found 39 in `minio` and 23 in `mc`, down from 46 and 63. None was in the standard library or MinIO itself. All are in pinned modules: gRPC, `golang.org/x/*`, `amqp091-go`, `thrift`, `prometheus`, `go-jose`, `otel/sdk`, `jsonparser`. These 39 IDs are accepted in `.trivyignore.yaml` until 2026-12-26, each with its path and a statement, and the gate then passed there (exit 0). `stack-drill-tokens.sh` now expects the new release names. **Not yet run:** `EvidenceStoreTests` against the new build (CI runs it). The devbox still runs the old MinIO until its next upgrade. C6 is planned. |

@@ -1,5 +1,18 @@
 # Project Decisions
 
+## Confirmed the Devbox's Web Port 5010, MinIO's Last Release, and Planning Its Replacement — 2026-09-26
+
+- **The devbox's HTTPS gateway listens on `192.168.1.160:5010`**, not 443. The owner keeps 5030
+  for another web project. Plain HTTP on 5010 is redirected to HTTPS on the same port. The owner
+  means to point DDNS at 5010. Doing so exposes the devbox beyond the LAN, which it has not been
+  since 2026-09-14, and it waits on the points raised in the reply of the same day.
+- **Option 1 for the evidence store:** MinIO `RELEASE.2025-10-15T17-29-55Z` and mc
+  `RELEASE.2025-08-13T08-35-41Z`, the last releases of both, pinned by commit and built with Go
+  1.26.8. The findings left in modules MinIO pins are accepted in `.trivyignore.yaml` until
+  **2026-12-26** and not renewed without a decision here.
+- **Option 2 is planned, not chosen:** replacing MinIO, as C6 in `docs/plan-phase-14.md`. The
+  store is the owner's choice.
+
 ## Confirmed HTTPS for the Devbox Through an Internal CA and Caddy in LXC 100 — 2026-09-26
 
 The owner answered B1 of `docs/plan-phase-14.md`: "no domain, use an internal CA, install Caddy

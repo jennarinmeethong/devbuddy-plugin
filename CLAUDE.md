@@ -64,9 +64,10 @@ same day. That tag ran in an LXC there, below, until `v1.8.0`.
 **The devbox is an LXC since 2026-09-25.** The owner reinstalled jmhp as Proxmox, and DevBuddy now
 runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run inside. It is
 `v1.8.0` from the tag's own Compose file (`v1.7.0` until 2026-09-26), with MCP on loopback on
-5011. **Since 2026-09-26 the LAN reaches the API and web UI only at `https://192.168.1.160`**
+5011. **Since 2026-09-26 the LAN reaches the API and web UI only at `https://192.168.1.160:5010`**
 (Phase 14, B1), through a Caddy gateway with its own internal CA in
-`/data/devbuddy-tools/gateway`, outside the stack. The API is on loopback on 5010. **It was installed from clean, so nothing came across:** no records, no vector
+`/data/devbuddy-tools/gateway`, outside the stack. Plain HTTP on that port is redirected. The API
+is on loopback on 5010, a different address from the gateway's, so the two do not collide. **It was installed from clean, so nothing came across:** no records, no vector
 index, no Ollama, and no worker accounts or tokens. **Since 2026-09-26 it runs the embedding
 provider and both workers**, on the devbox's old terms (`info.md`, same day): Ollama serving
 `qwen3-embedding:0.6b` inside the stack, pgvector, Qwen3's query instruction, and each worker as an
@@ -623,8 +624,11 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   have dropped it: Docker Hub by 2026-09-13, and quay.io without a login on 2026-09-24. Each time,
   every machine without a cached copy failed to build the evidence store, and CI went red while the
   owner's test machine, holding the cached copy, kept passing. `docker/evidence/Dockerfile` compiles
-  MinIO `RELEASE.2025-04-22T22-12-26Z` and `mc` `RELEASE.2025-04-16T18-13-26Z` by commit, with Go
-  1.24.2 pinned by digest, into a `scratch` image holding the two binaries and nothing to execute.
+  MinIO `RELEASE.2025-10-15T17-29-55Z` and `mc` `RELEASE.2025-08-13T08-35-41Z` by commit (both
+  the last upstream releases, since 2026-09-26), with Go 1.26.8 pinned by digest, into a `scratch`
+  image holding the two binaries and nothing to execute. **Both upstream repositories are archived**,
+  so no fix will come from there; Trivy's image scan gates this image, and replacing MinIO is
+  Phase 14, C6.
   It is built natively where it runs, never cross-compiled, and a cold build takes three or four
   minutes. `EvidenceStoreTests` builds the same Dockerfile through Testcontainers. `DeploymentTests`
   fails if a commit or the Go image loses its pin, if the runtime is not `scratch`, or if a registry
