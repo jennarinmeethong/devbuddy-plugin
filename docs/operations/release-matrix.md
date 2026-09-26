@@ -219,6 +219,53 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.8.0
+
+**Checked on 2026-09-26 before the tag**, against `2317ac4`, the commit tagged. The owner asked for
+the release (`info.md`), and *14.9* in `docs/plan-phase-14.md` says what it carries:
+- C4's fixes: a NUL in text is 400, a duplicate work item key is 409, and security headers on every
+  answer;
+- the email fix: a failing mail server is logged, never thrown;
+- the host ports from 5010.
+
+It adds **no migration**, and `release.yml` is unchanged since `v1.4.0`.
+
+**The first release checked on devrelease**, LXC 101 on the Proxmox host (Debian 13.6, x64, 4
+cores, 8 GB), which the owner created for it after jmhp was reinstalled. The scripts ran from a
+clone of the pushed commit with the default work directory. No installation was touched.
+
+| Check | Script | Result |
+| --- | --- | --- |
+| .NET suite, format, web client, `linux-x64` publish | `setup-and-suite.sh` | **7 of 7.** **994 passed**, none failed. The format check exited 0, the web suite passed 78 of 78, the publish exited 0, and the run changed no tracked file. |
+| Compose from clean, no service as root, the AI surface, the drill, tokens out of the log, the checks earlier releases added | `stack-drill-tokens.sh` | **111 of 111**, the new checks below included. |
+| Upgrade from published `v1.7.0` on amd64 | `upgrade.sh` | **45 of 45.** See below. |
+| Upgrade from published `v1.7.0` on arm64 | `upgrade.sh` | **45 of 45**, on the second run, in the Ubuntu 26.04 VMware guest on the Mac mini (`aarch64`). No substitute was needed: `v1.7.0` builds its own evidence store from source. **The first run failed 4 of 6** before the upgrade began, because the guest's DNS failed while pulling `postgres:17-alpine` ("server misbehaving"), so the `v1.7.0` stack never started. Its output is kept as `part3-arm64-180-dnsfail.out`, and its containers and volumes were removed before the second run. |
+| CI at the tag | run 36244187933 | **Passed on a re-run of one job.** The first attempt failed one test, Firefox on x64, `auth.spec.ts:85`: the click on "Set password" with a mismatched confirmation produced no alert. That click sends no request, so it is not wrapped in `clickUntilSent`, and it is the lost Firefox click C3 recorded, seen on x64 for the first time. The commit changes documentation, `tools/release/` and `plugin.json` only. Re-running the failed job passed; every other job passed the first time. Supply chain passed. |
+| Everything after the tag | `post-images.sh`, `smoke.sh`, `client-smoke.ps1` | See *After the tag* below. |
+
+| **New** check (`stack-drill-tokens.sh`) | Result |
+| --- | --- |
+| A NUL in the recovery address | **400.** |
+| The client's answer | Carries a CSP with `frame-ancestors 'none'`, and `nosniff`. **No COOP** over plain HTTP, and COOP `same-origin` when `X-Forwarded-Proto` says HTTPS. |
+| SMTP refusing, recovery for the account and for an address with none | **202 for both.** The failure is logged ("could not be delivered through SMTP server"), and nothing is unhandled. |
+| The release's own Compose file | Publishes `127.0.0.1:5010->8080` and `127.0.0.1:5011->8080`, and nothing else. |
+
+### The upgrade from v1.7.0 on amd64
+
+The run started from `v1.7.0` as shipped, with the published `1.7.0` images and that tag's Compose
+file, and its evidence store built from source as that tag does. It seeded a published record and a
+draft, evidence, a machine token and an access token, eleven audit entries, and a plugin session held
+open over MCP stdio. **No manual step was needed.**
+
+| Check | Result |
+| --- | --- |
+| Migration | `migrate` exited 0. Nine are in the history table, and the last is `RecordEmbeddingChunks`. |
+| Evidence from `v1.7.0` | Downloaded byte for byte, and a new capture works. Both still answered 200 after a restart, and the store logged no errors. |
+| The session open across the upgrade (A3) | Listed as stale. It exited 0 when its input closed, and its container was gone. |
+| The access token from `v1.7.0` | **Still valid**: 200 on `/me`, and the same password signs in. Nobody signs in again. |
+| Records, audit, plugins | The published record and its history are identical. The draft is refused without a revision number, and read as revision 1. All eleven entries are present. The machine token answered identically over MCP stdio. |
+| `scope-report`, users, errors | Exit 0. The API, MCP server and retention ran as uid 1654, the database as 70, and the evidence store as 1000. The API logged no error lines. |
+
 ## What was verified for v1.7.0
 
 **Checked on 2026-09-25 before the tag**, against `f76c6c0` on jmhp and `f8c6d73` on arm64. The
