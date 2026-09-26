@@ -20,7 +20,7 @@
 # Built for the machine that builds it, not cross-compiled. Compose builds it where it runs, and
 # nothing is published. Testcontainers builds it through the classic builder, which does not
 # provide the BuildKit platform arguments.
-FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS build
+FROM golang:1.27.1-bookworm@sha256:69a7b9788769bec032d238959b61854e9ae87f57be9029ec04e9885fabf99195 AS build
 
 # Static binaries, as upstream builds them, and the pinned Go only: never a downloaded toolchain.
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
