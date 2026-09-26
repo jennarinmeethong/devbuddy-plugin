@@ -20,7 +20,7 @@ docker compose -f docker/compose.yaml -f docker/compose.observability.yaml up -d
 ```
 
 That adds five services to the eight-service stack: an OpenTelemetry collector, Prometheus, Loki,
-Tempo, and Grafana. Grafana is published on **loopback only** (`127.0.0.1:3000`); nothing else in
+Tempo, and Grafana. Grafana is published on **loopback only** (`127.0.0.1:5012`, or `DEVBUDDY_GRAFANA_PORT`); nothing else in
 the overlay is published at all. Set `DEVBUDDY_GRAFANA_PASSWORD` in `docker/.env` first — it has
 no default, because a default administrator password on a dashboard that shows security-control
 data is not a convenience.

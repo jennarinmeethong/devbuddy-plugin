@@ -88,7 +88,7 @@ services:
     ports:
       # Loopback, like the API. Put a reverse proxy in front of it if it needs to be reachable, and
       # change the admin password before you do.
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${DEVBUDDY_GRAFANA_PORT:-5012}:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${DEVBUDDY_GRAFANA_PASSWORD:?set DEVBUDDY_GRAFANA_PASSWORD in docker/.env}
       GF_USERS_ALLOW_SIGN_UP: "false"

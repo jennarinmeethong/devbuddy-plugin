@@ -12,14 +12,15 @@ import tailwindcss from "@tailwindcss/vite";
 // for. They cannot collide with the client's own routes, which are `/`, `/set-password`, and
 // everything under `/w/`.
 const api = {
-  target: process.env.DEVBUDDY_API ?? "http://localhost:5288",
+  target: process.env.DEVBUDDY_API ?? "http://localhost:5013",
   changeOrigin: true,
 };
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 5173,
+    port: 5015,
+    strictPort: true,
     proxy: {
       "/auth": api,
       "/me": api,

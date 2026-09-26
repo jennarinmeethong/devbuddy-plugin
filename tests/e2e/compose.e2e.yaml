@@ -10,7 +10,7 @@
 #
 #   - Nothing is published on the host. The runner joins the stack's own network and reaches the
 #     API and the MCP server by service name, so a run cannot collide with an installation already
-#     listening on 8080 and 8081 on the same machine.
+#     listening on 5010 and 5011 on the same machine.
 #   - The sign-in rate limit is raised. The suite signs in several hundred times in a few minutes
 #     from one address, which is exactly what that limit exists to stop. The limit itself is
 #     covered by DevBuddy.Api.Tests.

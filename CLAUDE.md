@@ -161,7 +161,7 @@ members rather than asking for an identifier to be typed.
 **The API host serves that UI, from inside its own image.** `docker/Dockerfile.api` builds
 `web/admin` with Bun in a stage of its own and copies `dist` into `wwwroot`, so the client and the
 API it is generated from are one origin, one image, and one thing to deploy — a reverse proxy in
-front of the stack now needs `reverse_proxy 127.0.0.1:8080` and nothing else. A static-serving
+front of the stack now needs `reverse_proxy 127.0.0.1:5010` and nothing else. A static-serving
 container was the alternative and was refused: `nginx` or `caddy` would put a shell and a package
 manager into a stack whose images are chiseled so that there is nothing in them to execute. The
 client therefore calls the API **at the root**, not under a prefix, `vite.config.ts` proxies the

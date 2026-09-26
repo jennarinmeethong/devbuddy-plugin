@@ -67,6 +67,21 @@ public sealed partial class DeploymentTests
     }
 
     /// <summary>
+    /// The host ports start at 5010 (<c>info.md</c>, 2026-09-26). A port given as a variable must
+    /// still count as a mapping above, or a binding off loopback written that way would pass.
+    /// </summary>
+    [Fact]
+    public void the_published_ports_default_to_5010_and_5011_and_still_count_as_mappings()
+    {
+        string[] lines = ComposeLines();
+
+        Assert.Contains(BlockFor(lines, "api:"), line => line.Trim() == "- \"127.0.0.1:${DEVBUDDY_API_PORT:-5010}:8080\"");
+        Assert.Contains(BlockFor(lines, "mcp:"), line => line.Trim() == "- \"127.0.0.1:${DEVBUDDY_MCP_PORT:-5011}:8080\"");
+        Assert.Matches(PortMapping(), "- \"${DEVBUDDY_API_PORT:-5010}:8080\"");
+        Assert.Matches(PortMapping(), "- \"${DEVBUDDY_API_PORT}:8080\"");
+    }
+
+    /// <summary>
     /// Control SB-31. A container that can reach the Docker daemon is root on the host, whatever
     /// user it runs as inside.
     /// </summary>
@@ -726,7 +741,7 @@ public sealed partial class DeploymentTests
     }
 
     /// <summary>A published port mapping, in the list form Compose uses.</summary>
-    [GeneratedRegex(@"^-\s*""[^""]*\d+:\d+""")]
+    [GeneratedRegex(@"^-\s*""[^""]*(\d+|\})\s*:\s*\d+""")]
     private static partial Regex PortMapping();
 
     /// <summary>A secret-looking name with something other than a variable reference after it.</summary>

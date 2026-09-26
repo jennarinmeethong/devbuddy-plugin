@@ -82,7 +82,7 @@ check that failed.
 
 Four things, all in `compose.e2e.yaml`:
 
-- **No host ports.** A run cannot collide with an installation already on 8080 and 8081.
+- **No host ports.** A run cannot collide with an installation already on 5010 and 5011.
 - **A higher sign-in rate limit.** The suite signs in hundreds of times from one address, which the
   limit exists to stop. `DevBuddy.Api.Tests` covers the limit itself.
 - **The runner service.** It sits behind the `e2e` profile.

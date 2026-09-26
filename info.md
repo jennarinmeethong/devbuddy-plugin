@@ -1,5 +1,28 @@
 # Project Decisions
 
+## Confirmed Port Range from 5010 — 2026-09-26
+
+The owner asked for the project's ports to start at 5010, development included. What changes is
+what a person connects to; each container still listens on 8080 inside, which nothing outside the
+stack sees.
+
+| What | Was | Now |
+|---|---|---|
+| API and web UI, published by Compose | `127.0.0.1:8080` | `127.0.0.1:5010`, `DEVBUDDY_API_PORT` |
+| MCP server's HTTP transport, published by Compose | `127.0.0.1:8081` | `127.0.0.1:5011`, `DEVBUDDY_MCP_PORT` |
+| Grafana, observability overlay | `127.0.0.1:3000` | `127.0.0.1:5012`, `DEVBUDDY_GRAFANA_PORT` |
+| API from source, `launchSettings.json` | 5140, https 7286 | 5013, https 5014 |
+| Vite dev server, and where it proxies the API | 5173, proxy to 5288 | 5015, proxy to 5013 |
+
+- The variables set the port and nothing else. The binding stays `127.0.0.1` in the file, so SB-30
+  still holds, and `DeploymentTests` now counts a mapping written with a variable, which it did not.
+- The Vite proxy pointed at 5288 while the API ran on 5140, so the two never met without
+  `DEVBUDDY_API`. They now agree. Vite refuses to start if 5015 is taken rather than moving on.
+- An upgraded installation keeps working only if what fronts it moves too; `deployment.md` says so
+  under *Upgrading*. The plugin over stdio uses no port.
+- Not moved: the throwaway ports the release scripts publish (18080, 28080, 38080 and their pairs)
+  and `tools/retrieval/evaluate.sh`'s 48080, which exist to avoid colliding with an installation.
+
 ## Confirmed Embeddings and Both Workers on the LXC Devbox — 2026-09-26
 
 The owner approved them on 2026-09-26, on the terms the devbox had. This answers what `CLAUDE.md`

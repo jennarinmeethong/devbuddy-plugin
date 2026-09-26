@@ -300,8 +300,9 @@ services:
       - /tmp
     ports:
       # The only thing reachable from the host. Bound to loopback: put a reverse proxy in front of
-      # it and let that hold the certificate.
-      - "127.0.0.1:8080:8080"
+      # it and let that hold the certificate. The variable sets the port and nothing else, so the
+      # binding stays on loopback whatever it is set to.
+      - "127.0.0.1:${DEVBUDDY_API_PORT:-5010}:8080"
     logging: *app-logging
     environment:
       DEVBUDDY_ConnectionStrings__DevBuddy: >-
@@ -403,7 +404,7 @@ services:
     tmpfs:
       - /tmp
     ports:
-      - "127.0.0.1:8081:8080"
+      - "127.0.0.1:${DEVBUDDY_MCP_PORT:-5011}:8080"
     logging: *app-logging
     environment:
       DEVBUDDY_ConnectionStrings__DevBuddy: >-

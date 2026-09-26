@@ -7,8 +7,8 @@ import { randomBytes } from "node:crypto";
  * the setup project through the public API, the way an administrator would.
  */
 export const env = {
-  baseURL: process.env.DEVBUDDY_E2E_BASE_URL ?? "http://127.0.0.1:8080",
-  mcpURL: process.env.DEVBUDDY_E2E_MCP_URL ?? "http://127.0.0.1:8081",
+  baseURL: process.env.DEVBUDDY_E2E_BASE_URL ?? "http://127.0.0.1:5010",
+  mcpURL: process.env.DEVBUDDY_E2E_MCP_URL ?? "http://127.0.0.1:5011",
   adminEmail: required("DEVBUDDY_E2E_ADMIN_EMAIL"),
   adminPassword: required("DEVBUDDY_E2E_ADMIN_PASSWORD"),
   stateDirectory: required("DEVBUDDY_E2E_STATE"),

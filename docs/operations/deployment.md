@@ -18,7 +18,9 @@ docker compose -f docker/compose.yaml run --rm migrate \
 The bootstrap prints the workspace, project, and your user identifier. It runs once and refuses
 afterwards.
 
-The API is then on `127.0.0.1:8080` and the MCP server on `127.0.0.1:8081`.
+The API is then on `127.0.0.1:5010` and the MCP server on `127.0.0.1:5011`. `DEVBUDDY_API_PORT`
+and `DEVBUDDY_MCP_PORT` in `docker/.env` change the port; the binding stays on loopback. Until
+2026-09-26 they were 8080 and 8081.
 
 ## The administration UI
 
@@ -29,7 +31,7 @@ to know beyond the one port:
 
 ```
 devbuddy.example.com {
-    reverse_proxy 127.0.0.1:8080
+    reverse_proxy 127.0.0.1:5010
 }
 ```
 
@@ -361,6 +363,13 @@ curl and no shell, which is the point of one.
 
 A migration that fails leaves the servers not started rather than started against a schema they do
 not match.
+
+**Once, when upgrading past 2026-09-26: the host ports moved.** The API is published on
+`127.0.0.1:5010` rather than 8080, the MCP server on 5011 rather than 8081, and Grafana on 5012
+rather than 3000. A reverse proxy, a firewall rule or a bookmark that names the old port stops
+reaching the stack. Point it at the new port, or keep the old one by setting `DEVBUDDY_API_PORT=8080`
+and `DEVBUDDY_MCP_PORT=8081` in `docker/.env`. An override that replaces `ports:` itself, as an
+installation publishing on the LAN does, is unaffected. The plugin over stdio uses no port.
 
 **Once, when upgrading past 2026-09-17: run `scope-report`.** Until then a workspace administrator
 could store a work item, a record, evidence, a project grant or an AI policy against a project
