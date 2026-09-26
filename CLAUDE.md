@@ -36,8 +36,9 @@ and the Claude and Codex plugin packages; Phase 10 the container images, the Com
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
 enforcement. 994 .NET tests and 78 web tests exist. The .NET suite passed at 994 in CI on
 2026-09-26, run 36240391166 on `6a6be20`. The web suite passed at 78 on the Windows development
-machine the same day. **CI does not run the web suite**: the API image runs `bun run build`,
-which type-checks, and no workflow runs `bun test`. The owner's Linux test machine that ran both
+machine the same day. **Since 2026-09-26 CI runs the web suite too**, in the job
+`Web client tests`, in the `oven/bun:1` image the API image builds the client with. Until then
+only `bun run build` ran there, which type-checks. The owner's Linux test machine that ran both
 suites until 2026-09-25 is gone, above. Count them rather than trusting this sentence, which has been stale many times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
 and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix, and at 993 and 78 until the ports moved to 5010. `docs/plan.md` keeps the per-phase figures, and

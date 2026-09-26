@@ -227,6 +227,27 @@ jobs:
       - name: Verify formatting
         run: dotnet format DevBuddy.slnx --verify-no-changes --severity warn
 
+  # The web client's own tests. Until 2026-09-26 nothing in CI ran them: the API image runs
+  # `bun run build`, which type-checks, and they passed only when somebody ran them by hand. In the
+  # image docker/Dockerfile.api builds the client with, so the Bun here is the Bun that ships and no
+  # third-party setup action is needed.
+  web:
+    name: Web client tests
+    runs-on: ubuntu-latest
+    container: oven/bun:1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install
+        working-directory: web/admin
+        run: bun install --frozen-lockfile
+
+      - name: Test
+        working-directory: web/admin
+        run: bun test
+
 # Added in later phases, not claimed now:
 #   Phase 10  dependency vulnerability gate (SB-28), SBOM (SB-29),
 #             container build and inspection (SB-31), secret scan (SB-32)
