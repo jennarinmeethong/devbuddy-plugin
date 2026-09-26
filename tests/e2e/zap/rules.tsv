@@ -13,6 +13,11 @@
 #     scanned, because that is where a 500 comes from, and rule 100000 below cannot tell a 500
 #     from a 401.
 #
+# What each scan judges, found by a control run on 2026-09-26: the baseline judges findings at
+# every level, informational included, and the API scan judges Low and above only. An
+# informational finding from the API scan is in its report and never fails the run, whatever this
+# file says about its rule.
+#
 # To accept a new finding, add it here as IGNORE, with its reason, in the change that explains it.
 # To stop accepting one, change it to FAIL or delete the line.
 

@@ -66,6 +66,15 @@ pass. Every accepted rule says why, and the owner triaged them on 2026-09-26. Th
 `zap/status.txt` says which of these happened. To accept a new finding, add it to `rules.tsv` as
 `IGNORE` with its reason, in the change that explains it.
 
+The two scans do not judge the same levels. The baseline judges every finding, informational ones
+included. The API scan judges Low and above only, so an informational finding from it shows in its
+report and never fails the run.
+
+A control run proved the gate, on a throwaway branch that broke two things on purpose. One rule that
+fires on every scan was marked `FAIL`, and the NUL filter was taken off account recovery. The
+baseline failed on the rule, the log check failed on the two unhandled exceptions, and the suite
+itself passed.
+
 CI runs it on the amd64 run only. It puts both reports in the job summary, with an error for each
 check that failed.
 
