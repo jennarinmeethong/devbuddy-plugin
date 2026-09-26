@@ -90,7 +90,7 @@
          carries a Microsoft.AspNetCore.App framework reference, which propagates through
          Infrastructure to the console, whose image is built on the smaller runtime base. The same
          trap the OpenTelemetry ASP.NET Core instrumentation fell into. -->
-    <PackageVersion Include="Serilog.Extensions.Hosting" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
