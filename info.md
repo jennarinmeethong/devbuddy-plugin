@@ -1,5 +1,79 @@
 # Project Decisions
 
+## Confirmed WireGuard on UDP 8840 for Reaching the Devbox from Outside — 2026-09-27
+
+On 2026-09-26 the owner's router forwarded TCP 8840 on `jennarin.thddns.net` to the devbox's
+gateway, which made DevBuddy reachable from the internet. Sign-in was open to anyone, and the
+shared rate limit let anybody lock the administrator's account. Asked to choose, the owner chose a
+VPN, as the HomeHub rule set in `samples/` prescribes.
+
+- **WireGuard on UDP 8840**, in an LXC of its own (102, `192.168.1.162`), not in LXC 100. A peer
+  reaches `192.168.1.160:5010/tcp` and nothing else, and each device has its own key.
+  `tools/devbox/vpn/devbuddy-vpn.sh` sets it up. The owner creates the LXC and changes the router,
+  because both need root on hardware Claude does not administer.
+- **The gateway drops every request from a public address** (`abort` unless `private_ranges`),
+  whatever the router forwards. Done on 2026-09-27, before the router changes. VPN peers arrive
+  masqueraded as the LXC's LAN address.
+- **TCP 8840 is removed from the router** (same day). UDP 8840 goes to LXC 102, and the first
+  device, `android`, connects through it.
+- **TCP 8841 to the HomeHub gateway is intended** and left as it is (owner, same day).
+
+## Confirmed the Devbox's Web Port 5010, MinIO's Last Release, and Planning Its Replacement — 2026-09-26
+
+- **The devbox's HTTPS gateway listens on `192.168.1.160:5010`**, not 443. The owner keeps 5030
+  for another web project. Plain HTTP on 5010 is redirected to HTTPS on the same port. The owner
+  means to point DDNS at 5010. Doing so exposes the devbox beyond the LAN, which it has not been
+  since 2026-09-14, and it waits on the points raised in the reply of the same day.
+- **Option 1 for the evidence store:** MinIO `RELEASE.2025-10-15T17-29-55Z` and mc
+  `RELEASE.2025-08-13T08-35-41Z`, the last releases of both, pinned by commit and built with Go
+  1.26.8. The findings left in modules MinIO pins are accepted in `.trivyignore.yaml` until
+  **2026-12-26** and not renewed without a decision here.
+- **Option 2 is planned, not chosen:** replacing MinIO, as C6 in `docs/plan-phase-14.md`. The
+  store is the owner's choice.
+
+## Confirmed HTTPS for the Devbox Through an Internal CA and Caddy in LXC 100 — 2026-09-26
+
+The owner answered B1 of `docs/plan-phase-14.md`: "no domain, use an internal CA, install Caddy
+in LXC 100". The rule set in `samples/` (HomeHub) says the same for a name with no DNS API: an
+internal CA and a trusted root, not a certificate that pretends.
+
+- **Caddy 2.11.4, pinned by digest, as a Compose project of its own** in
+  `/data/devbuddy-tools/gateway`, not in the product's stack, whose images have no shell on
+  purpose. It is not a system package, because `jm` has no root. It runs as uid 1000, read-only,
+  with one capability (`NET_BIND_SERVICE`, which the image's binary needs in order to be executed at
+  all), and joins `devbuddy_internal` to reach `api:8080`.
+- **`https://192.168.1.160` is the only way the LAN reaches the API and web UI.** Port 80
+  redirects to it. The API is published on `127.0.0.1:5010` only.
+- **The CA is Caddy's own** (`DevBuddy devbox CA`, an ECC root valid until 2036), separate from
+  the HomeHub gateway's on the same LXC. Each device that uses the UI trusts its root once. That is
+  the owner's to do, not Claude's, because it changes a trust store.
+- **HSTS is sent since the same day** (`max-age=31536000`), once the owner had trusted the root on
+  every device: Windows, the Mac mini, and the Ubuntu arm64 guest. A browser does not record HSTS
+  for an IP address, so it takes effect only if the devbox is later given a name.
+- **Accepted:** behind the proxy every signed-out caller shares one sign-in rate limit, because the
+  API reads no forwarded address. On this box that means the owner.
+
+## Confirmed Gitleaks, Trivy, CodeQL, Actions Pinned by Commit, and Dependabot — 2026-09-26
+
+The owner approved the first recommendation from comparing this project with the HomeHub rule set
+the owner placed in `samples/`: "Gitleaks Trivy CodeQL pin SHA Dependabot". It is item C5 of
+`docs/plan-phase-14.md`. What was decided, where the owner named nothing more precise:
+
+- **Gitleaks** scans the whole history on every push, pull request and the weekly schedule, and
+  any finding fails the run. `.gitleaksignore` accepts a finding by exact fingerprint only.
+- **Trivy** scans the repository and the four built images. **The gate is HIGH and CRITICAL with a
+  fix available.** Medium and below are reported in the log and do not fail the run. That is
+  looser than HomeHub, which blocks Medium by default; the owner may tighten it. An accepted
+  finding goes in `.trivyignore.yaml` with a statement and an expiry, and renewing one is a
+  decision recorded here.
+- **`bun audit` fails the run at HIGH.** It had been a warning.
+- **CodeQL** runs `security-extended` for C#, TypeScript and the workflows. Its alerts go to the
+  repository's code scanning page. A pull request shows the ones it introduces.
+- **Every action is pinned by commit**, and both scanner images by digest. They run as containers,
+  not as third-party actions.
+- **Dependabot** opens grouped weekly pull requests for actions, NuGet, Bun and base images. It
+  merges nothing. MinIO's commit pins are left to a decision, as on 2026-09-25.
+
 ## Confirmed Cutting v1.8.0, and devrelease for the Checklist — 2026-09-26
 
 *(Done the same day. It was published at 14:20 UTC once the checklist passed on devrelease and

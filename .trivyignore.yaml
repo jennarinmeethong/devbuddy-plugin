@@ -1,0 +1,188 @@
+# Trivy findings accepted on purpose, approved 2026-09-26 (`info.md`).
+#
+# The rule, from the project's exception governance: every entry names one finding by ID, narrows
+# it to the paths it applies to where Trivy allows that, says why in `statement`, and expires.
+# Trivy stops honouring an entry after `expired_at`, so an expired acceptance fails the scan again
+# rather than lasting forever. `SupplyChainPolicyTests` fails the build if an entry lacks either.
+# Renewing one is a decision, recorded in `info.md`, not an edit to make the build pass.
+
+misconfigurations:
+  - id: DS-0026
+    paths:
+      - docker/Dockerfile.api
+      - docker/Dockerfile.cli
+      - docker/Dockerfile.mcp
+      - docker/evidence/Dockerfile
+      - tests/e2e/Dockerfile
+    statement: >-
+      No HEALTHCHECK in the Dockerfile. The images are chiseled or scratch, with no shell or curl
+      for one to run, so docker/compose.yaml declares each health check where it can name the
+      binary: the API runs `DevBuddy.Api.dll --health-check`, the evidence store `mc ready local`.
+      The console runs one command and exits; the e2e image is a test runner.
+    expired_at: 2027-03-26
+
+# The evidence store's Go modules (2026-09-26, info.md). MinIO RELEASE.2025-10-15T17-29-55Z and mc
+# RELEASE.2025-08-13T08-35-41Z are the last releases either project published, and both repositories
+# are archived, so the versions below are fixed in their go.mod and no upstream release will move
+# them. Built with Go 1.26.8, which cleared every standard-library finding, and at the release that
+# fixes MinIO's own CVE-2025-62506. What is left is accepted for three months, while Phase 14 C6
+# replaces MinIO. The store is reachable only on the stack's internal network, by the API and the
+# console, with credentials; no notification target (AMQP, Kafka and the like) is configured, and
+# the image holds nothing else to execute. Renewing any of these is a decision in info.md.
+vulnerabilities:
+  - id: CVE-2026-41602
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/apache/thrift in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-43871
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/apache/thrift in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-32285
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/buger/jsonparser in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-34986
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/go-jose/go-jose/v4 in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-42151
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH github.com/prometheus/prometheus in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-42154
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH github.com/prometheus/prometheus in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77403
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77404
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77405
+    paths: [usr/bin/minio]
+    statement: CRITICAL github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77406
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77407
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77408
+    paths: [usr/bin/minio]
+    statement: CRITICAL github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77410
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77411
+    paths: [usr/bin/minio]
+    statement: CRITICAL github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-77412
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-79921
+    paths: [usr/bin/minio]
+    statement: HIGH github.com/rabbitmq/amqp091-go in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-24051
+    paths: [usr/bin/minio]
+    statement: HIGH go.opentelemetry.io/otel/sdk in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39883
+    paths: [usr/bin/minio]
+    statement: HIGH go.opentelemetry.io/otel/sdk in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2025-47913
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39828
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39829
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39830
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39831
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39832
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39835
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-42508
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-46595
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-46597
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-56854
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/crypto in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-25681
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/net in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-27136
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/net in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-33814
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/net in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-39821
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/net in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-46600
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/net in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-56852
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH golang.org/x/text in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-33186
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: CRITICAL google.golang.org/grpc in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-84304
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH google.golang.org/grpc in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: CVE-2026-84445
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH google.golang.org/grpc in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26
+  - id: GHSA-hrxh-6v49-42gf
+    paths: [usr/bin/mc, usr/bin/minio]
+    statement: HIGH google.golang.org/grpc in a module MinIO pins; see the note above.
+    expired_at: 2026-12-26

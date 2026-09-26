@@ -1,0 +1,56 @@
+# Dependency updates, approved 2026-09-26 (`info.md`).
+#
+# Dependabot opens pull requests and merges nothing. Each one goes through CI like any other change,
+# and a person decides. Minor and patch updates are grouped per ecosystem so a week's updates arrive
+# as one change rather than twenty; a major version arrives on its own, because it is the one that
+# needs reading.
+#
+# Not covered here, on purpose:
+# - MinIO and `mc` in `docker/evidence/Dockerfile` are pinned by commit and built from source
+#   (`info.md`, 2026-09-25). Moving them is a decision, not an update.
+# - The images Compose names through a variable default, such as `postgres:17-alpine`, which
+#   Dependabot does not read.
+
+version: 2
+
+updates:
+  # Every `uses:` is pinned by commit SHA with its version in a comment. Dependabot moves both.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        update-types: [minor, patch]
+
+  # Central package management: the versions live in Directory.Packages.props.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      nuget:
+        update-types: [minor, patch]
+
+  - package-ecosystem: bun
+    directories: [/web/admin, /tests/e2e]
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      bun:
+        update-types: [minor, patch]
+
+  # Base images, including the digests the Go and Playwright images are pinned by.
+  - package-ecosystem: docker
+    directories: [/docker, /docker/evidence, /tests/e2e]
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker:
+        update-types: [minor, patch]

@@ -1,0 +1,39 @@
+# The DevBuddy devbox's HTTPS gateway (info.md, 2026-09-26, Phase 14 B1). Local to LXC 100 and not
+# part of the product's stack: the stack's images have no shell on purpose, and this one does.
+# It joins the stack's network to reach `api`, and is the only thing the LAN reaches.
+name: devbuddy-gateway
+
+services:
+  caddy:
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    restart: unless-stopped
+    # jm, who owns ./data and ./config, so nothing needs root.
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The image's caddy binary carries the file capability cap_net_bind_service, and the kernel
+    # refuses to exec it ("operation not permitted") unless that capability is in the bounding set.
+    # It listens on 8443 and 8080 and does not use it; this is the one capability kept.
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp
+    ports:
+      # HTTPS on 5010, the project's own range (info.md, 2026-09-26). The API is published on
+      # 127.0.0.1:5010 too; the two bindings are different addresses and do not collide.
+      - "192.168.1.160:5010:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The CA's keys and the certificates. Losing this directory means every device has to trust a
+      # new root. DevBuddy's nightly backup does not include it; only a backup of the LXC does.
+      - ./data:/data
+      - ./config:/config
+    networks: [devbuddy]
+
+networks:
+  devbuddy:
+    name: devbuddy_internal
+    external: true

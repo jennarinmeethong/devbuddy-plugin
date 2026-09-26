@@ -1,0 +1,13 @@
+# Gitleaks findings accepted by exact fingerprint (commit:file:rule:line), never by pattern.
+#
+# Each is a synthetic credential that a test of the secret scanner or the redactor must contain to
+# prove it is caught. A new finding anywhere, including a new copy of one of these values, fails the
+# scan. Add a line only for a value that is fake by construction, and say why beside it.
+
+# The AWS documentation's example secret access key, truncated. The embedding gateway must refuse
+# it and must not echo it.
+333b712c3c1cd7a8c05e123725d4c43212c7699b:tests/DevBuddy.Application.Tests/WorkerAuthorizationTests.cs:generic-api-key:373
+
+# jwt.io's example token (subject 1234567890), in the scanner's corpus of known secrets.
+511477cdb10cde74bf18be2dc2fa38bdc3887f52:tests/DevBuddy.Infrastructure.Tests/SecretCorpusTests.cs:jwt:41
+511477cdb10cde74bf18be2dc2fa38bdc3887f52:tests/DevBuddy.Infrastructure.Tests/SecretCorpusTests.cs:jwt:42
