@@ -64,6 +64,10 @@ account of its own with no password.
 The plugin reaches it the way it reached the old machine: SSH with a key restricted to one command,
 which starts the MCP server over stdio inside the stack, with the machine token kept on the server.
 The SDK-container wrapper the suites ran in on jmhp went with the reinstall; CI still runs them.
+**Since 2026-09-26 it backs itself up every night** at 19:30 UTC, from `jm`'s crontab, as the
+workspace administrator. The backup root is bound to a folder on the Proxmox host (`mp0`), so the
+retention service still prunes it at 90 days. That host shares the LXC's disk, so it protects
+against losing the container, not against losing the disk.
 
 **`v1.6.0` was the release before it**, published 2026-09-24 from `c9a0d4d` at the owner's
 instruction. It withdraws Voyage AI and holds `SelfHosted` to a private address. It adds no
