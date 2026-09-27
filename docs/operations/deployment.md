@@ -1,6 +1,7 @@
 # Deployment
 
-Self-hosted, on infrastructure you control. Four containers: PostgreSQL, MinIO, the API, and the
+Self-hosted, on infrastructure you control. Four containers: PostgreSQL, the evidence store
+(SeaweedFS since ADR-0014; MinIO before it), the API, and the
 MCP server, plus a console that runs once and exits.
 
 ## Starting
@@ -83,11 +84,10 @@ docker compose -f docker/compose.yaml exec database psql -U devbuddy devbuddy
 **Nothing mounts the Docker socket.** A container that can reach the daemon is root on the host.
 
 **Nothing runs as root.** The application images ship a non-root account and use it, and the
-database is told which user to be. MinIO is built from `docker/evidence/Dockerfile`, which adds the
-non-root account (uid 1000) that the upstream image lacks, and keeps its data at `/srv/evidence`.
-Until 2026-09-14 this paragraph claimed MinIO already ran as its own account, and in fact it ran as
-root; `DeploymentTests` now checks every service. An installation upgrading from an earlier stack
-has to hand its evidence volume to that account once; the upgrade steps are below.
+database is told which user to be. The evidence store is built from `docker/evidence/Dockerfile`
+as uid 1000 and keeps its data at `/srv/evidence`. Until 2026-09-14 this paragraph claimed MinIO
+already ran as its own account, and in fact it ran as root; `DeploymentTests` now checks every
+service.
 
 **The application containers are read-only** with all capabilities dropped and
 `no-new-privileges`, with a `tmpfs` for the one directory a .NET process needs to write to.
@@ -260,7 +260,8 @@ Accounts, passwords and machine tokens come back with the restore. Sessions do n
 signs in once. The old volume is left as it was, which makes rolling back a matter of undoing the
 override and the image. The LXC devbox was moved this way on 2026-09-26.
 
-**Upgrading a stack from before the non-root evidence store takes one ownership change.** Until
+**Upgrading a stack from before the non-root evidence store takes one ownership change.** This
+applies to MinIO's volume, before ADR-0014; SeaweedFS's starts empty and owned by uid 1000. Until
 2026-09-14 MinIO ran as root and wrote its volume as root. The evidence service is now built from
 `docker/evidence/Dockerfile` and runs as uid 1000, so the new image cannot write to a volume the old
 one filled. MinIO then refuses to start with `file access denied, drive may be faulty`, and the API,
@@ -296,7 +297,8 @@ Four, all from the environment, none baked into an image:
 |---|---|
 | `DEVBUDDY_DB_PASSWORD` | PostgreSQL. |
 | `DEVBUDDY_SIGNING_KEY` | Signs access tokens. Shared by the API and the MCP server, so one identity works across both. At least 32 characters; a shorter one is refused rather than padded. |
-| `DEVBUDDY_EVIDENCE_ACCESS_KEY` / `_SECRET_KEY` | MinIO. |
+| `DEVBUDDY_EVIDENCE_ACCESS_KEY` / `_SECRET_KEY` | The evidence store (SeaweedFS). Required: without credentials SeaweedFS serves everything to anyone, so Compose refuses to start and the store's health check fails. |
+| `DEVBUDDY_EVIDENCE_SSE_KEK` | The key the evidence store encrypts objects with, 64 hex characters (`openssl rand -hex 32`). Keep a copy off the host; a different key after a restart makes the application refuse the store. |
 
 `docker/.env` is refused by `.gitignore` and a test checks that it still is. For anything beyond a
 single host, put these in whatever secret store you already have and inject them; Compose reads the
@@ -384,6 +386,50 @@ curl and no shell, which is the point of one.
 
 A migration that fails leaves the servers not started rather than started against a schema they do
 not match.
+
+**Once, when upgrading from MinIO to SeaweedFS (ADR-0014): move the evidence.** The evidence store
+is SeaweedFS on a new volume, `evidence_seaweedfs`. Nothing converts MinIO's volume, `evidence`,
+and Compose no longer declares it, so it stays on the host untouched, as the way back. The rows stay
+in PostgreSQL, and nobody is signed out. In order:
+
+1. Before upgrading, on the old release, take a backup and note its reference. Stop anyone
+   attaching evidence until step 5; a capture after this backup is not in it.
+
+   ```bash
+   docker compose run --rm migrate backup --workspace <workspace-id> --actor <administrator-id>
+   ```
+
+2. Add the new variables to `docker/.env`. `DEVBUDDY_EVIDENCE_ACCESS_KEY` and
+   `DEVBUDDY_EVIDENCE_SECRET_KEY` stay as they are. Add the encryption key and keep a copy off
+   this host, because without it the new volume cannot be read:
+
+   ```bash
+   echo "DEVBUDDY_EVIDENCE_SSE_KEK=$(openssl rand -hex 32)" >> docker/.env
+   ```
+
+3. Rebuild and start the new release, as in the steps above. The evidence store is healthy only if
+   it refuses an unsigned request, and the API and console wait for that.
+4. Put the backup's evidence into the new store. Only the bytes are written, and only for evidence
+   rows still in the database whose bytes still match their content hash. No row changes:
+
+   ```bash
+   docker compose run --rm migrate restore --evidence-only --reference <reference>
+   ```
+
+   It prints how many objects now have their bytes, and exits non-zero unless every one does.
+   It is safe to run again.
+5. Download one piece of evidence from the web UI to check.
+6. Once satisfied, delete `DEVBUDDY_EVIDENCE_KMS_KEY` from `docker/.env`. When the old volume is no
+   longer wanted as a way back, delete it too: `docker volume rm <project>_evidence`.
+
+Between steps 3 and 4 an existing piece of evidence cannot be downloaded, and the API logs that.
+Rolling back means the previous release's Compose file, which names the old volume again.
+
+**If the application refuses to use the evidence store**, its log says which check failed. **The
+store answered an unsigned request:** the store has no credentials, so it would serve evidence to
+anyone. Set them. **The canary did not read back:** the store was started with a different
+`DEVBUDDY_EVIDENCE_SSE_KEK` from the one it first ran with. Put the original back. Nothing is written
+or read while either is true.
 
 **Once, when upgrading past 2026-09-26: the host ports moved.** The API is published on
 `127.0.0.1:5010` rather than 8080, the MCP server on 5011 rather than 8081, and Grafana on 5012

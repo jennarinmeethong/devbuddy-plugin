@@ -45,7 +45,12 @@ COPY --from=build --chown=1000:1000 /out/tmp/ /tmp/
 
 USER 1000:1000
 
-ENV PATH=/usr/bin HOME=/tmp
+# Each bucket is a collection of its own to SeaweedFS, and DevBuddy has a bucket per workspace plus
+# the canary's. The master pre-grows seven volumes for every new collection while `weed server`
+# allows eight, so the second bucket's first write failed with "failed to find writable volumes"
+# (found by EvidenceStoreTests, 2026-09-27). One volume at a time, as SeaweedFS's own `weed mini`
+# sets it for the same reason; the volume count and size are set in CMD below.
+ENV PATH=/usr/bin HOME=/tmp WEED_MASTER_VOLUME_GROWTH_COPY_1=1
 
 # The S3 gateway. Master, volume server and filer run in the same process and are reached by no one
 # else: they advertise 127.0.0.1, and only 8333 is meant to be addressed.
@@ -55,5 +60,7 @@ ENTRYPOINT ["weed"]
 
 # One process, logs to standard error, data under /srv/evidence. Credentials come from
 # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, and the SSE-S3 key from WEED_S3_SSE_KEK; see
-# docker/compose.yaml, which requires all three.
-CMD ["-logtostderr=true", "server", "-dir=/srv/evidence", "-s3", "-ip=127.0.0.1", "-ip.bind=0.0.0.0"]
+# docker/compose.yaml, which requires all three. Volumes of 1 GB rather than 30, as many as the
+# disk has room for (`-volume.max=0`), so a small disk still holds many workspaces' buckets. An
+# evidence object is at most 100 MB (Evidence:MaxObjectBytes).
+CMD ["-logtostderr=true", "server", "-dir=/srv/evidence", "-s3", "-ip=127.0.0.1", "-ip.bind=0.0.0.0", "-volume.max=0", "-master.volumeSizeLimitMB=1024"]
