@@ -436,14 +436,18 @@ default_ports() {
 # The order matters: drill makes the workspace every later check works in.
 # v1.9.0 (ADR-0014): the evidence store is SeaweedFS, which serves everything to anyone without
 # credentials. On the running stack an unsigned request is refused, the application never refused
-# the store, and `restore --evidence-only` completes over the drill's backup, which restored
-# every byte already, so running it again is the idempotent case.
+# the store, and `restore --evidence-only` completes over a backup of a store that already holds
+# every byte, which is the idempotent case. It takes a backup of its own: the drill's reference is
+# local to the drill, and the first run of this check stopped on it (2026-09-27).
 seaweedfs_guards() {
   note "=== the evidence store's guards (v1.9.0)"
   expect "  unsigned request to the evidence store" \
     "$(docker run --rm --network "${P}_internal" curlimages/curl:latest -s -o /dev/null -w '%{http_code}' http://evidence:8333/)" 403
   expect "  the application never refused the store" "$(docker logs "$P-api-1" 2>&1 | grep -c EvidenceStoreUnsafe)" 0
-  cli restore --evidence-only --reference "$ref" > "$D/restore-evidence-only.out"
+  local backup
+  backup=$(cli backup --workspace "$WS" --actor "$ADMIN" | last_json | jq -r .reference)
+  expect "  a backup to restore from" "$(present "$backup")" yes
+  cli restore --evidence-only --reference "$backup" > "$D/restore-evidence-only.out"
   expect "  restore --evidence-only over the drill's backup" "$?" 0
   note "  $(cat "$D/restore-evidence-only.out")"
 }
