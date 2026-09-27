@@ -20,12 +20,19 @@ secret-looking name a literal value.
 | `setup-and-suite.sh` | Before the tag | devrelease, Linux x64 with Docker and no SDK | `VERSION COMMIT` |
 | `stack-drill-tokens.sh` | Before the tag, after the one above | devrelease | `VERSION` |
 | `upgrade.sh` | Before the tag | devrelease for amd64; the Ubuntu arm64 guest for arm64 | `VERSION PREVIOUS COMMIT` |
-| `post-images.sh` | After the release workflow pushes the images | devrelease for amd64; the arm64 guest or the Mac mini for arm64 | `VERSION WORKDIR [DATABASE_IMAGE] [HELPER_IMAGE]` |
-| `smoke.sh` | After the tag, once per archive | Where the RID runs natively, or in a container with a third argument | `ARCHIVE EXPECTED [IMAGE]` |
-| `client-smoke.ps1` | After the tag | The Windows on ARM guest for `win-arm64`. It also runs against `win-x64`. | `-Archive -Expected -Work` |
+| `post-images.sh` | After the release workflow pushes the images | The release workflow, on both architectures; devrelease for amd64 by hand | `VERSION WORKDIR [DATABASE_IMAGE] [HELPER_IMAGE]` |
+| `smoke.sh` | After the tag, once per archive | The release workflow, for every Linux RID and `osx-arm64`; devrelease for the x64 RIDs by hand; the Mac mini for `osx-arm64` when the macOS build changed | `ARCHIVE EXPECTED [IMAGE]` |
+| `client-smoke.ps1` | After the tag | The release workflow, for `win-arm64` and `win-x64`; JMPC for `win-x64` by hand | `-Archive -Expected -Work` |
 | `stale-sessions.sh` | After an upgrade of any installation | The installation's own host | `[COMPOSE_PROJECT]` |
 
 `lib.sh` holds what the Linux scripts share. It is sourced, not run.
+
+**Since Phase 14 (A2), `.github/workflows/release.yml` runs `post-images.sh`, `smoke.sh` and
+`client-smoke.ps1` on GitHub's hosted runners** after the draft is cut, from the tag's own copy of
+this directory, and adds their verdicts and every `FAIL` line to the draft's notes. The owner's
+B4 decision makes those runs replace the hand runs for `win-arm64`, `linux-arm64`,
+`linux-musl-arm64` and `osx-arm64`. `docs/operations/release-matrix.md` says what is still run by
+hand.
 `stale-sessions.sh` is also step 6 of *Upgrading* in `docs/operations/deployment.md`. It only reads,
 so it is the one script meant for an installation's own stack.
 

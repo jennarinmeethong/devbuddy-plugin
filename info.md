@@ -16,7 +16,12 @@ The owner reviewed and merged PR #19 and PR #20, then answered the open items th
   client now carries what was taken from it. Comments that named `demo/` now name the mock-up.
 - **`DEVBUDDY_EVIDENCE_SSE_KEK`:** the owner copied the devbox's key off the host.
 
-B2 is still open. The owner asked whether the archives can stay unsigned for now.
+**B2: the Windows archives stay unsigned for now** (option 3), confirmed the same day after the
+owner asked whether that was possible. Every release's notes keep saying so. On a Windows machine
+with Smart App Control on, an unsigned build can be refused, and SmartScreen warns; the Linux and
+macOS archives and the images are unaffected, and the images carry their attestations as before.
+Signing can come back as a decision of its own. SignPath Foundation (free for open source, on
+approval) and Azure Trusted Signing (monthly) were the options named.
 
 ## Confirmed Ocean Mist Light, a Sidebar, Thai and English, and Cutting v1.10.0 — 2026-09-27
 

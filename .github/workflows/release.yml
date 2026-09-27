@@ -318,6 +318,14 @@ jobs:
         working-directory: dist
         run: sha256sum *.tar.gz > SHA256SUMS
 
+      # For the smoke jobs below, which check the archive they were handed against this file, so
+      # what they test is what the draft carries.
+      - name: Upload the checksums
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: checksums
+          path: dist/SHA256SUMS
+
       # Provenance only, for these. Each archive holds all three hosts, so there is no single SBOM
       # that describes one of them — the per-host documents are attached to the per-host images in
       # the job above, and ship beside these as files.
@@ -347,8 +355,246 @@ jobs:
           # {{major}}.{{minor}} tag for a prerelease, so 1.1 stayed on v1.1.0 through that run.
           prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
 
-          # Left as a draft on purpose. docs/operations/release-matrix.md asks for smoke tests on
-          # platforms no runner has and a destroy-and-restore drill performed by hand; a release
-          # that published itself would be claiming those happened. A person records what was
-          # actually verified in the notes and then presses publish.
+          # Left as a draft on purpose. docs/operations/release-matrix.md asks for a
+          # destroy-and-restore drill and an upgrade performed by hand; a release that published
+          # itself would be claiming those happened. A person records what was actually verified in
+          # the notes and then presses publish. The jobs below add the runners' smoke results to
+          # this draft's notes, and a failed row fails this run.
           draft: true
+
+  # Phase 14, A2: the release rows a hosted runner can do. The owner decided on 2026-09-24 (B4,
+  # info.md) that these replace the hand smoke tests for win-arm64, linux-arm64, linux-musl-arm64
+  # and osx-arm64. The scripts are the tag's own tools/release/, the ones a person runs by hand.
+  #
+  # The published images, started with the tag's Compose file on both architectures. Its list of
+  # AI operation names is what every archive is compared against.
+  post-images:
+    name: Start the published images (${{ matrix.arch }})
+    needs: images
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+
+    permissions:
+      contents: read
+      packages: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      DEVBUDDY_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}.git
+      DEVBUDDY_REGISTRY: ghcr.io/${{ github.repository }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Sign in to the registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: post-images.sh
+        run: bash tools/release/post-images.sh "${TAG#v}" "$RUNNER_TEMP/post-images"
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: post-images-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/post-images/results/post-images-results.txt
+            ${{ runner.temp }}/post-images/results/ai-operations.txt
+          if-no-files-found: ignore
+
+  # One archive per row, where its platform runs, against the checksum the draft carries. The x64
+  # rows run here too, and they add to the hand runs on devrelease rather than replacing them: B4
+  # decided the four above and nothing else.
+  smoke:
+    name: Smoke ${{ matrix.rid }}
+    needs: [publish, post-images]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-latest
+            arch: amd64
+            image: ubuntu:24.04
+          - rid: linux-musl-x64
+            runner: ubuntu-latest
+            arch: amd64
+            image: alpine:3
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+            image: ubuntu:24.04
+          - rid: linux-musl-arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+            image: alpine:3
+          - rid: osx-arm64
+            runner: macos-15
+            arch: arm64
+          - rid: win-arm64
+            runner: windows-11-arm
+            arch: arm64
+          - rid: win-x64
+            runner: windows-latest
+            arch: amd64
+
+    env:
+      RID: ${{ matrix.rid }}
+      IMAGE: ${{ matrix.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Collect the archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: executables-${{ matrix.rid }}
+          path: dist
+
+      - name: Collect the checksums
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: checksums
+          path: dist
+
+      - name: Collect the expected names
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: post-images-${{ matrix.arch }}
+          path: expected
+
+      - name: Check the archive against SHA256SUMS
+        if: runner.os != 'Windows'
+        working-directory: dist
+        run: |
+          grep " devbuddy-$RID.tar.gz\$" SHA256SUMS > mine
+          if command -v sha256sum > /dev/null; then sha256sum -c mine; else shasum -a 256 -c mine; fi
+
+      - name: Check the archive against SHA256SUMS
+        if: runner.os == 'Windows'
+        working-directory: dist
+        shell: pwsh
+        run: |
+          $line = Get-Content SHA256SUMS | Where-Object { $_ -match " devbuddy-$env:RID\.tar\.gz$" }
+          $wanted = $line.Split(' ')[0]
+          $actual = (Get-FileHash "devbuddy-$env:RID.tar.gz" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $wanted) { throw "devbuddy-$env:RID.tar.gz is $actual, SHA256SUMS says $wanted" }
+          "devbuddy-$env:RID.tar.gz: OK"
+
+      - name: smoke.sh
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p results
+          sh tools/release/smoke.sh "dist/devbuddy-$RID.tar.gz" expected/ai-operations.txt ${IMAGE:+"$IMAGE"} \
+            2>&1 | tee "results/smoke-$RID.txt"
+          exit "${PIPESTATUS[0]}"
+
+      # A relative archive path, on purpose: a GNU tar earlier in PATH reads "C:" as a host name.
+      - name: client-smoke.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force results | Out-Null
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools/release/client-smoke.ps1 `
+            -Archive "dist/devbuddy-$env:RID.tar.gz" -Expected expected/ai-operations.txt `
+            -Work (Join-Path $env:RUNNER_TEMP smoke) 2>&1 | Tee-Object "results/smoke-$env:RID.txt"
+          exit $LASTEXITCODE
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: smoke-${{ matrix.rid }}
+          path: results/
+          if-no-files-found: ignore
+
+  # What the runners found, in the draft's notes, whether they passed or not. Run again, it replaces
+  # its own section rather than adding a second one.
+  smoke-report:
+    name: Add the smoke results to the draft
+    needs: [publish, post-images, smoke]
+    if: ${{ always() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - name: Collect the image results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: post-images-*
+          path: results
+
+      - name: Collect the smoke results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: smoke-*
+          path: results
+
+      - name: Write them into the draft
+        run: |
+          marker='<!-- runner smoke results -->'
+          {
+            echo "$marker"
+            echo "## Runner smoke results"
+            echo
+            echo "From [run $GITHUB_RUN_ID]($RUN_URL), by \`tools/release/\` at \`$TAG\`."
+            echo
+            if [ -f results/post-images-amd64/ai-operations.txt ] && [ -f results/post-images-arm64/ai-operations.txt ]; then
+              if cmp -s results/post-images-amd64/ai-operations.txt results/post-images-arm64/ai-operations.txt; then
+                echo "- The console image lists the same AI operations on amd64 and arm64."
+              else
+                echo "- **FAIL:** the console image lists different AI operations on amd64 and arm64."
+              fi
+            fi
+            for row in post-images-amd64 post-images-arm64 smoke-linux-x64 smoke-linux-musl-x64 \
+                smoke-linux-arm64 smoke-linux-musl-arm64 smoke-osx-arm64 smoke-win-arm64 smoke-win-x64; do
+              file=$(find "results/$row" -name '*.txt' ! -name ai-operations.txt 2> /dev/null | head -1)
+              if [ -z "$file" ]; then
+                echo "- **$row: no result.** The job did not get as far as writing one."
+                continue
+              fi
+              verdict=$(grep -E '^===' "$file" | tail -1)
+              echo "- **$row:** ${verdict:-no final line}"
+              failures=$(grep -E '^FAIL' "$file" || true)
+              if [ -n "$failures" ]; then printf '%s\n' "$failures" | while IFS= read -r line; do echo "  - $line"; done; fi
+            done
+          } > section.md
+          cat section.md >> "$GITHUB_STEP_SUMMARY"
+
+          gh release view "$TAG" --json body -q .body > body.md
+          awk -v m="$marker" '$0 == m { exit } { print }' body.md > notes.md
+          cat section.md >> notes.md
+          gh release edit "$TAG" --notes-file notes.md

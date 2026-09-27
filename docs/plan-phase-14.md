@@ -115,7 +115,8 @@ machine, and `release-matrix.md` names the script behind each row.
   the `v1.7.0` run, from the tag, on every machine.
 
 ### A2 — The release rows a runner can do
-**Status: TODO.** B4 is answered, so it can start after A1.
+**Status: IN PROGRESS.** Built in `release.yml` on 2026-09-27, at the owner's word. Its exit waits
+on the first release that runs it: nothing short of a tag exercises those jobs.
 
 - **What GitHub's hosted runners can run:**
   - `windows-11-arm`: the `win-arm64` client smoke;
@@ -178,7 +179,8 @@ uses trusts the root, and HSTS is sent. **A browser does not record HSTS for an 
   will.
 
 ### B2 — Code-signing the Windows archives
-**Status: TODO. It waits on the owner.**
+**Status: DONE 2026-09-27.** The owner chose option 3 for now (`info.md`): stay unsigned, and keep
+stating it in every release's notes.
 
 - **Problem:** Smart App Control refuses a new unsigned build, which the development machine has
   already hit. Every release's notes say the archives are unsigned.
@@ -625,3 +627,5 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-27 | 14.11 | **The devbox is on `v1.10.0`.** Backup `backup-20260927-101144-8249f1dfed414c729` on `v1.9.0`, with `.env` and the override copied to `~/backups/before-v1100-20260927/`. Checked out at the tag, built, and recreated with the workers profile. **`up -d` left the `mcp` service running on the `v1.9.0` image** (`539b03d985ec`) although `devbuddy-mcp` had been rebuilt (`2625bb98ab9b`); `--force-recreate --no-deps mcp` moved it. Checked: through the gateway `/health` 200, `/operations` 401, the UI 200 with its stylesheet and a bundled Roboto font 200, the CSP, `nosniff` and `DENY` headers; MCP `POST` on 5011 401; migrations nine; `scope-report` clean; no `EvidenceStoreUnsafe`; the services as uid 1654 and the store as 1000. Both workers completed a pass. **A3:** `stale-sessions.sh` listed 3 of 3 sessions on older images, the owner's, left running. **Plugin 1.10.0** was copied from the tag into the local marketplace and installed. A fresh MCP stdio session over `devbuddy-mcp` listed twenty tools, answered `list_projects`, and wrote only JSON-RPC. The owner confirmed a copy of `DEVBUDDY_EVIDENCE_SSE_KEK` is kept off the host. |
 | 2026-09-27 | B3, D1, C5, C6 | **B3 done: a hosted model server, prepared and not in use**, at the owner's answer (`info.md`). `tools/hosted-model/`: Ollama on an internal network with no port, behind Caddy with TLS, which passes on only `POST /v1/embeddings` with the bearer key; a `pull` service downloads the model because the server has no way out. **Tested on devrelease only**, with `tls internal` on loopback: `check.sh` passed 8 of 8 (no key and a wrong key 401, Ollama's API, a pull and a `GET` 404 with the key, an embedding 200 with 1024 dimensions, plain HTTP a 308), the key did not appear in Caddy's log, both containers ran as uid 1000, and the model's network could not reach the internet while a control on the edge network could. The stack was removed. D1 stays blocked by the owner's choice. C5 and C6 are marked done: their exits were met by `v1.9.0`. |
 | 2026-09-27 | Other | **`demo/` removed and Dependabot handled**, at the owner's word. `demo/`, the owner's Ocean Mist Light mock-up, never committed, went to the Recycle Bin; the comments in `Layout.tsx` and `index.css` that named it now name the mock-up. Dependabot: #18, #10 and #5 merged, then #3 (Go 1.27.1 for the evidence store; `CLAUDE.md` updated). #9 was closed as replaced by #18, and #8 because `@vitejs/plugin-react` 6 needs vite 8. #11, #12, #6, #4 and #7 were rebased to be merged once their checks pass. |
+| 2026-09-27 | A2 | **Built, not yet run; approved by the owner the same day** (`info.md`). `release.yml` gains three jobs after the draft is cut. `post-images` runs `tools/release/post-images.sh` from the tag on `ubuntu-latest` and `ubuntu-24.04-arm`. `smoke` checks each of the seven archives against the draft's `SHA256SUMS` and runs `smoke.sh` (the Linux RIDs in `ubuntu:24.04` or `alpine:3`, `osx-arm64` on `macos-15`) or `client-smoke.ps1` (`win-arm64` on `windows-11-arm`, `win-x64` on `windows-latest`), each against its own architecture's list of AI operations. `smoke-report` writes every verdict and `FAIL` line into the draft's notes, replacing its own section on a re-run, and says whether the two architectures list the same operations. A failed row fails the run. The x64 rows run too, in addition to the hand runs, because B4 decided only the four arm64 and macOS rows. Verified: actionlint finds nothing new (one old SC2035 note on the checksum step). **Not verified:** any of it on a runner. The exit needs a draft carrying those results, so the next release, or an rc, is its test. |
+| 2026-09-27 | B2 | **Done: the Windows archives stay unsigned for now**, at the owner's confirmation (`info.md`). The release notes already say so, and nothing in `release.yml` changes. SignPath Foundation and Azure Trusted Signing are recorded as the options if signing comes back. |
