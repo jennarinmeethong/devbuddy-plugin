@@ -15,6 +15,13 @@ public interface IAdministrativeOperations
 
     Task<RestoreOutcome> RestoreAsync(string backupReference, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Writes a backup's evidence bytes into the configured store, for the evidence rows this
+    /// database already holds, and touches no row. How an installation moves its evidence to a new
+    /// store (ADR-0014).
+    /// </summary>
+    Task<RestoreOutcome> RestoreEvidenceAsync(string backupReference, CancellationToken cancellationToken);
+
     Task<HealthReport> CheckHealthAsync(CancellationToken cancellationToken);
 }
 

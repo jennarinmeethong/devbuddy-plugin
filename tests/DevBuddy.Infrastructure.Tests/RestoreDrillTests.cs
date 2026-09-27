@@ -336,9 +336,11 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, EvidenceStoreFix
 
     /// <summary>Writes a published record with an approval, and an artefact beside it.</summary>
     private async Task<(KnowledgeRecordId Record, EvidenceObjectId Evidence, string StorageKey)>
-        PopulateAsync(Seed seed, byte[] artefact)
+        PopulateAsync(Seed seed, byte[] artefact, string? connectionString = null)
     {
-        await using DevBuddyDbContext context = _postgres.CreateContext(seed.Workspace);
+        await using DevBuddyDbContext context = connectionString is null
+            ? _postgres.CreateContext(seed.Workspace)
+            : PostgresFixture.CreateContextFor(connectionString, seed.Workspace);
 
         var workItem = new WorkItem(
             WorkItemId.New(), seed.Alpha, $"CRQ-{Guid.NewGuid():N}"[..12],
@@ -381,10 +383,149 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, EvidenceStoreFix
         return (record.Id, stored.Id, stored.StorageKey);
     }
 
-    private BackupService ServiceFor(DevBuddyDbContext context, string backupRoot) =>
+    /// <summary>
+    /// ADR-0014: an installation moves its evidence to a new store by restoring only the bytes,
+    /// beside the rows it already has. The database is not emptied, so nobody is signed out, and the
+    /// old store stays as the way back.
+    /// </summary>
+    [Fact]
+    public async Task an_evidence_only_restore_fills_a_new_store_and_changes_no_row()
+    {
+        string backupRoot = Path.Combine(Path.GetTempPath(), "devbuddy-drill-" + Guid.NewGuid().ToString("N"));
+        string database = await _postgres.CreateIsolatedDatabaseAsync("moved_" + Guid.NewGuid().ToString("N")[..16]);
+        string moved = "moved-" + Guid.NewGuid().ToString("N")[..8];
+
+        try
+        {
+            Seed seed = await Seed.CreateInAsync(database);
+            byte[] artefact = Encoding.UTF8.GetBytes("evidence that has to reach the new store\n");
+            (_, _, string storageKey) = await PopulateAsync(seed, artefact, database);
+
+            BackupManifest manifest;
+            List<(Guid, string, string)> before;
+
+            await using (DevBuddyDbContext context = PostgresFixture.CreateContextFor(database, null))
+            {
+                manifest = await ServiceFor(context, backupRoot).BackupAsync(Ct);
+                before = await EvidenceRowsAsync(context);
+            }
+
+            // The new store has nothing yet.
+            await Assert.ThrowsAnyAsync<AmazonS3Exception>(() => Blobs(moved).OpenReadAsync(seed.Alpha, storageKey, Ct));
+
+            RestoreOutcome outcome;
+
+            await using (DevBuddyDbContext context = PostgresFixture.CreateContextFor(database, null))
+            {
+                outcome = await ServiceFor(context, backupRoot, moved).RestoreEvidenceAsync(manifest.Reference, Ct);
+                Assert.Equal(before, await EvidenceRowsAsync(context));
+            }
+
+            Assert.True(outcome.Succeeded, outcome.Detail);
+            Assert.Contains("1 of 1", outcome.Detail, StringComparison.Ordinal);
+
+            await using Stream bytes = await Blobs(moved).OpenReadAsync(seed.Alpha, storageKey, Ct);
+            using var read = new MemoryStream();
+            await bytes.CopyToAsync(read, Ct);
+            Assert.Equal(artefact, read.ToArray());
+        }
+        finally
+        {
+            if (Directory.Exists(backupRoot))
+            {
+                Directory.Delete(backupRoot, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A backup file that no longer hashes to its row is not written, and the restore does not
+    /// report success: a store filled with altered evidence would look complete.
+    /// </summary>
+    [Fact]
+    public async Task an_evidence_only_restore_writes_nothing_that_no_longer_matches_its_hash()
+    {
+        string backupRoot = Path.Combine(Path.GetTempPath(), "devbuddy-drill-" + Guid.NewGuid().ToString("N"));
+        string database = await _postgres.CreateIsolatedDatabaseAsync("altered_" + Guid.NewGuid().ToString("N")[..16]);
+        string moved = "moved-" + Guid.NewGuid().ToString("N")[..8];
+
+        try
+        {
+            Seed seed = await Seed.CreateInAsync(database);
+            (_, EvidenceObjectId evidenceId, string storageKey) =
+                await PopulateAsync(seed, Encoding.UTF8.GetBytes("the original\n"), database);
+
+            BackupManifest manifest;
+
+            await using (DevBuddyDbContext context = PostgresFixture.CreateContextFor(database, null))
+            {
+                manifest = await ServiceFor(context, backupRoot).BackupAsync(Ct);
+            }
+
+            string file = Path.Combine(backupRoot, manifest.Reference, "evidence", $"{evidenceId.Value:N}.bin");
+            await File.AppendAllTextAsync(file, "tampered", Ct);
+
+            RestoreOutcome outcome;
+
+            await using (DevBuddyDbContext context = PostgresFixture.CreateContextFor(database, null))
+            {
+                outcome = await ServiceFor(context, backupRoot, moved).RestoreEvidenceAsync(manifest.Reference, Ct);
+            }
+
+            Assert.False(outcome.Succeeded);
+            Assert.Contains("did not match their content hash", outcome.Detail, StringComparison.Ordinal);
+            await Assert.ThrowsAnyAsync<AmazonS3Exception>(() => Blobs(moved).OpenReadAsync(seed.Alpha, storageKey, Ct));
+        }
+        finally
+        {
+            if (Directory.Exists(backupRoot))
+            {
+                Directory.Delete(backupRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task an_evidence_only_restore_refuses_an_installation_with_no_rows()
+    {
+        string backupRoot = Path.Combine(Path.GetTempPath(), "devbuddy-drill-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Seed seed = await Seed.CreateAsync(_postgres);
+            BackupManifest manifest;
+
+            await using (DevBuddyDbContext context = _postgres.CreateContext(seed.Workspace))
+            {
+                manifest = await ServiceFor(context, backupRoot).BackupAsync(Ct);
+            }
+
+            string empty = await _postgres.CreateIsolatedDatabaseAsync("empty_" + Guid.NewGuid().ToString("N")[..16]);
+
+            await using DevBuddyDbContext fresh = PostgresFixture.CreateContextFor(empty, null);
+            RestoreOutcome outcome = await ServiceFor(fresh, backupRoot).RestoreEvidenceAsync(manifest.Reference, Ct);
+
+            Assert.False(outcome.Succeeded);
+            Assert.Contains("has no data", outcome.Detail, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(backupRoot))
+            {
+                Directory.Delete(backupRoot, recursive: true);
+            }
+        }
+    }
+
+    private static async Task<List<(Guid, string, string)>> EvidenceRowsAsync(DevBuddyDbContext context) =>
+        [.. (await context.EvidenceObjects.IgnoreQueryFilters().AsNoTracking().ToListAsync(Ct))
+            .Select(row => (row.Id, row.StorageKey, row.ContentHash))
+            .OrderBy(row => row.Item1)];
+
+    private BackupService ServiceFor(DevBuddyDbContext context, string backupRoot, string? bucketPrefix = null) =>
         new(
             context,
-            Blobs(),
+            Blobs(bucketPrefix),
             new SystemClock(),
             Options.Create(new BackupOptions { RootPath = backupRoot }),
             ProjectsFor(context, backupRoot),
@@ -402,9 +543,13 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, EvidenceStoreFix
     private EvidenceStore StoreFor(DevBuddyDbContext context) =>
         new(new EvidenceMetadataStore(context), Blobs(), new SystemClock(), Settings());
 
-    private ObjectStorageEvidenceBlobStore Blobs()
+    /// <summary>
+    /// The object store. Another bucket prefix is another, empty store as far as the adapter can
+    /// tell, which is how the evidence-only restore tests stand in for a new SeaweedFS volume.
+    /// </summary>
+    private ObjectStorageEvidenceBlobStore Blobs(string? bucketPrefix = null)
     {
-        IOptions<EvidenceStoreOptions> options = Settings();
+        IOptions<EvidenceStoreOptions> options = Settings(bucketPrefix);
 
         var client = new AmazonS3Client(
             new BasicAWSCredentials(options.Value.AccessKey, options.Value.SecretKey),
@@ -418,8 +563,9 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, EvidenceStoreFix
         return new ObjectStorageEvidenceBlobStore(client, options, new ObjectStoreSafety(client, options));
     }
 
-    private IOptions<EvidenceStoreOptions> Settings() => Options.Create(new EvidenceStoreOptions
+    private IOptions<EvidenceStoreOptions> Settings(string? bucketPrefix = null) => Options.Create(new EvidenceStoreOptions
     {
+        BucketPrefix = bucketPrefix ?? "devbuddy",
         Provider = EvidenceStoreProvider.ObjectStorage,
         ServiceUrl = _store.ServiceUrl,
         AccessKey = EvidenceStoreFixture.AccessKey,

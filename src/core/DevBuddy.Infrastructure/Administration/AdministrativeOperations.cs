@@ -48,6 +48,10 @@ internal sealed class AdministrativeOperations : IAdministrativeOperations
     public Task<RestoreOutcome> RestoreAsync(string backupReference, CancellationToken cancellationToken) =>
         _backups.RestoreAsync(backupReference, cancellationToken);
 
+    /// <summary>Evidence bytes only, into an installation that has its rows. See <see cref="BackupService"/>.</summary>
+    public Task<RestoreOutcome> RestoreEvidenceAsync(string backupReference, CancellationToken cancellationToken) =>
+        _backups.RestoreEvidenceAsync(backupReference, cancellationToken);
+
     /// <summary>
     /// Reports which components answered. Names them and nothing else: a health endpoint is one
     /// of the easiest places to leak a connection string.

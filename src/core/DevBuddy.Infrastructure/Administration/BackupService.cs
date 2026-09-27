@@ -85,39 +85,12 @@ internal sealed class BackupService
     /// </summary>
     public async Task<RestoreOutcome> RestoreAsync(string reference, CancellationToken cancellationToken)
     {
-        var directory = new DirectoryInfo(Path.Combine(Root(), reference ?? string.Empty));
-
-        if (!directory.Exists)
-        {
-            return new RestoreOutcome(reference ?? string.Empty, false, "No backup with that reference.");
-        }
-
-        var rows = new FileInfo(Path.Combine(directory.FullName, "rows.json"));
-
-        if (!rows.Exists)
-        {
-            return new RestoreOutcome(reference!, false, "The backup is missing its rows.");
-        }
-
-        BackupArchive? archive;
-
-        await using (FileStream file = rows.OpenRead())
-        {
-            archive = await JsonSerializer.DeserializeAsync<BackupArchive>(file, ArchiveJson.Options, cancellationToken);
-        }
+        (BackupArchive? archive, DirectoryInfo directory, string? refusal) =
+            await ReadArchiveAsync(reference, cancellationToken);
 
         if (archive is null)
         {
-            return new RestoreOutcome(reference!, false, "The backup could not be read.");
-        }
-
-        if (archive.Version != BackupArchive.CurrentVersion)
-        {
-            return new RestoreOutcome(
-                reference!,
-                false,
-                $"The backup is version {archive.Version} and this build reads version "
-                + $"{BackupArchive.CurrentVersion}.");
+            return new RestoreOutcome(reference ?? string.Empty, false, refusal!);
         }
 
         string schema = await CurrentSchemaVersionAsync(cancellationToken);
@@ -151,6 +124,153 @@ internal sealed class BackupService
             $"Restored {archive.KnowledgeRecords.Count} records, {archive.WorkItems.Count} work "
             + $"items, {archive.Users.Count} accounts, and {artefacts} artefacts. Everyone signs "
             + $"in again: sessions are not part of a backup. {deletions}");
+    }
+
+    /// <summary>
+    /// Writes a backup's evidence bytes into the configured store, beside rows this database
+    /// already holds, and changes no row (ADR-0014).
+    /// <para>
+    /// This is how an installation moves its evidence to a new store: back up on the old release,
+    /// upgrade, and run this against the new, empty store. A whole restore cannot do it, because it
+    /// refuses a database that has data, and emptying the database only to put the same rows back
+    /// would sign everybody out and give up the old volume as a way back.
+    /// </para>
+    /// <para>
+    /// Only an artefact whose row is still here, under the same identifier, scope and storage key,
+    /// is written, and only if its bytes still hash to the row's content hash. It succeeds only if
+    /// every evidence row ends up with its bytes; otherwise it says how many did not and why, and
+    /// can be run again, since writing the same content to the same key changes nothing.
+    /// </para>
+    /// </summary>
+    public async Task<RestoreOutcome> RestoreEvidenceAsync(string reference, CancellationToken cancellationToken)
+    {
+        (BackupArchive? archive, DirectoryInfo directory, string? refusal) =
+            await ReadArchiveAsync(reference, cancellationToken);
+
+        if (archive is null)
+        {
+            return new RestoreOutcome(reference ?? string.Empty, false, refusal!);
+        }
+
+        if (!await _db.Workspaces.AsNoTracking().AnyAsync(cancellationToken))
+        {
+            return new RestoreOutcome(
+                reference!,
+                false,
+                "This installation has no data. Evidence is restored only beside the rows it belongs "
+                + "to; restore the whole backup into an empty installation instead.");
+        }
+
+        Dictionary<Guid, EvidenceObjectRow> current = await _db.EvidenceObjects
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .ToDictionaryAsync(row => row.Id, cancellationToken);
+
+        var evidence = new DirectoryInfo(Path.Combine(directory.FullName, "evidence"));
+        var restored = new HashSet<Guid>();
+        int gone = 0;
+        int altered = 0;
+
+        foreach (EvidenceObjectRow artefact in archive.EvidenceObjects)
+        {
+            if (!current.TryGetValue(artefact.Id, out EvidenceObjectRow? row)
+                || row.WorkspaceId != artefact.WorkspaceId
+                || row.ProjectId != artefact.ProjectId
+                || !string.Equals(row.StorageKey, artefact.StorageKey, StringComparison.Ordinal))
+            {
+                // Deleted since the backup, or not the same artefact any more. Not written back.
+                gone++;
+                continue;
+            }
+
+            var file = new FileInfo(Path.Combine(evidence.FullName, FileNameFor(artefact)));
+
+            if (!file.Exists)
+            {
+                continue;
+            }
+
+            byte[] bytes = await File.ReadAllBytesAsync(file.FullName, cancellationToken);
+            string hash = ContentHash.FromContent(Convert.ToBase64String(bytes)).Value;
+
+            if (!string.Equals(hash, row.ContentHash, StringComparison.OrdinalIgnoreCase))
+            {
+                altered++;
+                continue;
+            }
+
+            var scope = new ProjectScope(new WorkspaceId(row.WorkspaceId), new ProjectId(row.ProjectId));
+            await _blobs.PutAsync(scope, row.StorageKey, new MemoryStream(bytes), row.MediaType, cancellationToken);
+            restored.Add(row.Id);
+        }
+
+        int without = current.Count - restored.Count;
+        string detail = string.Create(
+            CultureInfo.InvariantCulture,
+            $"Restored the bytes of {restored.Count} of {current.Count} evidence objects. No row was changed.");
+
+        if (gone > 0)
+        {
+            detail += string.Create(
+                CultureInfo.InvariantCulture,
+                $" {gone} artefact(s) in the backup belong to evidence no longer here and were not written.");
+        }
+
+        if (altered > 0)
+        {
+            detail += string.Create(
+                CultureInfo.InvariantCulture,
+                $" {altered} artefact(s) did not match their content hash and were not written.");
+        }
+
+        if (without > 0)
+        {
+            detail += string.Create(
+                CultureInfo.InvariantCulture,
+                $" {without} evidence object(s) still have no bytes in this store: captured after the backup, or not in it. Take a new backup on the old store and run this again.");
+        }
+
+        return new RestoreOutcome(reference!, without == 0, detail);
+    }
+
+    /// <summary>The backup's archive, or why it cannot be used.</summary>
+    private async Task<(BackupArchive? Archive, DirectoryInfo Directory, string? Refusal)> ReadArchiveAsync(
+        string? reference, CancellationToken cancellationToken)
+    {
+        var directory = new DirectoryInfo(Path.Combine(Root(), reference ?? string.Empty));
+
+        if (!directory.Exists)
+        {
+            return (null, directory, "No backup with that reference.");
+        }
+
+        var rows = new FileInfo(Path.Combine(directory.FullName, "rows.json"));
+
+        if (!rows.Exists)
+        {
+            return (null, directory, "The backup is missing its rows.");
+        }
+
+        BackupArchive? archive;
+
+        await using (FileStream file = rows.OpenRead())
+        {
+            archive = await JsonSerializer.DeserializeAsync<BackupArchive>(file, ArchiveJson.Options, cancellationToken);
+        }
+
+        if (archive is null)
+        {
+            return (null, directory, "The backup could not be read.");
+        }
+
+        if (archive.Version != BackupArchive.CurrentVersion)
+        {
+            return (null, directory,
+                $"The backup is version {archive.Version} and this build reads version "
+                + $"{BackupArchive.CurrentVersion}.");
+        }
+
+        return (archive, directory, null);
     }
 
     /// <summary>
