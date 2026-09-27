@@ -2,6 +2,10 @@
 
 ## Confirmed Preparing v1.9.0 — 2026-09-27
 
+*(Published the same day at 06:29 UTC from `59b7dae`, at the owner's instruction "tag v1.9.0 and
+publish". The owner chose to cut `v1.9.0-rc.1` first and to run arm64 in the Ubuntu guest, whose
+disk the owner grew to 70 GB. The owner approved the post-tag downloads.)*
+
 The owner asked for PR #15 (C6, ADR-0014) to be merged and `v1.9.0` prepared. *14.10* in
 `docs/plan-phase-14.md` says what it carries, how its checklist runs, and what its notes must say.
 It is a minor version, with no migration and plugin 1.9.0. Two things wait on the owner there:

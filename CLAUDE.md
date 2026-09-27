@@ -46,7 +46,13 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.8.0` is the current release**, published 2026-09-26 from `2317ac4` at the owner's
+**`v1.9.0` is the current release**, published 2026-09-27 from `59b7dae` at the owner's
+instruction. It replaces MinIO with SeaweedFS (ADR-0014): the evidence moves by a backup before the
+upgrade and `restore --evidence-only` after it, and `DEVBUDDY_EVIDENCE_SSE_KEK` is a new required
+variable. No migration, and nobody signs in again. Its checklist is in
+`docs/operations/release-matrix.md`. The devbox still runs `v1.8.0` until it is moved.
+
+**`v1.8.0` was the release before it**, published 2026-09-26 from `2317ac4` at the owner's
 instruction. It carries C4's fixes (a NUL in text is 400, a duplicate work item key 409, security
 headers on every answer), the email fix, and the host ports from 5010. An installation behind a
 reverse proxy has to point it at 5010. It adds no migration, and nobody signs in again. Its

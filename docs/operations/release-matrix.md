@@ -247,8 +247,28 @@ to the drill, and every check before it had passed. The product is the same at b
 The rc tag and its draft are deleted. Its GHCR image versions are left, unless the owner says
 otherwise. None of this is the `v1.9.0` checklist, which is the table above.
 
-**Not yet run: everything after the tag.** That is `post-images.sh` on devrelease and on arm64,
-`smoke.sh` per archive, and `client-smoke.ps1` for `win-arm64` and `win-x64`.
+### After the tag
+
+`v1.9.0` was tagged at `59b7dae`, the commit part 2 passed at, at the owner's instruction. Release
+run 36299428311 passed all 13 jobs and left a draft with seven archives, `SHA256SUMS` and three
+SBOMs. The owner approved the downloads with the release. Every script ran from the tagged commit,
+or from `main` where `tools/release/` is unchanged since the tag.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match.** |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.9.0` and `59b7dae`. The images' CycloneDX SBOM attestations have 36, 38 and 56 components. A wrong-owner control was refused. |
+| Published images on amd64 | `post-images.sh`, devrelease | **29 of 29.** Twenty AI operations. |
+| Published images on arm64 | `post-images.sh`, the Ubuntu arm64 guest | **29 of 29.** The twenty names are identical to amd64's. |
+| `linux-x64`, `linux-musl-x64` | `smoke.sh`, devrelease, in `ubuntu:24.04` and `alpine:3` | **Pass.** |
+| `linux-arm64` | `smoke.sh`, natively in the Ubuntu arm64 guest | **Pass.** |
+| `linux-musl-arm64` | `smoke.sh`, in `alpine:3` in that guest | **Pass.** |
+| `osx-arm64` | `smoke.sh`, natively on the Mac mini (Apple M4, macOS 26.6.2) | **Pass.** |
+| `win-arm64` client | `client-smoke.ps1`, the Windows on ARM VMware guest | **Pass.** ARM64 PE on both executables. The console and `DevBuddy.McpServer --stdio` list the same twenty names. `--every 24` and `migrate` with no connection string exit 2. Standard output carried only JSON-RPC, and the server exited 0 when its input closed. |
+| `win-x64` | `client-smoke.ps1`, natively on JMPC (Windows 11 x64) | **Pass**, every row as for `win-arm64`, with an x64 PE. Run from PowerShell: from Git Bash, the script's `tar` resolves to GNU tar, which reads `C:` as a host name. |
+
+**Published on 2026-09-27 at 06:29 UTC**, as Latest, at the owner's instruction. The throwaway
+stacks on devrelease and the arm64 guest were removed. The devbox has not moved yet.
 
 ## What was verified for v1.8.0
 
