@@ -11,7 +11,7 @@
  * `style` attribute, no inline style element, no font from another host.
  */
 @theme {
-  --font-sans: "Roboto Variable", "Sarabun", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Roboto Variable", "Leelawadee UI", "Sarabun", ui-sans-serif, system-ui, sans-serif;
 
   --color-ink: #12324d;
   --color-muted: #526d80;
