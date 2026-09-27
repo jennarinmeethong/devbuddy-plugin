@@ -6,6 +6,7 @@ import { grants, useWorkspace } from "../api/session";
 import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { m, t } from "../i18n";
 
 /**
  * Projects in a workspace, and the per-project AI access policy.
@@ -41,18 +42,18 @@ export function Projects() {
 
   return (
     <>
-      <Panel title="Projects">
+      <Panel title={t("Projects")}>
         {projects.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : projects.isError ? (
           <Failure error={projects.error} />
         ) : projects.data.projects.length === 0 ? (
           <Empty>
-            No projects yet.
-            {canCreate ? " Create one below." : " An administrator has to create one."}
+            {t("No projects yet.")}
+            {canCreate ? " " + t("Create one below.") : " " + t("An administrator has to create one.")}
           </Empty>
         ) : (
-          <Table head={["Project", "AI access", ""]}>
+          <Table head={[t("Project"), t("AI access"), ""]}>
             {projects.data.projects.map((project) => (
               <tr key={project.projectId} className="border-b border-[var(--color-line)] last:border-0">
                 <td className="px-2 py-2">
@@ -62,17 +63,17 @@ export function Projects() {
                 </td>
                 <td className="px-2 py-2">
                   {project.aiAccessEnabled ? (
-                    <Badge tone="live">Enabled</Badge>
+                    <Badge tone="live">{t("Enabled")}</Badge>
                   ) : (
-                    <Badge>Denied</Badge>
+                    <Badge>{t("Denied")}</Badge>
                   )}
                   {project.aiScopeUnstructured ? (
                     <p className="mt-1 text-xs text-[var(--color-danger)]">
-                      Approved before rules could be named: every personal-data rule is off for AI.
+                      {t("Approved before rules could be named: every personal-data rule is off for AI.")}
                     </p>
                   ) : project.aiAllowedPersonalDataRules && project.aiAllowedPersonalDataRules.length > 0 ? (
-                    <p className="mt-1 text-xs text-[var(--color-muted)]" aria-label={`Bounded scope of ${project.name}`}>
-                      AI may see: {project.aiAllowedPersonalDataRules.join(", ")}
+                    <p className="mt-1 text-xs text-[var(--color-muted)]" aria-label={t("Bounded scope of {name}", { name: project.name })}>
+                      {t("AI may see: {rules}", { rules: project.aiAllowedPersonalDataRules.join(", ") })}
                     </p>
                   ) : null}
                 </td>
@@ -109,7 +110,7 @@ export function Projects() {
       </Panel>
 
       {canCreate ? (
-        <Panel title="New project">
+        <Panel title={t("New project")}>
           <form
             className="flex items-end gap-3"
             onSubmit={(event) => {
@@ -118,17 +119,17 @@ export function Projects() {
             }}
           >
             <div className="flex-1">
-              <Field label="Name">
+              <Field label={t("Name")}>
                 <Input
                   required
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="Payments platform"
+                  placeholder={t("Payments platform")}
                 />
               </Field>
             </div>
             <Button type="submit" variant="primary" disabled={create.isPending}>
-              Create
+              {t("Create")}
             </Button>
           </form>
 
@@ -139,7 +140,7 @@ export function Projects() {
           ) : null}
 
           <p className="mt-3 text-xs text-[var(--color-muted)]">
-            A new project is closed to AI until somebody opens it, and stays closed if nobody does.
+            {t("A new project is closed to AI until somebody opens it, and stays closed if nobody does.")}
           </p>
         </Panel>
       ) : null}
@@ -178,7 +179,7 @@ function DeleteProjectButton({
   if (!confirming) {
     return (
       <Button variant="danger" onClick={() => setConfirming(true)}>
-        Delete
+        {t("Delete")}
       </Button>
     );
   }
@@ -194,14 +195,14 @@ function DeleteProjectButton({
       >
         <Input
           required
-          aria-label={`Type ${name} to confirm deletion`}
+          aria-label={t("Type {name} to confirm deletion", { name })}
           placeholder={name}
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
           className="w-40"
         />
         <Button type="submit" variant="danger" disabled={typed !== name || remove.isPending}>
-          Delete for good
+          {t("Delete for good")}
         </Button>
         <Button
           onClick={() => {
@@ -209,12 +210,12 @@ function DeleteProjectButton({
             setTyped("");
           }}
         >
-          Cancel
+          {t("Cancel")}
         </Button>
       </form>
 
       <span className="text-xs text-[var(--color-muted)]">
-        Records, history, and evidence go with it. Audit history stays.
+        {t("Records, history, and evidence go with it. Audit history stays.")}
       </span>
 
       {remove.isError ? <Failure error={remove.error} /> : null}
@@ -223,12 +224,12 @@ function DeleteProjectButton({
 }
 
 const PERSONAL_DATA_RULES = [
-  ["email-address", "Email addresses"],
-  ["us-ssn", "US social security numbers"],
-  ["payment-card-number", "Payment card numbers"],
-  ["thai-national-id", "Thai national ID numbers"],
-  ["thai-mobile-number", "Thai mobile numbers"],
-  ["labelled-personal-data", "Labelled personal details (date of birth, ID, address)"],
+  ["email-address", m("Email addresses")],
+  ["us-ssn", m("US social security numbers")],
+  ["payment-card-number", m("Payment card numbers")],
+  ["thai-national-id", m("Thai national ID numbers")],
+  ["thai-mobile-number", m("Thai mobile numbers")],
+  ["labelled-personal-data", m("Labelled personal details (date of birth, ID, address)")],
 ] as const;
 
 /**
@@ -271,15 +272,15 @@ function BoundedScopeButton({
   });
 
   if (!open) {
-    return <Button onClick={() => setOpen(true)}>Bounded scope</Button>;
+    return <Button onClick={() => setOpen(true)}>{t("Bounded scope")}</Button>;
   }
 
-  const labels = PERSONAL_DATA_RULES.filter(([rule]) => rules.includes(rule)).map(([, label]) => label);
+  const labels = PERSONAL_DATA_RULES.filter(([rule]) => rules.includes(rule)).map(([, label]) => t(label));
 
   return (
-    <div className="max-w-md space-y-2 text-left" aria-label={`Bounded scope for ${name}`}>
+    <div className="max-w-md space-y-2 text-left" aria-label={t("Bounded scope for {name}", { name })}>
       <p className="text-xs text-[var(--color-muted)]">
-        Choose what an assistant may see on {name}. Everything not ticked stays blocked and redacted.
+        {t("Choose what an assistant may see on {name}. Everything not ticked stays blocked and redacted.", { name })}
       </p>
       {PERSONAL_DATA_RULES.map(([rule, label]) => (
         <label key={rule} className="flex items-center gap-2 text-sm">
@@ -290,16 +291,16 @@ function BoundedScopeButton({
               setRules(event.target.checked ? [...rules, rule] : rules.filter((candidate) => candidate !== rule))
             }
           />
-          {label}
+          {t(label)}
         </label>
       ))}
-      <Field label="Why is this approved?">
+      <Field label={t("Why is this approved?")}>
         <Input value={justification} maxLength={1000} onChange={(event) => setJustification(event.target.value)} />
       </Field>
       {rules.length > 0 ? (
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-          <span>I approve an assistant seeing: {labels.join(", ")}. Secrets stay refused.</span>
+          <span>{t("I approve an assistant seeing: {labels}. Secrets stay refused.", { labels: labels.join(", ") })}</span>
         </label>
       ) : null}
       <div className="flex gap-2">
@@ -308,14 +309,14 @@ function BoundedScopeButton({
           disabled={approve.isPending || rules.length === 0 || justification.trim().length < 20 || !confirmed}
           onClick={() => approve.mutate(false)}
         >
-          Approve scope
+          {t("Approve scope")}
         </Button>
         {allowed.length > 0 ? (
           <Button disabled={approve.isPending} onClick={() => approve.mutate(true)}>
-            Withdraw scope
+            {t("Withdraw scope")}
           </Button>
         ) : null}
-        <Button onClick={() => setOpen(false)}>Cancel</Button>
+        <Button onClick={() => setOpen(false)}>{t("Cancel")}</Button>
       </div>
       {approve.isError ? <Failure error={approve.error} /> : null}
     </div>
@@ -348,7 +349,7 @@ function AiAccessButton({
         disabled={change.isPending}
         onClick={() => change.mutate()}
       >
-        {enabled ? "Deny AI access" : "Enable AI access"}
+        {enabled ? t("Deny AI access") : t("Enable AI access")}
       </Button>
 
       {change.isError ? (

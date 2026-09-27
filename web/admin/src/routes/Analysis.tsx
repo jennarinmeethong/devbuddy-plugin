@@ -7,6 +7,7 @@ import type { AnalyzeProjectResult, OperationName } from "../api/operations";
 import { Alert, Button, Empty, Field, Input, Panel, Select, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
+import { m, t, tr } from "../i18n";
 
 type Scope = { workspaceId: string; projectId: string };
 
@@ -14,13 +15,13 @@ type Observation = AnalyzeProjectResult["report"]["observations"][number];
 
 /** The seven read-only analyses. They take the same arguments and answer in the same shape. */
 const ANALYSES = [
-  { operation: "analyze_project", label: "The project as a whole" },
-  { operation: "analyze_code", label: "Code" },
-  { operation: "analyze_documents", label: "Documents" },
-  { operation: "analyze_architecture", label: "Architecture" },
-  { operation: "analyze_git_history", label: "Git history" },
-  { operation: "analyze_work_items", label: "Work items" },
-  { operation: "analyze_test_evidence", label: "Test evidence" },
+  { operation: "analyze_project", label: m("The project as a whole") },
+  { operation: "analyze_code", label: m("Code") },
+  { operation: "analyze_documents", label: m("Documents") },
+  { operation: "analyze_architecture", label: m("Architecture") },
+  { operation: "analyze_git_history", label: m("Git history") },
+  { operation: "analyze_work_items", label: m("Work items") },
+  { operation: "analyze_test_evidence", label: m("Test evidence") },
 ] as const satisfies readonly { operation: OperationName; label: string }[];
 
 type AnalysisOperation = (typeof ANALYSES)[number]["operation"];
@@ -48,25 +49,23 @@ export function Analysis() {
 
   return (
     <>
-      <ProjectNav title="Analysis" />
+      <ProjectNav title={t("Analysis")} />
 
-      <Panel title="Repositories this project can read">
+      <Panel title={t("Repositories this project can read")}>
         {repositories.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : repositories.isError ? (
           <Failure error={repositories.error} />
         ) : choices.length === 0 ? (
           <Alert>
-            No repository is reachable for this project. An operator makes one reachable by mounting its
-            working copy under the project&apos;s directory, named by a repository identifier, or by
-            configuring it for the GitHub API. An analysis of the whole project can still run.
+            {t("No repository is reachable for this project. An operator makes one reachable by mounting its working copy under the project's directory, named by a repository identifier, or by configuring it for the GitHub API. An analysis of the whole project can still run.")}
           </Alert>
         ) : (
-          <Table head={["Repository", "Address"]}>
+          <Table head={[t("Repository"), t("Address")]}>
             {choices.map((repository) => (
               <tr key={repository.repositoryId} className="border-b border-[var(--color-line)] last:border-0">
                 <td className="px-2 py-2 font-mono text-xs">{repository.repositoryId}</td>
-                <td className="px-2 py-2 text-xs">{repository.locator ?? "Mounted working copy"}</td>
+                <td className="px-2 py-2 text-xs">{repository.locator ?? t("Mounted working copy")}</td>
               </tr>
             ))}
           </Table>
@@ -100,9 +99,9 @@ function RepositoryChoice({
   allowWholeProject: boolean;
 }) {
   return (
-    <Field label="Repository">
+    <Field label={t("Repository")}>
       <Select value={value} onChange={(event) => onChange(event.target.value)}>
-        {allowWholeProject ? <option value="">The whole project directory</option> : null}
+        {allowWholeProject ? <option value="">{t("The whole project directory")}</option> : null}
         {repositories.map((repository) => (
           <option key={repository.repositoryId} value={repository.repositoryId}>
             {repository.locator ?? repository.repositoryId}
@@ -128,7 +127,7 @@ function RunAnalysis({ scope, repositories }: { scope: Scope; repositories: Repo
   });
 
   return (
-    <Panel title="Run an analysis">
+    <Panel title={t("Run an analysis")}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -137,23 +136,23 @@ function RunAnalysis({ scope, repositories }: { scope: Scope; repositories: Repo
         }}
       >
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="What to look at">
+          <Field label={t("What to look at")}>
             <Select value={operation} onChange={(event) => setOperation(event.target.value as AnalysisOperation)}>
               {ANALYSES.map((analysis) => (
                 <option key={analysis.operation} value={analysis.operation}>
-                  {analysis.label}
+                  {t(analysis.label)}
                 </option>
               ))}
             </Select>
           </Field>
           <RepositoryChoice repositories={repositories} value={repositoryId} onChange={setRepositoryId} allowWholeProject />
-          <Field label="Path inside it" hint="Optional. Relative, and it cannot leave the repository.">
+          <Field label={t("Path inside it")} hint={t("Optional. Relative, and it cannot leave the repository.")}>
             <Input value={target} onChange={(event) => setTarget(event.target.value)} />
           </Field>
         </div>
 
         <Button type="submit" variant="primary" disabled={run.isPending}>
-          Analyse
+          {t("Analyse")}
         </Button>
       </form>
 
@@ -175,11 +174,11 @@ function RunAnalysis({ scope, repositories }: { scope: Scope; repositories: Repo
 
 function Observations({ observations }: { observations: Observation[] }) {
   if (observations.length === 0) {
-    return <Empty>Nothing to report.</Empty>;
+    return <Empty>{t("Nothing to report.")}</Empty>;
   }
 
   return (
-    <Table head={["Subject", "Detail", "Where"]}>
+    <Table head={[t("Subject"), t("Detail"), t("Where")]}>
       {observations.map((observation, index) => (
         <tr key={index} className="border-b border-[var(--color-line)] last:border-0">
           <td className="px-2 py-2">{observation.subject}</td>
@@ -200,7 +199,7 @@ function ChangeImpact({ scope, repositories }: { scope: Scope; repositories: Rep
   });
 
   return (
-    <Panel title="What a change affects">
+    <Panel title={t("What a change affects")}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -215,12 +214,12 @@ function ChangeImpact({ scope, repositories }: { scope: Scope; repositories: Rep
             onChange={setRepositoryId}
             allowWholeProject={false}
           />
-          <Field label="Commit or range" hint="A commit, or two joined by .. such as main..feature.">
+          <Field label={t("Commit or range")} hint={t("A commit, or two joined by .. such as main..feature.")}>
             <Input required value={commitOrRange} onChange={(event) => setCommitOrRange(event.target.value)} />
           </Field>
         </div>
         <Button type="submit" variant="primary" disabled={run.isPending}>
-          Work out the impact
+          {t("Work out the impact")}
         </Button>
       </form>
 
@@ -233,7 +232,7 @@ function ChangeImpact({ scope, repositories }: { scope: Scope; repositories: Rep
       {run.data ? (
         <div className="mt-4 space-y-3">
           <div>
-            <h3 className="text-sm font-medium">Changed paths ({run.data.changedPaths.length})</h3>
+            <h3 className="text-sm font-medium">{t("Changed paths ({length})", { length: run.data.changedPaths.length })}</h3>
             <ul className="font-mono text-xs">
               {run.data.changedPaths.map((path) => (
                 <li key={path}>{path}</li>
@@ -257,7 +256,7 @@ function CompareReferences({ scope, repositories }: { scope: Scope; repositories
   });
 
   return (
-    <Panel title="Compare two references">
+    <Panel title={t("Compare two references")}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -272,15 +271,15 @@ function CompareReferences({ scope, repositories }: { scope: Scope; repositories
             onChange={setRepositoryId}
             allowWholeProject={false}
           />
-          <Field label="Earlier" hint="A branch, a tag or a commit.">
+          <Field label={t("Earlier")} hint={t("A branch, a tag or a commit.")}>
             <Input required value={earlierReference} onChange={(event) => setEarlier(event.target.value)} />
           </Field>
-          <Field label="Later">
+          <Field label={t("Later")}>
             <Input required value={laterReference} onChange={(event) => setLater(event.target.value)} />
           </Field>
         </div>
         <Button type="submit" variant="primary" disabled={run.isPending}>
-          Compare
+          {t("Compare")}
         </Button>
       </form>
 
@@ -293,16 +292,18 @@ function CompareReferences({ scope, repositories }: { scope: Scope; repositories
       {run.data ? (
         <div className="mt-4 space-y-3 text-sm">
           <p>
-            <span className="font-mono text-xs">{run.data.earlier.reference}</span> is{" "}
-            <span className="font-mono text-xs">{run.data.earlier.commitId}</span>;{" "}
-            <span className="font-mono text-xs">{run.data.later.reference}</span> is{" "}
-            <span className="font-mono text-xs">{run.data.later.commitId}</span>.
+            {tr("{earlier} is {earlierCommit}; {later} is {laterCommit}.", {
+              earlier: <span className="font-mono text-xs">{run.data.earlier.reference}</span>,
+              earlierCommit: <span className="font-mono text-xs">{run.data.earlier.commitId}</span>,
+              later: <span className="font-mono text-xs">{run.data.later.reference}</span>,
+              laterCommit: <span className="font-mono text-xs">{run.data.later.commitId}</span>,
+            })}
           </p>
 
           {run.data.differences.length === 0 ? (
-            <Empty>No differences.</Empty>
+            <Empty>{t("No differences.")}</Empty>
           ) : (
-            <Table head={["What", "Before", "After"]}>
+            <Table head={[t("What"), t("Before"), t("After")]}>
               {run.data.differences.map((difference, index) => (
                 <tr key={index} className="border-b border-[var(--color-line)] last:border-0">
                   <td className="px-2 py-2">{difference.subject}</td>
@@ -315,7 +316,7 @@ function CompareReferences({ scope, repositories }: { scope: Scope; repositories
 
           {run.data.changedPaths ? (
             <div>
-              <h3 className="font-medium">Changed paths ({run.data.changedPaths.length})</h3>
+              <h3 className="font-medium">{t("Changed paths ({length})", { length: run.data.changedPaths.length })}</h3>
               <ul className="font-mono text-xs">
                 {run.data.changedPaths.map((path) => (
                   <li key={path}>{path}</li>
@@ -339,7 +340,7 @@ function Synchronise({ scope, repositories }: { scope: Scope; repositories: Repo
   });
 
   return (
-    <Panel title="Synchronise a repository">
+    <Panel title={t("Synchronise a repository")}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -348,7 +349,7 @@ function Synchronise({ scope, repositories }: { scope: Scope; repositories: Repo
         }}
       >
         <p className="text-sm text-[var(--color-muted)]">
-          Reads a snapshot of where the repository stands now. One way only: nothing is written back.
+          {t("Reads a snapshot of where the repository stands now. One way only: nothing is written back.")}
         </p>
         <div className="max-w-md">
           <RepositoryChoice
@@ -359,7 +360,7 @@ function Synchronise({ scope, repositories }: { scope: Scope; repositories: Repo
           />
         </div>
         <Button type="submit" variant="primary" disabled={sync.isPending}>
-          Synchronise
+          {t("Synchronise")}
         </Button>
       </form>
 
@@ -372,21 +373,21 @@ function Synchronise({ scope, repositories }: { scope: Scope; repositories: Repo
       {sync.data ? (
         <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-[var(--color-muted)]">Commit</dt>
+            <dt className="text-xs text-[var(--color-muted)]">{t("Commit")}</dt>
             <dd className="font-mono text-xs">{sync.data.commitId}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[var(--color-muted)]">References recorded</dt>
+            <dt className="text-xs text-[var(--color-muted)]">{t("References recorded")}</dt>
             <dd>{sync.data.linkCount}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[var(--color-muted)]">Open pull requests</dt>
+            <dt className="text-xs text-[var(--color-muted)]">{t("Open pull requests")}</dt>
             {/* Null means this source system cannot say, which is not the same as none. */}
-            <dd>{sync.data.openPullRequestCount ?? "Not available from a working copy"}</dd>
+            <dd>{sync.data.openPullRequestCount ?? t("Not available from a working copy")}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[var(--color-muted)]">Open issues</dt>
-            <dd>{sync.data.openIssueCount ?? "Not available from a working copy"}</dd>
+            <dt className="text-xs text-[var(--color-muted)]">{t("Open issues")}</dt>
+            <dd>{sync.data.openIssueCount ?? t("Not available from a working copy")}</dd>
           </div>
         </dl>
       ) : null}

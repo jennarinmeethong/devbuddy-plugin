@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { invoke } from "../api/client";
 import { Badge, Empty, Field, Input, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { m, t } from "../i18n";
 
 /**
  * The audit trail for one project.
@@ -21,9 +22,9 @@ import { Failure } from "../components/Failure";
 type Channel = "Human" | "Ai" | "InternalSystem";
 
 const channelLabels: Record<Channel, string> = {
-  Human: "Person",
-  Ai: "Assistant",
-  InternalSystem: "Internal system",
+  Human: m("Person"),
+  Ai: m("Assistant"),
+  InternalSystem: m("Internal system"),
 };
 
 export function Audit() {
@@ -57,11 +58,11 @@ export function Audit() {
   });
 
   return (
-    <Panel title="Audit history">
+    <Panel title={t("Audit history")}>
       <form className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Field label="Project">
+        <Field label={t("Project")}>
           <Select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-            <option value="">Choose a project…</option>
+            <option value="">{t("Choose a project…")}</option>
             {(projects.data?.projects ?? []).map((project) => (
               <option key={project.projectId} value={project.projectId}>
                 {project.name}
@@ -70,7 +71,7 @@ export function Audit() {
           </Select>
         </Field>
 
-        <Field label="Days back">
+        <Field label={t("Days back")}>
           <Input
             type="number"
             min={1}
@@ -80,30 +81,30 @@ export function Audit() {
           />
         </Field>
 
-        <Field label="Channel">
+        <Field label={t("Channel")}>
           <Select
             value={channel}
             onChange={(event) => setChannel(event.target.value as Channel | "" | "unrecorded")}
           >
-            <option value="">Every channel</option>
-            <option value="Human">People only</option>
-            <option value="Ai">Assistants only</option>
-            <option value="InternalSystem">Internal system only</option>
-            <option value="unrecorded">Channel not recorded (before v1.3.0)</option>
+            <option value="">{t("Every channel")}</option>
+            <option value="Human">{t("People only")}</option>
+            <option value="Ai">{t("Assistants only")}</option>
+            <option value="InternalSystem">{t("Internal system only")}</option>
+            <option value="unrecorded">{t("Channel not recorded (before v1.3.0)")}</option>
           </Select>
         </Field>
       </form>
 
       {!projectId ? (
-        <Empty>Choose a project to read its audit history.</Empty>
+        <Empty>{t("Choose a project to read its audit history.")}</Empty>
       ) : entries.isPending ? (
-        <Empty>Loading…</Empty>
+        <Empty>{t("Loading…")}</Empty>
       ) : entries.isError ? (
         <Failure error={entries.error} />
       ) : entries.data.entries.length === 0 ? (
-        <Empty>Nothing in that window.</Empty>
+        <Empty>{t("Nothing in that window.")}</Empty>
       ) : (
-        <Table head={["When", "Action", "Outcome", "Actor", "Channel", "Resource", "Detail"]}>
+        <Table head={[t("When"), t("Action"), t("Outcome"), t("Actor"), t("Channel"), t("Resource"), t("Detail")]}>
           {entries.data.entries.map((entry) => (
             <tr key={entry.id} className="border-b border-[var(--color-line)] last:border-0">
               <td className="px-2 py-2 text-xs">
@@ -112,7 +113,7 @@ export function Audit() {
               <td className="px-2 py-2">{entry.action}</td>
               <td className="px-2 py-2">
                 {entry.outcome === "Succeeded" ? (
-                  <Badge tone="live">Succeeded</Badge>
+                  <Badge tone="live">{t("Succeeded")}</Badge>
                 ) : (
                   <Badge>{entry.outcome}</Badge>
                 )}
@@ -120,9 +121,9 @@ export function Audit() {
               <td className="px-2 py-2 font-mono text-xs">{entry.actorId}</td>
               <td className="px-2 py-2 text-xs">
                 {entry.channel ? (
-                  channelLabels[entry.channel]
+                  t(channelLabels[entry.channel])
                 ) : (
-                  <span className="text-[var(--color-muted)]">Not recorded</span>
+                  <span className="text-[var(--color-muted)]">{t("Not recorded")}</span>
                 )}
               </td>
               <td className="px-2 py-2 font-mono text-xs">{entry.resourceReference}</td>

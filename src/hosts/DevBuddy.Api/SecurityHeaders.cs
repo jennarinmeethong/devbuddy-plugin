@@ -28,8 +28,10 @@ internal static class SecurityHeaders
 {
     /// <summary>
     /// The policy the built client needs and nothing more. Vite emits one module script and one
-    /// stylesheet, both same-origin, with no inline code, no <c>url()</c> in the stylesheet and no
-    /// <c>eval</c>, and the client talks only to this origin. An evidence download goes through a
+    /// stylesheet, both same-origin, with no inline code and no <c>eval</c>, and the client talks
+    /// only to this origin. The stylesheet's only <c>url()</c>s are the bundled Roboto and Sarabun
+    /// font files, served from this origin under <c>assets/</c>; Vite is told never to inline an
+    /// asset as a <c>data:</c> URL, which <c>font-src 'self'</c> would refuse. An evidence download goes through a
     /// blob URL on an <c>a[download]</c> link, which is a download, not a fetch the policy governs.
     /// Nothing may frame the pages, which is also what <c>X-Frame-Options</c> says, for browsers
     /// that predate <c>frame-ancestors</c>.

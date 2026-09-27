@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "./api/session";
 import { App } from "./App";
+import { LanguageProvider } from "./i18n";
 import "./index.css";
 
 const queries = new QueryClient({
@@ -28,7 +29,9 @@ createRoot(container).render(
     <QueryClientProvider client={queries}>
       <BrowserRouter>
         <SessionProvider>
-          <App />
+          <LanguageProvider>
+            <App />
+          </LanguageProvider>
         </SessionProvider>
       </BrowserRouter>
     </QueryClientProvider>

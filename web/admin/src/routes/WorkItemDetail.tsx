@@ -8,6 +8,7 @@ import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Select, Table, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
+import { t } from "../i18n";
 import {
   KIND_LABELS,
   KINDS,
@@ -48,36 +49,36 @@ export function WorkItemDetail() {
 
   return (
     <>
-      <ProjectNav title={item.data ? `${item.data.key} · ${item.data.title}` : "Work item"} />
+      <ProjectNav title={item.data ? `${item.data.key} · ${item.data.title}` : t("Work item")} />
 
-      <Panel title="The work">
+      <Panel title={t("The work")}>
         {item.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : item.isError ? (
           <Failure error={item.error} />
         ) : (
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <Fact label="Goal">{item.data.goal}</Fact>
-            <Fact label="Type">{item.data.type}</Fact>
-            <Fact label="In scope">{item.data.inScope ?? "—"}</Fact>
-            <Fact label="Deliberately excluded">{item.data.exclusions ?? "—"}</Fact>
-            <Fact label="Stakeholders">
+            <Fact label={t("Goal")}>{item.data.goal}</Fact>
+            <Fact label={t("Type")}>{item.data.type}</Fact>
+            <Fact label={t("In scope")}>{item.data.inScope ?? "—"}</Fact>
+            <Fact label={t("Deliberately excluded")}>{item.data.exclusions ?? "—"}</Fact>
+            <Fact label={t("Stakeholders")}>
               {item.data.stakeholders.length > 0 ? item.data.stakeholders.join(", ") : "—"}
             </Fact>
-            <Fact label="Records">{String(item.data.recordCount)}</Fact>
+            <Fact label={t("Records")}>{String(item.data.recordCount)}</Fact>
           </dl>
         )}
       </Panel>
 
-      <Panel title="Knowledge written for this work">
+      <Panel title={t("Knowledge written for this work")}>
         {records.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : records.isError ? (
           <Failure error={records.error} />
         ) : mine.length === 0 ? (
-          <Empty>Nothing written yet.</Empty>
+          <Empty>{t("Nothing written yet.")}</Empty>
         ) : (
-          <Table head={["Title", "Kind", "Status", "Updated"]}>
+          <Table head={[t("Title"), t("Kind"), t("Status"), t("Updated")]}>
             {mine.map((record) => (
               <tr key={record.recordId} className="border-b border-[var(--color-line)] last:border-0">
                 <td className="px-2 py-2">
@@ -85,12 +86,12 @@ export function WorkItemDetail() {
                     {record.title}
                   </Link>
                 </td>
-                <td className="px-2 py-2 text-xs text-[var(--color-muted)]">{KIND_LABELS[record.kind]}</td>
+                <td className="px-2 py-2 text-xs text-[var(--color-muted)]">{t(KIND_LABELS[record.kind])}</td>
                 <td className="px-2 py-2">
                   {record.status === "Published" ? (
-                    <Badge tone="live">Published</Badge>
+                    <Badge tone="live">{t("Published")}</Badge>
                   ) : (
-                    <Badge>{STATUS_LABELS[record.status]}</Badge>
+                    <Badge>{t(STATUS_LABELS[record.status])}</Badge>
                   )}
                 </td>
                 <td className="px-2 py-2 text-xs">
@@ -200,7 +201,7 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
   }
 
   return (
-    <Panel title="Write a new draft">
+    <Panel title={t("Write a new draft")}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -209,78 +210,77 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
         }}
       >
         <p className="text-sm text-[var(--color-muted)]">
-          A draft is not knowledge yet. Nobody reading published knowledge sees it until it has been
-          submitted, approved and published.
+          {t("A draft is not knowledge yet. Nobody reading published knowledge sees it until it has been submitted, approved and published.")}
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Kind">
+          <Field label={t("Kind")}>
             <Select value={kind} onChange={(event) => setKind(event.target.value as RecordKind)}>
               {KINDS.map((option) => (
                 <option key={option} value={option}>
-                  {KIND_LABELS[option]}
+                  {t(KIND_LABELS[option])}
                 </option>
               ))}
             </Select>
           </Field>
 
-          <Field label="Where it came from">
+          <Field label={t("Where it came from")}>
             <Select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as SourceKind)}>
               {SOURCE_KINDS.map((option) => (
                 <option key={option} value={option}>
-                  {SOURCE_KIND_LABELS[option]}
+                  {t(SOURCE_KIND_LABELS[option])}
                 </option>
               ))}
             </Select>
           </Field>
         </div>
 
-        <Field label="Source" hint="Where a later reader can check this: a meeting, a document, a commit, a ticket.">
+        <Field label={t("Source")} hint={t("Where a later reader can check this: a meeting, a document, a commit, a ticket.")}>
           <Input required value={sourceLocator} onChange={(event) => setSourceLocator(event.target.value)} />
         </Field>
 
-        <Field label="Title">
+        <Field label={t("Title")}>
           <Input required value={title} onChange={(event) => setTitle(event.target.value)} />
         </Field>
 
-        <Field label="Body" hint="Markdown. The context, the conclusion, and why.">
+        <Field label={t("Body")} hint={t("Markdown. The context, the conclusion, and why.")}>
           <TextArea required rows={8} value={body} onChange={(event) => setBody(event.target.value)} />
         </Field>
 
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Front matter</legend>
+          <legend className="text-sm font-medium">{t("Front matter")}</legend>
           {rows.map((row, index) => (
             <div key={index} className="flex gap-2">
               <Input
-                aria-label={`Field ${index + 1} name`}
+                aria-label={t("Field {number} name", { number: index + 1 })}
                 value={row.key}
                 onChange={(event) => update(index, { key: event.target.value })}
               />
               <Input
-                aria-label={`Field ${index + 1} value`}
+                aria-label={t("Field {number} value", { number: index + 1 })}
                 value={row.value}
                 onChange={(event) => update(index, { value: event.target.value })}
               />
               <Button
-                aria-label={`Remove field ${index + 1}`}
+                aria-label={t("Remove field {number}", { number: index + 1 })}
                 onClick={() => setRows((current) => current.filter((_, at) => at !== index))}
               >
-                Remove
+                {t("Remove")}
               </Button>
             </div>
           ))}
-          <Button onClick={() => setRows((current) => [...current, { key: "", value: "" }])}>Add a field</Button>
-          {duplicated ? <Alert tone="error">The field “{duplicated}” is named twice.</Alert> : null}
+          <Button onClick={() => setRows((current) => [...current, { key: "", value: "" }])}>{t("Add a field")}</Button>
+          {duplicated ? <Alert tone="error">{t("The field “{duplicated}” is named twice.", { duplicated })}</Alert> : null}
         </fieldset>
 
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Evidence</legend>
+          <legend className="text-sm font-medium">{t("Evidence")}</legend>
           {available.isPending ? (
-            <p className="text-xs text-[var(--color-muted)]">Loading…</p>
+            <p className="text-xs text-[var(--color-muted)]">{t("Loading…")}</p>
           ) : available.isError ? (
             <Failure error={available.error} />
           ) : available.data.evidence.length === 0 ? (
-            <p className="text-xs text-[var(--color-muted)]">This project holds no evidence yet.</p>
+            <p className="text-xs text-[var(--color-muted)]">{t("This project holds no evidence yet.")}</p>
           ) : (
             available.data.evidence.map((item) => (
               <div key={item.evidenceId} className="flex flex-wrap items-center gap-2 text-sm">
@@ -295,8 +295,8 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
                 </label>
                 {item.evidenceId in evidence ? (
                   <Input
-                    aria-label={`What evidence ${item.evidenceId} shows`}
-                    placeholder="What this shows"
+                    aria-label={t("What evidence {evidence} shows", { evidence: item.evidenceId })}
+                    placeholder={t("What this shows")}
                     className="max-w-sm"
                     value={evidence[item.evidenceId]}
                     onChange={(event) =>
@@ -314,7 +314,7 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
           variant="primary"
           disabled={create.isPending || Boolean(duplicated) || undescribed}
         >
-          Save draft
+          {t("Save draft")}
         </Button>
 
         {create.isError ? <Failure error={create.error} /> : null}
@@ -341,17 +341,17 @@ function Handover({ scope, workItemId }: { scope: Scope; workItemId: string }) {
   });
 
   return (
-    <Panel title="Handing this work over">
+    <Panel title={t("Handing this work over")}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => handover.mutate()} disabled={handover.isPending}>
-            Generate a handover
+            {t("Generate a handover")}
           </Button>
           <Button onClick={() => questions.mutate()} disabled={questions.isPending}>
-            Find open questions
+            {t("Find open questions")}
           </Button>
           <Button onClick={() => gaps.mutate()} disabled={gaps.isPending}>
-            Find missing evidence
+            {t("Find missing evidence")}
           </Button>
         </div>
 
@@ -360,12 +360,12 @@ function Handover({ scope, workItemId }: { scope: Scope; workItemId: string }) {
 
         {questions.isError ? <Failure error={questions.error} /> : null}
         {questions.data ? (
-          <ListResult title="Open questions" items={questions.data.questions} none="No open questions found." />
+          <ListResult title={t("Open questions")} items={questions.data.questions} none={t("No open questions found.")} />
         ) : null}
 
         {gaps.isError ? <Failure error={gaps.error} /> : null}
         {gaps.data ? (
-          <ListResult title="Missing evidence" items={gaps.data.gaps} none="No gaps in the evidence found." />
+          <ListResult title={t("Missing evidence")} items={gaps.data.gaps} none={t("No gaps in the evidence found.")} />
         ) : null}
       </div>
     </Panel>
@@ -378,17 +378,17 @@ function HandoverView({ handover }: { handover: GenerateHandoverResult }) {
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="font-semibold">{handover.title}</h3>
         <span className="text-xs text-[var(--color-muted)]">
-          Generated <When value={handover.generatedAt} />
+          {t("Generated")} <When value={handover.generatedAt} />
         </span>
       </header>
 
       {handover.sections.length === 0 ? (
-        <Empty>No published knowledge to hand over yet.</Empty>
+        <Empty>{t("No published knowledge to hand over yet.")}</Empty>
       ) : (
         handover.sections.map((section) => (
           <section key={section.kind}>
             <h4 className="text-sm font-medium">
-              {KIND_LABELS[section.kind]}{" "}
+              {t(KIND_LABELS[section.kind])}{" "}
               <span className="text-xs text-[var(--color-muted)]">({section.recordCount})</span>
             </h4>
             <p className="whitespace-pre-wrap text-sm">{section.content}</p>
@@ -396,8 +396,8 @@ function HandoverView({ handover }: { handover: GenerateHandoverResult }) {
         ))
       )}
 
-      <ListResult title="Open questions" items={handover.openQuestions} none="None." />
-      <ListResult title="Missing evidence" items={handover.missingEvidence} none="None." />
+      <ListResult title={t("Open questions")} items={handover.openQuestions} none={t("None.")} />
+      <ListResult title={t("Missing evidence")} items={handover.missingEvidence} none={t("None.")} />
     </article>
   );
 }

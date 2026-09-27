@@ -7,6 +7,7 @@ import { refetchAfterWrite } from "../api/queries";
 import { Button, Empty, Field, Input, Panel, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
+import { t } from "../i18n";
 
 /**
  * Artefacts attached to a project: a log, a screenshot, an export.
@@ -28,17 +29,17 @@ export function Evidence() {
 
   return (
     <>
-      <ProjectNav title="Evidence" />
+      <ProjectNav title={t("Evidence")} />
 
-      <Panel title="Attached to this project">
+      <Panel title={t("Attached to this project")}>
         {evidence.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : evidence.isError ? (
           <Failure error={evidence.error} />
         ) : evidence.data.evidence.length === 0 ? (
-          <Empty>Nothing attached yet.</Empty>
+          <Empty>{t("Nothing attached yet.")}</Empty>
         ) : (
-          <Table head={["Type", "Size", "Captured", "State", ""]}>
+          <Table head={[t("Type"), t("Size"), t("Captured"), t("State"), ""]}>
             {evidence.data.evidence.map((item) => (
               <tr
                 key={item.evidenceId}
@@ -106,7 +107,7 @@ function DownloadButton({
         disabled={disabled || download.isPending}
         onClick={() => download.mutate()}
       >
-        {download.isPending ? "Fetching…" : "Download"}
+        {download.isPending ? t("Fetching…") : t("Download")}
       </Button>
       {download.isError ? <Failure error={download.error} /> : null}
     </>
@@ -136,7 +137,7 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
   });
 
   return (
-    <Panel title="Attach an artefact">
+    <Panel title={t("Attach an artefact")}>
       <form
         className="grid gap-3"
         onSubmit={(event) => {
@@ -144,7 +145,7 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
           attach.mutate();
         }}
       >
-        <Field label="File">
+        <Field label={t("File")}>
           <input
             ref={input}
             type="file"
@@ -153,26 +154,25 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
           />
         </Field>
 
-        <Field label="What it shows">
+        <Field label={t("What it shows")}>
           <Input
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder="The build log for release 1.4"
+            placeholder={t("The build log for release 1.4")}
           />
         </Field>
 
         {/* Said here rather than discovered from a refusal: the server scans the file before it
             stores anything, so a log with a key in it comes back refused and nothing is kept. */}
         <p className="text-xs text-[var(--color-muted)]">
-          The file is scanned before it is stored. One carrying a credential is refused, and
-          nothing is kept.
+          {t("The file is scanned before it is stored. One carrying a credential is refused, and nothing is kept.")}
         </p>
 
         {attach.isError ? <Failure error={attach.error} /> : null}
 
         <div>
           <Button type="submit" disabled={!file || description.trim() === "" || attach.isPending}>
-            {attach.isPending ? "Attaching…" : "Attach"}
+            {attach.isPending ? t("Attaching…") : t("Attach")}
           </Button>
         </div>
       </form>
@@ -182,12 +182,12 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
 
 function sizeOf(bytes: number): string {
   if (bytes < 1024) {
-    return `${bytes} B`;
+    return t("{bytes} B", { bytes });
   }
 
   if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
+    return t("{size} KB", { size: Math.round(bytes / 1024) });
   }
 
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return t("{size} MB", { size: (bytes / (1024 * 1024)).toFixed(1) });
 }

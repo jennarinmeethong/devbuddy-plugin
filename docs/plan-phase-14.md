@@ -533,6 +533,29 @@ UTC, and the devbox runs the tag.
   - MinIO's volume is left as it was, and rolling back is the previous release's Compose file;
   - no migration, nobody signs in again, and assistant sessions should be restarted.
 
+## 14.11 — Cutting v1.10.0
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-27).
+
+- **What it carries since `v1.9.0`:** the web client only.
+  - the *Ocean Mist Light* theme and a sidebar, from the owner's `demo/` mock-up, with a drawer
+    below the `lg` breakpoint;
+  - **Thai and English**, switched on every screen and remembered per browser. The server's words
+    are not translated. `i18n.test.tsx` holds the dictionary equal to the source;
+  - **Roboto and Sarabun**, bundled, and `assetsInlineLimit: 0` so no asset becomes a `data:` URL;
+  - **tables that scroll** both ways, with a sticky header and minimum widths.
+- **A minor version.** No migration, so the count stays at nine. Nobody signs in again. The
+  content security policy is unchanged; only its comment in `SecurityHeaders.cs` changed, because
+  the stylesheet now has `url()`s for the fonts. The e2e suite pins `locale: "en-US"`, because the
+  client now follows the browser's language. The Claude plugin moves to 1.10.0 with its content
+  unchanged.
+- **The checklist runs from `tools/release/` at the release commit**, with no new check: on
+  devrelease `setup-and-suite.sh`, `stack-drill-tokens.sh` and `upgrade.sh` from `v1.9.0`; on
+  arm64 `upgrade.sh` in the Ubuntu guest; after the tag `post-images.sh` on both and `smoke.sh` or
+  `client-smoke.ps1` per archive.
+- **Its release notes must say:** the upgrade is `up -d` alone, with no step of its own; the screens
+  follow the browser's language and a switch at the top changes it; and nothing about the policy,
+  the API or the AI surface changed.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -589,3 +612,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-27 | 14.10 | **The pre-tag checklist passed, and `v1.9.0-rc.1` proved `release.yml`.** The owner chose to cut the rc and to run arm64 in the Ubuntu guest, whose disk the owner grew to 70 GB. Claude gave the `growpart` and `resize2fs` commands. On devrelease: part 1 passed 7 of 7, with 1005 .NET tests, and part 3 from `v1.8.0` passed 47 of 47. Part 2 stopped at the new check, on the drill's local `ref`; `59b7dae` fixes the script, and the rerun passed 115 of 115. The arm64 upgrade passed 47 of 47. Both upgrades restored the evidence with `restore --evidence-only`, 1 of 1, with no row changed. The rc's 13 jobs passed. Its provenance and SBOMs verified from outside, it is multi-arch, and it moved no tag. The rc tag and draft are deleted. `release-matrix.md` has the details. **The tag waits on the owner, at `59b7dae`.** |
 | 2026-09-27 | 14.10 | **`v1.9.0` published**, as Latest, at the owner's instruction. Tagged at `59b7dae`; release run 36299428311 passed all 13 jobs. After the tag, all passed: `SHA256SUMS` for all seven archives; provenance for every archive and image, with the SBOMs and a wrong-owner control; `post-images.sh` 29 of 29 on devrelease and on the arm64 guest, with identical names; and the smoke test of every archive: `linux-x64` and `linux-musl-x64` on devrelease, `linux-arm64` and `linux-musl-arm64` in the guest, `osx-arm64` on the Mac mini, `win-arm64` in the Windows on ARM guest, and `win-x64` on JMPC. The first `win-x64` attempt ran from Git Bash and could not unpack, because GNU tar read `C:` as a host; it passed from PowerShell. The devbox move is next. |
 | 2026-09-27 | 14.10 | **The devbox is on `v1.9.0`**, at the owner's instruction, by `deployment.md`'s steps. Backup `backup-20260927-063821-fbfae3e6856c4f17b` on `v1.8.0`, with `.env` and the override copied to `~/backups/before-v190-20260927/`. `DEVBUDDY_EVIDENCE_SSE_KEK` was generated into `.env` unseen: 64 characters, mode 600. **The owner has to keep a copy off the host.** Checked out at `v1.9.0`, built, and recreated with the workers profile. The evidence store and the API came up healthy on the new volume `devbuddy_evidence_seaweedfs`. MinIO's `devbuddy_evidence` is kept as the way back. `restore --evidence-only` exited 0: the devbox holds no evidence, so it restored 0 of 0. Checked: the store's health probe ok; an unsigned request to it 403; through the gateway `/health` 200 and `/operations` 401; MCP `POST` on 5011 401; no `EvidenceStoreUnsafe` in the API's log; migrations nine; `scope-report` clean; services as uid 1654 and the store as 1000. Both workers completed a pass. **A3:** `stale-sessions.sh` listed 1 of 1 session on the old image, this conversation's own, which was left running. **Plugin 1.9.0** was copied from the tag into the local marketplace and installed. A fresh MCP stdio session over `devbuddy-mcp` listed twenty tools, answered `list_projects`, and wrote only JSON-RPC. |
+| 2026-09-27 | 14.11 | **The web client restyled and bilingual, at the owner's request.** The *Ocean Mist Light* theme and sidebar from `demo/`, Thai and English (434 keys), Roboto and Sarabun bundled, and scrolling tables. Verified on the Windows development machine: web suite 85 of 85 (7 new in `i18n.test.tsx`, which caught both a deleted entry and a renamed placeholder when mutated), `bun run build`, and `dotnet build` of the API. A production build served with the exact headers of `SecurityHeaders.cs` loaded every font and logged no policy violation, in Thai and English, at desktop and phone widths. **Not run here:** the .NET suite and the e2e suite; CI and the checklist run them. |

@@ -1,5 +1,6 @@
 import { NavLink, useParams } from "react-router-dom";
 import { grants, useWorkspace } from "../api/session";
+import { m, t } from "../i18n";
 
 /**
  * The screens inside one project, and the heading above them.
@@ -13,14 +14,14 @@ export function ProjectNav({ title }: { title: string }) {
   const base = `/w/${workspaceId}/p/${projectId}`;
 
   const links = [
-    { to: base, label: "Work items", end: true, visible: true },
-    { to: `${base}/records`, label: "Knowledge records", end: false, visible: true },
-    { to: `${base}/search`, label: "Search", end: false, visible: grants(access, "ReadKnowledge") },
-    { to: `${base}/analysis`, label: "Analysis", end: false, visible: grants(access, "AnalyzeProject") },
-    { to: `${base}/evidence`, label: "Evidence", end: false, visible: true },
+    { to: base, label: m("Work items"), end: true, visible: true },
+    { to: `${base}/records`, label: m("Knowledge records"), end: false, visible: true },
+    { to: `${base}/search`, label: m("Search"), end: false, visible: grants(access, "ReadKnowledge") },
+    { to: `${base}/analysis`, label: m("Analysis"), end: false, visible: grants(access, "AnalyzeProject") },
+    { to: `${base}/evidence`, label: m("Evidence"), end: false, visible: true },
     {
       to: `${base}/maintenance`,
-      label: "Maintenance",
+      label: m("Maintenance"),
       end: false,
       visible:
         grants(access, "ManageIndex") || grants(access, "ScanContent") || grants(access, "AdministerSystem"),
@@ -28,19 +29,30 @@ export function ProjectNav({ title }: { title: string }) {
   ].filter((link) => link.visible);
 
   return (
-    <div className="space-y-2">
-      <h1 className="text-lg font-semibold">{title}</h1>
-      <nav aria-label="Project" className="flex flex-wrap gap-3 text-sm">
+    <div className="space-y-4">
+      <div>
+        <p className="mb-1 text-xs font-bold tracking-[0.16em] text-[var(--color-accent-bright)] uppercase">{t("Project")}</p>
+        <h1 className="text-2xl font-bold">{title}</h1>
+      </div>
+      <nav
+        aria-label={t("Project")}
+        className="flex flex-wrap gap-1 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-1 text-sm shadow-small"
+      >
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             end={link.end}
             className={({ isActive }) =>
-              isActive ? "font-medium underline" : "text-[var(--color-muted)] underline hover:text-[var(--color-ink)]"
+              [
+                "rounded-lg px-3 py-1.5 transition",
+                isActive
+                  ? "bg-[var(--color-accent)] font-medium text-[var(--color-on-accent)] shadow-small"
+                  : "text-[var(--color-muted)] hover:bg-[var(--color-soft)] hover:text-[var(--color-ink)]",
+              ].join(" ")
             }
           >
-            {link.label}
+            {t(link.label)}
           </NavLink>
         ))}
       </nav>

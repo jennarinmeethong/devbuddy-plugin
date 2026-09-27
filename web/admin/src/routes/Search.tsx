@@ -6,6 +6,7 @@ import { Alert, Badge, Button, Empty, Field, Input, Panel, Table } from "../comp
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
 import { KIND_LABELS, KINDS, STATUS_LABELS, STATUSES, type RecordKind, type RecordStatus } from "../components/labels";
+import { t } from "../i18n";
 
 /**
  * Finding what the team already wrote down, the two ways the server offers.
@@ -43,9 +44,9 @@ export function Search() {
 
   return (
     <>
-      <ProjectNav title="Search" />
+      <ProjectNav title={t("Search")} />
 
-      <Panel title="Ask">
+      <Panel title={t("Ask")}>
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -53,21 +54,21 @@ export function Search() {
             fullText.mutate();
           }}
         >
-          <Field label="Question or words">
+          <Field label={t("Question or words")}>
             <Input required value={query} onChange={(event) => setQuery(event.target.value)} />
           </Field>
 
           <Choices
-            label="Kinds (full-text only)"
-            hint="None ticked means every kind."
+            label={t("Kinds (full-text only)")}
+            hint={t("None ticked means every kind.")}
             options={KINDS}
             labels={KIND_LABELS}
             chosen={kinds}
             onChange={setKinds}
           />
           <Choices
-            label="Statuses (full-text only)"
-            hint="None ticked means every status, drafts included."
+            label={t("Statuses (full-text only)")}
+            hint={t("None ticked means every status, drafts included.")}
             options={STATUSES}
             labels={STATUS_LABELS}
             chosen={statuses}
@@ -75,7 +76,7 @@ export function Search() {
           />
 
           <div className="w-40">
-            <Field label="At most">
+            <Field label={t("At most")}>
               <Input
                 type="number"
                 min={1}
@@ -88,10 +89,10 @@ export function Search() {
 
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant="primary" disabled={fullText.isPending || query.trim() === ""}>
-              Search the text
+              {t("Search the text")}
             </Button>
             <Button onClick={() => semantic.mutate()} disabled={semantic.isPending || query.trim() === ""}>
-              Search by meaning
+              {t("Search by meaning")}
             </Button>
           </div>
         </form>
@@ -99,11 +100,11 @@ export function Search() {
 
       {fullText.isError ? <Failure error={fullText.error} /> : null}
       {fullText.data ? (
-        <Panel title="Full-text results">
+        <Panel title={t("Full-text results")}>
           {fullText.data.hits.length === 0 ? (
-            <Empty>Nothing matched.</Empty>
+            <Empty>{t("Nothing matched.")}</Empty>
           ) : (
-            <Table head={["Title", "Kind", "Status", "Excerpt"]}>
+            <Table head={[t("Title"), t("Kind"), t("Status"), t("Excerpt")]}>
               {fullText.data.hits.map((hit) => (
                 <tr key={hit.recordId} className="border-b border-[var(--color-line)] last:border-0">
                   <td className="px-2 py-2">
@@ -111,12 +112,12 @@ export function Search() {
                       {hit.title}
                     </Link>
                   </td>
-                  <td className="px-2 py-2 text-xs text-[var(--color-muted)]">{KIND_LABELS[hit.kind]}</td>
+                  <td className="px-2 py-2 text-xs text-[var(--color-muted)]">{t(KIND_LABELS[hit.kind])}</td>
                   <td className="px-2 py-2">
                     {hit.status === "Published" ? (
-                      <Badge tone="live">Published</Badge>
+                      <Badge tone="live">{t("Published")}</Badge>
                     ) : (
-                      <Badge>{STATUS_LABELS[hit.status]}</Badge>
+                      <Badge>{t(STATUS_LABELS[hit.status])}</Badge>
                     )}
                   </td>
                   <td className="px-2 py-2 text-xs">{hit.snippet}</td>
@@ -129,13 +130,13 @@ export function Search() {
 
       {semantic.isError ? <Failure error={semantic.error} /> : null}
       {semantic.data ? (
-        <Panel title="Results by meaning">
+        <Panel title={t("Results by meaning")}>
           {semantic.data.unavailable ? (
             <Alert>{semantic.data.unavailable}</Alert>
           ) : semantic.data.hits.length === 0 ? (
-            <Empty>Nothing close enough.</Empty>
+            <Empty>{t("Nothing close enough.")}</Empty>
           ) : (
-            <Table head={["Title", "Kind", "Revision", "Distance"]}>
+            <Table head={[t("Title"), t("Kind"), t("Revision"), t("Distance")]}>
               {semantic.data.hits.map((hit) => (
                 <tr key={`${hit.recordId}-${hit.revisionNumber}`} className="border-b border-[var(--color-line)] last:border-0">
                   <td className="px-2 py-2">
@@ -143,7 +144,7 @@ export function Search() {
                       {hit.title}
                     </Link>
                   </td>
-                  <td className="px-2 py-2 text-xs text-[var(--color-muted)]">{KIND_LABELS[hit.kind]}</td>
+                  <td className="px-2 py-2 text-xs text-[var(--color-muted)]">{t(KIND_LABELS[hit.kind])}</td>
                   <td className="px-2 py-2 text-xs">{hit.revisionNumber}</td>
                   <td className="px-2 py-2 text-xs">{hit.distance.toFixed(3)}</td>
                 </tr>

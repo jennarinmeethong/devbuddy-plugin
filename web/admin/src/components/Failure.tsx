@@ -1,12 +1,14 @@
 import { ApiError } from "../api/client";
 import { Alert } from "./ui";
+import { t } from "../i18n";
 
 /**
  * A refusal, shown as the server explained it.
  *
  * Never reworded. The server is careful about what a denial says — it names the rule and not the
  * resource it was protecting — and a friendlier message invented here would either lose that care
- * or undo it.
+ * or undo it. For the same reason a refusal is not translated: it is shown in the language the
+ * server wrote it in. Only this client's own words are.
  */
 export function Failure({ error }: { error: unknown }) {
   if (error instanceof ApiError) {
@@ -25,5 +27,5 @@ export function Failure({ error }: { error: unknown }) {
     );
   }
 
-  return <Alert tone="error">The server could not be reached.</Alert>;
+  return <Alert tone="error">{t("The server could not be reached.")}</Alert>;
 }

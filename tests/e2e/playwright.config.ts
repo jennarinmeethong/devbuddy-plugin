@@ -39,6 +39,10 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+
+    // The web client follows the browser's language until somebody chooses one, and the specs
+    // read English. Pinned, so a runner on a Thai system reads the same screens.
+    locale: "en-US",
   },
 
   projects: [
