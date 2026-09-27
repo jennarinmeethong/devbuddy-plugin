@@ -5,7 +5,7 @@
 The owner reviewed PR #24 and asked for Thai to be set in Leelawadee UI, then asked for the work to
 continue ("ทำต่อเลย"), which is the instruction to merge PR #26 and cut `v1.10.1` from it, as
 offered. *14.12* in `docs/plan-phase-14.md` says what it carries. The Leelawadee UI decision itself
-is recorded under the entry below.
+is recorded under the Ocean Mist Light entry below.
 
 ## Confirmed A2, B3, Dependabot, and the Demo Removed — 2026-09-27
 
