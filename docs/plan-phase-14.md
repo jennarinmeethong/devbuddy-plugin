@@ -489,6 +489,50 @@ UTC, and the devbox runs the tag.
   - recovery answers the same when SMTP fails, and the failure is in the API's log;
   - no migration, nobody signs in again, and assistant sessions should be restarted.
 
+## 14.10 — Cutting v1.9.0
+**Status: IN PROGRESS.** The owner asked for it to be prepared on 2026-09-27 (`info.md`), after
+C6 merged (`703881d`). Tagging waits on the pre-tag checklist and the owner.
+
+- **What it carries since `v1.8.0`:**
+  - **C6, ADR-0014**: the evidence store is SeaweedFS, built from source into `scratch` as uid
+    1000, on a new volume `evidence_seaweedfs`. Compose requires its credentials and a new variable,
+    `DEVBUDDY_EVIDENCE_SSE_KEK`. Its health check fails unless an unsigned request is refused. The
+    application refuses a store that answers one, and keeps an SSE canary;
+  - **`restore --evidence-only`**: how an installation moves its evidence from MinIO;
+  - **the web client's dependencies**: `react-router-dom` 7.18.4 and `vite` 7.3.6, clearing seven
+    and three HIGH advisories (C5);
+  - in the source only: Gitleaks, Trivy and CodeQL, actions pinned by commit, Dependabot (C5),
+    and `tools/devbox/`.
+- **A minor version.** The upgrade has steps of its own: a backup first, a new variable, and a
+  command after. No migration, so the count stays at nine. Nobody signs in again, because
+  the rows stay. The Claude plugin moves to 1.9.0 with its content unchanged.
+- **`release.yml` changed since `v1.8.0`**, but only its `uses:` lines, now pinned by commit. The
+  release is the first run of those pins. A throwaway `v1.9.0-rc.1` would prove them first, as
+  `v1.2.0-rc.1` did for the last workflow change. **The owner decides whether to cut it.**
+- **The checklist runs from `tools/release/` at the release commit:**
+  - on devrelease: `setup-and-suite.sh`, `stack-drill-tokens.sh` with its new check, and
+    `upgrade.sh` from `v1.8.0`. The upgrade takes a backup on `v1.8.0` and runs
+    `restore --evidence-only` after it;
+  - **on arm64: `upgrade.sh` needs a machine that can build the evidence image.** The Ubuntu guest
+    cannot: its disk filled during a SeaweedFS build on 2026-09-27. The Mac mini built it
+    natively. **The owner decides:** the Mac mini, or a larger disk for the guest;
+  - after the tag: `post-images.sh` on devrelease and on arm64, and `smoke.sh` or
+    `client-smoke.ps1` per archive.
+- **New check** (`stack-drill-tokens.sh`, `seaweedfs_guards`): on the running stack an unsigned
+  request to the store is 403, the API never logged `EvidenceStoreUnsafe`, and
+  `restore --evidence-only` over the drill's backup exits 0.
+- **After publishing:** move the devbox onto the tag by `deployment.md`'s steps: a backup on
+  `v1.8.0`, the new variable, then `restore --evidence-only`. Record `stale-sessions.sh`'s count,
+  and install plugin 1.9.0.
+- **Its release notes must say what an operator will notice:**
+  - **the upgrade is not only `up -d`**: take a backup first, add `DEVBUDDY_EVIDENCE_SSE_KEK`
+    (Compose refuses to start without it), then run `restore --evidence-only --reference <ref>`
+    after the upgrade. Until then existing evidence cannot be downloaded;
+  - **keep the new key somewhere safe**: the new volume cannot be read without it, and a different
+    key makes the application refuse the store;
+  - MinIO's volume is left as it was, and rolling back is the previous release's Compose file;
+  - no migration, nobody signs in again, and assistant sessions should be restarted.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -541,3 +585,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-27 | C6 | **ADR-0014 Accepted** by the owner (`info.md`), who asked for it to be merged and built. ADR-0004 is marked superseded, for the choice of store only. PR #14 passed its eighteen checks before the change of status. |
 | 2026-09-27 | C6 | **Built on `c6/seaweedfs-evidence-store` (draft PR #15); the release and the devbox move are still to come.** SeaweedFS 4.47 from source into `scratch`, with `healthprobe`. Compose requires the credentials and `WEED_S3_SSE_KEK`, and uses a new volume, `evidence_seaweedfs`. `ObjectStoreSafety` refuses a store that answers an unsigned request, and keeps an SSE canary. **The upgrade path changed from the ADR's wording, at the owner's choice** (`info.md`): a whole restore refuses a database with data, so `restore --evidence-only` writes a backup's bytes beside the rows, checks each against its content hash, and changes no row. `upgrade.sh` backs up on the previous release and runs it after. **CI's first run failed six tests** with 500s. Reproduced on devrelease with the store's logs captured: SeaweedFS pre-grows seven volumes per collection, every bucket is a collection, and `weed server` allows eight, so the second bucket's first write had nowhere to go. The image now sets growth to one volume, `-volume.max=0`, and 1 GB volumes. On devrelease, in the .NET SDK container against Docker: EvidenceStoreTests, EvidenceStoreSafetyTests and RestoreDrillTests passed, 19 of 19. Three mutations each failed their test: no unsigned-request check, no canary, no hash check. The Compose guards' five mutations each failed DeploymentTests. MinIO's 39 accepted findings are removed, and one `grpc` entry for `weed` is accepted until 2026-12-26. |
 | 2026-09-27 | C6 | **CI passed on PR #15 at `6cb2431`, all eighteen checks.** The .NET suite ran 1005 tests on Linux with none failed; Infrastructure's 385 include the three safety tests and three evidence-only restore tests. The Playwright runs on amd64 and arm64 passed, in the embeddings, GitHub and observability modes too, as did ZAP, all against the SeaweedFS stack. The evidence image runs as 1000:1000, and Trivy's gate passed: one UNKNOWN, and the accepted `grpc` finding. Left for C6: merging, a release, and moving the devbox. |
+| 2026-09-27 | 14.10 | **`v1.9.0` prepared.** At the owner's request, after PR #15 merged at `703881d` with eighteen checks passing on `0c88c85`. Plugin 1.9.0, *14.10* written, and the drill's new check `seaweedfs_guards`. Waiting on the owner: an rc tag or not, and the arm64 machine. The pre-tag checklist has not run. |

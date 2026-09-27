@@ -1,5 +1,13 @@
 # Project Decisions
 
+## Confirmed Preparing v1.9.0 — 2026-09-27
+
+The owner asked for PR #15 (C6, ADR-0014) to be merged and `v1.9.0` prepared. *14.10* in
+`docs/plan-phase-14.md` says what it carries, how its checklist runs, and what its notes must say.
+It is a minor version, with no migration and plugin 1.9.0. Two things wait on the owner there:
+whether to cut `v1.9.0-rc.1` first, since `release.yml`'s actions are now pinned by commit, and
+which arm64 machine builds the evidence image. Tagging waits on the checklist and the owner.
+
 ## Confirmed ADR-0014: SeaweedFS Replaces MinIO as the Evidence Store — 2026-09-27
 
 The owner confirmed ADR-0014 as written, and asked for it to be merged and built. It is binding:
