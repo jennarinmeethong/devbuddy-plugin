@@ -7,6 +7,10 @@ RUN git init -q \
     && git fetch -q --depth 1 https://github.com/seaweedfs/seaweedfs.git c5073360007d28385a33426a42ac3e4ec504c5a3 \
     && git checkout -q FETCH_HEAD \
     && go build -trimpath -ldflags "-s -w" -o /out/usr/bin/weed ./weed
+# The health probe (ADR-0014, point 4), from this directory, no dependencies.
+COPY healthprobe/ /src/healthprobe/
+WORKDIR /src/healthprobe
+RUN go build -trimpath -ldflags "-s -w" -o /out/usr/bin/healthprobe .
 RUN mkdir -p /out/srv/evidence /out/tmp
 FROM scratch
 COPY --from=build /out/usr/bin/ /usr/bin/

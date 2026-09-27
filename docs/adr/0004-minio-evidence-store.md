@@ -1,6 +1,9 @@
 # ADR-0004: MinIO as the default evidence store
 
-- Status: Accepted
+- Status: Superseded by [ADR-0014](0014-seaweedfs-evidence-store.md) (2026-09-27), for the
+  choice of store only. The rest of this decision stands: content-addressed objects, a bucket per
+  workspace, server-side encryption, and evidence streamed through the API after an authorization
+  check.
 - Date: 2026-09-01
 - Phase: 3
 

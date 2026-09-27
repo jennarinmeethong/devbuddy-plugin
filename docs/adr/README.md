@@ -36,7 +36,7 @@ Each with the reason it was not chosen.
 | [0001](0001-mcp-first-clean-architecture.md) | MCP-first architecture with one shared core | Accepted |
 | [0002](0002-dotnet-10-backend.md) | .NET 10 for core, console, API, and MCP server | Accepted |
 | [0003](0003-postgresql-source-of-truth.md) | PostgreSQL as source of truth, full-text search, no embeddings | Accepted |
-| [0004](0004-minio-evidence-store.md) | MinIO as the default evidence store | Accepted |
+| [0004](0004-minio-evidence-store.md) | MinIO as the default evidence store | Superseded by 0014 |
 | [0005](0005-product-owned-identity.md) | Product-owned identity, no external identity provider | Accepted |
 | [0006](0006-mcp-dual-transport.md) | MCP ships stdio and authenticated HTTP, one allow-list | Accepted |
 | [0007](0007-web-admin-ui-stack.md) | React admin UI, no web chat | Accepted |
@@ -46,8 +46,9 @@ Each with the reason it was not chosen.
 | [0011](0011-explicit-persistence-rows.md) | Persistence maps explicit row types, not the aggregates | Accepted |
 | [0012](0012-embeddings-and-vector-search.md) | Embeddings and vector search | Accepted |
 | [0013](0013-knowledge-ai-worker.md) | The knowledge AI worker, and what authorises it | Accepted |
+| [0014](0014-seaweedfs-evidence-store.md) | SeaweedFS replaces MinIO as the default evidence store | Accepted |
 
-The last two are Phase 12C, confirmed in `info.md` on 2026-09-10. Both were written before any
+ADR-0012 and ADR-0013 are Phase 12C, confirmed in `info.md` on 2026-09-10. Both were written before any
 implementation deliberately — the alternative is deciding the authorization model of a background
 job while already halfway through building one.
 

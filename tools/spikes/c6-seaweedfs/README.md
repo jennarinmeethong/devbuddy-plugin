@@ -15,3 +15,5 @@ Nothing here is built by CI or shipped. `docs/plan-phase-14.md`, C6, has the con
 The server ran as `weed -logtostderr=true server -dir=/srv/evidence -s3`, read-only, every
 capability dropped, `no-new-privileges`, a tmpfs on `/tmp` owned by uid 1000, credentials in
 `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, and the SSE-S3 key in `WEED_S3_SSE_KEY`.
+
+- `healthprobe/`: the health check ADR-0014 proposes, a static Go program with no dependencies. It exits 0 only when `/healthz` answers 200 and an unsigned `ListBuckets` is refused with 403. Added and run on 2026-09-27 on amd64 and arm64.
