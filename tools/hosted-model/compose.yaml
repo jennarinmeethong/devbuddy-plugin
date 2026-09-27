@@ -1,0 +1,97 @@
+# A model server of the owner's own on a cloud machine, for the hosted embedding mode (Phase 14 B3,
+# info.md 2026-09-27). Prepared, not in use: no installation points at one, and enabling the
+# hosted mode on real data needs an acceptance of its own that names the provider and the machine.
+#
+# Ollama listens only inside this project's network. Caddy is the one way in: TLS, one route
+# (POST /v1/embeddings), and a bearer key checked before anything reaches the model.
+#
+#   EMBED_DOMAIN=embed.example.com EMBED_TLS=you@example.com \
+#   DEVBUDDY_EMBEDDING_API_KEY=... docker compose up -d
+#   docker compose exec ollama ollama pull qwen3-embedding:0.6b
+#   sh check.sh https://embed.example.com
+#
+# README.md says what each setting is, and how it was tested.
+name: devbuddy-hosted-model
+
+services:
+  ollama:
+    # The devbox's pin (Phase 12C), so both servers answer with the same build.
+    image: ollama/ollama:0.34.4@sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      HOME: /models
+      OLLAMA_MODELS: /models/models
+      OLLAMA_HOST: 0.0.0.0:11434
+    tmpfs:
+      - /tmp
+    volumes:
+      - models:/models
+    # No ports. Only Caddy, on the internal network, reaches it.
+    networks: [model]
+
+  caddy:
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The image's binary carries cap_net_bind_service and will not exec without it in the bounding
+    # set (tools/devbox/gateway). It listens on 8443 and 8080 and does not use it.
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      EMBED_DOMAIN: ${EMBED_DOMAIN:?the name the certificate is for}
+      EMBED_TLS: ${EMBED_TLS:?an email address for ACME, or internal for a test}
+      DEVBUDDY_EMBEDDING_API_KEY: ${DEVBUDDY_EMBEDDING_API_KEY:?the bearer key, at least 32 characters}
+    tmpfs:
+      - /tmp
+    ports:
+      - "${EMBED_BIND:-0.0.0.0}:${EMBED_HTTPS_PORT:-443}:8443"
+      - "${EMBED_BIND:-0.0.0.0}:${EMBED_HTTP_PORT:-80}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [ollama]
+    networks: [model, edge]
+
+  # Run once, before `up`, and again only to change the model. The server itself is on an internal
+  # network with no way out, so the download happens here, on `edge`, and then this stops. It runs
+  # as root only to hand the volume to uid 1000, which a new named volume does not start as.
+  pull:
+    profiles: [pull]
+    image: ollama/ollama:0.34.4@sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551
+    user: "0:0"
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOME: /models
+      OLLAMA_MODELS: /models/models
+      EMBED_MODEL: ${EMBED_MODEL:-qwen3-embedding:0.6b}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'ollama serve > /dev/null 2>&1 & sleep 3 && ollama pull "$$EMBED_MODEL" && chown -R 1000:1000 /models'
+    volumes:
+      - models:/models
+    networks: [edge]
+
+volumes:
+  models:
+  caddy-data:
+  caddy-config:
+
+networks:
+  # Internal: nothing on it reaches the internet, so the model server cannot either. Pulling a
+  # model therefore goes through `edge` for the pull only; see README.md.
+  model:
+    internal: true
+  edge:

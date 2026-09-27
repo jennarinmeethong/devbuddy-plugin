@@ -2,7 +2,8 @@
 @import "./fonts.css";
 
 /*
- * Ocean Mist Light, taken from demo/styles.css (`body[data-theme="mist"]`).
+ * Ocean Mist Light, taken from the owner's mock-up (`body[data-theme="mist"]` there), which was
+ * not kept once the client carried it (2026-09-27).
  *
  * The screens read these through `var(--color-…)` rather than Tailwind's palette, so changing a
  * value here restyles every screen at once. There is one theme and no picker. Everything is in

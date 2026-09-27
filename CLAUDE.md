@@ -46,11 +46,19 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.9.0` is the current release**, published 2026-09-27 from `59b7dae` at the owner's
+**`v1.10.0` is the current release**, published 2026-09-27 at 10:11 UTC from `de841f8` at the
+owner's instruction. It changes the web client only: the Ocean Mist Light theme with a sidebar,
+Thai and English, bundled fonts and scrolling tables. The upgrade is `up -d` alone, with no
+migration, and nobody signs in again. Its checklist is in `docs/operations/release-matrix.md`. The
+devbox runs the tag since the same day, with plugin 1.10.0. **After `up -d` on an upgrade, check
+that `mcp` runs the new image:** on the devbox it stayed on the old one until
+`--force-recreate --no-deps mcp`.
+
+**`v1.9.0` was the release before it**, published 2026-09-27 from `59b7dae` at the owner's
 instruction. It replaces MinIO with SeaweedFS (ADR-0014): the evidence moves by a backup before the
 upgrade and `restore --evidence-only` after it, and `DEVBUDDY_EVIDENCE_SSE_KEK` is a new required
 variable. No migration, and nobody signs in again. Its checklist is in
-`docs/operations/release-matrix.md`. The devbox runs the tag since the same day, with plugin 1.9.0.
+`docs/operations/release-matrix.md`. The devbox ran that tag, with plugin 1.9.0, until `v1.10.0`.
 
 **`v1.8.0` was the release before it**, published 2026-09-26 from `2317ac4` at the owner's
 instruction. It carries C4's fixes (a NUL in text is 400, a duplicate work item key 409, security
@@ -69,7 +77,7 @@ same day. That tag ran in an LXC there, below, until `v1.8.0`.
 
 **The devbox is an LXC since 2026-09-25.** The owner reinstalled jmhp as Proxmox, and DevBuddy now
 runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run inside. It is
-`v1.9.0` from the tag's own Compose file (`v1.8.0` until 2026-09-27), with MCP on loopback on
+`v1.10.0` from the tag's own Compose file (`v1.9.0` earlier on 2026-09-27, `v1.8.0` before that), with MCP on loopback on
 5011. **Since 2026-09-26 the LAN reaches the API and web UI only at `https://192.168.1.160:5010`**
 (Phase 14, B1), through a Caddy gateway with its own internal CA in
 `/data/devbuddy-tools/gateway`, outside the stack. Plain HTTP on that port is redirected, and a public address is dropped: outside the LAN it is
@@ -642,8 +650,8 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 - **The evidence store is SeaweedFS since ADR-0014 (`info.md`, 2026-09-27), built from source.**
   MinIO was here, built from source after two registries dropped it (2026-09-25), and then archived
   upstream; its last releases failed Trivy's image gate on findings nothing would ever fix.
-  `docker/evidence/Dockerfile` compiles SeaweedFS 4.47 by commit with Go 1.26.8 pinned by digest,
-  plus `healthprobe`, into `scratch` as uid 1000. It is built natively where it runs, never
+  `docker/evidence/Dockerfile` compiles SeaweedFS 4.47 by commit with Go 1.27.1 pinned by digest
+  (1.26.8 until Dependabot's #3 on 2026-09-27), plus `healthprobe`, into `scratch` as uid 1000. It is built natively where it runs, never
   cross-compiled, and needs about 5 GB of build space: the Ubuntu arm64 guest's disk filled trying,
   and the Mac mini builds it for arm64. `EvidenceStoreTests` starts the same Dockerfile, with
   credentials and a KEK, and encryption on; until 2026-09-27 the tests ran MinIO with encryption off.

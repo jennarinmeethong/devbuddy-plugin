@@ -1,0 +1,41 @@
+# The one way into the hosted model server (Phase 14 B3). compose.yaml sets the three values.
+#
+# Only POST /v1/embeddings with the right bearer key reaches Ollama. Everything else, including
+# Ollama's own API (/api/pull, /api/delete, /api/generate), is refused here, so the key lets a
+# holder embed text and nothing more. A wrong or missing key is 401 and never reaches the model.
+{
+	admin off
+	http_port 8080
+	https_port 8443
+	# Never try to install a test root into this container's trust store.
+	skip_install_trust
+}
+
+{$EMBED_DOMAIN} {
+	# An email address for a real certificate from Let's Encrypt, or `internal` for a test.
+	tls {$EMBED_TLS}
+
+	@embed {
+		method POST
+		path /v1/embeddings
+		header Authorization "Bearer {$DEVBUDDY_EMBEDDING_API_KEY}"
+	}
+	handle @embed {
+		# A request body is project text. Bound it, so a key holder cannot tie the model up with
+		# megabytes. A DevBuddy chunk is at most 3000 characters, sent in batches.
+		request_body {
+			max_size 2MB
+		}
+		reverse_proxy ollama:11434
+	}
+
+	@unauthorised not header Authorization "Bearer {$DEVBUDDY_EMBEDDING_API_KEY}"
+	respond @unauthorised 401
+	respond 404
+
+	# Remote address, method, path and status to stderr. Caddy redacts the Authorization header,
+	# and no body is logged, so neither the key nor project text reaches the log.
+	log {
+		output stderr
+	}
+}

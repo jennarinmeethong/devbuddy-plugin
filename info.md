@@ -1,5 +1,23 @@
 # Project Decisions
 
+## Confirmed A2, B3, Dependabot, and the Demo Removed — 2026-09-27
+
+The owner reviewed and merged PR #19 and PR #20, then answered the open items the same day:
+
+- **A2 is approved.** The release workflow smoke-tests every archive on hosted runners and writes
+  the results into the draft (PR #21). B4 already decided which hand runs that replaces.
+- **B3: prepare a hosted model server, but do not use it yet.** `tools/hosted-model/` is Ollama
+  behind Caddy, TLS and a bearer key, tested on devrelease with synthetic text. No installation
+  points at it. Putting it on a cloud machine, and pointing DevBuddy's `HostedApi` mode at it, still
+  needs an acceptance naming the provider and the machine (ADR-0012).
+- **The Dependabot updates are approved.** #8 was closed because `@vitejs/plugin-react` 6 needs
+  vite 8, and #9 because #18 replaced it.
+- **`demo/` is removed.** It was the owner's Ocean Mist Light mock-up, never committed, and the
+  client now carries what was taken from it. Comments that named `demo/` now name the mock-up.
+- **`DEVBUDDY_EVIDENCE_SSE_KEK`:** the owner copied the devbox's key off the host.
+
+B2 is still open. The owner asked whether the archives can stay unsigned for now.
+
 ## Confirmed Ocean Mist Light, a Sidebar, Thai and English, and Cutting v1.10.0 — 2026-09-27
 
 The owner asked for the web client to take the sidebar and the *Ocean Mist Light* theme from the

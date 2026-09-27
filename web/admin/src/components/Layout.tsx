@@ -14,7 +14,7 @@ import { LanguageSwitch } from "./LanguageSwitch";
  * worse experience than not offering it. The server refuses regardless, and the integration tests
  * are what prove that; nothing here is a control.
  *
- * The navigation is a sidebar, from the Ocean Mist Light demo in `demo/`. Below the `lg` breakpoint
+ * The navigation is a sidebar, from the owner's Ocean Mist Light mock-up. Below the `lg` breakpoint
  * it is a drawer behind the menu button, and it is `invisible` while closed, so its links cannot be
  * reached by keyboard or read out while nobody can see them. The `header` stays the page's banner:
  * it carries the workspace, the role, the address and Sign out, which is where the e2e suite looks.
