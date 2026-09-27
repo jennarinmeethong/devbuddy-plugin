@@ -158,6 +158,25 @@ export async function clickUntilSent(button: Locator, pathname: string): Promise
   }
 }
 
+/**
+ * Clicks a signed-out page's button that sends nothing, and clicks again until what it shows
+ * appears.
+ *
+ * The press Firefox drops (see `clickUntilSent`) is not limited to buttons that send a request.
+ * For `v1.8.0` on 2026-09-26 it dropped the click on "Set password" with a mismatched
+ * confirmation, which only shows an alert, on the x64 runner for the first time. There is no
+ * request to wait for there, so this waits for the page to change instead. It clicks only while
+ * `shown` is not visible, so a click that did land is never repeated.
+ */
+export async function clickUntilShown(button: Locator, shown: Locator): Promise<void> {
+  await expect(async () => {
+    if (!(await shown.isVisible())) {
+      await button.click();
+    }
+    await expect(shown).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
+}
+
 /** A second person at the same time, in a browser context of their own. */
 export async function openAs(browser: Browser, person: Person, path?: string): Promise<Page> {
   const context = await browser.newContext();

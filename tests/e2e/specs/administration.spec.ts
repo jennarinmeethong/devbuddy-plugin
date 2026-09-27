@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { anonymous, Api } from "../support/api";
 import { password, unique } from "../support/env";
-import { clickUntilSent, expect, openAs, signIn, test } from "../support/fixtures";
+import { clickUntilSent, clickUntilShown, expect, openAs, signIn, test } from "../support/fixtures";
 import { invite } from "../support/people";
 
 test.describe("members", () => {
@@ -32,7 +32,7 @@ test.describe("members", () => {
     await clickUntilSent(tab.getByRole("button", { name: "Set password" }), "/auth/recovery/complete");
     await expect(tab.getByRole("status")).toContainText("Your password is set");
 
-    await tab.getByRole("link", { name: "Sign in" }).click();
+    await clickUntilShown(tab.getByRole("link", { name: "Sign in" }), tab.getByRole("textbox", { name: /^Email/ }));
     await tab.getByRole("textbox", { name: /^Email/ }).fill(email);
     await tab.getByLabel(/^Password/).fill(chosen);
     await clickUntilSent(tab.getByRole("button", { name: "Sign in", exact: true }), "/auth/sign-in");

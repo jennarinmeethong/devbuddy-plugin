@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Api, anonymous, signInForTokens } from "../support/api";
 import { password } from "../support/env";
-import { clickUntilSent, expect, signIn, test } from "../support/fixtures";
+import { clickUntilSent, clickUntilShown, expect, signIn, test } from "../support/fixtures";
 import { invite } from "../support/people";
 
 test.describe("signing in and out", () => {
@@ -70,7 +70,10 @@ test.describe("recovery and setup tokens", () => {
     people,
   }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Forgot your password?" }).click();
+    await clickUntilShown(
+      page.getByRole("button", { name: "Forgot your password?" }),
+      page.getByRole("button", { name: "Send a recovery token" }),
+    );
 
     for (const email of [people.viewer.email, "no-such-person@e2e.devbuddy.test"]) {
       await page.getByRole("textbox", { name: /^Email/ }).fill(email);
@@ -78,8 +81,10 @@ test.describe("recovery and setup tokens", () => {
       await expect(page.getByRole("status")).toContainText("If that address has an account");
     }
 
-    await page.getByRole("button", { name: "Back to sign in" }).click();
-    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+    await clickUntilShown(
+      page.getByRole("button", { name: "Back to sign in" }),
+      page.getByRole("button", { name: "Sign in", exact: true }),
+    );
   });
 
   test("a setup token sets a password once, and is refused the second time", async ({ page, admin, people }) => {
@@ -99,7 +104,7 @@ test.describe("recovery and setup tokens", () => {
     // Mismatched confirmation is caught before anything is sent.
     await page.getByLabel(/^New password/).fill(chosen);
     await page.getByLabel(/^Confirm password/).fill(`${chosen}x`);
-    await page.getByRole("button", { name: "Set password" }).click();
+    await clickUntilShown(page.getByRole("button", { name: "Set password" }), page.getByRole("alert"));
     await expect(page.getByRole("alert")).toHaveText("The two passwords do not match.");
 
     await page.getByLabel(/^Confirm password/).fill(chosen);
