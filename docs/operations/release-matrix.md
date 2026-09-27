@@ -1466,14 +1466,26 @@ release adds a check. Every row a release records here names the script that pro
 | --- | --- |
 | 1, and the format check and web suite | `setup-and-suite.sh` |
 | 2 | `setup-and-suite.sh` publishes `linux-x64`; the release workflow publishes every RID |
-| 3 | `smoke.sh`, and `client-smoke.ps1` for `win-arm64` |
+| 3 | `smoke.sh`, and `client-smoke.ps1` for `win-arm64`; the release workflow runs both on hosted runners |
 | 4 and 6, and tokens staying out of the log | `stack-drill-tokens.sh` |
-| 5 | `post-images.sh`, once per architecture |
+| 5 | `post-images.sh`, once per architecture; the release workflow runs it on both |
 | The upgrade from the previous release | `upgrade.sh`, once per architecture |
 | 7 and 8 | By hand, with `gh`, as below |
 
 Up to `v1.6.0` these rows came from scripts copied between releases on each machine, and those
 copies are not in the repository.
+
+**Since Phase 14 (A2) the release workflow runs steps 3 and 5 itself**, after it has pushed the
+images and cut the draft, and writes what they found into the draft's notes under *Runner smoke
+results*. A failed row fails the run. `post-images.sh` runs on `ubuntu-latest` and
+`ubuntu-24.04-arm`. Each archive is checked against the draft's `SHA256SUMS` and then smoke-tested:
+`linux-x64` and `linux-musl-x64` on `ubuntu-latest`, the two arm64 Linux RIDs on
+`ubuntu-24.04-arm`, all four in the containers `smoke.sh` names, `osx-arm64` natively on
+`macos-15`, `win-arm64` on `windows-11-arm` and `win-x64` on `windows-latest`. By the owner's
+decision of 2026-09-24 (B4, `info.md`) **these runs replace the hand smoke tests for `win-arm64`,
+`linux-arm64`, `linux-musl-arm64` and `osx-arm64`**, and the Mac mini still runs `osx-arm64` for a
+release that changes the macOS build. The x64 rows and `post-images.sh` on devrelease are still run
+by hand as well: B4 did not cover them. The drill, the upgrade and publishing stay by hand.
 
 1. `dotnet test DevBuddy.slnx -c Release` on Linux, with Docker available, so the integration and
    drill tests actually run. (The workflow does this too; doing it locally is what lets you read
