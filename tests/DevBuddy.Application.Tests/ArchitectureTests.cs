@@ -82,6 +82,21 @@ public sealed class ArchitectureTests
         Assert.Contains("DevBuddy.Application", references);
     }
 
+    /// <summary>
+    /// The <c>devbuddy</c> client runs on a person's machine and talks to a server only over
+    /// HTTPS (ADR-0015). A reference to any project here would put the core, and with it the
+    /// means to reach a database or sign a token, into something that has no business holding
+    /// either.
+    /// </summary>
+    [Fact]
+    public void the_client_references_no_project_in_this_repository()
+    {
+        XDocument project = XDocument.Load(
+            RepositoryLayout.ProjectFile("src/clients/DevBuddy.Client/DevBuddy.Client.csproj"));
+
+        Assert.Empty(ReferencesOf(project, "ProjectReference"));
+    }
+
     /// <summary>Project references, reduced to the referenced project name.</summary>
     private static string[] ReferencesOf(XDocument project, string elementName) =>
         IncludeAttributesOf(project, elementName)

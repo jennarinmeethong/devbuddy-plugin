@@ -34,15 +34,15 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 1013 .NET tests and 85 web tests exist. The .NET suite passed at 1005 on devrelease
-for `v1.9.0` on 2026-09-27, and at 1013 on the Windows development machine the same day, when the
-MCP server's HTTP transport took machine tokens (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
+enforcement. 1060 .NET tests and 85 web tests exist. The .NET suite passed at 1005 on devrelease
+for `v1.9.0` on 2026-09-27, and at 1060 on the Windows development machine the same day, when the
+MCP server's HTTP transport took machine tokens and the `devbuddy` client was added (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
 day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**, in the job
 `Web client tests`, in the `oven/bun:1` image the API image builds the client with. Until then
 only `bun run build` ran there, which type-checks. The owner's Linux test machine that ran both
 suites until 2026-09-25 is gone, above. Count them rather than trusting this sentence, which has been stale many times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix, and at 993 and 78 until the ports moved to 5010, and at 1005 and 78 until the web client gained Thai and English, and at 1005 and 85 until the HTTP transport took machine tokens. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix, and at 993 and 78 until the ports moved to 5010, and at 1005 and 78 until the web client gained Thai and English, and at 1005 and 85 until the HTTP transport took machine tokens and the client was added. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -632,6 +632,12 @@ audit — live in one Application pipeline so no host can skip them. This is wha
 surface be a deliberate allow-list over existing use cases rather than a second implementation.
 
 ## Things that are easy to get wrong here
+
+- **The plugins reach the server over HTTPS through the `devbuddy` client** (Phase 14, A4;
+  ADR-0015). `src/clients/DevBuddy.Client` references no project, and an architecture test holds
+  that. Its header helper, `devbuddy mcp-headers`, gives the token only to the server a checkout is
+  registered to; keep that check. It starts no process, like all product code (SB-04): the keychain
+  and Credential Manager are called directly, and Linux uses a mode-600 file.
 
 - **Every word the web client shows goes through `t`, `tr` or `m`** (`web/admin/src/i18n`), with
   its Thai in `th.ts`, since 2026-09-27. English is the key. `i18n.test.tsx` fails on an untranslated

@@ -203,6 +203,109 @@ public sealed class HttpTransportTests(ApiFixture fixture)
         }
     }
 
+    /// <summary>
+    /// The whole path a person takes (ADR-0015): the <c>devbuddy</c> client registers a checkout
+    /// against this server with a token typed once, and the header it later hands an assistant is
+    /// the one that server accepts. A token from another workspace is refused at registration.
+    /// </summary>
+    [Fact]
+    public async Task the_devbuddy_client_registers_a_checkout_and_its_header_works_on_the_transport()
+    {
+        await using Server server = await Server.StartAsync(fixture);
+
+        UserId owner = await fixture.CreateUserAsync($"http-client-{Guid.NewGuid():N}@example.test");
+        await fixture.GrantAsync(owner, Role.Contributor);
+        string token = await fixture.IssueMachineTokenAsync(owner, "registered through the client");
+
+        ProjectScope elsewhere = await fixture.CreateSeparateWorkspaceAsync(owner);
+        await fixture.GrantInAsync(elsewhere.WorkspaceId, owner, Role.Contributor);
+        string elsewhereToken = await fixture.IssueMachineTokenAsync(owner, "another workspace", elsewhere.WorkspaceId);
+
+        DirectoryInfo scratch = Directory.CreateTempSubdirectory("devbuddy-client-e2e-");
+
+        try
+        {
+            string checkout = Directory.CreateDirectory(Path.Combine(scratch.FullName, "api", ".git")).Parent!.FullName;
+            string home = Path.Combine(scratch.FullName, "home");
+
+            // The token from the other workspace first: checked against the server, refused, not stored.
+            (int wrong, _, string wrongError) = await RunClientAsync(
+                home, elsewhereToken,
+                "register", checkout, "--server", server.Origin, "--workspace", fixture.Workspace.Value.ToString());
+
+            Assert.Equal(1, wrong);
+            Assert.Contains("not in this workspace", wrongError, StringComparison.Ordinal);
+
+            (int registered, _, string registerError) = await RunClientAsync(
+                home, token,
+                "register", checkout, "--server", server.Origin, "--workspace", fixture.Workspace.Value.ToString());
+
+            Assert.True(registered == 0, registerError);
+
+            (int helped, string headers, string helpError) = await RunClientAsync(
+                home, input: null,
+                "mcp-headers", "--dir", Path.Combine(checkout, "src"), "--url", $"{server.Origin}/mcp");
+
+            Assert.True(helped == 0, helpError);
+
+            string bearer = JsonSerializer.Deserialize<JsonElement>(headers)
+                .GetProperty("Authorization").GetString()!["Bearer ".Length..];
+
+            string answer = await server.CallAsync(
+                bearer, UseCaseCatalog.ListProjects.Name, new { workspaceId = fixture.Workspace.Value });
+
+            Assert.DoesNotContain("Refused", answer, StringComparison.Ordinal);
+        }
+        finally
+        {
+            scratch.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Runs the built <c>devbuddy</c> client with its own home and the file credential store, so it
+    /// touches nothing of the person running the tests. The token arrives on standard input.
+    /// </summary>
+    private static async Task<(int Exit, string Output, string Error)> RunClientAsync(
+        string home, string? input, params string[] args)
+    {
+        var start = new ProcessStartInfo("dotnet")
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+
+        start.ArgumentList.Add(Server.BuiltAssembly("src/clients/DevBuddy.Client", "devbuddy.dll").FullName);
+
+        foreach (string arg in args)
+        {
+            start.ArgumentList.Add(arg);
+        }
+
+        start.Environment["DEVBUDDY_HOME"] = home;
+        start.Environment["DEVBUDDY_CREDENTIAL_STORE"] = "file";
+
+        using Process client = Process.Start(start)
+            ?? throw new InvalidOperationException("The devbuddy client did not start.");
+
+        if (input is not null)
+        {
+            await client.StandardInput.WriteLineAsync(input);
+        }
+
+        client.StandardInput.Close();
+
+        Task<string> output = client.StandardOutput.ReadToEndAsync();
+        Task<string> error = client.StandardError.ReadToEndAsync();
+
+        using var timeout = new CancellationTokenSource(Patience);
+        await client.WaitForExitAsync(timeout.Token);
+
+        return (client.ExitCode, await output, await error);
+    }
+
     private static object Initialize() => new
     {
         jsonrpc = "2.0",
@@ -242,12 +345,16 @@ public sealed class HttpTransportTests(ApiFixture fixture)
         {
             _process = process;
             _http = new HttpClient { BaseAddress = address, Timeout = Patience };
+            Origin = address.GetLeftPart(UriPartial.Authority);
         }
+
+        /// <summary>Scheme, host and port, as the <c>devbuddy</c> client registers a server.</summary>
+        public string Origin { get; }
 
         public static async Task<Server> StartAsync(
             ApiFixture fixture, params (string Name, string Value)[] environment)
         {
-            FileInfo assembly = ServerAssembly();
+            FileInfo assembly = BuiltAssembly("src/hosts/DevBuddy.McpServer", "DevBuddy.McpServer.dll");
             int port = FreePort();
 
             var start = new ProcessStartInfo("dotnet")
@@ -400,7 +507,8 @@ public sealed class HttpTransportTests(ApiFixture fixture)
             return ((IPEndPoint)listener.LocalEndpoint).Port;
         }
 
-        private static FileInfo ServerAssembly()
+        /// <summary>A project's build output, in the configuration and framework the tests run in.</summary>
+        public static FileInfo BuiltAssembly(string project, string fileName)
         {
             var here = new DirectoryInfo(AppContext.BaseDirectory);
             string framework = here.Name;
@@ -416,9 +524,7 @@ public sealed class HttpTransportTests(ApiFixture fixture)
             Assert.NotNull(directory);
 
             var assembly = new FileInfo(Path.Combine(
-                directory.FullName,
-                "src", "hosts", "DevBuddy.McpServer", "bin", configuration, framework,
-                "DevBuddy.McpServer.dll"));
+                [directory.FullName, .. project.Split('/'), "bin", configuration, framework, fileName]));
 
             Assert.True(assembly.Exists, $"{assembly.FullName} has not been built.");
             return assembly;

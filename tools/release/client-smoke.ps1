@@ -50,6 +50,14 @@ Check 'console retention --every 24 exit' $LASTEXITCODE 2
 & $cli migrate > $null 2>&1
 Check 'console migrate with no connection string exit' $LASTEXITCODE 2
 
+# The client starts, and gives nothing to a folder nobody registered (ADR-0015).
+$client = Join-Path $Work 'Client\devbuddy.exe'
+$env:DEVBUDDY_HOME = Join-Path $Work 'client-home'; $env:DEVBUDDY_CREDENTIAL_STORE = 'file'
+$headers = & $client mcp-headers --dir $Work --url https://devbuddy.example.test/mcp 2>$null
+Check 'client mcp-headers, unregistered, exit' $LASTEXITCODE 2
+Check 'client mcp-headers, unregistered, output' "$headers" ''
+$env:DEVBUDDY_HOME = $null; $env:DEVBUDDY_CREDENTIAL_STORE = $null
+
 # The MCP server over stdio, pointed at a database that is not there, as a client machine is. The
 # connection string carries no password: nothing connects before a tool is called.
 $psi = New-Object Diagnostics.ProcessStartInfo $mcp, '--stdio'

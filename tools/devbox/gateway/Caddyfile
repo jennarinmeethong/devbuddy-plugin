@@ -45,8 +45,16 @@ https://192.168.1.160 {
 	log {
 		output stderr
 	}
+	# The MCP server's HTTP transport, for Claude Code and Codex (Phase 14, A4; ADR-0015). Its bearer
+	# is a machine token. `mcp` resolves to the Compose service alone: `compose run` containers, one
+	# per stdio session, join the network without the service alias unless run with --use-aliases.
+	handle /mcp* {
+		reverse_proxy mcp:8080
+	}
 	# Caddy sends X-Forwarded-Proto: https, which is what turns COOP and COEP on (SecurityHeaders).
-	reverse_proxy api:8080
+	handle {
+		reverse_proxy api:8080
+	}
 	# HSTS since 2026-09-26, once every device that uses the UI trusted the root (samples/docs/10).
 	# A browser does not record HSTS for an IP address (RFC 6797, 8.1.1), so this takes effect only
 	# if the devbox is later reached by a name. No includeSubDomains: an IP has none.
