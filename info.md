@@ -46,6 +46,11 @@ Two more, the same day, when the owner was asked:
 
 OAuth sign-in for MCP was named as a later step and not decided.
 
+**On Linux the client keeps the token in a mode-600 file, not Secret Service**, approved by the
+owner the same day. Reaching Secret Service meant running `secret-tool`, and product code starts no
+process (SB-04, `NoExecutionTests`), which failed the first version. Windows and macOS are called
+directly and keep their stores. ADR-0015 records it.
+
 ## Confirmed A2, B3, Dependabot, and the Demo Removed — 2026-09-27
 
 The owner reviewed and merged PR #19 and PR #20, then answered the open items the same day:
