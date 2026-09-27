@@ -1,8 +1,7 @@
 # ADR-0014: SeaweedFS replaces MinIO as the default evidence store
 
-- Status: **Proposed** 2026-09-27. It becomes Accepted when the owner confirms it in `info.md`.
-  Nothing in the product changes before then. The two checks it named as prerequisites passed the
-  same day (see *Verification*).
+- Status: **Accepted** 2026-09-27 (`info.md`). It was proposed the same day, and the two checks it
+  named as prerequisites passed before the owner confirmed it (see *Verification*).
 - Date: 2026-09-27
 - Phase: 14 (C6)
 - Supersedes: [ADR-0004](0004-minio-evidence-store.md), for the choice of store only. Every other

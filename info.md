@@ -1,5 +1,21 @@
 # Project Decisions
 
+## Confirmed ADR-0014: SeaweedFS Replaces MinIO as the Evidence Store — 2026-09-27
+
+The owner confirmed ADR-0014 as written, and asked for it to be merged and built. It is binding:
+
+- **SeaweedFS is the default evidence store**, built from source, pinned by commit, into `scratch`
+  as uid 1000, and run as `weed server -s3`. The filesystem adapter stays behind the same port.
+  ADR-0004's other decisions stand.
+- **Guards against SeaweedFS answering unsigned requests, each mutation-checked:**
+  - Compose requires the credentials.
+  - A health probe fails unless an unsigned request is refused.
+  - The adapter refuses to store or serve if an unsigned request is not refused.
+- **SSE-S3 uses an operator-supplied KEK** in a required variable, and the adapter keeps a canary so
+  a wrong key cannot split evidence across two keys.
+- **Existing evidence moves by backup and restore.** The release that carries this says so as its
+  main note. The MinIO entries in `.trivyignore.yaml` are removed with it and are not renewed.
+
 ## Confirmed WireGuard on UDP 8840 for Reaching the Devbox from Outside — 2026-09-27
 
 On 2026-09-26 the owner's router forwarded TCP 8840 on `jennarin.thddns.net` to the devbox's
