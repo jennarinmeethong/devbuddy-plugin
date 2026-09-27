@@ -156,6 +156,13 @@ export async function clickUntilSent(button: Locator, pathname: string): Promise
     try {
       await sent;
     } catch (failure) {
+      // A button that is disabled or gone means the form did submit: its request is in flight, or
+      // answered and the page moved on. WebKit under load can report the request later than the
+      // window, and retrying then found no button at all (the invite test, 2026-09-27). Only a
+      // button still there and enabled, with nothing sent, is a press that was lost.
+      if (!(await button.isVisible()) || !(await button.isEnabled({ timeout: 1_000 }))) {
+        return;
+      }
       if (process.env.DEVBUDDY_E2E_FIRST_CLICK) {
         const log = await page.evaluate(() => (window as unknown as { __firstClick?: string[] }).__firstClick ?? []);
         console.log(`CLICK-LOST ${pathname} attempt ${attempts} ${JSON.stringify(log)}`);
