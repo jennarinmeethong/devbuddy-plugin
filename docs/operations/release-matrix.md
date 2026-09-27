@@ -219,6 +219,44 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.10.0
+
+**Checked on 2026-09-27 before the tag**, at the owner's instruction (`info.md`). *14.11* in
+`docs/plan-phase-14.md` says what it carries: the web client only, with the Ocean Mist Light
+theme, a sidebar, Thai and English, bundled fonts and scrolling tables. **Every row ran at
+`de841f8`**, the commit tagged. No check was added, because nothing below the client changed.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran 1005 tests with none failed. The web build passed, and its suite ran 85 of 85. `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **115 passed, 0 failed.** That covers Compose from clean, the drill with both volumes destroyed, and every earlier release's check. |
+| Part 3, `upgrade.sh` from `v1.9.0` | devrelease, amd64 | **47 passed, 0 failed.** Migrations stayed at nine. `restore --evidence-only` restored 1 of 1 objects and changed no row. The access token from `v1.9.0` answered 200. The stdio session held open across the upgrade was listed as stale. |
+| Part 3, `upgrade.sh` from `v1.9.0` | Ubuntu arm64 guest | **47 passed, 0 failed**, with the same restore line and the same token and session results. The machine token from `v1.9.0` answered identically over MCP stdio. |
+
+### After the tag
+
+`v1.10.0` was tagged at `de841f8`, the commit every row above ran at, after the owner reviewed and
+merged PR #19. Release run 36309737212 passed all 13 jobs and left a draft with seven archives,
+`SHA256SUMS` and three SBOMs. Every script ran from the tag. `tools/release/` is unchanged on
+`main` since then, so `client-smoke.ps1` ran from there on JMPC.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match.** |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.10.0` and `de841f8`. The images' CycloneDX SBOM attestations have 36, 38 and 56 components. A wrong-owner control was refused. |
+| Published images on amd64 | `post-images.sh`, devrelease | **29 of 29.** Twenty AI operations. |
+| Published images on arm64 | `post-images.sh`, the Ubuntu arm64 guest | **29 of 29.** The twenty names are identical to amd64's. |
+| `linux-x64`, `linux-musl-x64` | `smoke.sh`, devrelease, in `ubuntu:24.04` and `alpine:3` | **Pass.** |
+| `linux-arm64` | `smoke.sh`, natively in the Ubuntu arm64 guest | **Pass.** |
+| `linux-musl-arm64` | `smoke.sh`, in `alpine:3` (3.24) in that guest | **Pass.** |
+| `osx-arm64` | `smoke.sh`, natively on the Mac mini (Apple M4, macOS 26.6.2) | **Pass.** |
+| `win-arm64` client | `client-smoke.ps1`, the Windows on ARM VMware guest | **Pass**, every row: ARM64 PE on both executables, the same twenty names from the console and from `DevBuddy.McpServer --stdio`, exit 2 for `--every 24` and for `migrate` with no connection string, only JSON-RPC on standard output, and exit 0 when its input closed. |
+| `win-x64` | `client-smoke.ps1`, natively on JMPC (Windows 11 x64), from PowerShell | **Pass**, every row as for `win-arm64`, with an x64 PE. A first attempt was handed a wrong path and found no archive; that was the command, not the release. |
+
+**Published on 2026-09-27 at 10:11 UTC**, as Latest, at the owner's instruction. The throwaway
+stacks removed themselves, and the archives and clones were deleted from every machine. The devbox
+moved onto the tag the same day (`docs/plan-phase-14.md`).
+
 ## What was verified for v1.9.0
 
 **Checked on 2026-09-27 before the tag.** The owner asked for the release to be prepared
