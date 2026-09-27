@@ -268,7 +268,8 @@ or from `main` where `tools/release/` is unchanged since the tag.
 | `win-x64` | `client-smoke.ps1`, natively on JMPC (Windows 11 x64) | **Pass**, every row as for `win-arm64`, with an x64 PE. Run from PowerShell: from Git Bash, the script's `tar` resolves to GNU tar, which reads `C:` as a host name. |
 
 **Published on 2026-09-27 at 06:29 UTC**, as Latest, at the owner's instruction. The throwaway
-stacks on devrelease and the arm64 guest were removed. The devbox has not moved yet.
+stacks on devrelease and the arm64 guest were removed. The devbox moved onto the tag the same day
+(`docs/plan-phase-14.md`).
 
 ## What was verified for v1.8.0
 

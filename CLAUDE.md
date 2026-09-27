@@ -50,7 +50,7 @@ ADR-0012 required a control for, closed on 2026-09-13.
 instruction. It replaces MinIO with SeaweedFS (ADR-0014): the evidence moves by a backup before the
 upgrade and `restore --evidence-only` after it, and `DEVBUDDY_EVIDENCE_SSE_KEK` is a new required
 variable. No migration, and nobody signs in again. Its checklist is in
-`docs/operations/release-matrix.md`. The devbox still runs `v1.8.0` until it is moved.
+`docs/operations/release-matrix.md`. The devbox runs the tag since the same day, with plugin 1.9.0.
 
 **`v1.8.0` was the release before it**, published 2026-09-26 from `2317ac4` at the owner's
 instruction. It carries C4's fixes (a NUL in text is 400, a duplicate work item key 409, security
@@ -69,7 +69,7 @@ same day. That tag ran in an LXC there, below, until `v1.8.0`.
 
 **The devbox is an LXC since 2026-09-25.** The owner reinstalled jmhp as Proxmox, and DevBuddy now
 runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run inside. It is
-`v1.8.0` from the tag's own Compose file (`v1.7.0` until 2026-09-26), with MCP on loopback on
+`v1.9.0` from the tag's own Compose file (`v1.8.0` until 2026-09-27), with MCP on loopback on
 5011. **Since 2026-09-26 the LAN reaches the API and web UI only at `https://192.168.1.160:5010`**
 (Phase 14, B1), through a Caddy gateway with its own internal CA in
 `/data/devbuddy-tools/gateway`, outside the stack. Plain HTTP on that port is redirected, and a public address is dropped: outside the LAN it is
