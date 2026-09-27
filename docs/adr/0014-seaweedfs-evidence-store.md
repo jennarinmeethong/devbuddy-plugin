@@ -1,7 +1,8 @@
 # ADR-0014: SeaweedFS replaces MinIO as the default evidence store
 
 - Status: **Proposed** 2026-09-27. It becomes Accepted when the owner confirms it in `info.md`.
-  Nothing in the product changes before then.
+  Nothing in the product changes before then. The two checks it named as prerequisites passed the
+  same day (see *Verification*).
 - Date: 2026-09-27
 - Phase: 14 (C6)
 - Supersedes: [ADR-0004](0004-minio-evidence-store.md), for the choice of store only. Every other
@@ -58,10 +59,14 @@ stays behind the same port, as ADR-0004 kept it.
      one.
 3. **SSE-S3 uses a key the operator supplies**, in `WEED_S3_SSE_KEK` (hex, 256 bits), from a new
    `docker/.env` variable, required like the credentials. That is the role
-   `DEVBUDDY_EVIDENCE_KMS_KEY` plays for MinIO today. SeaweedFS refuses to start if a KEK it stored
-   earlier differs from the one given. The spike verified the derived-key form (`WEED_S3_SSE_KEY`):
-   no plaintext on the volume, a restart with the same key reads back, and a wrong key fails with 500
-   and discloses nothing. **The KEK form is to be verified the same way before this is Accepted.**
+   `DEVBUDDY_EVIDENCE_KMS_KEY` plays for MinIO today. The key lives only in that variable:
+   SeaweedFS does not store it on its filer. So a wrong key is **not** detected at start-up.
+   SeaweedFS starts, reads of existing objects fail with 500 and disclose nothing, and new writes
+   would be encrypted under the wrong key. **The adapter therefore keeps a canary.** On first use it
+   writes a small encrypted object if there is none, and afterwards it reads that object back. If
+   the read fails, it refuses to store or serve anything, so a mistyped key cannot leave evidence
+   split across two keys. With no key at all, SeaweedFS refuses an `AES256` write outright and
+   writes nothing, as MinIO does without its KMS key.
 4. **The health check is a probe of our own.** `scratch` has no shell and no client, so the image
    carries a small static Go program built from this repository beside `weed`. It asks the S3
    gateway's `/healthz` and then makes the unsigned request in point 2. It stands where
@@ -93,8 +98,34 @@ stays behind the same port, as ADR-0004 kept it.
   from the same Dockerfile, so the image tested is still the image shipped. `DeploymentTests` swaps
   its MinIO pin checks for SeaweedFS's. `stack-drill-tokens.sh` and `upgrade.sh` change their
   version checks.
-- **arm64 is not yet proven.** The spike ran on amd64 only. SeaweedFS builds natively for arm64,
-  and the Ubuntu arm64 guest has to run the image and the probe before this is Accepted.
+- **One HIGH finding remains in 4.47:** `google.golang.org/grpc` CVE-2026-84445, from a `-dev`
+  version SeaweedFS pins that predates the fix. The release that implements this should take the
+  newest SeaweedFS whose image clears the gate. If none does, the finding is accepted with an expiry
+  like any other.
+- **The Ubuntu arm64 guest cannot build it.** A build needs about 5 GB of scratch space and the
+  guest's disk filled up during one (2026-09-27). The Mac mini built it natively. A release checklist
+  row that builds the evidence image on arm64 has to run there, or the guest's disk has to grow.
+
+## Verification
+
+Run on 2026-09-27, with SeaweedFS 4.47 built from the spike's Dockerfile plus the health probe, and
+driven by the probe in `tools/spikes/c6-seaweedfs/`. That probe uses the adapter's own client
+settings on `AWSSDK.S3` 4.0.102.4.
+
+| Check | amd64 (devrelease) | arm64 (Mac mini, native build) |
+|---|---|---|
+| Built from source into `scratch`, uid 1000 | yes | yes, 192 MB, `linux arm64` |
+| Operator KEK loaded (`Loaded KEK from s3.sse.kek config`) | yes | yes |
+| The eight adapter checks, SDK checksum defaults | 8 of 8 | 8 of 8 |
+| Plaintext marker in any file on the volume | none | none of 81 files |
+| KEK stored on the filer (`/etc/s3/sse_kek`) | no (404) | not checked |
+| Restart with the same KEK reads back | yes | yes |
+| Restart with a different KEK | starts; reads fail with 500 | same |
+| No KEK, `AES256` write | refused with 500, nothing written | not checked |
+| Health probe with credentials | `ok` | `ok` |
+| Health probe with no credentials | fails: unsigned request answered 200 | same |
+| Idle memory | 93 MiB | 104 MiB |
+| Trivy HIGH/CRITICAL with a fix | 1 (`grpc`), 0 in the probe | not scanned |
 
 ## Alternatives considered
 
