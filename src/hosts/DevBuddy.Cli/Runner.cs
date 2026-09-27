@@ -138,6 +138,30 @@ internal static class Runner
     }
 
     /// <summary>
+    /// <c>restore --evidence-only</c>: a backup's evidence bytes into the configured store, beside
+    /// the rows already here (ADR-0014). No actor, for the reason <see cref="RestoreAsync"/> has
+    /// none; it writes no row, and refuses an installation with no data.
+    /// </summary>
+    public static async Task<int> RestoreEvidenceAsync(string reference, CancellationToken cancellationToken)
+    {
+        return await WithScopeAsync(async scope =>
+        {
+            RestoreOutcome outcome = await scope.ServiceProvider
+                .GetRequiredService<IAdministrativeOperations>()
+                .RestoreEvidenceAsync(reference, cancellationToken);
+
+            if (!outcome.Succeeded)
+            {
+                Console.Error.WriteLine(outcome.Detail);
+                return Refused;
+            }
+
+            Console.WriteLine(outcome.Detail);
+            return Ok;
+        });
+    }
+
+    /// <summary>
     /// Lists rows stored against a project that is not a live project of their workspace, and
     /// changes nothing. See <see cref="IScopeIntegrityReport"/> for why they can exist and why this
     /// only reports them.

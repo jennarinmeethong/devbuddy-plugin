@@ -1,17 +1,16 @@
-# The self-hosted stack: PostgreSQL, MinIO, the API, and the MCP server.
+# The self-hosted stack: PostgreSQL, the evidence store (SeaweedFS), the API, and the MCP server.
 #
 # What is deliberately absent is as much of the design as what is here.
 #
-#   - PostgreSQL and MinIO publish no host ports. They are reachable on the internal network and
+#   - PostgreSQL and the evidence store publish no host ports. They are reachable on the internal network and
 #     from nowhere else. An operator who needs a psql session runs it in the network, not through
 #     a port mapped to every interface on the host.
 #   - Nothing mounts the Docker socket. A container that can talk to the daemon is root on the
 #     host, and no part of this system has any reason to.
 #   - No service runs as root. The application images ship with a non-root account and use it; the
-#     database is told which one; the object store is built from docker/evidence/Dockerfile, which
-#     adds the non-root account the upstream MinIO image does not have. Until 2026-09-14 this line
-#     claimed MinIO ran as its own account, and it ran as root. DeploymentTests now checks every
-#     service.
+#     database is told which one; the object store is built from docker/evidence/Dockerfile as
+#     uid 1000. Until 2026-09-14 this line claimed MinIO ran as its own account, and it ran as root.
+#     DeploymentTests now checks every service.
 #   - There is no TLS here. This stack is meant to sit behind a reverse proxy that terminates it,
 #     and pretending otherwise with a self-signed certificate would teach the wrong shape. See
 #     docs/operations/deployment.md.
@@ -42,7 +41,7 @@ x-console-environment: &console-environment
   DEVBUDDY_ConnectionStrings__DevBuddy: >-
     Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
   DEVBUDDY_Evidence__Provider: ObjectStorage
-  DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
+  DEVBUDDY_Evidence__ServiceUrl: http://evidence:8333
   DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
   DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
   DEVBUDDY_Backup__RootPath: /srv/backups
@@ -99,10 +98,9 @@ services:
     networks: [internal]
 
   evidence:
-    # Built from docker/evidence/Dockerfile. Since 2026-09-25 that compiles MinIO and mc from their
-    # source, pinned by commit, into an image holding nothing else, run as uid 1000. The Dockerfile
-    # explains why no registry image is used, and why the data lives at /srv/evidence. Until
-    # 2026-09-14 this service used the upstream image directly, and MinIO ran as root.
+    # SeaweedFS since ADR-0014 (info.md, 2026-09-27), built from docker/evidence/Dockerfile: source
+    # pinned by commit, into an image holding `weed` and its health probe and nothing else, run as
+    # uid 1000. MinIO was here before, and was archived upstream.
     build:
       context: evidence
     restart: unless-stopped
@@ -112,34 +110,32 @@ services:
     cap_drop:
       - ALL
     tmpfs:
-      # Home for MinIO's certificates directory and mc's configuration, owned by the account the
-      # image runs as.
-      - /tmp:uid=1000,gid=1000
-    command: server /srv/evidence
+      # SeaweedFS keeps its gRPC sockets here. A root-owned tmpfs stops it with "permission denied".
+      - /tmp:uid=1000,gid=1000,mode=0700
     environment:
-      MINIO_ROOT_USER: ${DEVBUDDY_EVIDENCE_ACCESS_KEY:?set DEVBUDDY_EVIDENCE_ACCESS_KEY in docker/.env}
-      MINIO_ROOT_PASSWORD: ${DEVBUDDY_EVIDENCE_SECRET_KEY:?set DEVBUDDY_EVIDENCE_SECRET_KEY in docker/.env}
+      # SeaweedFS allows ALL access, anonymous included, when no credentials are configured; MinIO
+      # refused to start instead. So these are required, DeploymentTests fails if they stop being,
+      # and the health check below proves an unsigned request is refused (ADR-0014, point 2).
+      AWS_ACCESS_KEY_ID: ${DEVBUDDY_EVIDENCE_ACCESS_KEY:?set DEVBUDDY_EVIDENCE_ACCESS_KEY in docker/.env}
+      AWS_SECRET_ACCESS_KEY: ${DEVBUDDY_EVIDENCE_SECRET_KEY:?set DEVBUDDY_EVIDENCE_SECRET_KEY in docker/.env}
 
-      # The application asks for server-side encryption on every object it stores
-      # (Evidence:UseServerSideEncryption, on by default), and MinIO refuses that outright unless
-      # it has a key to encrypt with: "Server side encryption specified but KMS is not configured".
-      # Without this line every evidence upload fails with a 500, which is what happened the first
-      # time anyone attached a file — the capability to do so is newer than this stack.
-      #
-      # MinIO's built-in KMS, which is what it offers for a single node. A larger installation runs
-      # KES and points MINIO_KMS_KES_* at it instead; that is a change to this file, not to the
-      # application, because the application only ever asks for AES256 and lets the store arrange it.
-      MINIO_KMS_SECRET_KEY: ${DEVBUDDY_EVIDENCE_KMS_KEY:?set DEVBUDDY_EVIDENCE_KMS_KEY in docker/.env}
+      # The key SSE-S3 encrypts with: 64 hex characters, 256 bits. The application asks for AES256
+      # on every object (Evidence:UseServerSideEncryption, on by default), and without a key
+      # SeaweedFS refuses that write and stores nothing. The key lives only here, not in the store,
+      # so a wrong one is not noticed at start-up; the application's canary notices it instead
+      # (ADR-0014, point 3). Lose it and the evidence on this volume cannot be read.
+      WEED_S3_SSE_KEK: ${DEVBUDDY_EVIDENCE_SSE_KEK:?set DEVBUDDY_EVIDENCE_SSE_KEK in docker/.env}
     volumes:
-      # The same named volume as before 2026-09-14, now mounted at /srv/evidence. A stack upgraded
-      # from the root-run image has to hand it to uid 1000 once; docs/operations/deployment.md has
-      # the command.
-      - evidence:/srv/evidence
+      # A new volume for SeaweedFS. MinIO's, `evidence`, is left untouched for rolling back; its
+      # objects reach this one by backup and restore (docs/operations/deployment.md).
+      - evidence_seaweedfs:/srv/evidence
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      # Healthy means the S3 gateway answers AND an unsigned request is refused with 403.
+      test: ["CMD", "healthprobe"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 30
+      start_period: 10s
     networks: [internal]
 
   # Runs once, applies migrations, exits. The servers wait for it to complete, so a deployment
@@ -309,7 +305,7 @@ services:
         Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
       DEVBUDDY_Identity__SigningKey: ${DEVBUDDY_SIGNING_KEY:?set DEVBUDDY_SIGNING_KEY in docker/.env}
       DEVBUDDY_Evidence__Provider: ObjectStorage
-      DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
+      DEVBUDDY_Evidence__ServiceUrl: http://evidence:8333
       DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
       DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
       DEVBUDDY_Analysis__RootPath: /srv/projects
@@ -411,7 +407,7 @@ services:
         Host=database;Port=5432;Database=devbuddy;Username=devbuddy;Password=${DEVBUDDY_DB_PASSWORD}
       DEVBUDDY_Identity__SigningKey: ${DEVBUDDY_SIGNING_KEY}
       DEVBUDDY_Evidence__Provider: ObjectStorage
-      DEVBUDDY_Evidence__ServiceUrl: http://evidence:9000
+      DEVBUDDY_Evidence__ServiceUrl: http://evidence:8333
       DEVBUDDY_Evidence__AccessKey: ${DEVBUDDY_EVIDENCE_ACCESS_KEY}
       DEVBUDDY_Evidence__SecretKey: ${DEVBUDDY_EVIDENCE_SECRET_KEY}
       DEVBUDDY_Analysis__RootPath: /srv/projects
@@ -451,7 +447,9 @@ volumes:
   # Named, so `docker compose down` without -v keeps them and a container replacement is not a
   # data loss event. The restore drill proves that.
   database:
-  evidence:
+  # SeaweedFS's data since ADR-0014. `evidence`, MinIO's, is no longer declared, so Compose neither
+  # uses nor removes it: it stays on the host for rolling back until an operator deletes it.
+  evidence_seaweedfs:
   backups:
   exports:
 

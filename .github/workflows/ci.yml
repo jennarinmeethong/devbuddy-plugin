@@ -44,7 +44,7 @@ jobs:
         if: runner.os == 'Linux'
         run: dotnet test DevBuddy.slnx -c Release --no-build --logger "trx;LogFileName=test-results.trx"
 
-      # Windows runners cannot start Linux containers, so PostgreSQL and MinIO are unavailable.
+      # Windows runners cannot start Linux containers, so PostgreSQL and the evidence store are unavailable.
       # The integration tests are excluded rather than skipped, and this comment is the record of
       # what Windows does not cover: DevBuddy.Api.Tests, DevBuddy.Infrastructure.Tests, and
       # DevBuddy.Security.Tests, which is every project holding a Testcontainers fixture.

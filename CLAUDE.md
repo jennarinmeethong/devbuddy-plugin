@@ -621,32 +621,33 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 - **`CR` is banned.** Change Request and Code Review are separate record types. Write
   `change_request` and `code_review` in full, in code, schema, API, and UI.
 - **No SQLite.** PostgreSQL in development and production, and in tests via Testcontainers.
-- **MinIO is built from its source, pinned by commit, since 2026-09-25 (`info.md`).** Two registries
-  have dropped it: Docker Hub by 2026-09-13, and quay.io without a login on 2026-09-24. Each time,
-  every machine without a cached copy failed to build the evidence store, and CI went red while the
-  owner's test machine, holding the cached copy, kept passing. `docker/evidence/Dockerfile` compiles
-  MinIO `RELEASE.2025-10-15T17-29-55Z` and `mc` `RELEASE.2025-08-13T08-35-41Z` by commit (both
-  the last upstream releases, since 2026-09-26), with Go 1.26.8 pinned by digest, into a `scratch`
-  image holding the two binaries and nothing to execute. **Both upstream repositories are archived**,
-  so no fix will come from there; Trivy's image scan gates this image, and replacing MinIO is
-  Phase 14, C6.
-  It is built natively where it runs, never cross-compiled, and a cold build takes three or four
-  minutes. `EvidenceStoreTests` builds the same Dockerfile through Testcontainers. `DeploymentTests`
-  fails if a commit or the Go image loses its pin, if the runtime is not `scratch`, or if a registry
-  MinIO image comes back. Do not go back to a registry image. Until 2026-09-14 the stack ran MinIO as
-  uid 0 while its own comments said otherwise, and SB-31's checks only ever looked at the three
-  application images.
-  - The image runs as uid 1000 and keeps data at **`/srv/evidence`, not `/data`**. That path dates
-    from the upstream image, which declared `VOLUME /data`, and existing volumes are mounted there.
-    `/data` still exists, owned by uid 1000, only because Testcontainers' MinIO module starts
-    `server /data`.
-  - Compose runs the service read-only, with every capability dropped and `no-new-privileges`.
-  - `DeploymentTests.every_service_in_the_stack_runs_as_a_non_root_user` checks every service. It
-    was mutation-checked against the old file.
-  - **An upgraded stack needs a one-time `chown -R 1000:1000` of its evidence volume**, or MinIO
-    refuses to start with `drive may be faulty`. `docs/operations/deployment.md` has the command.
-  - Do not put the volume back at `/data`, and do not set a Compose `user:` instead. Phase 10 tried
-    the latter; a fresh volume is then owned by root.
+- **The evidence store is SeaweedFS since ADR-0014 (`info.md`, 2026-09-27), built from source.**
+  MinIO was here, built from source after two registries dropped it (2026-09-25), and then archived
+  upstream; its last releases failed Trivy's image gate on findings nothing would ever fix.
+  `docker/evidence/Dockerfile` compiles SeaweedFS 4.47 by commit with Go 1.26.8 pinned by digest,
+  plus `healthprobe`, into `scratch` as uid 1000. It is built natively where it runs, never
+  cross-compiled, and needs about 5 GB of build space: the Ubuntu arm64 guest's disk filled trying,
+  and the Mac mini builds it for arm64. `EvidenceStoreTests` starts the same Dockerfile, with
+  credentials and a KEK, and encryption on; until 2026-09-27 the tests ran MinIO with encryption off.
+  Things that are easy to get wrong:
+  - **SeaweedFS with no credentials serves everything to anyone.** Compose requires
+    `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `WEED_S3_SSE_KEK` with `${...:?}`. The health
+    check is `healthprobe`, which fails unless an unsigned request gets 403, and
+    `ObjectStoreSafety` in the adapter refuses to store or read from a store that answers one.
+    `DeploymentTests` and `EvidenceStoreSafetyTests` hold all three, each mutation-checked.
+  - **A wrong KEK is not noticed by SeaweedFS**, which keeps the key only in its environment. The
+    adapter's canary object in `<prefix>-canary` is what refuses; do not remove it.
+  - **Every bucket is a SeaweedFS collection, and there is a bucket per workspace.** The image sets
+    `WEED_MASTER_VOLUME_GROWTH_COPY_1=1`, `-volume.max=0` and 1 GB volumes. With SeaweedFS's
+    defaults, seven volumes per collection and eight in all, the second bucket's first write failed
+    with "failed to find writable volumes".
+  - The tmpfs on `/tmp` must belong to uid 1000 (`/tmp:uid=1000,gid=1000,mode=0700`). A root-owned
+    one stops SeaweedFS with "permission denied" on its gRPC socket.
+  - **Evidence moves from MinIO by `restore --evidence-only`**: a backup's bytes into the new store
+    beside the rows already there, hash-checked, no row changed. A whole restore refuses a database
+    that has data. `deployment.md` has the steps, and `upgrade.sh` runs them.
+  - MinIO's volume, `evidence`, is no longer declared and stays on an upgraded host as the way
+    back. Do not go back to a registry image, and do not set a Compose `user:`.
 - **Embeddings and vector search are post-v1, off by default, and gated.** v1 shipped full-text
   search and structured filters alone, and an installation that configures no provider still runs
   exactly that. The derived vector index (ADR-0012) is opt-in and needs the pgvector extension the

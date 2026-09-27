@@ -35,7 +35,7 @@ Clean Architecture, enforced rather than suggested. Dependencies point inward on
 ```
 src/core/DevBuddy.Domain          entities, enums, invariants — no references at all
 src/core/DevBuddy.Application     use cases + ports; depends on Domain only
-src/core/DevBuddy.Infrastructure  EF Core/Npgsql, MinIO, Git/GitHub, scanners
+src/core/DevBuddy.Infrastructure  EF Core/Npgsql, S3 (SeaweedFS), Git/GitHub, scanners
 src/hosts/DevBuddy.Api            ASP.NET Core minimal API
 src/hosts/DevBuddy.McpServer      MCP server — AI-facing, allow-listed tools only
 src/hosts/DevBuddy.Cli            console host
@@ -145,7 +145,7 @@ dotnet test DevBuddy.slnx -c Release
 dotnet format DevBuddy.slnx --verify-no-changes --severity warn
 ```
 
-**`DevBuddy.Infrastructure.Tests` needs Docker.** It starts real PostgreSQL and MinIO containers
+**`DevBuddy.Infrastructure.Tests` needs Docker.** It starts real PostgreSQL and SeaweedFS containers
 through Testcontainers. Without a running Docker engine those 25 tests fail rather than skip,
 which is deliberate: a silently skipped integration test is worse than no test.
 
@@ -205,7 +205,7 @@ xUnit throughout. Name tests for observable behaviour, for example
 
 - `DevBuddy.Domain.Tests` — invariants, no infrastructure.
 - `DevBuddy.Application.Tests` — use cases against fake ports, plus the architecture tests.
-- `DevBuddy.Infrastructure.Tests` — **real PostgreSQL and MinIO via Testcontainers.** No SQLite
+- `DevBuddy.Infrastructure.Tests` — **real PostgreSQL and SeaweedFS via Testcontainers.** No SQLite
   substitute: `info.md` excludes it, and the generated tsvector column, the GIN index, and the
   global query filters do not exist on any substitute provider.
 - `DevBuddy.Api.Tests` — integration via `WebApplicationFactory`.

@@ -10,43 +10,43 @@ using DevBuddy.Infrastructure.Evidence;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.Infrastructure.Persistence.Repositories;
 using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Images;
 using Microsoft.Extensions.Options;
-using Testcontainers.Minio;
 
 namespace DevBuddy.Infrastructure.Tests;
 
 /// <summary>
-/// A real MinIO. ADR-0004 makes object storage the default evidence store, so the default is what
-/// gets tested; covering only the filesystem fallback would prove the adapter we do not ship.
+/// A real SeaweedFS. ADR-0014 makes it the default evidence store, so the default is what gets
+/// tested; covering only the filesystem fallback would prove the adapter we do not ship.
 /// <para>
 /// Built from <c>docker/evidence/Dockerfile</c>, the image <c>docker/compose.yaml</c> builds, so the
-/// image tested is the image shipped. Since 2026-09-25 that Dockerfile compiles MinIO from its source
-/// (<c>info.md</c>). Docker Hub stopped serving <c>minio/minio</c> by 2026-09-13 and quay.io stopped
-/// serving it without a login on 2026-09-24, and each time every test here failed on the pull. The
-/// image is built once per test run and shared by every class that starts a container from it.
+/// image tested is the image shipped, and started with credentials and an SSE-S3 key as Compose
+/// starts it, so encryption is exercised rather than switched off. Until 2026-09-27 this was MinIO,
+/// run with no KMS key and encryption off, which proved the store and not the shipped configuration.
+/// The image is built once per test run and shared by every class that starts a container from it.
 /// </para>
 /// </summary>
-public sealed class MinioFixture : IAsyncLifetime
+public sealed class EvidenceStoreFixture : IAsyncLifetime
 {
     private static readonly Lazy<Task<IFutureDockerImage>> Image = new(BuildImageAsync);
 
-    private MinioContainer? _container;
+    private IContainer? _container;
 
-    public string ServiceUrl => _container!.GetConnectionString();
+    public string ServiceUrl => $"http://{_container!.Hostname}:{_container.GetMappedPublicPort(S3Port)}";
 
     public static string AccessKey => "devbuddy";
 
     public static string SecretKey => "devbuddy-test-only";
 
+    /// <summary>A test-only key, 256 bits in hex, as DEVBUDDY_EVIDENCE_SSE_KEK takes it.</summary>
+    public static string Kek => "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+
+    internal const int S3Port = 8333;
+
     public async Task InitializeAsync()
     {
-        _container = new MinioBuilder(await Image.Value)
-            .WithUsername(AccessKey)
-            .WithPassword(SecretKey)
-            .Build();
-
-        await _container.StartAsync();
+        _container = await StartAsync(AccessKey, SecretKey, Kek, volume: null);
     }
 
     public async Task DisposeAsync()
@@ -56,6 +56,44 @@ public sealed class MinioFixture : IAsyncLifetime
             await _container.DisposeAsync();
         }
     }
+
+    /// <summary>
+    /// Starts another store from the same image, for the tests that need one configured
+    /// differently: without credentials, or with another key over the same volume. A null
+    /// access key starts it with no credentials at all, which is SeaweedFS's open default.
+    /// </summary>
+    internal static async Task<IContainer> StartAsync(string? accessKey, string? secretKey, string? kek, string? volume)
+    {
+        ContainerBuilder builder = new ContainerBuilder(await Image.Value)
+            .WithPortBinding(S3Port, assignRandomHostPort: true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(request => request
+                .ForPort(S3Port)
+                .ForPath("/healthz")));
+
+        if (accessKey is not null && secretKey is not null)
+        {
+            builder = builder
+                .WithEnvironment("AWS_ACCESS_KEY_ID", accessKey)
+                .WithEnvironment("AWS_SECRET_ACCESS_KEY", secretKey);
+        }
+
+        if (kek is not null)
+        {
+            builder = builder.WithEnvironment("WEED_S3_SSE_KEK", kek);
+        }
+
+        if (volume is not null)
+        {
+            builder = builder.WithVolumeMount(volume, "/srv/evidence");
+        }
+
+        IContainer container = builder.Build();
+        await container.StartAsync();
+        return container;
+    }
+
+    internal static string ServiceUrlOf(IContainer container) =>
+        $"http://{container.Hostname}:{container.GetMappedPublicPort(S3Port)}";
 
     private static async Task<IFutureDockerImage> BuildImageAsync()
     {
@@ -89,11 +127,11 @@ public sealed class MinioFixture : IAsyncLifetime
 /// releasable until it has been scanned.
 /// </summary>
 [Collection(PostgresCollection.Name)]
-public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture minio)
-    : IClassFixture<MinioFixture>
+public sealed class EvidenceStoreTests(PostgresFixture postgres, EvidenceStoreFixture store)
+    : IClassFixture<EvidenceStoreFixture>
 {
     private readonly PostgresFixture _postgres = postgres;
-    private readonly MinioFixture _minio = minio;
+    private readonly EvidenceStoreFixture _store = store;
 
     private static CancellationToken Ct => CancellationToken.None;
 
@@ -257,11 +295,11 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
         using var anonymous = new HttpClient();
 
         using HttpResponseMessage listing = await anonymous.GetAsync(
-            new Uri($"{_minio.ServiceUrl.TrimEnd('/')}/{bucket}/"), Ct);
+            new Uri($"{_store.ServiceUrl.TrimEnd('/')}/{bucket}/"), Ct);
         Assert.Equal(HttpStatusCode.Forbidden, listing.StatusCode);
 
         using HttpResponseMessage download = await anonymous.GetAsync(
-            new Uri($"{_minio.ServiceUrl.TrimEnd('/')}/{bucket}/{stored[0].StorageKey}"), Ct);
+            new Uri($"{_store.ServiceUrl.TrimEnd('/')}/{bucket}/{stored[0].StorageKey}"), Ct);
         Assert.Equal(HttpStatusCode.Forbidden, download.StatusCode);
     }
 
@@ -318,18 +356,13 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
         var settings = new EvidenceStoreOptions
         {
             Provider = EvidenceStoreProvider.ObjectStorage,
-            ServiceUrl = _minio.ServiceUrl,
-            AccessKey = MinioFixture.AccessKey,
-            SecretKey = MinioFixture.SecretKey,
+            ServiceUrl = _store.ServiceUrl,
+            AccessKey = EvidenceStoreFixture.AccessKey,
+            SecretKey = EvidenceStoreFixture.SecretKey,
 
-            // This container has no KMS, so encryption is off for these tests. Note what that
-            // does and does not prove: it exercises the store, not the shipped configuration.
-            // The claim that used to sit here — that it "stays on by default for a real
-            // deployment" — was true of the default and false of the deployment, because
-            // docker/compose.yaml ran MinIO without a KMS key too. Every evidence upload against
-            // the shipped stack failed with a 500 until that was fixed, and DeploymentTests now
-            // checks the compose file rather than leaving it to a comment.
-            UseServerSideEncryption = false,
+            // On, as shipped. Until 2026-09-27 it was off here, because the MinIO these tests
+            // started had no KMS key, so no test exercised encryption against a real store.
+            UseServerSideEncryption = true,
         };
 
         configure?.Invoke(settings);
@@ -340,16 +373,23 @@ public sealed class EvidenceStoreTests(PostgresFixture postgres, MinioFixture mi
 
         return new EvidenceStore(
             new EvidenceMetadataStore(context),
-            new ObjectStorageEvidenceBlobStore(client, options),
+            new ObjectStorageEvidenceBlobStore(client, options, Safety(options)),
             new FixedClock(),
             options);
     }
 
-    private static BasicAWSCredentials Credentials => new(MinioFixture.AccessKey, MinioFixture.SecretKey);
+    /// <summary>
+    /// The safety checks with a client of their own, so a test's instrumented client (the racing
+    /// one counts bucket listings) sees only the adapter's calls.
+    /// </summary>
+    private ObjectStoreSafety Safety(IOptions<EvidenceStoreOptions> options) =>
+        new(new AmazonS3Client(Credentials, ClientConfig()), options);
+
+    private static BasicAWSCredentials Credentials => new(EvidenceStoreFixture.AccessKey, EvidenceStoreFixture.SecretKey);
 
     private AmazonS3Config ClientConfig() => new()
     {
-        ServiceURL = _minio.ServiceUrl,
+        ServiceURL = _store.ServiceUrl,
         ForcePathStyle = true,
         AuthenticationRegion = "us-east-1",
     };

@@ -253,6 +253,10 @@ internal sealed class NullPorts :
         string backupReference, CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 
+    public Task<RestoreOutcome> RestoreEvidenceAsync(
+        string backupReference, CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
     public Task<HealthReport> CheckHealthAsync(CancellationToken cancellationToken) =>
         throw new NotSupportedException();
 

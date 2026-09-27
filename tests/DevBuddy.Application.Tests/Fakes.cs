@@ -669,6 +669,12 @@ internal sealed class FakePorts :
         return Task.FromResult(new RestoreOutcome(backupReference, true, "Restored."));
     }
 
+    public Task<RestoreOutcome> RestoreEvidenceAsync(string backupReference, CancellationToken cancellationToken)
+    {
+        Touch();
+        return Task.FromResult(new RestoreOutcome(backupReference, true, "Restored evidence."));
+    }
+
     public Task<HealthReport> CheckHealthAsync(CancellationToken cancellationToken)
     {
         Touch();

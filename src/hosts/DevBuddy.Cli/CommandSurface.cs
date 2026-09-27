@@ -249,11 +249,19 @@ internal static class CommandSurface
         Option<string> reference =
             new("--reference") { Description = "The backup reference to restore.", Required = true };
 
+        // ADR-0014: how evidence moves to a new store. The rows stay; only the bytes are written.
+        Option<bool> evidenceOnly = new("--evidence-only")
+        {
+            Description = "Write only the backup's evidence bytes, beside rows this installation already has.",
+        };
+
         Command command = new("restore", "Restores from a backup, into an empty installation.");
         command.Add(reference);
+        command.Add(evidenceOnly);
 
-        command.SetAction((result, cancellationToken) =>
-            Runner.RestoreAsync(result.GetRequiredValue(reference), cancellationToken));
+        command.SetAction((result, cancellationToken) => result.GetValue(evidenceOnly)
+            ? Runner.RestoreEvidenceAsync(result.GetRequiredValue(reference), cancellationToken)
+            : Runner.RestoreAsync(result.GetRequiredValue(reference), cancellationToken));
 
         return command;
     }

@@ -278,7 +278,7 @@ public static class DependencyInjection
             {
                 ServiceURL = options.ServiceUrl,
 
-                // MinIO addresses buckets by path, not by subdomain.
+                // Buckets by path, not by subdomain, as SeaweedFS and MinIO both expect here.
                 ForcePathStyle = true,
                 AuthenticationRegion = "us-east-1",
             };
@@ -287,13 +287,17 @@ public static class DependencyInjection
                 new BasicAWSCredentials(options.AccessKey, options.SecretKey), config);
         });
 
+        // One per process: its checks pass once and are remembered, and fail loudly until fixed.
+        services.AddSingleton<ObjectStoreSafety>();
+
         services.AddScoped<IEvidenceBlobStore>(provider =>
         {
             IOptions<EvidenceStoreOptions> options = provider.GetRequiredService<IOptions<EvidenceStoreOptions>>();
 
             return options.Value.Provider == EvidenceStoreProvider.FileSystem
                 ? new FileSystemEvidenceBlobStore(options)
-                : new ObjectStorageEvidenceBlobStore(provider.GetRequiredService<IAmazonS3>(), options);
+                : new ObjectStorageEvidenceBlobStore(
+                    provider.GetRequiredService<IAmazonS3>(), options, provider.GetRequiredService<ObjectStoreSafety>());
         });
 
         services.AddScoped<IEvidenceStore, EvidenceStore>();

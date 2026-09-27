@@ -6,8 +6,8 @@
 # needs reading.
 #
 # Not covered here, on purpose:
-# - MinIO and `mc` in `docker/evidence/Dockerfile` are pinned by commit and built from source
-#   (`info.md`, 2026-09-25). Moving them is a decision, not an update.
+# - SeaweedFS in `docker/evidence/Dockerfile` is pinned by commit and built from source (ADR-0014).
+#   Moving it is a pull request of its own, gated by the image scan and EvidenceStoreTests.
 # - The images Compose names through a variable default, such as `postgres:17-alpine`, which
 #   Dependabot does not read.
 

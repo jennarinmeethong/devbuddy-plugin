@@ -22,7 +22,11 @@ internal interface IEvidenceBlobStore
 }
 
 /// <summary>
-/// S3-compatible object storage, MinIO by default (ADR-0004).
+/// S3-compatible object storage, SeaweedFS by default (ADR-0014; MinIO under ADR-0004 before it).
+/// <para>
+/// Every call passes <see cref="ObjectStoreSafety"/> first: a store that answers an unsigned
+/// request, or whose encryption canary does not read back, is neither written to nor read from.
+/// </para>
 /// <para>
 /// There is deliberately no method that issues a presigned URL. Evidence is streamed back through
 /// the API after an authorization check, so attachments are covered by the same isolation tests
@@ -33,11 +37,14 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
 {
     private readonly IAmazonS3 _s3;
     private readonly EvidenceStoreOptions _options;
+    private readonly ObjectStoreSafety _safety;
 
-    public ObjectStorageEvidenceBlobStore(IAmazonS3 s3, IOptions<EvidenceStoreOptions> options)
+    public ObjectStorageEvidenceBlobStore(
+        IAmazonS3 s3, IOptions<EvidenceStoreOptions> options, ObjectStoreSafety safety)
     {
         _s3 = Guard.NotNull(s3, nameof(s3));
         _options = Guard.NotNull(options, nameof(options)).Value;
+        _safety = Guard.NotNull(safety, nameof(safety));
     }
 
     public async Task PutAsync(
@@ -47,8 +54,10 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
         string mediaType,
         CancellationToken cancellationToken)
     {
+        await _safety.EnsureAsync(cancellationToken);
+
         string bucket = _options.BucketFor(scope.WorkspaceId);
-        await EnsureBucketAsync(bucket, cancellationToken);
+        await S3Buckets.EnsureAsync(_s3, bucket, cancellationToken);
 
         var request = new PutObjectRequest
         {
@@ -69,6 +78,8 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
     public async Task<Stream> OpenReadAsync(
         ProjectScope scope, string storageKey, CancellationToken cancellationToken)
     {
+        await _safety.EnsureAsync(cancellationToken);
+
         GetObjectResponse response = await _s3.GetObjectAsync(
             _options.BucketFor(scope.WorkspaceId), storageKey, cancellationToken);
 
@@ -76,18 +87,26 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
     }
 
     public async Task DeleteAsync(
-        ProjectScope scope, string storageKey, CancellationToken cancellationToken) =>
+        ProjectScope scope, string storageKey, CancellationToken cancellationToken)
+    {
+        await _safety.EnsureAsync(cancellationToken);
+
         await _s3.DeleteObjectAsync(
             _options.BucketFor(scope.WorkspaceId), storageKey, cancellationToken);
+    }
+}
 
+/// <summary>Bucket creation shared by the adapter and its canary.</summary>
+internal static class S3Buckets
+{
     /// <summary>
     /// Creates the workspace's bucket if it is missing, and tolerates losing the race to create
     /// it. Two first captures in one workspace both see no bucket, both ask for one, and the
     /// store refuses the second; until 2026-09-17 that refusal reached the caller as a 500.
     /// </summary>
-    private async Task EnsureBucketAsync(string bucket, CancellationToken cancellationToken)
+    public static async Task EnsureAsync(IAmazonS3 s3, string bucket, CancellationToken cancellationToken)
     {
-        if (await OwnsBucketAsync(bucket, cancellationToken))
+        if (await OwnsBucketAsync(s3, bucket, cancellationToken))
         {
             return;
         }
@@ -95,7 +114,7 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
         try
         {
             // Created private. There is no public-read path to evidence, ever.
-            await _s3.PutBucketAsync(new PutBucketRequest { BucketName = bucket }, cancellationToken);
+            await s3.PutBucketAsync(new PutBucketRequest { BucketName = bucket }, cancellationToken);
         }
         catch (BucketAlreadyOwnedByYouException)
         {
@@ -107,17 +126,17 @@ internal sealed class ObjectStorageEvidenceBlobStore : IEvidenceBlobStore
             // Some stores answer this for a bucket the caller owns too. The name alone proves
             // nothing, because bucket names can be global: evidence is written only into a
             // bucket these credentials list as their own, and anybody else's is still an error.
-            if (!await OwnsBucketAsync(bucket, cancellationToken))
+            if (!await OwnsBucketAsync(s3, bucket, cancellationToken))
             {
                 throw;
             }
         }
     }
 
-    private async Task<bool> OwnsBucketAsync(string bucket, CancellationToken cancellationToken)
+    private static async Task<bool> OwnsBucketAsync(IAmazonS3 s3, string bucket, CancellationToken cancellationToken)
     {
         // ListBuckets answers only the buckets these credentials own.
-        ListBucketsResponse buckets = await _s3.ListBucketsAsync(cancellationToken);
+        ListBucketsResponse buckets = await s3.ListBucketsAsync(cancellationToken);
         return buckets.Buckets?.Exists(existing => existing.BucketName == bucket) == true;
     }
 }

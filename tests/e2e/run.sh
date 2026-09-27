@@ -53,6 +53,10 @@ random() {
   head -c "$1" /dev/urandom | base64 | tr -d '\n'
 }
 
+hex() {
+  head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'
+}
+
 word() {
   random 48 | tr -d '/+=' | cut -c1-"$1"
 }
@@ -74,7 +78,7 @@ DEVBUDDY_DB_PASSWORD=$(word 32)
 DEVBUDDY_SIGNING_KEY=$(word 48)
 DEVBUDDY_EVIDENCE_ACCESS_KEY=e2e-$(word 12)
 DEVBUDDY_EVIDENCE_SECRET_KEY=$(word 32)
-DEVBUDDY_EVIDENCE_KMS_KEY=e2e-key:$(random 32)
+DEVBUDDY_EVIDENCE_SSE_KEK=$(hex 32)
 DEVBUDDY_PROJECTS_PATH=$(native "$work/projects")
 DEVBUDDY_E2E_OUT=$(native "$out")
 DEVBUDDY_E2E_ADMIN_EMAIL=$admin_email

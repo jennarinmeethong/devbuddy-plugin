@@ -58,6 +58,8 @@ DEVBUDDY_DB_IMAGE=${2:-postgres:17-alpine}
 DEVBUDDY_SIGNING_KEY=$(openssl rand -base64 48 | tr -d '\n')
 DEVBUDDY_EVIDENCE_ACCESS_KEY=$(openssl rand -hex 12)
 DEVBUDDY_EVIDENCE_SECRET_KEY=$(openssl rand -hex 24)
+DEVBUDDY_EVIDENCE_SSE_KEK=$(openssl rand -hex 32)
+# MinIO's key, for a stack of a release before ADR-0014, such as the one upgrade.sh starts first.
 DEVBUDDY_EVIDENCE_KMS_KEY=devbuddy-key:$(openssl rand -base64 32)
 DEVBUDDY_PROJECTS_PATH=./projects
 EOF

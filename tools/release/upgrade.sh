@@ -148,7 +148,9 @@ upgrade() {
   done
   expect "database uid" "$(uid_of "$P-database-1")" 70
   expect "evidence uid" "$(uid_of "$P-evidence-1")" 1000
-  expect "evidence errors since the upgrade" "$(docker logs --since "$SINCE" "$P-evidence-1" 2>&1 | grep -ciE 'denied|faulty|error')" 0
+  # SeaweedFS logs in glog's format, and its start-up says "error" at info level while its parts
+  # find each other, so only error and fatal lines count: those begin with E or F and a date.
+  expect "evidence errors since the upgrade" "$(docker logs --since "$SINCE" "$P-evidence-1" 2>&1 | grep -cE '^[EF][0-9]{4} |denied|faulty')" 0
 }
 
 ########## after ##########
@@ -227,9 +229,23 @@ session_left_on_the_old_image() {
     "sessions 0, on an older image than the mcp service 0"
 }
 
-BEFORE_UPGRADE=(previous_release seed open_session_across_upgrade)
+# ADR-0014: the evidence store moves from MinIO to SeaweedFS on a volume of its own, so the evidence
+# goes across by backup and `restore --evidence-only`, the procedure deployment.md gives. The rows
+# stay, so the access token from before still works. A release after the one that makes the move
+# drops these two steps.
+backup_before_the_store_moves() {
+  STORE_BACKUP=$(cli backup --workspace "$WS" --actor "$ADMIN" | last_json | jq -r .reference)
+  expect "backup on v$PREVIOUS before the store moves" "$(present "$STORE_BACKUP")" yes
+}
+evidence_into_the_new_store() {
+  cli restore --evidence-only --reference "$STORE_BACKUP" > "$D/restore-evidence.out"
+  expect "restore --evidence-only exit" "$?" 0
+  note "  $(cat "$D/restore-evidence.out")"
+}
+
+BEFORE_UPGRADE=(previous_release seed open_session_across_upgrade backup_before_the_store_moves)
 DURING_UPGRADE=(upgrade)
-AFTER_UPGRADE=(session_left_on_the_old_image access_token_from_before after_upgrade)
+AFTER_UPGRADE=(session_left_on_the_old_image access_token_from_before evidence_into_the_new_store after_upgrade)
 
 for step in "${BEFORE_UPGRADE[@]}" "${DURING_UPGRADE[@]}" "${AFTER_UPGRADE[@]}"; do
   "$step"

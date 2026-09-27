@@ -36,12 +36,19 @@ internal sealed class Seed
 
     public static DateTimeOffset Now { get; } = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
 
-    public static async Task<Seed> CreateAsync(PostgresFixture fixture)
+    public static Task<Seed> CreateAsync(PostgresFixture fixture) =>
+        CreateAsync(workspace => fixture.CreateContext(workspace));
+
+    /// <summary>In a database of the caller's own, such as one from <c>CreateIsolatedDatabaseAsync</c>.</summary>
+    public static Task<Seed> CreateInAsync(string connectionString) =>
+        CreateAsync(workspace => PostgresFixture.CreateContextFor(connectionString, workspace));
+
+    private static async Task<Seed> CreateAsync(Func<WorkspaceId, DevBuddyDbContext> contextFor)
     {
         var workspace = WorkspaceId.New();
         var seed = new Seed(workspace, ProjectId.New(), ProjectId.New(), UserId.New());
 
-        await using DevBuddyDbContext context = fixture.CreateContext(workspace);
+        await using DevBuddyDbContext context = contextFor(workspace);
 
         context.Workspaces.Add(RowMappers.ToRow(
             new Workspace(workspace, "Acme", seed.Author, Now)));

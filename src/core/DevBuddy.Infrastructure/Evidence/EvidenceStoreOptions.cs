@@ -4,10 +4,10 @@ using DevBuddy.Domain.Tenancy;
 
 namespace DevBuddy.Infrastructure.Evidence;
 
-/// <summary>Which evidence store to use. MinIO is the default (ADR-0004).</summary>
+/// <summary>Which evidence store to use. Object storage is the default (ADR-0004, ADR-0014).</summary>
 public enum EvidenceStoreProvider
 {
-    /// <summary>S3-compatible object storage. MinIO in the shipped Compose stack.</summary>
+    /// <summary>S3-compatible object storage. SeaweedFS in the shipped Compose stack (ADR-0014).</summary>
     ObjectStorage = 1,
 
     /// <summary>Local filesystem. For tests and single-host installations only.</summary>
@@ -15,7 +15,7 @@ public enum EvidenceStoreProvider
 }
 
 /// <summary>
-/// How evidence is stored. Defaults are the self-hosted MinIO stack; nothing here reaches a
+/// How evidence is stored. Defaults are the self-hosted Compose stack; nothing here reaches a
 /// managed service unless an operator points it at one.
 /// </summary>
 public sealed class EvidenceStoreOptions
@@ -24,8 +24,8 @@ public sealed class EvidenceStoreOptions
 
     public EvidenceStoreProvider Provider { get; set; } = EvidenceStoreProvider.ObjectStorage;
 
-    /// <summary>The S3-compatible endpoint. For MinIO in Compose, the service address.</summary>
-    public string ServiceUrl { get; set; } = "http://minio:9000";
+    /// <summary>The S3-compatible endpoint. In Compose, the evidence service's S3 gateway.</summary>
+    public string ServiceUrl { get; set; } = "http://evidence:8333";
 
     public string AccessKey { get; set; } = string.Empty;
 
