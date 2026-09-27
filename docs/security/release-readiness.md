@@ -234,6 +234,12 @@ for the client half only (`info.md`). The console and the MCP server over stdio 
 before every release. **The API is not supported on `win-arm64`**, and nothing here may be read as
 saying it is. The first run passed against `v1.6.0` the same day, so the RID is client-verified.
 
+**Accepted: the Windows archives are not code-signed — 2026-09-27.** The owner chose to stay
+unsigned for now (Phase 14 B2, `info.md`). The archives still carry Sigstore provenance, but Windows
+does not read it: on a machine with Smart App Control on, an unsigned build can be refused, and
+SmartScreen warns. Every release's notes say the archives are unsigned. The Linux and macOS
+archives and the images are unaffected. Signing comes back only by a decision of its own.
+
 **Closed rather than accepted: `linux/arm64` container images.** This section, ADR-0008 and the
 release matrix all said they were not built and not claimed. They are built now, published under
 the same tag as the amd64 images, and all three were started and answered. Cross-compiled rather

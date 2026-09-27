@@ -10,35 +10,39 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**v1 is released, and Phase 12 followed it.** `v1.0.0` (2026-09-06), `v1.1.0` (2026-09-10), `v1.2.0`
-(2026-09-14), `v1.2.1` (2026-09-14) and `v1.3.0` (2026-09-17, the current release) are published, signed, with an SBOM per
-image. 60 operations behind one pipeline plus two streaming evidence routes, PostgreSQL with full-text search, SeaweedFS evidence
+**v1 is released, and Phases 12 to 14 followed it.** Twelve releases are published, from `v1.0.0`
+(2026-09-06) to **`v1.10.0` (2026-09-27, the current release)**, each with provenance and an SBOM per
+image. 63 operations behind one pipeline plus two streaming evidence routes, PostgreSQL with full-text search, SeaweedFS evidence
 storage, the product's own sign-in with lockout and rotating tokens, tenant isolation enforced
 server-side on every request, a draft-to-published path whose audit history records who approved
 exactly which revision, read-only analysis that provably executes nothing, a secret scanner that
 refuses credentials on the way in and redacts them on the way out, and three hosts over that one
 core — an HTTP API, an MCP server on stdio and authenticated HTTP, and a console — a React
-administration UI served by the API, covering workspaces, teams and project deletion, thin Claude
+administration UI served by the API, in Thai and English, covering workspaces, teams and project
+deletion, thin Claude
 and Codex plugin packages over that same MCP server, and a self-hosted Compose stack that schedules
 its own retention sweep, with images for `linux/amd64` and `linux/arm64`.
 
 **All 34 security controls are `TESTED`.** Source synchronisation reads a mounted working copy by
 default and the GitHub API when configured. Embeddings, semantic search and the background worker
-exist and are off by default; no hosted embedding provider is enabled anywhere, and no provider or
-worker has run against real project data. The owner's acceptance for connecting real project data
+exist and are off by default; no hosted embedding provider is enabled anywhere. The owner's own
+installation runs a self-hosted model and both workers on real project data, under an approval of
+its own (`info.md`, 2026-09-26). `tools/hosted-model/` prepares a hosted model server that nothing
+uses yet. The owner's acceptance for connecting real project data
 is in `docs/security/release-readiness.md`.
 
-**Deploy from `v1.2.1` or later.** The Compose files of `v1.0.0` and `v1.1.0` name `minio/minio` on
-Docker Hub, which no longer serves it, so their evidence store cannot start without a cached image.
-`v1.2.0` fixed that but still ran MinIO as root. `v1.2.1` runs it as a non-root account. Upgrading
-an existing stack to `v1.2.1` needs a one-time `chown` of the evidence volume:
-`docs/operations/deployment.md` has the command.
+**Deploy the current release.** Since `v1.9.0` the evidence store is SeaweedFS built from source
+(ADR-0014). An installation upgrading from `v1.8.0` or earlier moves its evidence once, by a backup
+before the upgrade and `restore --evidence-only` after it, and sets `DEVBUDDY_EVIDENCE_SSE_KEK`.
+`docs/operations/deployment.md` has the steps. The Compose files of `v1.0.0` to `v1.2.1` name a
+MinIO image the registries no longer serve. **The Windows archives are not code-signed** (`info.md`,
+2026-09-27), so Smart App Control can refuse them.
 
 ## Documents
 
 | Document | What it is |
 |---|---|
-| [คู่มือภาษาไทย — DevBuddy Handbook](docs/manual/devbuddy-guide.th.html) | Detailed offline HTML manual: cream claymorphism theme, installation, all MCP tools, administration, operations, and development. |
+| [คู่มือภาษาไทย — DevBuddy Handbook](docs/manual/devbuddy-guide.th.html) | Detailed offline HTML manual, updated for `v1.10.0`: installation, all MCP tools, administration, operations, and development. Regenerate with `bun docs/manual/build-guide.mjs`. |
 | [info.md](info.md) | Decisions confirmed by the project owner. Binding. |
 | [docs/plan.md](docs/plan.md) | The phased implementation plan, Phase 0 to Phase 12, with exit criteria. |
 | [docs/security/threat-model.md](docs/security/threat-model.md) | Assets, trust boundaries, adversaries, threats. |
