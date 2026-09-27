@@ -132,12 +132,18 @@ export async function signIn(page: Page, person: Person, path = `/w/${cast().wor
  * `docs/plan-phase-14.md` lists what was ruled out. So the test goes on only once the request is
  * seen. The click is repeated only when nothing left within five seconds, so a request that did
  * leave is not sent twice.
+ *
+ * The five seconds start once the button can be pressed. A form disables its button while its
+ * last request is in flight, and `click` waits for that; counted inside the window, a slow answer
+ * used the window up, the request left after it closed, and every retry waited on the next one.
+ * That failed WebKit's lockout test twice on 2026-09-27, which clicks five times in a row.
  */
 export async function clickUntilSent(button: Locator, pathname: string): Promise<void> {
   const page = button.page();
   let attempts = 0;
   await expect(async () => {
     attempts++;
+    await expect(button).toBeEnabled({ timeout: 20_000 });
     const sent = page.waitForRequest(
       (request) => request.method() === "POST" && new URL(request.url()).pathname === pathname,
       { timeout: 5_000 },
