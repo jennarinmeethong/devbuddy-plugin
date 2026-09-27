@@ -1,4 +1,4 @@
-import { anonymous, Api } from "../support/api";
+import { Api } from "../support/api";
 import { invite } from "../support/people";
 import { unique } from "../support/env";
 import { draft, expect, projectPath, publish, scopeOf, signIn, test } from "../support/fixtures";
@@ -23,42 +23,47 @@ test("the MCP server refuses a caller with no bearer", async () => {
   expect(response.status()).toBe(401);
 });
 
-test("an access token stops working on the MCP transport as soon as its session is signed out", async ({
-  admin,
-  people,
-}) => {
+const initialize = (name: string) => ({
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name, version: "0" } },
+});
+
+test("the web client's access token is not a credential on the MCP transport", async ({ admin }) => {
+  // It was until Phase 14 (A4). It lasts fifteen minutes and reaches every workspace its owner
+  // belongs to; a machine token is what an assistant holds.
+  expect((await McpSession.post(admin.accessToken, initialize("access-token"))).status()).toBe(401);
+});
+
+test("a machine token stops working on the MCP transport as soon as it is revoked", async ({ admin, people }) => {
   const person = await invite(admin, people.workspaceId, "Viewer");
   const api = await Api.signIn(person.email, person.password);
-  const initialize = {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "initialize",
-    params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "signed-out", version: "0" } },
-  };
 
   try {
-    expect((await McpSession.post(api.accessToken, initialize)).status()).toBe(200);
+    const minted = await api.invoke("issue_machine_token", {
+      workspaceId: people.workspaceId,
+      name: unique("Revoked assistant"),
+      lifetimeDays: 1,
+    });
 
-    const http = await anonymous();
-    try {
-      expect((await http.post("/auth/sign-out", { data: { refreshToken: api.refreshToken } })).status()).toBe(204);
-    } finally {
-      await http.dispose();
-    }
+    expect((await McpSession.post(minted.token, initialize("revoked"))).status()).toBe(200);
 
-    // Still inside its lifetime, and refused: the session behind it has ended (Phase 13, D6).
-    expect((await McpSession.post(api.accessToken, initialize)).status()).toBe(401);
+    await api.invoke("revoke_machine_token", { workspaceId: people.workspaceId, tokenId: minted.tokenId });
+
+    // Resolved on every request, so the next one is refused.
+    expect((await McpSession.post(minted.token, initialize("revoked"))).status()).toBe(401);
   } finally {
     await api.dispose();
   }
 });
 
-test("the tool list is exactly the operations the manifest marks as available to AI", async ({ admin }) => {
+test("the tool list is exactly the operations the manifest marks as available to AI", async ({ admin, people }) => {
   const manifest = (await (await admin.get("/operations")).json()) as { name: string; availableToAi: boolean }[];
   const allowed = manifest.filter((entry) => entry.availableToAi).map((entry) => entry.name).sort();
   const humanOnly = manifest.filter((entry) => !entry.availableToAi).map((entry) => entry.name);
 
-  const mcp = await McpSession.open(admin.accessToken);
+  const mcp = await McpSession.as(admin, people.workspaceId);
 
   try {
     const tools = (await mcp.listTools()).map((tool) => tool.name).sort();
@@ -88,7 +93,7 @@ test("a project is invisible to AI until somebody opens it, and closed again whe
   workItem,
 }) => {
   const scope = scopeOf(project);
-  const mcp = await McpSession.open(admin.accessToken);
+  const mcp = await McpSession.as(admin, scope.workspaceId);
 
   try {
     const listed = async () =>
@@ -126,7 +131,7 @@ test("an assistant's draft is marked as AI-written whatever it claims, and audit
   await admin.invoke("enable_project_ai_access", { scope });
 
   const contributor = await Api.signIn(people.contributor.email, people.contributor.password);
-  const mcp = await McpSession.open(contributor.accessToken);
+  const mcp = await McpSession.as(contributor, scope.workspaceId);
   // No long run of digits in anything sent over the AI channel: thirteen of them can pass the Thai
   // national ID checksum, and SB-18 then refuses the draft, correctly.
   const title = unique("Assistant summary of retries");
@@ -198,7 +203,7 @@ test("an assistant reads only published knowledge, and a viewer's assistant cann
     body: `The ${word} job might run hourly.`,
   });
 
-  const mcp = await McpSession.open(viewer.accessToken);
+  const mcp = await McpSession.as(viewer, scope.workspaceId);
 
   try {
     const hits = await mcp.expectTool<{ hits: { title: string }[] }>("search_knowledge", {

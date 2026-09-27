@@ -1,5 +1,51 @@
 # Project Decisions
 
+## Confirmed MCP over HTTPS with a Machine Token, and a `devbuddy` Client Command — 2026-09-27
+
+The owner asked how to use the plugin from Codex on the Mac mini, then asked why it had to be SSH,
+and decided over the conversation that followed. These are the owner's decisions; how they are
+built is Phase 14, A4, and an ADR of its own.
+
+- **HTTP is the plugins' main path.** Claude Code and Codex reach the MCP server over HTTPS through
+  the gateway on 5010, under `/mcp`. SSH to the stdio wrapper stays, as the administrator's path and
+  the fallback, and is not removed. The reason was the user, not the transport: over SSH every key
+  in `authorized_keys` runs as the one token on the server, so a second person would act as the
+  first, and an administrator would have to place each person's token for them.
+- **The credential is a machine token, scoped to one workspace, as today.** No token per project.
+  A token is still minted by its owner under Plugin access, carries its owner's permissions, and is
+  revocable on the next call.
+- **Nothing that selects a credential is committed.** Which server and workspace a checkout belongs
+  to is kept per user, outside every repository, in a registry the user manages with a command:
+  `devbuddy register`, `list`, `show`, `update`, `unregister`, `token set`, `token remove` and
+  `doctor`. Checkouts may be anywhere: another parent folder or another drive. Claude Code and
+  Codex read the same registry, so both work in one checkout with the same token.
+- **The token lives in the operating system's credential store**: Keychain on macOS, Credential
+  Manager on Windows, Secret Service or a mode-600 file on Linux. Never in a configuration file,
+  never on a command line, never printed.
+- **One session is one workspace.** The token is chosen when a session starts, from the folder it
+  starts in. Work in another workspace is another session.
+- **A checkout that is not registered gets no token.** The helper sends none rather than guessing,
+  and every call is refused with a message saying to run `devbuddy register`.
+- **Binding a token to a MAC address was considered and rejected.** The server never sees a
+  client's MAC through the gateway or the VPN, and one the client reported would be a claim anybody
+  holding the token could copy. A token per device, named for the device, is the substitute.
+- **The client is .NET, unsigned**, consistent with B2. On Windows with Smart App Control on, an
+  unsigned build cannot run and there is no per-program exception. The owner will turn Smart App
+  Control off on their own machine rather than sign; it read Off (`VerifiedAndReputablePolicyState`
+  0) when this was written. Claude does not change that setting. The release notes must say that
+  the client does not run where Smart App Control is on.
+
+Two more, the same day, when the owner was asked:
+
+- **The HTTP transport takes a machine token instead of the web client's access token**, not beside
+  it. An access token is refused there like any unknown bearer.
+- **The transport is rate-limited per person**, at the API's defaults (600 requests a minute) and
+  settings. A request with no working token is not counted, because behind the gateway every caller
+  shares one address and counting those would let anybody without a token lock out everybody with
+  one. It had no limit before.
+
+OAuth sign-in for MCP was named as a later step and not decided.
+
 ## Confirmed A2, B3, Dependabot, and the Demo Removed — 2026-09-27
 
 The owner reviewed and merged PR #19 and PR #20, then answered the open items the same day:
