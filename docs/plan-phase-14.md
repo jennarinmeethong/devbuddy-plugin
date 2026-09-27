@@ -190,7 +190,8 @@ uses trusts the root, and HSTS is sent. **A browser does not record HSTS for an 
   archive and its attestation are made. A test in the checklist checks the signature.
 
 ### B3 — A hosted model server of the owner's own (Phase 13 C8)
-**Status: TODO. It waits on the owner.**
+**Status: DONE 2026-09-27.** The owner's answer (`info.md`): prepare one, but do not use it yet.
+`tools/hosted-model/` is that server, tested on devrelease only. No installation points at it.
 
 - **Question:** should there be an Ollama or LM Studio on a cloud machine at all? If there should,
   it runs behind a TLS proxy that checks a key (`deployment.md`), and C8 runs against it with
@@ -335,7 +336,8 @@ triaged, the fixes merged, and `tests/e2e/zap/rules.tsv` now decides whether a r
   authenticated scan.
 
 ### C5 — Secret, source and image scans, and every action pinned
-**Status: IN PROGRESS.** Approved 2026-09-26 (`info.md`), from a comparison with the HomeHub rule
+**Status: DONE 2026-09-27.** Supply chain and CodeQL pass on `main`, and C6 removed the MinIO
+findings the image gate had accepted. Approved 2026-09-26 (`info.md`), from a comparison with the HomeHub rule
 set in `samples/`, which requires Gitleaks, a SAST tool, Trivy, actions pinned by commit and a
 controlled update process. This repository had none of the five.
 
@@ -354,7 +356,9 @@ controlled update process. This repository had none of the five.
   accepted in `.trivyignore.yaml` at the owner's word.
 
 ### C6 — Replacing MinIO
-**Status: IN PROGRESS.** Planned at the owner's word (`info.md`, 2026-09-26). **ADR-0014 proposes
+**Status: DONE 2026-09-27.** `v1.9.0` shipped SeaweedFS with no MinIO entry left in
+`.trivyignore.yaml`, and `upgrade.sh` restored a MinIO installation's evidence into it, 1 of 1, on
+amd64 and arm64. The devbox moved the same day. Planned at the owner's word (`info.md`, 2026-09-26). **ADR-0014 proposes
 SeaweedFS and waits on the owner.** The SeaweedFS spike is done and passed (`tools/spikes/c6-seaweedfs/`, and the log). Nothing is built into the
 product until the owner chooses a store.
 
@@ -398,7 +402,9 @@ product until the owner chooses a store.
 ## D — Carried over
 
 ### D1 — Phase 13 C8, the hosted mode against a real server
-**Status: BLOCKED (no hosted server).** It follows B3's answer.
+**Status: BLOCKED (no cloud machine, by the owner's choice).** B3 prepared the server in
+`tools/hosted-model/`, and the owner asked for it not to be used yet. C8 runs when the owner puts
+it on a cloud machine and accepts that, with synthetic data.
 
 ---
 
