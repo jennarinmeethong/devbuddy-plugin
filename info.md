@@ -37,6 +37,10 @@ carries.
   follows the browser's language until somebody chooses, and remembers the choice in that browser.
   What the server writes, a refusal included, is not translated (`Failure`). Thai dates show the
   Buddhist year.
+- **Thai in Leelawadee UI where the device has it** (the owner asked for it later the same day).
+  It ships with Windows under Microsoft's licence, which does not allow bundling it, so the client
+  names it as an installed font and fetches nothing for it. Sarabun remains the bundled fallback
+  for macOS, Linux and phones.
 - **Roboto for Latin and Sarabun for Thai**, both OFL-1.1 from Fontsource and bundled into the
   image, because the content security policy allows `font-src 'self'` only. The demo's TH Sarabun
   files were not used: their licence is not recorded anywhere here, and Sarabun is the open font

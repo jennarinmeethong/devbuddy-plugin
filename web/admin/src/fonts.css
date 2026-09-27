@@ -2,8 +2,13 @@
  * The typefaces, bundled rather than fetched: the content security policy allows `font-src 'self'`
  * and nothing else, so a font from Google Fonts or any CDN would be refused.
  *
- * Roboto sets Latin text and Sarabun sets Thai. Roboto comes first in `--font-sans` and has no Thai
- * glyphs, so Thai characters fall through to Sarabun inside the same line. Each face is limited by
+ * Roboto sets Latin text. Thai is set in Leelawadee UI where the device has it (the owner's choice,
+ * 2026-09-27), and in Sarabun where it does not. Roboto comes first in `--font-sans` and has no Thai
+ * glyphs, so Thai characters fall through to the next family inside the same line. Leelawadee UI is
+ * Microsoft's, installed with Windows, and its licence does not allow bundling it, so it is named as
+ * an installed font only: nothing is fetched for it, and the policy is not involved. Sarabun stays
+ * bundled for macOS, Linux and phones, and a browser that has Leelawadee UI never downloads it.
+ * Each bundled face is limited by
  * `unicode-range`, so a browser downloads a file only for the characters on the page. Both are
  * OFL-1.1, from Fontsource, pinned in package.json.
  *
