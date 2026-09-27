@@ -1,16 +1,74 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
+/*
+ * Ocean Mist Light, taken from demo/styles.css (`body[data-theme="mist"]`).
+ *
+ * The screens read these through `var(--color-…)` rather than Tailwind's palette, so changing a
+ * value here restyles every screen at once. There is one theme and no picker. Everything is in
+ * this file because the content security policy allows `style-src 'self'` and nothing else: no
+ * `style` attribute, no inline style element, no font from another host.
+ */
 @theme {
-  --color-ink: oklch(0.22 0.02 260);
-  --color-muted: oklch(0.55 0.02 260);
-  --color-line: oklch(0.9 0.01 260);
-  --color-surface: oklch(0.99 0.002 260);
-  --color-accent: oklch(0.52 0.14 250);
-  --color-danger: oklch(0.52 0.17 25);
+  --font-sans: "Roboto Variable", "Sarabun", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #12324d;
+  --color-muted: #526d80;
+  --color-line: rgba(13, 59, 102, 0.17);
+  --color-line-strong: rgba(13, 59, 102, 0.29);
+  --color-surface: #ffffff;
+  --color-canvas: #f2fbff;
+  --color-mist: #dff6ff;
+  --color-accent: #0d3b66;
+  --color-accent-bright: #24577f;
+  --color-accent-soft: rgba(13, 59, 102, 0.1);
+  --color-on-accent: #f2fbff;
+  --color-active: #2e86ab;
+  --color-soft: rgba(13, 59, 102, 0.05);
+  --color-hover: rgba(13, 59, 102, 0.09);
+  --color-sidebar: rgba(242, 251, 255, 0.97);
+  --color-topbar: rgba(255, 255, 255, 0.91);
+  --color-success: #27825d;
+  --color-success-soft: rgba(39, 130, 93, 0.1);
+  --color-danger: #a83732;
+  --color-danger-soft: rgba(168, 55, 50, 0.07);
+
+  --shadow-panel: 0 18px 50px rgba(13, 59, 102, 0.1), 0 2px 8px rgba(13, 59, 102, 0.08);
+  --shadow-small: 0 8px 24px rgba(13, 59, 102, 0.09);
+}
+
+:root {
+  color-scheme: light;
 }
 
 html,
 body {
-  background: var(--color-surface);
   color: var(--color-ink);
+  background-color: var(--color-canvas);
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 78% 12%, rgba(13, 59, 102, 0.12), transparent 30%),
+    linear-gradient(145deg, var(--color-canvas), var(--color-mist) 60%, var(--color-canvas));
+  background-attachment: fixed;
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-accent-bright);
+  outline-offset: 2px;
+}
+
+/*
+ * Thai is written without letter-spacing: spaced out, its vowels and tone marks drift from their
+ * consonants. It also reads small at sizes chosen for Latin, so a Thai page sets its base a little
+ * larger. `:lang` follows the `lang` the language switch writes onto `<html>`, and an element that
+ * says `lang="en"`, such as the product name, keeps its tracking.
+ */
+html:lang(th) {
+  font-size: 106.25%;
+}
+
+:lang(th) [class*="tracking-"] {
+  letter-spacing: normal;
 }

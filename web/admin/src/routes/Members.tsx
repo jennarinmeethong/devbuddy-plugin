@@ -6,6 +6,8 @@ import { useSession, useWorkspace } from "../api/session";
 import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { t, tr } from "../i18n";
+import { roleLabel } from "../components/labels";
 
 const ROLES = ["Viewer", "Contributor", "Reviewer", "Administrator", "IndexMaintainer"] as const;
 
@@ -38,30 +40,30 @@ export function Members() {
 
   return (
     <>
-      <Panel title={`Members of ${access?.name ?? "this workspace"}`}>
+      <Panel title={access ? t("Members of {name}", { name: access.name }) : t("Members of this workspace")}>
         {memberships.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : memberships.isError ? (
           <Failure error={memberships.error} />
         ) : memberships.data.memberships.length === 0 ? (
-          <Empty>No memberships.</Empty>
+          <Empty>{t("No memberships.")}</Empty>
         ) : (
-          <Table head={["User", "Role", "Scope", "Granted", "State", ""]}>
+          <Table head={[t("User"), t("Role"), t("Scope"), t("Granted"), t("State"), ""]}>
             {memberships.data.memberships.map((membership) => (
               <tr
                 key={membership.membershipId}
                 className="border-b border-[var(--color-line)] last:border-0"
               >
                 <td className="px-2 py-2 font-mono text-xs">{membership.userId}</td>
-                <td className="px-2 py-2">{membership.role}</td>
+                <td className="px-2 py-2">{t(roleLabel(membership.role))}</td>
                 <td className="px-2 py-2 text-xs text-[var(--color-muted)]">
-                  {membership.scopedToProject ? `Project ${membership.scopedToProject}` : "Whole workspace"}
+                  {membership.scopedToProject ? t("Project {project}", { project: membership.scopedToProject }) : t("Whole workspace")}
                 </td>
                 <td className="px-2 py-2 text-xs">
                   <When value={membership.grantedAt} />
                 </td>
                 <td className="px-2 py-2">
-                  {membership.isActive ? <Badge tone="live">Active</Badge> : <Badge tone="muted">Revoked</Badge>}
+                  {membership.isActive ? <Badge tone="live">{t("Active")}</Badge> : <Badge tone="muted">{t("Revoked")}</Badge>}
                 </td>
                 <td className="px-2 py-2 text-right">
                   {membership.isActive ? (
@@ -78,7 +80,7 @@ export function Members() {
                         disabled={revoke.isPending}
                         onClick={() => revoke.mutate(membership.membershipId)}
                       >
-                        Revoke
+                        {t("Revoke")}
                       </Button>
                     </div>
                   ) : null}
@@ -95,8 +97,7 @@ export function Members() {
         ) : null}
 
         <p className="mt-3 text-xs text-[var(--color-muted)]">
-          Revoked grants stay listed. Hiding them would make a revocation look like the grant never
-          happened, and a revocation takes effect on the next request rather than the next sign-in.
+          {t("Revoked grants stay listed. Hiding them would make a revocation look like the grant never happened, and a revocation takes effect on the next request rather than the next sign-in.")}
         </p>
       </Panel>
 
@@ -152,22 +153,22 @@ function ChangeRole({ workspaceId, membership }: { workspaceId: string; membersh
   return (
     <div className="flex items-center gap-1">
       <Select
-        aria-label={`New role for ${membership.userId}`}
+        aria-label={t("New role for {user}", { user: membership.userId })}
         className="w-36"
         value={role}
         onChange={(event) => setRole(event.target.value as Role)}
       >
         {ROLES.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {t(roleLabel(option))}
           </option>
         ))}
       </Select>
       <Button disabled={change.isPending || role === membership.role} onClick={() => change.mutate()}>
-        Change role
+        {t("Change role")}
       </Button>
       {change.error instanceof PartialChange ? (
-        <Alert tone="error">The old grant was revoked, but the new one was refused. Grant it again below.</Alert>
+        <Alert tone="error">{t("The old grant was revoked, but the new one was refused. Grant it again below.")}</Alert>
       ) : change.isError ? (
         <Failure error={change.error} />
       ) : null}
@@ -197,32 +198,32 @@ function Downloads({ workspaceId, userId }: { workspaceId: string; userId: strin
   if (!open) {
     return (
       <Button variant="secondary" onClick={() => setOpen(true)}>
-        Downloads
+        {t("Downloads")}
       </Button>
     );
   }
 
   return (
-    <div className="max-w-md space-y-2 text-left" aria-label={`Downloads by ${userId}`}>
+    <div className="max-w-md space-y-2 text-left" aria-label={t("Downloads by {user}", { user: userId })}>
       {downloads.isPending ? (
-        <Empty>Loading…</Empty>
+        <Empty>{t("Loading…")}</Empty>
       ) : downloads.isError ? (
         <Failure error={downloads.error} />
       ) : downloads.data.downloads.length === 0 ? (
-        <p className="text-xs text-[var(--color-muted)]">Nothing downloaded or exported here in 90 days.</p>
+        <p className="text-xs text-[var(--color-muted)]">{t("Nothing downloaded or exported here in 90 days.")}</p>
       ) : (
         <ul className="space-y-1 text-xs">
           {downloads.data.downloads.map((download) => (
             <li key={`${download.occurredAt}-${download.resourceReference}`}>
               <When value={download.occurredAt} /> ·{" "}
-              {download.action === "EvidenceDownloaded" ? "downloaded evidence" : "exported a project"} ·{" "}
+              {download.action === "EvidenceDownloaded" ? t("downloaded evidence") : t("exported a project")} ·{" "}
               <span className="font-mono">{download.resourceReference}</span>
             </li>
           ))}
         </ul>
       )}
       <Button variant="secondary" onClick={() => setOpen(false)}>
-        Close
+        {t("Close")}
       </Button>
     </div>
   );
@@ -245,7 +246,7 @@ function ResetPassword({ workspaceId, userId }: { workspaceId: string; userId: s
   if (!open) {
     return (
       <Button variant="secondary" onClick={() => setOpen(true)}>
-        Reset password
+        {t("Reset password")}
       </Button>
     );
   }
@@ -255,23 +256,24 @@ function ResetPassword({ workspaceId, userId }: { workspaceId: string; userId: s
       {reset.isSuccess ? (
         <>
           <Alert tone="success">
-            Give them this reset token. It is shown once, is single-use, and expires. Their current
-            sessions end when they use it.
+            {t("Give them this reset token. It is shown once, is single-use, and expires. Their current sessions end when they use it.")}
           </Alert>
-          <code aria-label="Reset token" className="block break-all rounded bg-neutral-100 p-2 font-mono text-xs">
+          <code aria-label={t("Reset token")} className="block break-all rounded bg-[var(--color-soft)] p-2 font-mono text-xs">
             {reset.data.resetToken}
           </code>
           <p className="text-xs text-[var(--color-muted)]">
-            Expires <When value={reset.data.resetTokenExpiresAt} />. They redeem it on the set-password page.
+            {tr("Expires {when}. They redeem it on the set-password page.", {
+              when: <When value={reset.data.resetTokenExpiresAt} />,
+            })}
           </p>
         </>
       ) : (
         <div className="flex items-center gap-2">
           <Button variant="danger" disabled={reset.isPending} onClick={() => reset.mutate()}>
-            Issue reset token
+            {t("Issue reset token")}
           </Button>
           <Button variant="secondary" onClick={() => setOpen(false)}>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       )}
@@ -311,7 +313,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
   }
 
   return (
-    <Panel title="Grant access to somebody already here">
+    <Panel title={t("Grant access to somebody already here")}>
       <form
         className="grid gap-3 sm:grid-cols-4"
         onSubmit={(event) => {
@@ -319,7 +321,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
           grant.mutate();
         }}
       >
-        <Field label="Person">
+        <Field label={t("Person")}>
           <Select value={subjectUserId} onChange={(event) => setSubject(event.target.value)}>
             {people.map((person) => (
               <option key={person} value={person}>
@@ -329,19 +331,19 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
           </Select>
         </Field>
 
-        <Field label="Role">
+        <Field label={t("Role")}>
           <Select value={role} onChange={(event) => setRole(event.target.value as Role)}>
             {ROLES.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {t(roleLabel(option))}
               </option>
             ))}
           </Select>
         </Field>
 
-        <Field label="Where">
+        <Field label={t("Where")}>
           <Select value={project} onChange={(event) => setProject(event.target.value)}>
-            <option value="">The whole workspace</option>
+            <option value="">{t("The whole workspace")}</option>
             {(projects.data?.projects ?? []).map((candidate) => (
               <option key={candidate.projectId} value={candidate.projectId}>
                 {candidate.name}
@@ -352,7 +354,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
 
         <div className="flex items-end">
           <Button type="submit" variant="primary" disabled={grant.isPending || subjectUserId === ""}>
-            Grant
+            {t("Grant")}
           </Button>
         </div>
       </form>
@@ -364,7 +366,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
       ) : null}
       {grant.isSuccess ? (
         <div className="mt-3">
-          <Alert tone="success">Granted {grant.data.role}.</Alert>
+          <Alert tone="success">{t("Granted {role}.", { role: t(roleLabel(grant.data.role)) })}</Alert>
         </div>
       ) : null}
     </Panel>
@@ -387,7 +389,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
   });
 
   return (
-    <Panel title="Add somebody">
+    <Panel title={t("Add somebody")}>
       <form
         className="grid gap-3 sm:grid-cols-2"
         onSubmit={(event) => {
@@ -395,7 +397,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
           create.mutate();
         }}
       >
-        <Field label="Email">
+        <Field label={t("Email")}>
           <Input
             type="email"
             required
@@ -404,7 +406,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
           />
         </Field>
 
-        <Field label="Display name">
+        <Field label={t("Display name")}>
           <Input
             required
             value={displayName}
@@ -413,13 +415,13 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
         </Field>
 
         <Field
-          label="Role"
-          hint="Viewer to Administrator are cumulative: a reviewer can do everything a contributor can. IndexMaintainer is for a worker account: it reads and maintains the index, and nothing else."
+          label={t("Role")}
+          hint={t("Viewer to Administrator are cumulative: a reviewer can do everything a contributor can. IndexMaintainer is for a worker account: it reads and maintains the index, and nothing else.")}
         >
           <Select value={role} onChange={(event) => setRole(event.target.value as (typeof ROLES)[number])}>
             {ROLES.map((option) => (
               <option key={option} value={option}>
-                {option}
+                {t(roleLabel(option))}
               </option>
             ))}
           </Select>
@@ -427,7 +429,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
 
         <div className="flex items-end">
           <Button type="submit" variant="primary" disabled={create.isPending}>
-            Create account
+            {t("Create account")}
           </Button>
         </div>
       </form>
@@ -441,15 +443,16 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
       {create.isSuccess ? (
         <div className="mt-3 space-y-2">
           <Alert tone="success">
-            The account exists and cannot be signed into until its owner sets a password. Give them
-            this setup token — it is shown once, is single-use, and expires.
+            {t("The account exists and cannot be signed into until its owner sets a password. Give them this setup token — it is shown once, is single-use, and expires.")}
           </Alert>
-          <code className="block break-all rounded bg-neutral-100 p-2 font-mono text-xs">
+          <code className="block break-all rounded bg-[var(--color-soft)] p-2 font-mono text-xs">
             {create.data.setupToken}
           </code>
           <p className="text-xs text-[var(--color-muted)]">
-            Expires <When value={create.data.setupTokenExpiresAt} />. It is also emailed to that
-            address when the deployment has SMTP configured; when it does not, this is the copy.
+            {tr(
+              "Expires {when}. It is also emailed to that address when the deployment has SMTP configured; when it does not, this is the copy.",
+              { when: <When value={create.data.setupTokenExpiresAt} /> },
+            )}
           </p>
         </div>
       ) : null}

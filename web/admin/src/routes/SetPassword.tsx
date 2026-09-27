@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, completeRecovery } from "../api/client";
-import { Alert, Button, Field, Input, Panel } from "../components/ui";
+import { Alert, BrandMark, Button, Field, Input, Panel } from "../components/ui";
+import { LanguageSwitch } from "../components/LanguageSwitch";
+import { t } from "../i18n";
 
 /**
  * Redeems a setup or recovery token and sets a password.
@@ -25,7 +27,7 @@ export function SetPassword() {
     setError(null);
 
     if (password !== confirmation) {
-      setError("The two passwords do not match.");
+      setError(t("The two passwords do not match."));
       return;
     }
 
@@ -38,7 +40,7 @@ export function SetPassword() {
       setError(
         failure instanceof ApiError
           ? failure.detail || failure.title
-          : "The server could not be reached.",
+          : t("The server could not be reached."),
       );
     } finally {
       setBusy(false);
@@ -46,24 +48,31 @@ export function SetPassword() {
   }
 
   return (
-    <div className="mx-auto max-w-md p-8">
-      <h1 className="mb-6 text-lg font-semibold">DevBuddy</h1>
+    <div className="mx-auto max-w-md px-5 py-16">
+      <div className="mb-8 flex items-center gap-3">
+        <BrandMark />
+        <div className="flex-1 leading-tight">
+          <h1 className="text-xl font-bold tracking-wide">DevBuddy</h1>
+          <p className="text-xs tracking-[0.18em] text-[var(--color-muted)]">{t("ADMINISTRATION")}</p>
+        </div>
+        <LanguageSwitch />
+      </div>
 
-      <Panel title="Set a password">
+      <Panel title={t("Set a password")}>
         {done ? (
           <div className="space-y-4">
             <Alert tone="success">
-              Your password is set and every other session has been signed out.
+              {t("Your password is set and every other session has been signed out.")}
             </Alert>
             <Link className="text-sm underline" to="/">
-              Sign in
+              {t("Sign in")}
             </Link>
           </div>
         ) : (
           <form className="space-y-4" onSubmit={submit}>
             {error ? <Alert tone="error">{error}</Alert> : null}
 
-            <Field label="Token" hint="The setup or recovery token you were given.">
+            <Field label={t("Token")} hint={t("The setup or recovery token you were given.")}>
               <Input
                 name="token"
                 required
@@ -72,7 +81,7 @@ export function SetPassword() {
               />
             </Field>
 
-            <Field label="New password" hint="At least twelve characters. Length is the only rule.">
+            <Field label={t("New password")} hint={t("At least twelve characters. Length is the only rule.")}>
               <Input
                 type="password"
                 name="password"
@@ -83,7 +92,7 @@ export function SetPassword() {
               />
             </Field>
 
-            <Field label="Confirm password">
+            <Field label={t("Confirm password")}>
               <Input
                 type="password"
                 name="confirmation"
@@ -95,7 +104,7 @@ export function SetPassword() {
             </Field>
 
             <Button type="submit" variant="primary" disabled={busy}>
-              Set password
+              {t("Set password")}
             </Button>
           </form>
         )}

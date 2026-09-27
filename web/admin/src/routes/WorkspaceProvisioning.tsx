@@ -5,6 +5,7 @@ import { invoke } from "../api/client";
 import { useSession, useWorkspace } from "../api/session";
 import { Alert, Badge, Button, Field, Input, Panel, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { t, tr } from "../i18n";
 
 /**
  * Standing up another workspace, sponsored by this one.
@@ -44,8 +45,8 @@ export function WorkspaceProvisioning() {
 
   return (
     <>
-      <Panel title="Workspaces you can reach">
-        <Table head={["Workspace", "Role", ""]}>
+      <Panel title={t("Workspaces you can reach")}>
+        <Table head={[t("Workspace"), t("Role"), ""]}>
           {workspaces.map((entry) => (
             <tr key={entry.workspaceId} className="border-b border-[var(--color-line)] last:border-0">
               <td className="px-2 py-2">
@@ -57,19 +58,18 @@ export function WorkspaceProvisioning() {
                 <Badge tone={entry.workspaceId === workspaceId ? "live" : "neutral"}>{entry.role}</Badge>
               </td>
               <td className="px-2 py-2 text-right text-xs text-[var(--color-muted)]">
-                {entry.workspaceId === workspaceId ? "You are here" : ""}
+                {entry.workspaceId === workspaceId ? t("You are here") : ""}
               </td>
             </tr>
           ))}
         </Table>
 
         <p className="mt-3 text-xs text-[var(--color-muted)]">
-          Every workspace is a separate tenant. Nothing is shared between them — not projects, not
-          records, not evidence — and a grant on one says nothing about any other.
+          {t("Every workspace is a separate tenant. Nothing is shared between them — not projects, not records, not evidence — and a grant on one says nothing about any other.")}
         </p>
       </Panel>
 
-      <Panel title="New workspace">
+      <Panel title={t("New workspace")}>
         <form
           className="grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {
@@ -77,26 +77,26 @@ export function WorkspaceProvisioning() {
             create.mutate();
           }}
         >
-          <Field label="Name">
+          <Field label={t("Name")}>
             <Input
               required
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Northwind"
+              placeholder={t("Northwind")}
             />
           </Field>
 
-          <Field label="First project" hint="Optional. One can be created inside it afterwards instead.">
+          <Field label={t("First project")} hint={t("Optional. One can be created inside it afterwards instead.")}>
             <Input
               value={firstProjectName}
               onChange={(event) => setFirstProjectName(event.target.value)}
-              placeholder="Payments platform"
+              placeholder={t("Payments platform")}
             />
           </Field>
 
           <div className="flex items-end">
             <Button type="submit" variant="primary" disabled={create.isPending}>
-              Create workspace
+              {t("Create workspace")}
             </Button>
           </div>
         </form>
@@ -110,19 +110,23 @@ export function WorkspaceProvisioning() {
         {create.isSuccess ? (
           <div className="mt-3">
             <Alert tone="success">
-              Created, sponsored by {access?.name ?? "this workspace"}. You administer it —{" "}
-              <Link className="underline" to={`/w/${create.data.workspaceId}`}>
-                open {create.data.name}
-              </Link>
-              .
+              {tr("Created, sponsored by {sponsor}. You administer it — {link}.", {
+                sponsor: access?.name ?? t("this workspace"),
+                link: (
+                  <Link className="underline" to={`/w/${create.data.workspaceId}`}>
+                    {t("open {name}", { name: create.data.name })}
+                  </Link>
+                ),
+              })}
             </Alert>
           </div>
         ) : null}
 
         <p className="mt-3 text-xs text-[var(--color-muted)]">
-          Sponsored by {access?.name ?? "this workspace"}: the permission that allows this is the
-          one you hold here, and you become the new workspace's administrator. Nobody else is
-          carried over.
+          {t(
+            "Sponsored by {sponsor}: the permission that allows this is the one you hold here, and you become the new workspace's administrator. Nobody else is carried over.",
+            { sponsor: access?.name ?? t("this workspace") },
+          )}
         </p>
       </Panel>
     </>

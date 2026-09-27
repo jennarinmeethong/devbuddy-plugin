@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, beginRecovery, signIn } from "../api/client";
 import { useSession } from "../api/session";
-import { Alert, Button, Field, Input, Panel } from "../components/ui";
+import { Alert, BrandMark, Button, Field, Input, Panel } from "../components/ui";
+import { LanguageSwitch } from "../components/LanguageSwitch";
+import { t } from "../i18n";
 
 /**
  * Sign in, and start account recovery.
@@ -37,7 +39,7 @@ export function SignIn() {
       setError(
         failure instanceof ApiError
           ? failure.detail || failure.title
-          : "The server could not be reached.",
+          : t("The server could not be reached."),
       );
     } finally {
       setBusy(false);
@@ -45,21 +47,27 @@ export function SignIn() {
   }
 
   return (
-    <div className="mx-auto max-w-md p-8">
-      <h1 className="mb-6 text-lg font-semibold">DevBuddy</h1>
+    <div className="mx-auto max-w-md px-5 py-16">
+      <div className="mb-8 flex items-center gap-3">
+        <BrandMark />
+        <div className="flex-1 leading-tight">
+          <h1 className="text-xl font-bold tracking-wide">DevBuddy</h1>
+          <p className="text-xs tracking-[0.18em] text-[var(--color-muted)]">{t("ADMINISTRATION")}</p>
+        </div>
+        <LanguageSwitch />
+      </div>
 
-      <Panel title={mode === "sign-in" ? "Sign in" : "Recover your account"}>
+      <Panel title={mode === "sign-in" ? t("Sign in") : t("Recover your account")}>
         <form className="space-y-4" onSubmit={submit}>
           {error ? <Alert tone="error">{error}</Alert> : null}
 
           {sent ? (
             <Alert tone="success">
-              If that address has an account, a recovery token has been issued. It is delivered out
-              of band — ask whoever runs this installation for it, then use the link below.
+              {t("If that address has an account, a recovery token has been issued. It is delivered out of band — ask whoever runs this installation for it, then use the link below.")}
             </Alert>
           ) : null}
 
-          <Field label="Email">
+          <Field label={t("Email")}>
             <Input
               type="email"
               name="email"
@@ -71,7 +79,7 @@ export function SignIn() {
           </Field>
 
           {mode === "sign-in" ? (
-            <Field label="Password">
+            <Field label={t("Password")}>
               <Input
                 type="password"
                 name="password"
@@ -85,7 +93,7 @@ export function SignIn() {
 
           <div className="flex items-center justify-between">
             <Button type="submit" variant="primary" disabled={busy}>
-              {mode === "sign-in" ? "Sign in" : "Send a recovery token"}
+              {mode === "sign-in" ? t("Sign in") : t("Send a recovery token")}
             </Button>
 
             <Button
@@ -95,12 +103,12 @@ export function SignIn() {
                 setSent(false);
               }}
             >
-              {mode === "sign-in" ? "Forgot your password?" : "Back to sign in"}
+              {mode === "sign-in" ? t("Forgot your password?") : t("Back to sign in")}
             </Button>
           </div>
 
           <p className="text-xs text-[var(--color-muted)]">
-            Have a setup or recovery token? <Link className="underline" to="/set-password">Set a password</Link>.
+            {t("Have a setup or recovery token?")} <Link className="underline" to="/set-password">{t("Set a password")}</Link>.
           </p>
         </form>
       </Panel>

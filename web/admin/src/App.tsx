@@ -19,6 +19,7 @@ import { WorkItemDetail } from "./routes/WorkItemDetail";
 import { Search } from "./routes/Search";
 import { Analysis } from "./routes/Analysis";
 import { Maintenance } from "./routes/Maintenance";
+import { t } from "./i18n";
 
 /**
  * Routes.
@@ -36,7 +37,7 @@ export function App() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-[var(--color-muted)]">
-        Loading…
+        {t("Loading…")}
       </div>
     );
   }

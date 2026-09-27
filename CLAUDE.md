@@ -34,14 +34,14 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 994 .NET tests and 78 web tests exist. The .NET suite passed at 994 in CI on
-2026-09-26, run 36240391166 on `6a6be20`. The web suite passed at 78 on the Windows development
-machine the same day. **Since 2026-09-26 CI runs the web suite too**, in the job
+enforcement. 1005 .NET tests and 85 web tests exist. The .NET suite passed at 1005 on devrelease
+for `v1.9.0` on 2026-09-27. The web suite passed at 85 on the Windows development machine the same
+day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**, in the job
 `Web client tests`, in the `oven/bun:1` image the API image builds the client with. Until then
 only `bun run build` ran there, which type-checks. The owner's Linux test machine that ran both
 suites until 2026-09-25 is gone, above. Count them rather than trusting this sentence, which has been stale many times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix, and at 993 and 78 until the ports moved to 5010. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix, and at 993 and 78 until the ports moved to 5010, and at 1005 and 78 until the web client gained Thai and English. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -624,6 +624,18 @@ surface be a deliberate allow-list over existing use cases rather than a second 
 
 ## Things that are easy to get wrong here
 
+- **Every word the web client shows goes through `t`, `tr` or `m`** (`web/admin/src/i18n`), with
+  its Thai in `th.ts`, since 2026-09-27. English is the key. `i18n.test.tsx` fails on an untranslated
+  key, an unused entry, or a lost `{placeholder}`, so a new sentence needs its Thai in the same
+  change. Pass a string literal: the test finds keys by reading the source. A sentence with a link,
+  date or code in it is one `tr` call, never fragments. The server's words, a refusal included,
+  are shown as sent. Switching language remounts the tree under `LanguageProvider`, so `t` must be
+  called while rendering, never once at module load: mark such text with `m` and translate it
+  where it renders.
+- **The fonts are bundled, and nothing is inlined** (2026-09-27). Roboto and Sarabun come from
+  Fontsource packages pinned in `package.json`, declared in `web/admin/src/fonts.css`. The content
+  security policy allows `font-src 'self'`, so a font host is refused, and `vite.config.ts` sets
+  `assetsInlineLimit: 0` because a `data:` font would be refused too.
 - **`CR` is banned.** Change Request and Code Review are separate record types. Write
   `change_request` and `code_review` in full, in code, schema, API, and UI.
 - **No SQLite.** PostgreSQL in development and production, and in tests via Testcontainers.

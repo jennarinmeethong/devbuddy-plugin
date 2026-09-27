@@ -7,6 +7,7 @@ import type { ValidateProvenanceResult } from "../api/operations";
 import { Alert, Badge, Button, Field, Input, Panel, Table, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
+import { t, tr } from "../i18n";
 
 type Scope = { workspaceId: string; projectId: string };
 
@@ -26,7 +27,7 @@ export function Maintenance() {
 
   return (
     <>
-      <ProjectNav title="Maintenance" />
+      <ProjectNav title={t("Maintenance")} />
       {grants(access, "ManageIndex") ? <Sweeps scope={scope} /> : null}
       {grants(access, "ManageIndex") ? <Reindex scope={scope} /> : null}
       {grants(access, "ScanContent") ? <CheckText scope={scope} /> : null}
@@ -47,21 +48,21 @@ function Sweeps({ scope }: { scope: Scope }) {
   });
 
   return (
-    <Panel title="Quality sweeps">
+    <Panel title={t("Quality sweeps")}>
       <div className="space-y-4">
         <p className="text-sm text-[var(--color-muted)]">
-          Each sweep reads the project&apos;s records and reports what it finds. Nothing is changed.
+          {t("Each sweep reads the project's records and reports what it finds. Nothing is changed.")}
         </p>
 
         <div className="flex flex-wrap items-end gap-2">
           <Button onClick={() => provenance.mutate()} disabled={provenance.isPending}>
-            Check provenance
+            {t("Check provenance")}
           </Button>
           <Button onClick={() => duplicates.mutate()} disabled={duplicates.isPending}>
-            Find duplicates
+            {t("Find duplicates")}
           </Button>
           <div className="w-44">
-            <Field label="Untouched for (days)">
+            <Field label={t("Untouched for (days)")}>
               <Input
                 type="number"
                 min={1}
@@ -71,13 +72,13 @@ function Sweeps({ scope }: { scope: Scope }) {
             </Field>
           </div>
           <Button onClick={() => staleness.mutate()} disabled={staleness.isPending}>
-            Find stale records
+            {t("Find stale records")}
           </Button>
         </div>
 
-        <SweepResult title="Provenance" state={provenance} scope={scope} />
-        <SweepResult title="Duplicates" state={duplicates} scope={scope} />
-        <SweepResult title="Stale records" state={staleness} scope={scope} />
+        <SweepResult title={t("Provenance")} state={provenance} scope={scope} />
+        <SweepResult title={t("Duplicates")} state={duplicates} scope={scope} />
+        <SweepResult title={t("Stale records")} state={staleness} scope={scope} />
       </div>
     </Panel>
   );
@@ -106,9 +107,9 @@ function SweepResult({
         {title} <Badge>{state.data.findings.length}</Badge>
       </h3>
       {state.data.findings.length === 0 ? (
-        <p className="text-sm text-[var(--color-muted)]">Nothing found.</p>
+        <p className="text-sm text-[var(--color-muted)]">{t("Nothing found.")}</p>
       ) : (
-        <Table head={["Record", "Rule", "Detail"]}>
+        <Table head={[t("Record"), t("Rule"), t("Detail")]}>
           {state.data.findings.map((finding, index) => (
             <tr key={index} className="border-b border-[var(--color-line)] last:border-0">
               <td className="px-2 py-2">
@@ -133,17 +134,16 @@ function Reindex({ scope }: { scope: Scope }) {
   const reindex = useMutation({ mutationFn: () => invoke("reindex", { scope }) });
 
   return (
-    <Panel title="Search index">
+    <Panel title={t("Search index")}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
-          Rebuilds this project&apos;s full-text index from its records. The semantic index is kept by the
-          embedding worker, not by this.
+          {t("Rebuilds this project's full-text index from its records. The semantic index is kept by the embedding worker, not by this.")}
         </p>
         <Button onClick={() => reindex.mutate()} disabled={reindex.isPending}>
-          Rebuild the index
+          {t("Rebuild the index")}
         </Button>
         {reindex.isError ? <Failure error={reindex.error} /> : null}
-        {reindex.data ? <Alert tone="success">{reindex.data.documentsIndexed} record(s) indexed.</Alert> : null}
+        {reindex.data ? <Alert tone="success">{t("{documentsIndexed} record(s) indexed.", { documentsIndexed: reindex.data.documentsIndexed })}</Alert> : null}
       </div>
     </Panel>
   );
@@ -160,25 +160,25 @@ function CheckText({ scope }: { scope: Scope }) {
   const redact = useMutation({ mutationFn: () => invoke("redact_sensitive_data", { scope, content }) });
 
   return (
-    <Panel title="Check text">
+    <Panel title={t("Check text")}>
       <div className="space-y-3">
-        <Field label="Text" hint="Nothing typed here is stored.">
+        <Field label={t("Text")} hint={t("Nothing typed here is stored.")}>
           <TextArea rows={6} value={content} onChange={(event) => setContent(event.target.value)} />
         </Field>
 
         <div className="flex gap-2">
           <Button onClick={() => detect.mutate()} disabled={detect.isPending || content === ""}>
-            Look for secrets
+            {t("Look for secrets")}
           </Button>
           <Button onClick={() => redact.mutate()} disabled={redact.isPending || content === ""}>
-            Redact it
+            {t("Redact it")}
           </Button>
         </div>
 
         {detect.isError ? <Failure error={detect.error} /> : null}
         {detect.data ? (
           detect.data.hasFindings ? (
-            <Table head={["Rule", "Line", "Length"]}>
+            <Table head={[t("Rule"), t("Line"), t("Length")]}>
               {detect.data.findings.map((finding, index) => (
                 <tr key={index} className="border-b border-[var(--color-line)] last:border-0">
                   <td className="px-2 py-2">{finding.ruleName}</td>
@@ -188,15 +188,15 @@ function CheckText({ scope }: { scope: Scope }) {
               ))}
             </Table>
           ) : (
-            <Alert tone="success">No secrets found.</Alert>
+            <Alert tone="success">{t("No secrets found.")}</Alert>
           )
         ) : null}
 
         {redact.isError ? <Failure error={redact.error} /> : null}
         {redact.data ? (
           <div className="space-y-1">
-            <p className="text-sm">{redact.data.findingCount} finding(s) redacted.</p>
-            <pre className="whitespace-pre-wrap rounded-md border border-[var(--color-line)] bg-neutral-50 p-2 text-xs">
+            <p className="text-sm">{t("{findingCount} finding(s) redacted.", { findingCount: redact.data.findingCount })}</p>
+            <pre className="whitespace-pre-wrap rounded-md border border-[var(--color-line)] bg-[var(--color-soft)] p-2 text-xs">
               {redact.data.redactedContent}
             </pre>
           </div>
@@ -210,20 +210,23 @@ function Export({ scope }: { scope: Scope }) {
   const exported = useMutation({ mutationFn: () => invoke("export_project", { scope }) });
 
   return (
-    <Panel title="Export">
+    <Panel title={t("Export")}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
-          Writes a copy of this project — records, work items and evidence — to the server&apos;s export
-          volume, where the retention sweep removes it when it expires.
+          {t("Writes a copy of this project — records, work items and evidence — to the server's export volume, where the retention sweep removes it when it expires.")}
         </p>
         <Button onClick={() => exported.mutate()} disabled={exported.isPending}>
-          Export this project
+          {t("Export this project")}
         </Button>
         {exported.isError ? <Failure error={exported.error} /> : null}
         {exported.data ? (
           <Alert tone="success">
-            Export <span className="font-mono">{exported.data.reference}</span>: {exported.data.recordCount} record(s),{" "}
-            {exported.data.evidenceCount} evidence item(s). Kept until <When value={exported.data.expiresAt} />.
+            {tr("Export {reference}: {records} record(s), {evidence} evidence item(s). Kept until {when}.", {
+              reference: <span className="font-mono">{exported.data.reference}</span>,
+              records: exported.data.recordCount,
+              evidence: exported.data.evidenceCount,
+              when: <When value={exported.data.expiresAt} />,
+            })}
           </Alert>
         ) : null}
       </div>

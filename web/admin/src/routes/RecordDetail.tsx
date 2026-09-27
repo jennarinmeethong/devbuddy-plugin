@@ -7,6 +7,8 @@ import { grants, useSession, useWorkspace } from "../api/session";
 import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Hash, Input, Panel, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { m, t, tr } from "../i18n";
+import { SOURCE_KIND_LABELS } from "../components/labels";
 
 /**
  * One record: its body, its history, and every lifecycle step a person takes on it.
@@ -74,18 +76,18 @@ export function RecordDetail() {
   return (
     <>
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">{record.data?.title ?? "Record"}</h1>
+        <h1 className="text-2xl font-bold">{record.data?.title ?? t("Record")}</h1>
         <Link className="text-sm underline" to="..">
-          Back to records
+          {t("Back to records")}
         </Link>
       </div>
 
       <Panel
-        title={unpublished ? "Published content" : "Current content"}
+        title={unpublished ? t("Published content") : t("Current content")}
         actions={status ? <Badge>{status}</Badge> : null}
       >
         {record.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : record.isError ? (
           <Failure error={record.error} />
         ) : (
@@ -94,9 +96,9 @@ export function RecordDetail() {
       </Panel>
 
       {unpublished ? (
-        <Panel title={`Revision ${unpublished.number} — not published`}>
+        <Panel title={t("Revision {revision} — not published", { revision: unpublished.number })}>
           {underWork.isPending ? (
-            <Empty>Loading…</Empty>
+            <Empty>{t("Loading…")}</Empty>
           ) : underWork.isError ? (
             <Failure error={underWork.error} />
           ) : (
@@ -134,9 +136,9 @@ export function RecordDetail() {
         <MarkAiGenerated scope={scope} recordId={recordId!} />
       ) : null}
 
-      <Panel title="History">
+      <Panel title={t("History")}>
         {history.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : (
           <ol className="space-y-3">
             {[...history.data.revisions]
@@ -148,16 +150,16 @@ export function RecordDetail() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">
-                      Revision {revision.number} — {revision.title}
+                      {t("Revision {number} — {title}", { number: revision.number, title: revision.title })}
                     </span>
-                    {revision.isPublished ? <Badge tone="live">Published</Badge> : null}
+                    {revision.isPublished ? <Badge tone="live">{t("Published")}</Badge> : null}
                   </div>
 
                   <p className="mt-1 text-xs text-[var(--color-muted)]">
-                    <When value={revision.createdAt} /> · {revision.provenance.sourceKind} ·{" "}
+                    <When value={revision.createdAt} /> · {t(SOURCE_KIND_LABELS[revision.provenance.sourceKind])} ·{" "}
                     {revision.provenance.author}
                     {revision.provenance.evidenceCount > 0
-                      ? ` · ${revision.provenance.evidenceCount} evidence item(s)`
+                      ? " " + t("· {count} evidence item(s)", { count: revision.provenance.evidenceCount })
                       : ""}
                   </p>
 
@@ -167,23 +169,29 @@ export function RecordDetail() {
 
                   {revision.approval ? (
                     <p className="mt-2 text-xs">
-                      Approved <When value={revision.approval.approvedAt} /> by{" "}
-                      <span className="font-mono">{revision.approval.approverId}</span>
-                      {revision.approval.approverWasDraftCreator
-                        ? " — who also wrote the draft"
-                        : ""}
+                      {tr(
+                        revision.approval.approverWasDraftCreator
+                          ? m("Approved {when} by {approver} — who also wrote the draft")
+                          : m("Approved {when} by {approver}"),
+                        {
+                          when: <When value={revision.approval.approvedAt} />,
+                          approver: <span className="font-mono">{revision.approval.approverId}</span>,
+                        },
+                      )}
                     </p>
                   ) : (
-                    <p className="mt-2 text-xs text-[var(--color-muted)]">No approval covers this revision.</p>
+                    <p className="mt-2 text-xs text-[var(--color-muted)]">{t("No approval covers this revision.")}</p>
                   )}
 
                   {corrections
                     .filter((correction) => correction.targetRevisionNumber === revision.number)
                     .map((correction, index) => (
                       <p key={`${correction.requestedAt}-${index}`} className="mt-2 text-xs">
-                        Sent back <When value={correction.requestedAt} /> by{" "}
-                        <span className="font-mono">{correction.requestedBy}</span>:{" "}
-                        <span>{correction.reason}</span>
+                        {tr("Sent back {when} by {requester}: {reason}", {
+                          when: <When value={correction.requestedAt} />,
+                          requester: <span className="font-mono">{correction.requestedBy}</span>,
+                          reason: <span>{correction.reason}</span>,
+                        })}
                       </p>
                     ))}
                 </li>
@@ -213,25 +221,31 @@ function Content({ record }: { record: GetRecordResult }) {
   return (
     <article className="space-y-3">
       <p className="text-xs text-[var(--color-muted)]">
-        Revision {record.revisionNumber}
+        {t("Revision {revisionNumber}", { revisionNumber: record.revisionNumber })}
         {record.publishedRevisionNumber == null
-          ? " · never published"
+          ? " " + t("· never published")
           : record.publishedRevisionNumber === record.revisionNumber
-            ? " · published"
-            : ` · not published, readers see revision ${record.publishedRevisionNumber}`}
-        {record.provenance.isAiGenerated ? " · drafted by AI" : ""} · from{" "}
-        {record.provenance.sourceLocator} · recorded by {record.provenance.author}
+            ? " " + t("· published")
+            : " " + t("· not published, readers see revision {revision}", { revision: record.publishedRevisionNumber })}
+        {record.provenance.isAiGenerated ? " " + t("· drafted by AI") : ""}{" "}
+        {t("· from {source} · recorded by {author}", {
+          source: record.provenance.sourceLocator,
+          author: record.provenance.author,
+        })}
       </p>
       {record.provenance.aiMarking ? (
-        <p className="text-xs text-[var(--color-muted)]" aria-label="AI marking">
-          Marked as written by AI by {record.provenance.aiMarking.markedBy} on{" "}
-          <When value={record.provenance.aiMarking.markedAt} />: {record.provenance.aiMarking.reason}
+        <p className="text-xs text-[var(--color-muted)]" aria-label={t("AI marking")}>
+          {tr("Marked as written by AI by {markedBy} on {when}: {reason}", {
+            markedBy: record.provenance.aiMarking.markedBy,
+            when: <When value={record.provenance.aiMarking.markedAt} />,
+            reason: record.provenance.aiMarking.reason,
+          })}
         </p>
       ) : null}
 
       {/* Part of what an approval binds to, so it is shown rather than taken on trust. */}
       {fields.length > 0 ? (
-        <dl aria-label="Front matter" className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-xs">
+        <dl aria-label={t("Front matter")} className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-xs">
           {fields.map(([key, value]) => (
             <Fragment key={key}>
               <dt className="font-mono">{key}</dt>
@@ -241,15 +255,15 @@ function Content({ record }: { record: GetRecordResult }) {
         </dl>
       ) : null}
 
-      <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-neutral-50 p-3 text-sm">
+      <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-[var(--color-soft)] p-3 text-sm">
         {record.body}
       </pre>
 
       {record.evidence.length > 0 ? (
-        <ul aria-label="Evidence" className="space-y-1 text-xs">
+        <ul aria-label={t("Evidence")} className="space-y-1 text-xs">
           {record.evidence.map((reference) => (
             <li key={reference.evidenceObjectId}>
-              Evidence: {reference.description} <span className="font-mono">{reference.evidenceObjectId}</span>
+              {t("Evidence: {description}", { description: reference.description })} <span className="font-mono">{reference.evidenceObjectId}</span>
             </li>
           ))}
         </ul>
@@ -296,18 +310,18 @@ function Revise({
   });
 
   return (
-    <Panel title="Revise this draft">
+    <Panel title={t("Revise this draft")}>
       <div className="space-y-3">
         {sentBack.map((correction, index) => (
           <Alert key={`${correction.requestedAt}-${index}`} tone="error">
-            Sent back <When value={correction.requestedAt} />: {correction.reason}
+            {t("Sent back")} <When value={correction.requestedAt} />: {correction.reason}
           </Alert>
         ))}
 
         {!editing ? (
-          <Button onClick={() => setEditing(true)}>Edit this draft</Button>
+          <Button onClick={() => setEditing(true)}>{t("Edit this draft")}</Button>
         ) : record.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : record.isError ? (
           <Failure error={record.error} />
         ) : (
@@ -392,47 +406,49 @@ function ReviseForm({
       }}
     >
       <p className="text-sm text-[var(--color-muted)]">
-        Editing revision {record.revisionNumber}. Saving adds revision {record.revisionNumber + 1}; this one
-        stays in the history as it is.
+        {t("Editing revision {current}. Saving adds revision {next}; this one stays in the history as it is.", {
+          current: record.revisionNumber,
+          next: record.revisionNumber + 1,
+        })}
       </p>
 
-      <Field label="Title">
+      <Field label={t("Title")}>
         <Input required value={title} onChange={(event) => setTitle(event.target.value)} />
       </Field>
 
-      <Field label="Body">
+      <Field label={t("Body")}>
         <TextArea rows={8} value={body} onChange={(event) => setBody(event.target.value)} />
       </Field>
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">Front matter</legend>
+        <legend className="text-sm font-medium">{t("Front matter")}</legend>
         {rows.map((row, index) => (
           <div key={index} className="flex gap-2">
             <Input
-              aria-label={`Field ${index + 1} name`}
+              aria-label={t("Field {number} name", { number: index + 1 })}
               value={row.key}
               onChange={(event) => update(index, { key: event.target.value })}
             />
             <Input
-              aria-label={`Field ${index + 1} value`}
+              aria-label={t("Field {number} value", { number: index + 1 })}
               value={row.value}
               onChange={(event) => update(index, { value: event.target.value })}
             />
             <Button
-              aria-label={`Remove field ${index + 1}`}
+              aria-label={t("Remove field {number}", { number: index + 1 })}
               onClick={() => setRows((current) => current.filter((_, at) => at !== index))}
             >
-              Remove
+              {t("Remove")}
             </Button>
           </div>
         ))}
-        <Button onClick={() => setRows((current) => [...current, { key: "", value: "" }])}>Add a field</Button>
-        {duplicated ? <Alert tone="error">The field “{duplicated}” is named twice.</Alert> : null}
+        <Button onClick={() => setRows((current) => [...current, { key: "", value: "" }])}>{t("Add a field")}</Button>
+        {duplicated ? <Alert tone="error">{t("The field “{duplicated}” is named twice.", { duplicated })}</Alert> : null}
       </fieldset>
 
       {record.evidence.length > 0 ? (
         <div className="text-sm">
-          <p className="font-medium">Evidence, kept with the new revision</p>
+          <p className="font-medium">{t("Evidence, kept with the new revision")}</p>
           <ul className="text-xs">
             {record.evidence.map((reference) => (
               <li key={reference.evidenceObjectId}>{reference.description}</li>
@@ -443,9 +459,9 @@ function ReviseForm({
 
       <div className="flex gap-2">
         <Button type="submit" variant="primary" disabled={revise.isPending || Boolean(duplicated)}>
-          Save as a new revision
+          {t("Save as a new revision")}
         </Button>
-        <Button onClick={onDone}>Cancel</Button>
+        <Button onClick={onDone}>{t("Cancel")}</Button>
       </div>
 
       {revise.isError ? <Failure error={revise.error} /> : null}
@@ -465,15 +481,13 @@ function Submit({ scope, recordId, revision }: { scope: Scope; recordId: string;
   });
 
   return (
-    <Panel title="Submit for approval">
+    <Panel title={t("Submit for approval")}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
-          Revision {revision.number} is a draft, and nobody is asked to review a draft. Submitting it
-          puts it in the review queue, where a reviewer approves this exact content or sends it back.
-          Submitting publishes nothing.
+          {t("Revision {number} is a draft, and nobody is asked to review a draft. Submitting it puts it in the review queue, where a reviewer approves this exact content or sends it back. Submitting publishes nothing.", { number: revision.number })}
         </p>
         <Button variant="primary" disabled={submit.isPending} onClick={() => submit.mutate()}>
-          Submit for approval
+          {t("Submit for approval")}
         </Button>
         {submit.isError ? <Failure error={submit.error} /> : null}
       </div>
@@ -502,11 +516,12 @@ function Approval({ scope, recordId, revision }: { scope: Scope; recordId: strin
   });
 
   return (
-    <Panel title="Approve or send back">
+    <Panel title={t("Approve or send back")}>
       <div className="space-y-4">
         <Alert>
-          You are approving <strong>revision {revision.number}</strong>, and nothing else. The
-          approval binds to this exact content:
+          {tr("You are approving {revision}, and nothing else. The approval binds to this exact content:", {
+            revision: <strong>{t("revision {number}", { number: revision.number })}</strong>,
+          })}
           <span className="mt-1 block">
             <Hash value={revision.contentHash} />
           </span>
@@ -514,7 +529,7 @@ function Approval({ scope, recordId, revision }: { scope: Scope; recordId: strin
 
         <div className="flex gap-2">
           <Button variant="primary" disabled={approve.isPending} onClick={() => approve.mutate()}>
-            Approve revision {revision.number}
+            {t("Approve revision {number}", { number: revision.number })}
           </Button>
         </div>
 
@@ -527,7 +542,7 @@ function Approval({ scope, recordId, revision }: { scope: Scope; recordId: strin
             correct.mutate();
           }}
         >
-          <Field label="Or send it back" hint="The reason is kept on the record and shown to whoever revises it.">
+          <Field label={t("Or send it back")} hint={t("The reason is kept on the record and shown to whoever revises it.")}>
             <TextArea
               required
               rows={2}
@@ -537,7 +552,7 @@ function Approval({ scope, recordId, revision }: { scope: Scope; recordId: strin
           </Field>
 
           <Button type="submit" disabled={correct.isPending}>
-            Request a correction
+            {t("Request a correction")}
           </Button>
 
           {correct.isError ? <Failure error={correct.error} /> : null}
@@ -556,14 +571,13 @@ function Publish({ scope, recordId }: { scope: Scope; recordId: string }) {
   });
 
   return (
-    <Panel title="Publish">
+    <Panel title={t("Publish")}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
-          Publishing makes the approved revision the one readers see. An approval that no longer
-          covers the current content is refused.
+          {t("Publishing makes the approved revision the one readers see. An approval that no longer covers the current content is refused.")}
         </p>
         <Button variant="primary" disabled={publish.isPending} onClick={() => publish.mutate()}>
-          Publish
+          {t("Publish")}
         </Button>
         {publish.isError ? <Failure error={publish.error} /> : null}
       </div>
@@ -589,7 +603,7 @@ function MarkAiGenerated({ scope, recordId }: { scope: Scope; recordId: string }
   });
 
   return (
-    <Panel title="Record as written by AI">
+    <Panel title={t("Record as written by AI")}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -598,15 +612,13 @@ function MarkAiGenerated({ scope, recordId }: { scope: Scope; recordId: string }
         }}
       >
         <p className="text-sm text-[var(--color-muted)]">
-          For a record an assistant wrote that was stored as a person&apos;s work. Every revision is
-          marked, with your name and this reason beside it. The mark cannot be removed. The content
-          and its approval are not changed.
+          {t("For a record an assistant wrote that was stored as a person's work. Every revision is marked, with your name and this reason beside it. The mark cannot be removed. The content and its approval are not changed.")}
         </p>
-        <Field label="How do you know an AI wrote it?">
+        <Field label={t("How do you know an AI wrote it?")}>
           <Input required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
         </Field>
         <Button variant="danger" type="submit" disabled={mark.isPending || reason.trim() === ""}>
-          Mark as written by AI
+          {t("Mark as written by AI")}
         </Button>
         {mark.isError ? <Failure error={mark.error} /> : null}
       </form>
@@ -629,22 +641,21 @@ function Archive({ scope, recordId }: { scope: Scope; recordId: string }) {
   // Confirmed rather than one click, because nothing reverses it: an archived record refuses
   // every further change, and no operation takes it out of that state.
   return (
-    <Panel title="Archive">
+    <Panel title={t("Archive")}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
-          Archiving takes this record out of use. An archived record cannot be revised, approved, or
-          published again, and there is no way to bring it back. Its history stays readable.
+          {t("Archiving takes this record out of use. An archived record cannot be revised, approved, or published again, and there is no way to bring it back. Its history stays readable.")}
         </p>
         {armed ? (
           <div className="flex gap-2">
             <Button variant="danger" disabled={archive.isPending} onClick={() => archive.mutate()}>
-              Archive for good
+              {t("Archive for good")}
             </Button>
-            <Button onClick={() => setArmed(false)}>Cancel</Button>
+            <Button onClick={() => setArmed(false)}>{t("Cancel")}</Button>
           </div>
         ) : (
           <Button variant="danger" onClick={() => setArmed(true)}>
-            Archive
+            {t("Archive")}
           </Button>
         )}
         {archive.isError ? <Failure error={archive.error} /> : null}

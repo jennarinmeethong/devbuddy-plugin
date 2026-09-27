@@ -31,5 +31,8 @@ export default defineConfig({
 
   // No source maps: these files are served by the API to anybody who reaches the sign-in page, and
   // a map is the whole client in readable form. Turn them back on locally when debugging a build.
-  build: { outDir: "dist", sourcemap: false },
+  //
+  // Nothing is inlined as a `data:` URL either. The content security policy allows fonts and images
+  // from 'self' only, so an inlined font would be refused by the browser.
+  build: { outDir: "dist", sourcemap: false, assetsInlineLimit: 0 },
 });

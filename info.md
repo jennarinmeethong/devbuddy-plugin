@@ -1,5 +1,26 @@
 # Project Decisions
 
+## Confirmed Ocean Mist Light, a Sidebar, Thai and English, and Cutting v1.10.0 — 2026-09-27
+
+The owner asked for the web client to take the sidebar and the *Ocean Mist Light* theme from the
+`demo/` mock-up, for the whole client. After seeing it, the owner asked for four more things: the
+screens switch between languages, tables scroll, a font for Thai and Roboto for English, and the
+whole of it made to pass the security baseline. Then the owner asked for it to be run and
+released: "รันแล้ว release ได้เลย". *14.11* in `docs/plan-phase-14.md` says what the release
+carries.
+
+- **One theme, no picker.** The demo's other seven themes are not carried over.
+- **Thai and English**, English as the key and Thai from `web/admin/src/i18n/th.ts`. The client
+  follows the browser's language until somebody chooses, and remembers the choice in that browser.
+  What the server writes, a refusal included, is not translated (`Failure`). Thai dates show the
+  Buddhist year.
+- **Roboto for Latin and Sarabun for Thai**, both OFL-1.1 from Fontsource and bundled into the
+  image, because the content security policy allows `font-src 'self'` only. The demo's TH Sarabun
+  files were not used: their licence is not recorded anywhere here, and Sarabun is the open font
+  of the same design family.
+- **The policy is unchanged.** Nothing was loosened to fit this: no inline style, no font host,
+  and Vite never inlines an asset as a `data:` URL.
+
 ## Confirmed Preparing v1.9.0 — 2026-09-27
 
 *(Published the same day at 06:29 UTC from `59b7dae`, at the owner's instruction "tag v1.9.0 and

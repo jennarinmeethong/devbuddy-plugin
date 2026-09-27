@@ -6,17 +6,18 @@ import type { ListRecordsArguments } from "../api/operations";
 import { Badge, Empty, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
+import { m, t } from "../i18n";
 
 type Status = NonNullable<ListRecordsArguments["statuses"]>[number];
 
 const STATUSES: Status[] = ["Draft", "PendingApproval", "Approved", "Published", "Archived"];
 
 const STATUS_LABELS: Record<Status, string> = {
-  Draft: "Draft",
-  PendingApproval: "Waiting for approval",
-  Approved: "Approved",
-  Published: "Published",
-  Archived: "Archived",
+  Draft: m("Draft"),
+  PendingApproval: m("Waiting for approval"),
+  Approved: m("Approved"),
+  Published: m("Published"),
+  Archived: m("Archived"),
 };
 
 /**
@@ -44,24 +45,24 @@ export function Records() {
 
   return (
     <>
-      <ProjectNav title="Knowledge records" />
+      <ProjectNav title={t("Knowledge records")} />
       <p className="text-sm text-[var(--color-muted)]">
-        A new draft is written from its work item, because every record belongs to one.
+        {t("A new draft is written from its work item, because every record belongs to one.")}
       </p>
 
       <Panel
-        title="Records"
+        title={t("Records")}
         actions={
           <div className="w-56">
             <Select
-              aria-label="Status"
+              aria-label={t("Status")}
               value={status}
               onChange={(event) => setStatus(event.target.value as Status | "All")}
             >
-              <option value="All">Every status</option>
+              <option value="All">{t("Every status")}</option>
               {STATUSES.map((option) => (
                 <option key={option} value={option}>
-                  {STATUS_LABELS[option]}
+                  {t(STATUS_LABELS[option])}
                 </option>
               ))}
             </Select>
@@ -69,17 +70,17 @@ export function Records() {
         }
       >
         {records.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : records.isError ? (
           <Failure error={records.error} />
         ) : records.data.records.length === 0 ? (
           <Empty>
             {status === "PendingApproval"
-              ? "Nothing is waiting for approval."
-              : "No records match that filter."}
+              ? t("Nothing is waiting for approval.")
+              : t("No records match that filter.")}
           </Empty>
         ) : (
-          <Table head={["Title", "Kind", "Status", "Revision", "Updated"]}>
+          <Table head={[t("Title"), t("Kind"), t("Status"), t("Revision"), t("Updated")]}>
             {records.data.records.map((record) => (
               <tr key={record.recordId} className="border-b border-[var(--color-line)] last:border-0">
                 <td className="px-2 py-2">
@@ -90,9 +91,9 @@ export function Records() {
                 <td className="px-2 py-2 text-xs text-[var(--color-muted)]">{record.kind}</td>
                 <td className="px-2 py-2">
                   {record.status === "Published" ? (
-                    <Badge tone="live">Published</Badge>
+                    <Badge tone="live">{t("Published")}</Badge>
                   ) : (
-                    <Badge>{STATUS_LABELS[record.status]}</Badge>
+                    <Badge>{t(STATUS_LABELS[record.status])}</Badge>
                   )}
                 </td>
                 <td className="px-2 py-2 text-xs">
@@ -103,9 +104,9 @@ export function Records() {
                     undefined at every reader of an unpublished record.
                   */}
                   {record.publishedRevisionNumber == null
-                    ? " (nothing published)"
+                    ? " " + t("(nothing published)")
                     : record.publishedRevisionNumber !== record.currentRevisionNumber
-                      ? ` (published: ${record.publishedRevisionNumber})`
+                      ? " " + t("(published: {revision})", { revision: record.publishedRevisionNumber })
                       : ""}
                 </td>
                 <td className="px-2 py-2 text-xs">

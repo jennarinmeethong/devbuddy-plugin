@@ -1,6 +1,8 @@
 import { Navigate, Link } from "react-router-dom";
 import { useSession } from "../api/session";
-import { Alert, Button, Panel } from "../components/ui";
+import { Alert, BrandMark, Button, Panel } from "../components/ui";
+import { LanguageSwitch } from "../components/LanguageSwitch";
+import { t } from "../i18n";
 
 /**
  * The workspace picker.
@@ -20,17 +22,22 @@ export function Workspaces() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-8">
+    <div className="mx-auto max-w-2xl space-y-6 px-5 py-16">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Workspaces</h1>
-        <Button onClick={() => void end()}>Sign out</Button>
+        <div className="flex items-center gap-3">
+          <BrandMark />
+          <h1 className="text-2xl font-bold">{t("Workspaces")}</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitch />
+          <Button onClick={() => void end()}>{t("Sign out")}</Button>
+        </div>
       </div>
 
-      <Panel title="Where you have access">
+      <Panel title={t("Where you have access")}>
         {distinct.length === 0 ? (
           <Alert>
-            Your account is not a member of any workspace. An administrator has to grant you one;
-            there is nothing you can do from here.
+            {t("Your account is not a member of any workspace. An administrator has to grant you one; there is nothing you can do from here.")}
           </Alert>
         ) : (
           <ul className="divide-y divide-[var(--color-line)]">

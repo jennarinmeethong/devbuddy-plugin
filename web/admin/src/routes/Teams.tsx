@@ -6,6 +6,8 @@ import { useWorkspace } from "../api/session";
 import { refetchAfterWrite } from "../api/queries";
 import { Alert, Button, Empty, Field, Input, Panel, Select, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
+import { t } from "../i18n";
+import { roleLabel } from "../components/labels";
 
 /**
  * Team administration: who is grouped with whom inside this workspace.
@@ -37,15 +39,15 @@ export function Teams() {
 
   return (
     <>
-      <Panel title={`Teams in ${access?.name ?? "this workspace"}`}>
+      <Panel title={access ? t("Teams in {name}", { name: access.name }) : t("Teams in this workspace")}>
         {teams.isPending ? (
-          <Empty>Loading…</Empty>
+          <Empty>{t("Loading…")}</Empty>
         ) : teams.isError ? (
           <Failure error={teams.error} />
         ) : teams.data.teams.length === 0 ? (
-          <Empty>No teams yet. Create one below.</Empty>
+          <Empty>{t("No teams yet. Create one below.")}</Empty>
         ) : (
-          <Table head={["Team", "Members", ""]}>
+          <Table head={[t("Team"), t("Members"), ""]}>
             {teams.data.teams.map((team) => (
               <TeamRow
                 key={team.teamId}
@@ -60,12 +62,11 @@ export function Teams() {
         )}
 
         <p className="mt-3 text-xs text-[var(--color-muted)]">
-          A team is a grouping and nothing more. It carries no role and no permission — membership
-          decides what anybody may do, whether or not they are on a team.
+          {t("A team is a grouping and nothing more. It carries no role and no permission — membership decides what anybody may do, whether or not they are on a team.")}
         </p>
       </Panel>
 
-      <Panel title="New team">
+      <Panel title={t("New team")}>
         <form
           className="flex items-end gap-3"
           onSubmit={(event) => {
@@ -74,17 +75,17 @@ export function Teams() {
           }}
         >
           <div className="flex-1">
-            <Field label="Name">
+            <Field label={t("Name")}>
               <Input
                 required
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Platform"
+                placeholder={t("Platform")}
               />
             </Field>
           </div>
           <Button type="submit" variant="primary" disabled={create.isPending}>
-            Create
+            {t("Create")}
           </Button>
         </form>
 
@@ -148,12 +149,12 @@ function TeamRow({
             >
               <Input
                 required
-                aria-label={`New name for ${name}`}
+                aria-label={t("New name for {name}", { name })}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
               />
               <Button type="submit" variant="primary" disabled={rename.isPending}>
-                Save
+                {t("Save")}
               </Button>
               <Button
                 onClick={() => {
@@ -161,7 +162,7 @@ function TeamRow({
                   setDraft(name);
                 }}
               >
-                Cancel
+                {t("Cancel")}
               </Button>
             </form>
           ) : (
@@ -172,24 +173,24 @@ function TeamRow({
         </td>
 
         <td className="px-2 py-2 text-xs text-[var(--color-muted)]">
-          {open ? "Members shown below" : ""}
+          {open ? t("Members shown below") : ""}
         </td>
 
         <td className="px-2 py-2 text-right">
           {confirming ? (
             <span className="inline-flex items-center gap-2">
-              <span className="text-xs text-[var(--color-muted)]">Delete this team?</span>
+              <span className="text-xs text-[var(--color-muted)]">{t("Delete this team?")}</span>
               <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
-                Confirm
+                {t("Confirm")}
               </Button>
-              <Button onClick={() => setConfirming(false)}>Cancel</Button>
+              <Button onClick={() => setConfirming(false)}>{t("Cancel")}</Button>
             </span>
           ) : renaming ? null : (
             <span className="inline-flex items-center gap-2">
-              <Button onClick={onToggle}>{open ? "Hide members" : "Members"}</Button>
-              <Button onClick={() => setRenaming(true)}>Rename</Button>
+              <Button onClick={onToggle}>{open ? t("Hide members") : t("Members")}</Button>
+              <Button onClick={() => setRenaming(true)}>{t("Rename")}</Button>
               <Button variant="danger" onClick={() => setConfirming(true)}>
-                Delete
+                {t("Delete")}
               </Button>
             </span>
           )}
@@ -206,7 +207,7 @@ function TeamRow({
 
       {open ? (
         <tr>
-          <td colSpan={3} className="bg-neutral-50 px-2 py-3">
+          <td colSpan={3} className="bg-[var(--color-soft)] px-2 py-3">
             <TeamMembers workspaceId={workspaceId} teamId={teamId} teamName={name} />
           </td>
         </tr>
@@ -266,14 +267,14 @@ function TeamMembers({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium">Members of {teamName}</h3>
+      <h3 className="text-sm font-medium">{t("Members of {teamName}", { teamName })}</h3>
 
       {members.isPending ? (
-        <Empty>Loading…</Empty>
+        <Empty>{t("Loading…")}</Empty>
       ) : members.isError ? (
         <Failure error={members.error} />
       ) : members.data.members.length === 0 ? (
-        <Empty>Nobody is on this team yet.</Empty>
+        <Empty>{t("Nobody is on this team yet.")}</Empty>
       ) : (
         <ul className="divide-y divide-[var(--color-line)] border-y border-[var(--color-line)]">
           {members.data.members.map((member) => (
@@ -284,7 +285,7 @@ function TeamMembers({
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(member.userId)}
               >
-                Remove
+                {t("Remove")}
               </Button>
             </li>
           ))}
@@ -299,24 +300,24 @@ function TeamMembers({
         }}
       >
         <div className="flex-1">
-          <Field label="Add somebody">
+          <Field label={t("Add somebody")}>
             <Select
               required
-              aria-label={`Add somebody to ${teamName}`}
+              aria-label={t("Add somebody to {team}", { team: teamName })}
               value={userId}
               onChange={(event) => setUserId(event.target.value)}
             >
-              <option value="">Choose a member of this workspace…</option>
+              <option value="">{t("Choose a member of this workspace…")}</option>
               {candidates.map((membership) => (
                 <option key={membership.userId} value={membership.userId}>
-                  {membership.userId} ({membership.role})
+                  {membership.userId} ({t(roleLabel(membership.role))})
                 </option>
               ))}
             </Select>
           </Field>
         </div>
         <Button type="submit" variant="primary" disabled={add.isPending || userId === ""}>
-          Add
+          {t("Add")}
         </Button>
       </form>
 
@@ -326,8 +327,7 @@ function TeamMembers({
         <Failure error={memberships.error} />
       ) : candidates.length === 0 && !memberships.isPending ? (
         <Alert>
-          Everybody with a grant on this workspace is already on this team. Somebody has to have an
-          account and a membership before they can join one.
+          {t("Everybody with a grant on this workspace is already on this team. Somebody has to have an account and a membership before they can join one.")}
         </Alert>
       ) : null}
 
