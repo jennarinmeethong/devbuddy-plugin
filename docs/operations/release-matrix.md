@@ -219,6 +219,37 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.9.0
+
+**Checked on 2026-09-27 before the tag.** The owner asked for the release to be prepared
+(`info.md`), and *14.10* in `docs/plan-phase-14.md` says what it carries: SeaweedFS in place of
+MinIO (ADR-0014) with its guards, `restore --evidence-only`, and the web client's upgraded
+dependencies. **Parts 1 and 3 ran at `38aee24`. Part 2 ran at `59b7dae`.** The two commits differ
+only in `tools/release/stack-drill-tokens.sh`: the new check's first run stopped on a variable local
+to the drill, and every check before it had passed. The product is the same at both.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran 1005 tests with none failed. The web build and suite passed, and `dotnet format` found nothing. The `linux-x64` publish passed, and no tracked file changed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **115 passed, 0 failed**, on the rerun at `59b7dae`. That covers Compose from clean, the drill with both volumes destroyed, every earlier release's check, and the new `seaweedfs_guards`: an unsigned request to the store got 403, the API never logged `EvidenceStoreUnsafe`, and `restore --evidence-only` over a fresh backup restored 2 of 2 objects and changed no row. |
+| Part 3, `upgrade.sh` from `v1.8.0` | devrelease, amd64 | **47 passed, 0 failed.** It ran `v1.8.0`'s published images with MinIO, took a backup, upgraded to SeaweedFS on a new volume, then ran `restore --evidence-only`: "Restored the bytes of 1 of 1 evidence objects. No row was changed." Evidence from `v1.8.0` downloaded byte-identical. The access token from before still answered 200, because the rows stayed. The stdio session open across the upgrade was listed as stale and then went away. |
+| Part 3, `upgrade.sh` from `v1.8.0` | Ubuntu arm64 guest | **47 passed, 0 failed**, with the same restore line and the same evidence and token results. The guest's disk had grown to 70 GB (the owner, the same day), which is what let it build the SeaweedFS image natively. |
+
+**`v1.9.0-rc.1` proved `release.yml` with its actions pinned by commit.** Tagged at `38aee24`, run
+36297825111. All 13 jobs passed. It was checked from outside the workflow:
+- the draft carried 11 assets and was marked prerelease;
+- each image's provenance verified against `refs/tags/v1.9.0-rc.1` and `38aee24`, and a wrong
+  `--owner` was refused;
+- the SBOM attestations verified, with 36, 38 and 56 components;
+- all three images are published for `linux/amd64` and `linux/arm64`;
+- no `1.9` tag exists, and `1.8` still resolves to `1.8.0`'s digest for all three.
+
+The rc tag and its draft are deleted. Its GHCR image versions are left, unless the owner says
+otherwise. None of this is the `v1.9.0` checklist, which is the table above.
+
+**Not yet run: everything after the tag.** That is `post-images.sh` on devrelease and on arm64,
+`smoke.sh` per archive, and `client-smoke.ps1` for `win-arm64` and `win-x64`.
+
 ## What was verified for v1.8.0
 
 **Checked on 2026-09-26 before the tag**, against `2317ac4`, the commit tagged. The owner asked for
