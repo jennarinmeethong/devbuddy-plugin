@@ -565,6 +565,27 @@ UTC, and the devbox runs the tag.
   follow the browser's language and a switch at the top changes it; and nothing about the policy,
   the API or the AI surface changed.
 
+## 14.12 — Cutting v1.10.1
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-27).
+
+- **What it carries since `v1.10.0`:**
+  - Thai set in **Leelawadee UI** where the device has it, Sarabun where not;
+  - Dependabot's updates: the NuGet group within majors, `Serilog.Extensions.Hosting` 10,
+    `Microsoft.NET.Test.Sdk` 18 and `coverlet.collector` 10 (tests only), the web client's Bun
+    group with React 19.3 and TypeScript 7, and **Go 1.27.1 for the evidence store's build**;
+  - A2's jobs in `release.yml`, so **this is A2's first real run**: the draft should gain a
+    *Runner smoke results* section.
+- **A patch version.** No migration, so the count stays at nine. Nobody signs in again. The
+  content security policy is unchanged. The evidence image is rebuilt with the new Go, from the
+  same SeaweedFS commit. The Claude plugin moves to 1.10.1 with its content unchanged.
+- **The checklist runs from `tools/release/` at the release commit**, with no new check: on
+  devrelease `setup-and-suite.sh`, `stack-drill-tokens.sh` and `upgrade.sh` from `v1.10.0`; on
+  arm64 `upgrade.sh` in the Ubuntu guest. After the tag the runners do the smoke rows B4 accepts;
+  `post-images.sh` and the x64 smoke rows still run by hand as well.
+- **Its release notes must say:** the upgrade is `up -d` alone, after pulling the images and
+  rebuilding the evidence store; Thai uses Leelawadee UI on Windows and Sarabun elsewhere; and
+  nothing about the policy, the API or the AI surface changed.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
