@@ -189,31 +189,51 @@ public sealed partial class DeploymentTests
     public void the_object_store_has_a_key_to_encrypt_with()
     {
         // EvidenceStoreOptions.UseServerSideEncryption defaults to true, so the application asks
-        // for AES256 on every object it stores, and MinIO refuses that write outright when it has
-        // no key: "Server side encryption specified but KMS is not configured".
-        //
-        // The shipped stack ran without one. Nobody noticed for nine phases because there was no
-        // way to upload evidence at all; the first attempt after capture_evidence shipped failed
-        // with a 500. The unit tests could not have caught it — they turn encryption off for their
-        // own container and say so — so the check belongs here, against the file that was wrong.
+        // for AES256 on every object it stores, and the store refuses that write when it has no
+        // key. The shipped stack once ran MinIO without one, and every evidence upload failed with
+        // a 500 until the first person tried. SeaweedFS behaves the same way (ADR-0014), so the
+        // key stays required, and required means Compose refuses to start without it.
         string[] block = BlockFor(ComposeLines(), "evidence:");
 
-        Assert.Contains(
+        string kek = Assert.Single(
             block,
-            line => line.TrimStart().StartsWith("MINIO_KMS_SECRET_KEY:", StringComparison.Ordinal));
+            line => line.TrimStart().StartsWith("WEED_S3_SSE_KEK:", StringComparison.Ordinal));
+        Assert.Matches(RequiredVariable(), kek);
     }
 
     /// <summary>
-    /// The object store is built from MinIO's source, pinned by commit, on a build image pinned by
-    /// digest, and it is the image the tests start.
+    /// SeaweedFS with no credentials allows all access, anonymous included (ADR-0014, point 2): a
+    /// Compose file that let either credential fall back to empty would ship an evidence store that
+    /// serves everything to anyone. Both must be required, and the health check must be the probe
+    /// that fails when an unsigned request is answered.
+    /// </summary>
+    [Fact]
+    public void the_object_store_cannot_start_without_credentials_and_proves_it_refuses_the_unsigned()
+    {
+        string[] block = BlockFor(ComposeLines(), "evidence:");
+
+        foreach (string name in (string[])["AWS_ACCESS_KEY_ID:", "AWS_SECRET_ACCESS_KEY:"])
+        {
+            string line = Assert.Single(
+                block, candidate => candidate.TrimStart().StartsWith(name, StringComparison.Ordinal));
+            Assert.Matches(RequiredVariable(), line);
+        }
+
+        Assert.Contains(block, line => line.Contains("[\"CMD\", \"healthprobe\"]", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The object store is built from source, pinned by commit, on a build image pinned by digest,
+    /// and it is the image the tests start.
     /// <para>
     /// Two registries stopped serving MinIO: Docker Hub by 2026-09-13, and quay.io, without a login,
     /// on 2026-09-24. Each time every fresh install failed to build its evidence store and every CI
-    /// run failed on the MinIO tests, while a machine with a cached copy carried on as if nothing had
-    /// happened. Since 2026-09-25 (<c>info.md</c>) nothing of MinIO's comes from a registry. A tag
-    /// could be moved by whoever controls it, so the source is fetched by commit. The runtime stage
-    /// is <c>scratch</c>, so the image holds nothing to execute but MinIO and <c>mc</c>. The fixture
-    /// builds this same Dockerfile, so the image tested is the image shipped.
+    /// run failed on the store's tests, while a machine with a cached copy carried on as if nothing
+    /// had happened. Since 2026-09-25 (<c>info.md</c>) the store is built from source, and since
+    /// ADR-0014 that source is SeaweedFS. A tag could be moved by whoever controls it, so the source
+    /// is fetched by commit. The runtime stage is <c>scratch</c>, so the image holds nothing to
+    /// execute but <c>weed</c> and its health probe. The fixture builds this same Dockerfile, so the
+    /// image tested is the image shipped.
     /// </para>
     /// </summary>
     [Fact]
@@ -234,9 +254,8 @@ public sealed partial class DeploymentTests
         string text = string.Join(
             '\n', dockerfile.Where(line => !line.TrimStart().StartsWith('#')));
 
-        Assert.Matches(MinioFetchedByCommit(), text);
-        Assert.Matches(McFetchedByCommit(), text);
-        Assert.DoesNotMatch(RegistryMinio(), text);
+        Assert.Matches(SeaweedFsFetchedByCommit(), text);
+        Assert.DoesNotMatch(RegistryStore(), text);
 
         Assert.DoesNotContain(
             BlockFor(ComposeLines(), "evidence:"),
@@ -247,7 +266,7 @@ public sealed partial class DeploymentTests
 
         Assert.Contains("ImageFromDockerfileBuilder", fixture, StringComparison.Ordinal);
         Assert.Contains("\"docker\", \"evidence\"", fixture, StringComparison.Ordinal);
-        Assert.DoesNotMatch(RegistryMinio(), fixture);
+        Assert.DoesNotMatch(RegistryStore(), fixture);
     }
 
     /// <summary>
@@ -300,8 +319,9 @@ public sealed partial class DeploymentTests
 
     /// <summary>
     /// The object store is confined the way the application containers are, and keeps its data at
-    /// the path its image makes writable. A volume mounted back at <c>/data</c> would be owned by
-    /// root on a fresh install and fail as "drive may be faulty".
+    /// the path its image makes writable, on a volume of its own. Its command is the image's, and
+    /// its tmpfs belongs to the account it runs as: SeaweedFS keeps its sockets there, and a
+    /// root-owned tmpfs stops it with "permission denied".
     /// </summary>
     [Fact]
     public void the_object_store_is_confined_like_the_application_containers()
@@ -311,8 +331,9 @@ public sealed partial class DeploymentTests
         Assert.Contains("read_only: true", block);
         Assert.Contains("- no-new-privileges:true", block);
         Assert.Contains("- ALL", block);
-        Assert.Contains("command: server /srv/evidence", block);
-        Assert.Contains("- evidence:/srv/evidence", block);
+        Assert.DoesNotContain(block, line => line.StartsWith("command:", StringComparison.Ordinal));
+        Assert.Contains("- /tmp:uid=1000,gid=1000,mode=0700", block);
+        Assert.Contains("- evidence_seaweedfs:/srv/evidence", block);
     }
 
     /// <summary>The top-level service names, in file order.</summary>
@@ -756,17 +777,16 @@ public sealed partial class DeploymentTests
     [GeneratedRegex(@"^FROM \S+@sha256:[0-9a-f]{64}( AS \S+)?$")]
     private static partial Regex PinnedFrom();
 
-    /// <summary>A registry's MinIO image, which is what the evidence store no longer depends on.</summary>
-    [GeneratedRegex(@"(quay\.io/minio/|(^|[\s""])minio/minio[:@\s""])", RegexOptions.Multiline)]
-    private static partial Regex RegistryMinio();
+    /// <summary>
+    /// A registry's object-store image, MinIO's or SeaweedFS's: the evidence store depends on no
+    /// registry for its own code.
+    /// </summary>
+    [GeneratedRegex(@"(quay\.io/minio/|(^|[\s""])minio/minio[:@\s""]|chrislusf/seaweedfs|(^|[\s""])seaweedfs/seaweedfs[:@])", RegexOptions.Multiline)]
+    private static partial Regex RegistryStore();
 
-    /// <summary>A git fetch of MinIO's server, by a full commit identifier.</summary>
-    [GeneratedRegex(@"git fetch [^\n]*https://github\.com/minio/minio\.git [0-9a-f]{40}\b")]
-    private static partial Regex MinioFetchedByCommit();
-
-    /// <summary>A git fetch of MinIO's client, by a full commit identifier.</summary>
-    [GeneratedRegex(@"git fetch [^\n]*https://github\.com/minio/mc\.git [0-9a-f]{40}\b")]
-    private static partial Regex McFetchedByCommit();
+    /// <summary>A git fetch of SeaweedFS, by a full commit identifier.</summary>
+    [GeneratedRegex(@"git fetch [^\n]*https://github\.com/seaweedfs/seaweedfs\.git [0-9a-f]{40}\b")]
+    private static partial Regex SeaweedFsFetchedByCommit();
 
     /// <summary>A variable Compose refuses to start without: <c>${NAME:?message}</c>.</summary>
     [GeneratedRegex(@"\$\{(?<name>[A-Z0-9_]+):\?")]

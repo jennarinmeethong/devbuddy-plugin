@@ -84,7 +84,7 @@ services_not_root() {
     expect "$s read-only" "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$P-$s-1")" true
     expect "$s capabilities dropped" "$(docker inspect -f '{{.HostConfig.CapDrop}}' "$P-$s-1")" '\[ALL\]'
   done
-  expect "evidence volume owner" "$(docker run --rm -v "${P}_evidence:/v:ro" alpine:3 stat -c '%u:%g' /v)" 1000:1000
+  expect "evidence volume owner" "$(docker run --rm -v "${P}_evidence_seaweedfs:/v:ro" alpine:3 stat -c '%u:%g' /v)" 1000:1000
   expect "log volume owner" "$(docker run --rm -v "${P}_logs:/v:ro" alpine:3 stat -c '%u:%g' /v)" 1654:1654
 }
 
@@ -185,8 +185,8 @@ drill() {
   note "=== drill: disaster"
   "${C[@]}" stop api mcp retention >> "$ERR" 2>&1
   "${C[@]}" down >> "$ERR" 2>&1
-  docker volume rm "${P}_database" "${P}_evidence" >> "$ERR" 2>&1
-  expect "database and evidence volumes left" "$(docker volume ls -q | grep -cE "^${P}_(database|evidence)$")" 0
+  docker volume rm "${P}_database" "${P}_evidence_seaweedfs" >> "$ERR" 2>&1
+  expect "database and evidence volumes left" "$(docker volume ls -q | grep -cE "^${P}_(database|evidence_seaweedfs)$")" 0
 
   note "=== drill: restore"
   "${C[@]}" up -d database evidence >> "$ERR" 2>&1
@@ -199,7 +199,7 @@ drill() {
   wait_healthy "$P-api-1"
   expect "api after restore" "$(docker inspect -f '{{.State.Health.Status}}' "$P-api-1")" healthy
   expect "evidence store after restore, uid" "$(uid_of "$P-evidence-1")" 1000
-  expect "recreated evidence volume owner" "$(docker run --rm -v "${P}_evidence:/e:ro" alpine:3 stat -c '%u:%g' /e)" 1000:1000
+  expect "recreated evidence volume owner" "$(docker run --rm -v "${P}_evidence_seaweedfs:/e:ro" alpine:3 stat -c '%u:%g' /e)" 1000:1000
 
   note "=== drill: after"
   expect "project deleted after the backup, rows after restore" \
@@ -381,11 +381,12 @@ evidence_built_from_source() {
   local image
   image=$(docker inspect -f '{{.Config.Image}}' "$P-evidence-1")
   note "evidence image: $image $(docker image inspect -f '{{.Id}}' "$image" | cut -c1-19)"
-  expect "  minio reports the pinned release" "$(docker run --rm "$image" --version 2>&1 | grep -c 'RELEASE.2025-10-15T17-29-55Z')" "[1-9][0-9]*"
-  expect "  mc reports the pinned release" "$(docker run --rm --entrypoint mc "$image" --version 2>&1 | grep -c 'RELEASE.2025-08-13T08-35-41Z')" "[1-9][0-9]*"
+  # SeaweedFS since ADR-0014 (info.md, 2026-09-27); MinIO and mc before it.
+  expect "  weed reports the pinned release" "$(docker run --rm "$image" version 2>&1 | grep -c ' 4\.47 ')" "[1-9][0-9]*"
+  expect "  the health probe passes on the running store" "$(docker exec "$P-evidence-1" healthprobe 2>&1)" ok
   docker run --rm --entrypoint sh "$image" -c true > /dev/null 2>&1
   expect "  there is no shell to run" "$([ $? -ne 0 ] && echo refused || echo ran)" refused
-  expect "  it holds two binaries and nothing else in /usr/bin" "$(docker create "$image" > "$D/evidence-cid" && docker export "$(cat "$D/evidence-cid")" | tar -t | grep -E '^usr/bin/.' | sort | tr '\n' ' '; docker rm "$(cat "$D/evidence-cid")" > /dev/null)" "usr/bin/mc usr/bin/minio "
+  expect "  it holds two binaries and nothing else in /usr/bin" "$(docker create "$image" > "$D/evidence-cid" && docker export "$(cat "$D/evidence-cid")" | tar -t | grep -E '^usr/bin/.' | sort | tr '\n' ' '; docker rm "$(cat "$D/evidence-cid")" > /dev/null)" "usr/bin/healthprobe usr/bin/weed "
 }
 
 # v1.8.0 (Phase 14, C4): a NUL in text is refused before PostgreSQL sees it, and every answer

@@ -1,71 +1,59 @@
-# The evidence store: MinIO, built here from its source, and run as a non-root account.
+# The evidence store: SeaweedFS, built here from its source, and run as a non-root account.
 #
-# Built from source since 2026-09-25 (info.md). Docker Hub stopped serving minio/minio by
-# 2026-09-13, and quay.io stopped serving it without a login on 2026-09-24. Both times, every clean
-# install and every CI run failed, while machines with a cached copy carried on as if nothing had
-# happened. MinIO's source is public, so building it needs no registry of MinIO's.
+# SeaweedFS since ADR-0014 (info.md, 2026-09-27). MinIO before it was archived upstream, and
+# Trivy's image scan failed its last releases on findings nothing upstream would ever clear.
+# `docs/adr/0014-seaweedfs-evidence-store.md` has the spike and its verification on amd64 and arm64.
 #
-# The last releases either project published, fetched by commit rather than by tag, so no one can
-# move what is built: MinIO RELEASE.2025-10-15T17-29-55Z, which fixes CVE-2025-62506, and mc
-# RELEASE.2025-08-13T08-35-41Z. Both repositories are archived upstream (mc since 2025-11, MinIO
-# since 2026-04), so nothing later will come; replacing MinIO is Phase 14 C6. Until 2026-09-26 this
-# built the April 2025 releases with Go 1.24.2, which Trivy failed on 44 HIGH and 2 CRITICAL
-# findings in minio alone (info.md). They are built with a supported Go, 1.26.8, not the one
-# upstream used, because most of those findings were in the standard library; both modules declare
-# an older minimum, which a newer compiler honours. They are stamped with their release names the
-# way upstream's own release builds are, and are not byte-identical to upstream's binaries.
-# DeploymentTests fails if a commit or the Go image stops being pinned. EvidenceStoreTests builds and
-# starts this same Dockerfile, so the image tested is the image shipped.
+# Fetched by commit rather than by tag, so no one can move what is built: SeaweedFS 4.47, built with
+# Go pinned by digest, into `scratch`. DeploymentTests fails if the commit or the Go image stops
+# being pinned, or if the runtime stage stops being `scratch`. EvidenceStoreTests builds and starts
+# this same Dockerfile, so the image tested is the image shipped.
 #
 # Built for the machine that builds it, not cross-compiled. Compose builds it where it runs, and
 # nothing is published. Testcontainers builds it through the classic builder, which does not
-# provide the BuildKit platform arguments.
+# provide the BuildKit platform arguments. A build needs about 5 GB of scratch space.
 FROM golang:1.26.8-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS build
 
-# Static binaries, as upstream builds them, and the pinned Go only: never a downloaded toolchain.
+# Static binaries, and the pinned Go only: never a downloaded toolchain.
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 
-# A directory per repository, entered with WORKDIR rather than `cd` inside a RUN (Trivy DS-0013).
-WORKDIR /src/minio
+WORKDIR /src/seaweedfs
 
 RUN git init -q \
-    && git fetch -q --depth 1 https://github.com/minio/minio.git 9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a \
+    && git fetch -q --depth 1 https://github.com/seaweedfs/seaweedfs.git c5073360007d28385a33426a42ac3e4ec504c5a3 \
     && git checkout -q FETCH_HEAD \
-    && go build -tags kqueue -trimpath \
-       -ldflags "$(MINIO_RELEASE=RELEASE go run buildscripts/gen-ldflags.go 2025-10-15T17:29:55Z)" \
-       -o /out/usr/bin/minio
+    && go build -trimpath -ldflags "-s -w" -o /out/usr/bin/weed ./weed
 
-# mc is what the health check runs: `mc ready local`.
-WORKDIR /src/mc
-
-RUN git init -q \
-    && git fetch -q --depth 1 https://github.com/minio/mc.git 7394ce0dd2a80935aded936b09fa12cbb3cb8096 \
-    && git checkout -q FETCH_HEAD \
-    && go build -tags kqueue -trimpath \
-       -ldflags "$(MC_RELEASE=RELEASE go run buildscripts/gen-ldflags.go 2025-08-13T08:35:41Z)" \
-       -o /out/usr/bin/mc
+# The health probe (ADR-0014, point 4): `scratch` has nothing else a health check could run. It is
+# healthy only if the S3 gateway is up AND an unsigned request is refused, because SeaweedFS
+# allows all access when it has no credentials.
+COPY healthprobe/ /src/healthprobe/
+WORKDIR /src/healthprobe
+RUN go build -trimpath -ldflags "-s -w" -o /out/usr/bin/healthprobe .
 
 # The data directory, owned by uid 1000, so a new volume mounted there is writable without root.
-# The data lives at /srv/evidence, as it has since 2026-09-14, so existing volumes keep working.
-# /data exists for Testcontainers' MinIO module, which starts `server /data`. /tmp is the home
-# directory, and Compose mounts a tmpfs over it.
-RUN mkdir -p /out/srv/evidence /out/data /out/tmp
+# /tmp holds SeaweedFS's gRPC sockets; Compose mounts a tmpfs over it owned by the same account.
+RUN mkdir -p /out/srv/evidence /out/tmp
 
 # Nothing in the runtime image but the two binaries: no shell and no package manager, like the
-# chiseled application images. uid 1000 is the one upstream's own, deprecated user switch picks.
+# chiseled application images.
 FROM scratch
 
 COPY --from=build /out/usr/bin/ /usr/bin/
 COPY --from=build --chown=1000:1000 /out/srv/ /srv/
-COPY --from=build --chown=1000:1000 /out/data/ /data/
 COPY --from=build --chown=1000:1000 /out/tmp/ /tmp/
 
 USER 1000:1000
 
-# MinIO keeps its certificates directory, and mc its configuration, under the home directory.
-# uid 1000 has no passwd entry, so the home directory is named here.
-ENV PATH=/usr/bin HOME=/tmp MC_CONFIG_DIR=/tmp/.mc
+ENV PATH=/usr/bin HOME=/tmp
 
-EXPOSE 9000
+# The S3 gateway. Master, volume server and filer run in the same process and are reached by no one
+# else: they advertise 127.0.0.1, and only 8333 is meant to be addressed.
+EXPOSE 8333
 
-ENTRYPOINT ["minio"]
+ENTRYPOINT ["weed"]
+
+# One process, logs to standard error, data under /srv/evidence. Credentials come from
+# AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, and the SSE-S3 key from WEED_S3_SSE_KEK; see
+# docker/compose.yaml, which requires all three.
+CMD ["-logtostderr=true", "server", "-dir=/srv/evidence", "-s3", "-ip=127.0.0.1", "-ip.bind=0.0.0.0"]

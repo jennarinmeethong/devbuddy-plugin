@@ -24,7 +24,7 @@ namespace DevBuddy.Infrastructure.Tests;
 /// The destroy-and-restore drill: the Phase 10 exit criterion, run rather than described.
 /// <para>
 /// A backup nobody has restored is a belief, not a control. This one writes a real installation to
-/// a real PostgreSQL and a real MinIO, takes a backup, destroys the database completely, migrates
+/// a real PostgreSQL and a real SeaweedFS, takes a backup, destroys the database completely, migrates
 /// an empty one, restores, and then checks that the records, the accounts, and — the part most
 /// often missed — the evidence bytes all came back.
 /// </para>
@@ -35,13 +35,13 @@ namespace DevBuddy.Infrastructure.Tests;
 /// </para>
 /// </summary>
 [Collection(PostgresCollection.Name)]
-public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture minio)
-    : IClassFixture<MinioFixture>
+public sealed class RestoreDrillTests(PostgresFixture postgres, EvidenceStoreFixture store)
+    : IClassFixture<EvidenceStoreFixture>
 {
     private static CancellationToken Ct => CancellationToken.None;
 
     private readonly PostgresFixture _postgres = postgres;
-    private readonly MinioFixture _minio = minio;
+    private readonly EvidenceStoreFixture _store = store;
 
     [Fact]
     public async Task an_installation_survives_losing_its_database_entirely()
@@ -415,17 +415,17 @@ public sealed class RestoreDrillTests(PostgresFixture postgres, MinioFixture min
                 AuthenticationRegion = "us-east-1",
             });
 
-        return new ObjectStorageEvidenceBlobStore(client, options);
+        return new ObjectStorageEvidenceBlobStore(client, options, new ObjectStoreSafety(client, options));
     }
 
     private IOptions<EvidenceStoreOptions> Settings() => Options.Create(new EvidenceStoreOptions
     {
         Provider = EvidenceStoreProvider.ObjectStorage,
-        ServiceUrl = _minio.ServiceUrl,
-        AccessKey = MinioFixture.AccessKey,
-        SecretKey = MinioFixture.SecretKey,
+        ServiceUrl = _store.ServiceUrl,
+        AccessKey = EvidenceStoreFixture.AccessKey,
+        SecretKey = EvidenceStoreFixture.SecretKey,
 
-        // The test container has no KMS. Encryption stays on by default for a real deployment.
-        UseServerSideEncryption = false,
+        // On, as shipped: the drill restores evidence into an encrypting store.
+        UseServerSideEncryption = true,
     });
 }
