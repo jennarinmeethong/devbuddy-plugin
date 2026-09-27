@@ -132,20 +132,37 @@ export async function signIn(page: Page, person: Person, path = `/w/${cast().wor
  * `docs/plan-phase-14.md` lists what was ruled out. So the test goes on only once the request is
  * seen. The click is repeated only when nothing left within five seconds, so a request that did
  * leave is not sent twice.
+ *
+ * The five seconds start once the button can be pressed. A form disables its button while its
+ * last request is in flight, and `click` waits for that; counted inside the window, a slow answer
+ * used the window up, the request left after it closed, and every retry waited on the next one.
+ * That failed WebKit's lockout test twice on 2026-09-27, which clicks five times in a row. Waiting
+ * for the button also covers a page still loading when the helper is called.
  */
 export async function clickUntilSent(button: Locator, pathname: string): Promise<void> {
   const page = button.page();
   let attempts = 0;
   await expect(async () => {
     attempts++;
+    await expect(button).toBeEnabled({ timeout: 20_000 });
     const sent = page.waitForRequest(
       (request) => request.method() === "POST" && new URL(request.url()).pathname === pathname,
       { timeout: 5_000 },
     );
+    // Handled at once, so a window that closes while `click` still waits is a retry here, not an
+    // unhandled rejection that ends the test: that failed the invite test in WebKit, at 10 s.
+    sent.catch(() => undefined);
     await button.click();
     try {
       await sent;
     } catch (failure) {
+      // A button that is disabled or gone means the form did submit: its request is in flight, or
+      // answered and the page moved on. WebKit under load can report the request later than the
+      // window, and retrying then found no button at all (the invite test, 2026-09-27). Only a
+      // button still there and enabled, with nothing sent, is a press that was lost.
+      if (!(await button.isVisible()) || !(await button.isEnabled({ timeout: 1_000 }))) {
+        return;
+      }
       if (process.env.DEVBUDDY_E2E_FIRST_CLICK) {
         const log = await page.evaluate(() => (window as unknown as { __firstClick?: string[] }).__firstClick ?? []);
         console.log(`CLICK-LOST ${pathname} attempt ${attempts} ${JSON.stringify(log)}`);
