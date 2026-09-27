@@ -136,7 +136,8 @@ export async function signIn(page: Page, person: Person, path = `/w/${cast().wor
  * The five seconds start once the button can be pressed. A form disables its button while its
  * last request is in flight, and `click` waits for that; counted inside the window, a slow answer
  * used the window up, the request left after it closed, and every retry waited on the next one.
- * That failed WebKit's lockout test twice on 2026-09-27, which clicks five times in a row.
+ * That failed WebKit's lockout test twice on 2026-09-27, which clicks five times in a row. Waiting
+ * for the button also covers a page still loading when the helper is called.
  */
 export async function clickUntilSent(button: Locator, pathname: string): Promise<void> {
   const page = button.page();
@@ -148,6 +149,9 @@ export async function clickUntilSent(button: Locator, pathname: string): Promise
       (request) => request.method() === "POST" && new URL(request.url()).pathname === pathname,
       { timeout: 5_000 },
     );
+    // Handled at once, so a window that closes while `click` still waits is a retry here, not an
+    // unhandled rejection that ends the test: that failed the invite test in WebKit, at 10 s.
+    sent.catch(() => undefined);
     await button.click();
     try {
       await sent;
