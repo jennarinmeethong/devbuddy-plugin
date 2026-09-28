@@ -1,5 +1,11 @@
 # Project Decisions
 
+## Confirmed Cutting v1.11.1 — 2026-09-28
+
+JMPC's move to HTTPS found that `/.well-known/` served the web client's page (PR #33). The owner asked
+for it to be released ("merge แล้ว ออก v1.11.1 ต่อเลย"). *14.14* in `docs/plan-phase-14.md` says what
+it carries.
+
 ## Confirmed Cutting v1.11.0 for A4 — 2026-09-28
 
 After Codex on the Mac mini reached the devbox through the `devbuddy` client, the owner asked for

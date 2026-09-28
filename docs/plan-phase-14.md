@@ -645,6 +645,20 @@ UTC, and the devbox runs the tag.
 - **The checklist runs from `tools/release/` at the release commit**, as for `v1.10.1`, with the
   client's smoke rows new in both smoke scripts.
 
+## 14.14 — Cutting v1.11.1
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-28).
+
+- **What it carries since `v1.11.0`:** `/.well-known/` answers 404 instead of the web client's page
+  (PR #33). Claude Code on JMPC, in a checkout not registered with `devbuddy`, got 401 from `/mcp`
+  as designed, then asked for OAuth metadata under `/.well-known/`; the fallback answered with
+  `index.html` and 200, and Claude Code reported a JSON parse error instead of the refusal.
+- **A patch version.** No migration, so the count stays at nine. Nobody signs in again. The content
+  security policy, the operations, the MCP transport and the client are unchanged. The Claude plugin
+  moves to 1.11.1 with its content unchanged.
+- **The upgrade is `up -d` alone**, with the usual check that `mcp` runs the new image.
+- **The checklist runs from `tools/release/` at the release commit**, with no new check.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
