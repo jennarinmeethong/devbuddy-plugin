@@ -76,10 +76,14 @@ internal static class Commands
         Option<string> server = new("--server") { Description = "The DevBuddy server, e.g. https://192.168.1.160:5010.", Required = true };
         Option<Guid> workspace = new("--workspace") { Description = "The workspace your token is for.", Required = true };
         Option<Guid?> project = new("--project") { Description = "The project assistants should work in by default." };
+        Option<string?> label = new("--label")
+        {
+            Description = "A name for the workspace, such as the customer's, shown when an assistant has to ask which one to use.",
+        };
 
         Command command = new("register", "Registers a checkout: which server and workspace it belongs to.")
         {
-            path, server, workspace, project,
+            path, server, workspace, project, label,
         };
 
         command.SetAction(async (result, cancellationToken) =>
@@ -105,7 +109,7 @@ internal static class Commands
             }
 
             var registry = Registry.Load(context.Home);
-            var checkout = new Checkout(root, origin, workspaceId, result.GetValue(project));
+            var checkout = new Checkout(root, origin, workspaceId, result.GetValue(project), Label(result.GetValue(label)));
             registry.Put(checkout);
             registry.Save();
 
@@ -140,6 +144,7 @@ internal static class Commands
                 string missing = Directory.Exists(checkout.Path) ? string.Empty : "  (folder missing)";
                 context.Out.WriteLine($"{checkout.Path}{missing}");
                 context.Out.WriteLine($"    {checkout.Server}  workspace {checkout.Workspace:D}"
+                    + (checkout.Label is { } name ? $" ({name})" : string.Empty)
                     + (checkout.Project is { } id ? $"  project {id:D}" : string.Empty));
             }
 
@@ -207,8 +212,12 @@ internal static class Commands
         Option<Guid?> workspace = new("--workspace") { Description = "A new workspace." };
         Option<Guid?> project = new("--project") { Description = "A new default project." };
         Option<bool> clearProject = new("--clear-project") { Description = "Removes the default project." };
+        Option<string?> label = new("--label") { Description = "A new name for the workspace; an empty one removes it." };
 
-        Command command = new("update", "Changes a registered checkout.") { path, server, workspace, project, clearProject };
+        Command command = new("update", "Changes a registered checkout.")
+        {
+            path, server, workspace, project, clearProject, label,
+        };
 
         command.SetAction(async (result, cancellationToken) =>
         {
@@ -238,7 +247,8 @@ internal static class Commands
             }
 
             Guid? projectId = result.GetValue(clearProject) ? null : result.GetValue(project) ?? existing.Project;
-            var updated = new Checkout(existing.Path, origin, workspaceId, projectId);
+            string? name = result.GetValue(label) is { } given ? Label(given) : existing.Label;
+            var updated = new Checkout(existing.Path, origin, workspaceId, projectId, name);
 
             registry.Put(updated);
             registry.Save();
@@ -482,25 +492,27 @@ internal static class Commands
         command.SetAction(async (result, cancellationToken) =>
         {
             var bridgeLog = new BridgeLog(result.GetValue(log) is { Length: > 0 } file ? Path.GetFullPath(file) : null);
-            string? givenDir = Given(result.GetValue(dir));
-            string folder = Path.GetFullPath(givenDir ?? context.WorkingDirectory);
+            string folder = Path.GetFullPath(Given(result.GetValue(dir)) ?? context.WorkingDirectory);
 
             bridgeLog.Write($"started in {context.WorkingDirectory}, --dir '{result.GetValue(dir)}', so the folder is {folder}");
             bridgeLog.Write($"assistant variables: {AssistantVariables(context)}");
 
-            Checkout? checkout = BridgeTarget(
-                context, Given(result.GetValue(server)), Given(result.GetValue(workspace)), Given(result.GetValue(project)),
-                folder, out string problem);
+            BridgeTargets targets = BridgeTargetsFor(
+                context, Given(result.GetValue(server)), Given(result.GetValue(workspace)), Given(result.GetValue(project)), folder);
 
-            if (checkout is null)
+            if (targets.Problem is { } problem)
             {
+                // Still served, so the assistant can say why: an exit shows only as a failed connector.
                 context.Error.WriteLine(problem);
                 bridgeLog.Write(problem);
-                return NotRegistered;
+            }
+            else
+            {
+                bridgeLog.Write("workspaces: " + string.Join("; ", targets.Choices.Select(
+                    choice => $"{choice.Label} {choice.Workspace:D} on {choice.Server}")));
             }
 
-            bridgeLog.Write($"server {checkout.Server}, workspace {checkout.Workspace:D}, from {checkout.Path}");
-            using var bridge = new McpBridge(context, checkout, bridgeLog);
+            using var bridge = new McpBridge(context, targets, bridgeLog);
             await bridge.RunAsync(context.Input, context.Output, cancellationToken);
             bridgeLog.Write("standard input closed; stopped");
             return Done;
@@ -516,77 +528,73 @@ internal static class Commands
     private static string? Given(string? value) =>
         value is { Length: > 0 } && !value.Contains("${", StringComparison.Ordinal) ? value.Trim() : null;
 
-    /// <summary>
-    /// Where the bridge sends, in order: a server and workspace it was given; the registered
-    /// checkout holding the folder; or, when no folder says, the one server and workspace every
-    /// registered checkout shares. Cowork starts a local server in the system folder and tells it
-    /// nothing about where the person works, so the last is how a person with one workspace needs
-    /// no configuration. With two, it refuses rather than choosing.
-    /// </summary>
-    private static Checkout? BridgeTarget(
-        ClientContext context, string? server, string? workspace, string? project, string folder, out string problem)
-    {
-        problem = string.Empty;
+    private static string? Label(string? value) => value?.Trim() is { Length: > 0 } label ? label : null;
 
+    /// <summary>
+    /// What the bridge may send to, in order: a server and workspace it was given; the registered
+    /// checkout holding the folder; or every server and workspace registered on the machine.
+    /// Cowork starts a local server in the system folder and tells it nothing about where the task
+    /// works, so with one workspace registered that one is used, and with several the person
+    /// chooses one per task (<c>info.md</c>, 2026-09-29).
+    /// </summary>
+    private static BridgeTargets BridgeTargetsFor(
+        ClientContext context, string? server, string? workspace, string? project, string folder)
+    {
         if (server is not null || workspace is not null)
         {
             if (server is null || workspace is null)
             {
-                problem = "DevBuddy: --server and --workspace go together, so nothing is sent.";
-                return null;
+                return BridgeTargets.None("DevBuddy: the bridge was given only one of --server and --workspace, which go together.");
             }
 
             if (!ServerOrigin.TryParse(server, out string origin, out string invalid))
             {
-                problem = $"DevBuddy: {invalid} Nothing is sent.";
-                return null;
+                return BridgeTargets.None($"DevBuddy: {invalid}");
             }
 
             if (!Guid.TryParse(workspace, out Guid workspaceId) || (project is not null && !Guid.TryParse(project, out _)))
             {
-                problem = "DevBuddy: --workspace and --project take identifiers, so nothing is sent.";
-                return null;
+                return BridgeTargets.None("DevBuddy: the bridge's --workspace and --project take identifiers.");
             }
 
-            return new Checkout("(given)", origin, workspaceId, project is null ? null : Guid.Parse(project));
+            return BridgeTargets.One(new Checkout(
+                "(given)", origin, workspaceId, project is null ? null : Guid.Parse(project), workspaceId.ToString("D")));
         }
 
         var registry = Registry.Load(context.Home);
 
         if (registry.Find(folder) is { } checkout)
         {
-            return checkout;
+            return BridgeTargets.One(Named(checkout, [checkout]));
         }
 
-        Checkout[] distinct =
+        Checkout[] choices =
         [
             .. registry.All
                 .GroupBy(entry => (Server: entry.Server.ToLowerInvariant(), entry.Workspace))
-                .Select(group => group.First())
+                .Select(group => Named(group.First(), [.. group]))
+                .OrderBy(choice => choice.Label, StringComparer.OrdinalIgnoreCase)
         ];
 
-        if (distinct.Length == 1)
-        {
-            Checkout only = distinct[0];
-            Guid?[] projects =
-            [
-                .. registry.All
-                    .Where(entry => entry.Workspace == only.Workspace && entry.Project is not null)
-                    .Select(entry => entry.Project)
-                    .Distinct()
-            ];
+        return choices.Length == 0
+            ? BridgeTargets.None(
+                "DevBuddy: nothing is registered on this machine. The person runs `devbuddy register` once, in the folder they work in.")
+            : new BridgeTargets(choices, null);
+    }
 
-            // A default project only when the registrations agree on one.
-            Guid? sharedProject = projects.Length == 1 ? projects[0] : null;
+    /// <summary>
+    /// One workspace as a person would recognise it: the label given at registration, or else the
+    /// names of the folders registered to it. A default project only when those registrations
+    /// agree on one.
+    /// </summary>
+    private static Checkout Named(Checkout first, Checkout[] registrations)
+    {
+        string label = registrations.Select(entry => entry.Label).FirstOrDefault(name => name is not null)
+            ?? string.Join(", ", registrations.Select(entry => Path.GetFileName(entry.Path)).Distinct(StringComparer.OrdinalIgnoreCase));
 
-            return only with { Path = $"(the only workspace registered, via {only.Path})", Project = sharedProject };
-        }
+        Guid?[] projects = [.. registrations.Where(entry => entry.Project is not null).Select(entry => entry.Project).Distinct()];
 
-        problem = distinct.Length == 0
-            ? "DevBuddy: nothing is registered on this machine, so nothing is sent. Run `devbuddy register` in the folder you work in."
-            : $"DevBuddy: {folder} is not in a registered checkout, and {distinct.Length} workspaces are registered, so nothing "
-                + "is sent. Give the bridge --server and --workspace.";
-        return null;
+        return first with { Label = label, Project = projects.Length == 1 ? projects[0] : null };
     }
 
     /// <summary>
@@ -720,5 +728,6 @@ internal static class Commands
         context.Out.WriteLine($"Server:    {checkout.Server}");
         context.Out.WriteLine($"Workspace: {checkout.Workspace:D}");
         context.Out.WriteLine($"Project:   {(checkout.Project is { } id ? id.ToString("D") : "(none)")}");
+        context.Out.WriteLine($"Label:     {checkout.Label ?? "(none)"}");
     }
 }

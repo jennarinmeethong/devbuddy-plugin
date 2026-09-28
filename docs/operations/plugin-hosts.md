@@ -176,12 +176,25 @@ repository and no code.
    whose threads run away from this machine cannot start the bridge.
 
 Cowork starts the bridge in the system folder and tells it nothing about the folder the task works
-in, so the bridge cannot choose a registration by folder. It uses the one server and workspace every
-registration on the machine shares. **Somebody with two workspaces registered** gets a refusal
-instead of a guess, and passes `--server` and `--workspace` to the bridge in the plugin's
-`.mcp.json` before uploading it. The bridge fills the workspace into every call, so no tool asks the
-assistant for one. `--log <file>` records methods, statuses and reasons, never a token or content,
-which is the way to see why a Cowork task cannot reach DevBuddy.
+in: not in the working directory, not in a variable, and not through MCP roots, which it does not
+offer. So the bridge cannot choose a registration by folder.
+
+- **One workspace registered on the machine:** the bridge uses it, and nothing is asked.
+- **More than one, which is how customers are kept apart** (`info.md`, 2026-09-29): every tool
+  call is held and answered that a workspace has to be chosen, and the tools include
+  `use_workspace`. The assistant asks the person which workspace the task is for and calls it. The
+  choice holds until the task ends, and a second choice of another workspace is refused, so one
+  task reads one customer's knowledge. The bridge is started per task, so a new task chooses again.
+  Give each workspace a name when registering it, `devbuddy register --label "Customer A"` (or
+  `devbuddy update --label` later); without one the choices are named by their registered folders.
+- **Nothing registered, or a `--server` or `--workspace` that cannot be used:** the bridge still
+  starts, and every tool call answers with the reason, which the assistant shows. An exit would
+  show in Cowork only as a connector that failed.
+
+The bridge fills the workspace into every call, so no tool asks the assistant for an identifier.
+`--server` and `--workspace` in the plugin's `.mcp.json` pin one workspace instead. `--log <file>`
+records methods, statuses and reasons, never a token or content, which is the way to see why a
+Cowork task cannot reach DevBuddy.
 
 ### Codex
 

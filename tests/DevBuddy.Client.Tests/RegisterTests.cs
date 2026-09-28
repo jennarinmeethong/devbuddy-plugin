@@ -217,6 +217,25 @@ public sealed class RegisterTests : IDisposable
         Assert.Equal(otherToken, _client.Store.Read(CredentialStores.KeyFor(ClientHarness.Server, other)));
     }
 
+    /// <summary>The name a person sees when an assistant asks which workspace a task is for.</summary>
+    [Fact]
+    public async Task a_label_is_kept_with_the_registration_and_an_empty_one_removes_it()
+    {
+        string checkout = _client.Checkout("api");
+        _client.Remote.Accepted.Add(ClientHarness.GoodToken);
+        _client.Tokens.Enqueue(ClientHarness.GoodToken);
+
+        await _client.RunAsync(
+            "register", checkout, "--server", ClientHarness.Server, "--workspace", ClientHarness.Workspace.ToString(),
+            "--label", "  Customer A  ");
+
+        Assert.Equal("Customer A", Registry.Load(_client.Home).Exact(checkout)!.Label);
+
+        Assert.Equal(Commands.Done, await _client.RunAsync("update", checkout, "--label", ""));
+
+        Assert.Null(Registry.Load(_client.Home).Exact(checkout)!.Label);
+    }
+
     public void Dispose() => _client.Dispose();
 
     private Task<int> RegisterAsync(string path) =>

@@ -141,15 +141,26 @@ public sealed class McpBridgeTests : IDisposable
         Assert.Contains("devbuddy token set", Assert.Single(Lines()), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// With nothing registered the bridge still serves, and every call says why: a server that
+    /// exits shows in Cowork only as a connector that failed.
+    /// </summary>
     [Fact]
-    public async Task an_unregistered_folder_sends_nothing()
+    public async Task with_nothing_registered_nothing_is_sent_and_every_call_says_why()
     {
         string plain = Directory.CreateDirectory(Path.Combine(_client.Root, "elsewhere")).FullName;
 
-        Assert.Equal(Commands.NotRegistered, await BridgeAsync(plain, """{"jsonrpc":"2.0","id":1,"method":"tools/list"}"""));
+        Assert.Equal(Commands.Done, await BridgeAsync(
+            plain,
+            """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}""",
+            """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects"}}"""));
 
         Assert.Empty(_client.Remote.Requests);
-        Assert.Empty(Lines());
+        string[] lines = Lines();
+        Assert.Equal("2025-06-18", JsonNode.Parse(lines[0])!["result"]!["protocolVersion"]!.GetValue<string>());
+        JsonNode call = JsonNode.Parse(lines[1])!["result"]!;
+        Assert.True(call["isError"]!.GetValue<bool>());
+        Assert.Contains("devbuddy register", call["content"]![0]!["text"]!.GetValue<string>(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -263,20 +274,141 @@ public sealed class McpBridgeTests : IDisposable
         Assert.Contains(Project.ToString("D"), Lines()[0], StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Two customers' workspaces on one machine, and a task in Cowork, which names no folder: no
+    /// tool reaches either until the person has said which one the task is for.
+    /// </summary>
     [Fact]
-    public async Task outside_any_checkout_with_two_workspaces_registered_nothing_is_sent()
+    public async Task with_two_workspaces_no_tool_call_is_sent_until_one_is_chosen()
+    {
+        string elsewhere = TwoWorkspaces();
+
+        Assert.Equal(Commands.Done, await BridgeAsync(
+            elsewhere, """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects"}}"""));
+
+        Assert.Empty(_client.Remote.Requests);
+        JsonNode result = JsonNode.Parse(Assert.Single(Lines()))!["result"]!;
+        string text = result["content"]![0]!["text"]!.GetValue<string>();
+        Assert.True(result["isError"]!.GetValue<bool>());
+        Assert.Contains("Customer A", text, StringComparison.Ordinal);
+        Assert.Contains("Customer B", text, StringComparison.Ordinal);
+        Assert.Contains(McpBridge.ChooseTool, text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task with_two_workspaces_the_tool_list_offers_the_choice_naming_both()
+    {
+        string elsewhere = TwoWorkspaces();
+        _client.Remote.Answer = body => body.Contains("tools/list", StringComparison.Ordinal) ? Stream(ToolList) : null;
+
+        await BridgeAsync(elsewhere, """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""");
+
+        JsonNode choose = JsonNode.Parse(Lines()[0])!["result"]!["tools"]![0]!;
+        Assert.Equal(McpBridge.ChooseTool, choose["name"]!.GetValue<string>());
+        Assert.Contains("Customer A", choose["description"]!.GetValue<string>(), StringComparison.Ordinal);
+        Assert.Contains("Customer B", choose["description"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task once_chosen_every_call_goes_to_that_workspace_with_its_own_token()
+    {
+        string elsewhere = TwoWorkspaces();
+
+        await BridgeAsync(
+            elsewhere,
+            """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"use_workspace","arguments":{"workspace":"customer b"}}}""",
+            """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_projects"}}""");
+
+        Assert.False(JsonNode.Parse(Lines()[0])!["result"]!["isError"]!.GetValue<bool>());
+        Assert.Equal(OtherWorkspace.ToString("D"), Sent("list_projects")["params"]!["arguments"]!["workspaceId"]!.GetValue<string>());
+        Assert.Equal(OtherToken, Assert.Single(_client.Remote.Bearers));
+    }
+
+    /// <summary>What was read in one customer's workspace must not follow the task into another's.</summary>
+    [Fact]
+    public async Task a_task_that_has_chosen_cannot_choose_another_workspace()
+    {
+        string elsewhere = TwoWorkspaces();
+
+        await BridgeAsync(
+            elsewhere,
+            """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"use_workspace","arguments":{"workspace":"Customer A"}}}""",
+            """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"use_workspace","arguments":{"workspace":"Customer B"}}}""",
+            """{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_projects"}}""");
+
+        JsonNode second = JsonNode.Parse(Lines()[1])!["result"]!;
+        Assert.True(second["isError"]!.GetValue<bool>());
+        Assert.Contains("new task", second["content"]![0]!["text"]!.GetValue<string>(), StringComparison.Ordinal);
+        Assert.Equal(
+            ClientHarness.Workspace.ToString("D"),
+            Sent("list_projects")["params"]!["arguments"]!["workspaceId"]!.GetValue<string>());
+        Assert.Equal(ClientHarness.GoodToken, Assert.Single(_client.Remote.Bearers));
+    }
+
+    [Fact]
+    public async Task a_workspace_can_be_chosen_by_its_identifier_and_not_by_a_name_it_does_not_have()
+    {
+        string elsewhere = TwoWorkspaces();
+
+        await BridgeAsync(
+            elsewhere,
+            """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"use_workspace","arguments":{"workspace":"Customer C"}}}""",
+            """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"use_workspace","arguments":{"workspace":"0b7e1d7a-3c55-4c1e-9d59-1f0c2b8a6e21"}}}""");
+
+        Assert.True(JsonNode.Parse(Lines()[0])!["result"]!["isError"]!.GetValue<bool>());
+        Assert.False(JsonNode.Parse(Lines()[1])!["result"]!["isError"]!.GetValue<bool>());
+    }
+
+    /// <summary>Choosing a workspace this machine holds no token for would hold the task to one it cannot use.</summary>
+    [Fact]
+    public async Task a_workspace_with_no_token_here_is_not_chosen_and_another_still_can_be()
+    {
+        string elsewhere = TwoWorkspaces();
+        _client.Store.Delete(CredentialStores.KeyFor(ClientHarness.Server, OtherWorkspace));
+
+        await BridgeAsync(
+            elsewhere,
+            """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"use_workspace","arguments":{"workspace":"Customer B"}}}""",
+            """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"use_workspace","arguments":{"workspace":"Customer A"}}}""");
+
+        JsonNode refused = JsonNode.Parse(Lines()[0])!["result"]!;
+        Assert.True(refused["isError"]!.GetValue<bool>());
+        Assert.Contains("devbuddy token set", refused["content"]![0]!["text"]!.GetValue<string>(), StringComparison.Ordinal);
+        Assert.False(JsonNode.Parse(Lines()[1])!["result"]!["isError"]!.GetValue<bool>());
+    }
+
+    /// <summary>A folder that is registered still decides, as it does for Claude Code, and offers no choice.</summary>
+    [Fact]
+    public async Task with_two_workspaces_a_registered_folder_still_decides()
+    {
+        TwoWorkspaces();
+        string customerB = Path.Combine(_client.Root, "customer-b");
+        _client.Remote.Answer = body => body.Contains("tools/list", StringComparison.Ordinal) ? Stream(ToolList) : null;
+
+        await BridgeAsync(
+            customerB,
+            """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""",
+            """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_projects"}}""");
+
+        Assert.DoesNotContain(McpBridge.ChooseTool, Lines()[0], StringComparison.Ordinal);
+        Assert.Equal(OtherWorkspace.ToString("D"), Sent("list_projects")["params"]!["arguments"]!["workspaceId"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task a_workspace_with_no_label_is_named_by_its_registered_folders()
     {
         Registered();
         var registry = Registry.Load(_client.Home);
         registry.Put(new Checkout(
-            Directory.CreateDirectory(Path.Combine(_client.Root, "other")).FullName, ClientHarness.Server, Guid.NewGuid(), null));
+            Directory.CreateDirectory(Path.Combine(_client.Root, "customer-b")).FullName, ClientHarness.Server, OtherWorkspace, null));
         registry.Save();
         string elsewhere = Directory.CreateDirectory(Path.Combine(_client.Root, "System32")).FullName;
 
-        Assert.Equal(Commands.NotRegistered, await BridgeAsync(elsewhere, """{"jsonrpc":"2.0","id":1,"method":"ping"}"""));
+        await BridgeAsync(elsewhere, """{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects"}}""");
 
-        Assert.Empty(_client.Remote.Requests);
-        Assert.Contains("--server and --workspace", _client.Error.ToString(), StringComparison.Ordinal);
+        string text = JsonNode.Parse(Assert.Single(Lines()))!["result"]!["content"]![0]!["text"]!.GetValue<string>();
+        Assert.Contains("requirements", text, StringComparison.Ordinal);
+        Assert.Contains("customer-b", text, StringComparison.Ordinal);
     }
 
     /// <summary>What a managed configuration passes: no folder, no registration, a token already stored.</summary>
@@ -318,9 +450,11 @@ public sealed class McpBridgeTests : IDisposable
             ? ["mcp-bridge", .. options, "--workspace", ClientHarness.Workspace.ToString()]
             : ["mcp-bridge", .. options];
 
-        Assert.Equal(Commands.NotRegistered, await RunAsync(args, """{"jsonrpc":"2.0","id":1,"method":"ping"}"""));
+        Assert.Equal(Commands.Done, await RunAsync(
+            args, """{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_projects"}}"""));
 
         Assert.Empty(_client.Remote.Requests);
+        Assert.True(JsonNode.Parse(Assert.Single(Lines()))!["result"]!["isError"]!.GetValue<bool>());
     }
 
     /// <summary>A plugin setting nobody filled in reaches the bridge as written, and counts as absent.</summary>
@@ -348,11 +482,29 @@ public sealed class McpBridgeTests : IDisposable
             .Select(body => JsonNode.Parse(body)!)
             .Single(message => message["params"]?["name"]?.GetValue<string>() == tool);
 
-    private string Registered(Guid? project = null)
+    private static readonly Guid OtherWorkspace = Guid.Parse("0b7e1d7a-3c55-4c1e-9d59-1f0c2b8a6e21");
+
+    private static readonly string OtherToken = new('B', 43);
+
+    /// <summary>Customer A's workspace in <c>requirements</c>, customer B's in <c>customer-b</c>, and a folder in neither.</summary>
+    private string TwoWorkspaces()
+    {
+        Registered(label: "Customer A");
+        var registry = Registry.Load(_client.Home);
+        registry.Put(new Checkout(
+            Directory.CreateDirectory(Path.Combine(_client.Root, "customer-b")).FullName,
+            ClientHarness.Server, OtherWorkspace, null, "Customer B"));
+        registry.Save();
+        _client.Store.Write(CredentialStores.KeyFor(ClientHarness.Server, OtherWorkspace), OtherToken);
+        _client.Remote.Accepted.Add(OtherToken);
+        return Directory.CreateDirectory(Path.Combine(_client.Root, "System32")).FullName;
+    }
+
+    private string Registered(Guid? project = null, string? label = null)
     {
         string checkout = Directory.CreateDirectory(Path.Combine(_client.Root, "requirements")).FullName;
         var registry = Registry.Load(_client.Home);
-        registry.Put(new Checkout(checkout, ClientHarness.Server, ClientHarness.Workspace, project));
+        registry.Put(new Checkout(checkout, ClientHarness.Server, ClientHarness.Workspace, project, label));
         registry.Save();
         _client.Store.Write(CredentialStores.KeyFor(ClientHarness.Server, ClientHarness.Workspace), ClientHarness.GoodToken);
         _client.Remote.Accepted.Add(ClientHarness.GoodToken);

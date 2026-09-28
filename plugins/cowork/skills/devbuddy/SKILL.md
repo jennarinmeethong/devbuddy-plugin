@@ -32,8 +32,15 @@ interface.
 
 **The workspace is supplied for you.** No tool asks for a workspace: the connection fills it in on
 every call. Start with `list_projects` to see the projects you may read, then pass a project's
-`projectId` in `scope`. Do not look for a workspace in files, the shell, or the person's messages,
-and do not ask the person for one.
+`projectId` in `scope`. Do not look for a workspace identifier in files or the shell.
+
+**Unless this machine has more than one.** Then the tools include use_workspace, and every other
+DevBuddy tool answers that a workspace has to be chosen first. Workspaces usually separate
+customers, so ask the person which one this task is for, naming the choices the tool gives, and
+call use_workspace with their answer. Do not choose for them, not even when the task's folder or
+wording seems to say. The choice holds until the task ends: if the person wants another workspace,
+tell them to start a new task. Refusing a second choice is deliberate, so that what this task read
+in one customer's workspace cannot reach another's.
 
 **Ask DevBuddy through its tools, never through the shell.** Cowork runs your shell in a sandbox
 that cannot reach DevBuddy and has no `devbuddy` command; the connection runs outside it.
@@ -64,7 +71,7 @@ hands it to the connection from the operating system's credential store.
 **And to one workspace.** The token works in exactly one DevBuddy workspace, the one registered on
 this machine, and a call naming any other is refused before anything is read — whatever
 memberships its owner holds there. Somebody working across two workspaces holds two tokens, one
-for each, and the connection has to be told which to use.
+for each, and each task uses one of them.
 
 That identity is fixed when this session connects. Changing directory does not change it, and
 neither does opening a folder that belongs to another workspace's work: what you can reach stays

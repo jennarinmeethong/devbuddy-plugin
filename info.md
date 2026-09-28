@@ -12,10 +12,15 @@ of one customer turning up in another's answer is a problem ("เป็นปั
 - **Unrelated customers get a workspace each.** One programme's projects share one.
 - **The bridge refuses when it cannot choose, and says why to the assistant**, instead of exiting
   before it can answer, which Cowork showed only as a connector that failed.
-- **How Cowork chooses is open.** The first thing tried is MCP roots, the folder a Cowork task
-  works in, which would let the bridge choose by folder as Claude Code does. Whether Cowork sends
-  roots is being probed. A per-task choice made anywhere else, or two plugins with one workspace
-  each, is the fallback, and the second puts both workspaces in every task.
+- **The person chooses the workspace once per task** (the owner's choice, "เลือกทาง ข", over two
+  plugins with one workspace each, which would put both in every task unless Cowork let a
+  connector be switched off per task). With more than one workspace registered, the bridge holds
+  every tool call until `use_workspace` is called, and refuses a second choice of another
+  workspace, so one task reads one workspace. `devbuddy register --label` names a workspace for
+  that question. It keeps one task to one customer by accident; it is not a boundary against the
+  person, who holds both tokens.
+- **MCP roots were tried first and Cowork does not offer them**: a probe logged its `initialize`
+  on 2026-09-29, and its capabilities carry no `roots`.
 
 ## Confirmed A Checkout Need Not Be a Git Repository — 2026-09-28
 

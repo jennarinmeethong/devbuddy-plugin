@@ -122,6 +122,9 @@ internal sealed class FakeServer : HttpMessageHandler
 
     public List<Uri> Requests { get; } = [];
 
+    /// <summary>The bearer of every request, in order.</summary>
+    public List<string?> Bearers { get; } = [];
+
     /// <summary>Every body posted, in order.</summary>
     public List<string> Bodies { get; } = [];
 
@@ -142,6 +145,7 @@ internal sealed class FakeServer : HttpMessageHandler
             request.Headers.TryGetValues("MCP-Protocol-Version", out IEnumerable<string>? versions) ? versions.Single() : null);
 
         string? bearer = request.Headers.Authorization?.Parameter;
+        Bearers.Add(bearer);
         bool known = bearer is not null && (Accepted.Contains(bearer) || OtherWorkspace.Contains(bearer));
 
         if (request.RequestUri!.AbsolutePath != "/mcp")

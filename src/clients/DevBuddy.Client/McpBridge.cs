@@ -8,27 +8,52 @@ using System.Text.Json.Nodes;
 namespace DevBuddy.Client;
 
 /// <summary>
+/// Where a bridge may send: the workspaces it may choose between, each with the name shown to the
+/// person, or, when there is none it can use, why not.
+/// </summary>
+internal sealed record BridgeTargets(IReadOnlyList<Checkout> Choices, string? Problem)
+{
+    public static BridgeTargets One(Checkout target) => new([target], null);
+
+    public static BridgeTargets None(string problem) => new([], problem);
+}
+
+/// <summary>
 /// MCP over stdio on one side and DevBuddy's HTTP transport on the other, for an assistant that
 /// starts a local server but will not run a header helper: Cowork reads <c>url</c>, <c>headers</c>
 /// and <c>oauth</c> from a plugin's <c>.mcp.json</c> and nothing else.
 /// <para>
 /// Each line on standard input is one JSON-RPC message, posted to the server with the token
 /// stored for that server and workspace, read from the store for every request so a replaced
-/// token is picked up. The token is keyed by the server, so it goes nowhere else. Every message in the answer, JSON or an event
-/// stream, is written back as one line. A request the server or the network refuses is answered
-/// with a JSON-RPC error saying why, so the assistant can tell the person.
+/// token is picked up. The token is keyed by the server, so it goes nowhere else. Every message
+/// in the answer, JSON or an event stream, is written back as one line. A request the server or
+/// the network refuses is answered with a JSON-RPC error saying why, so the assistant can tell the
+/// person.
+/// </para>
+/// <para>
+/// With more than one workspace to choose from, no tool reaches DevBuddy until the person has
+/// chosen one through <c>use_workspace</c>, and the choice holds until the task ends: Cowork starts
+/// a bridge per task and tells it nothing about the task's folder, so this is how one task reads
+/// one customer's knowledge and no other's (<c>info.md</c>, 2026-09-29). With none, the bridge still
+/// starts and answers every call with the reason, because a server that exits shows in Cowork only
+/// as a connector that failed.
 /// </para>
 /// </summary>
-internal sealed class McpBridge(ClientContext context, Checkout checkout, BridgeLog log) : IDisposable
+internal sealed class McpBridge(ClientContext context, BridgeTargets targets, BridgeLog log) : IDisposable
 {
+    public const string ChooseTool = "use_workspace";
+
     /// <summary>Longer than any operation should take, so a slow analysis is not cut off.</summary>
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromMinutes(5);
 
     private readonly SemaphoreSlim _writing = new(1, 1);
-    private readonly Lock _tools = new();
+    private readonly Lock _state = new();
     private readonly HashSet<string> _workspaceArgument = new(StringComparer.Ordinal);
     private readonly HashSet<string> _workspaceInScope = new(StringComparer.Ordinal);
     private string? _protocolVersion;
+    private Checkout? _chosen = targets.Choices.Count == 1 ? targets.Choices[0] : null;
+
+    private bool MustChoose => targets.Choices.Count > 1;
 
     public void Dispose() => _writing.Dispose();
 
@@ -47,18 +72,18 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
                 continue;
             }
 
-            Task forwarded = ForwardAsync(http, line, writer, cancellationToken);
+            Task handled = HandleAsync(http, line, writer, cancellationToken);
 
             // initialize settles the protocol version every later request carries, and a client
             // sends nothing else before its answer. Everything after it is concurrent, as the
             // protocol allows: one slow analysis must not hold up a search.
             if (IsInitialize(line))
             {
-                await forwarded;
+                await handled;
             }
             else
             {
-                inFlight.Add(forwarded);
+                inFlight.Add(handled);
                 inFlight.RemoveAll(task => task.IsCompleted);
             }
         }
@@ -78,7 +103,7 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         }
     }
 
-    private async Task ForwardAsync(HttpClient http, string line, StreamWriter writer, CancellationToken cancellationToken)
+    private async Task HandleAsync(HttpClient http, string line, StreamWriter writer, CancellationToken cancellationToken)
     {
         JsonNode? message;
 
@@ -95,13 +120,52 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         JsonObject? incoming = message as JsonObject;
         JsonNode? id = incoming is not null && incoming.TryGetPropertyValue("id", out JsonNode? given) ? given : null;
         string method = incoming?["method"] is JsonValue name && name.TryGetValue(out string? text) ? text : "(response)";
+        string? tool = method == "tools/call" && incoming?["params"]?["name"] is JsonValue called
+            && called.TryGetValue(out string? calledName) ? calledName : null;
 
-        string body = method == "tools/call" && incoming is not null ? FillWorkspace(incoming) : line;
+        if (targets.Problem is { } problem)
+        {
+            await AnswerLocallyAsync(writer, id, method, incoming, problem, cancellationToken);
+            return;
+        }
+
+        if (tool == ChooseTool)
+        {
+            await ChooseAsync(writer, id, incoming, cancellationToken);
+            return;
+        }
+
+        Checkout? chosen;
+
+        lock (_state)
+        {
+            chosen = _chosen;
+        }
+
+        if (tool is not null && chosen is null)
+        {
+            log.Write($"tools/call {tool} held: no workspace chosen");
+            await WriteAsync(writer, ToolResult(id, ChooseFirst(), isError: true), cancellationToken);
+            return;
+        }
+
+        // What is not a tool call reads nothing in a workspace, so before the choice it goes to
+        // the first; a tool call goes only to the one chosen.
+        Checkout target = chosen ?? targets.Choices[0];
+        string body = tool is not null && incoming is not null ? FillWorkspace(incoming, target) : line;
+
+        await ForwardAsync(http, target, body, id, method, writer, cancellationToken);
+    }
+
+    private async Task ForwardAsync(
+        HttpClient http, Checkout target, string body, JsonNode? id, string method, StreamWriter writer,
+        CancellationToken cancellationToken)
+    {
         string? token;
 
         try
         {
-            token = context.Store.Read(CredentialStores.KeyFor(checkout.Server, checkout.Workspace));
+            token = context.Store.Read(CredentialStores.KeyFor(target.Server, target.Workspace));
         }
         catch (InvalidOperationException exception)
         {
@@ -113,14 +177,14 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         {
             await RefuseAsync(
                 writer, id, method,
-                $"DevBuddy: no token is stored for {checkout.Server}, workspace {checkout.Workspace:D}. Run `devbuddy token set`.",
+                $"DevBuddy: no token is stored for {target.Server}, workspace {target.Workspace:D}. Run `devbuddy token set`.",
                 cancellationToken);
             return;
         }
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, ServerOrigin.McpEndpoint(checkout.Server))
+            using var request = new HttpRequestMessage(HttpMethod.Post, ServerOrigin.McpEndpoint(target.Server))
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };
@@ -140,7 +204,7 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
 
             if (!response.IsSuccessStatusCode)
             {
-                await RefuseAsync(writer, id, method, Refusal(response.StatusCode), cancellationToken);
+                await RefuseAsync(writer, id, method, Refusal(target, response.StatusCode), cancellationToken);
                 return;
             }
 
@@ -160,22 +224,136 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         {
             await RefuseAsync(
                 writer, id, method,
-                new CheckResult(CheckOutcome.CertificateNotTrusted, exception.InnerException.Message).Explain(checkout.Server),
+                new CheckResult(CheckOutcome.CertificateNotTrusted, exception.InnerException.Message).Explain(target.Server),
                 cancellationToken);
         }
         catch (HttpRequestException exception)
         {
             await RefuseAsync(
                 writer, id, method,
-                new CheckResult(CheckOutcome.Unreachable, exception.Message).Explain(checkout.Server),
+                new CheckResult(CheckOutcome.Unreachable, exception.Message).Explain(target.Server),
                 cancellationToken);
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             await RefuseAsync(
                 writer, id, method,
-                $"DevBuddy: {checkout.Server} did not answer within {RequestTimeout.TotalMinutes:0} minutes.",
+                $"DevBuddy: {target.Server} did not answer within {RequestTimeout.TotalMinutes:0} minutes.",
                 cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// The person's choice of workspace for this task, made once. A second choice of the same one
+    /// is harmless; of another, it is refused, because the task has already read the first.
+    /// </summary>
+    private async Task ChooseAsync(StreamWriter writer, JsonNode? id, JsonObject? call, CancellationToken cancellationToken)
+    {
+        string wanted = call?["params"]?["arguments"]?["workspace"] is JsonValue value && value.TryGetValue(out string? text)
+            ? text.Trim()
+            : string.Empty;
+
+        Checkout? match = targets.Choices.FirstOrDefault(choice =>
+            string.Equals(choice.Label, wanted, StringComparison.OrdinalIgnoreCase)
+            || (Guid.TryParse(wanted, out Guid workspace) && choice.Workspace == workspace));
+
+        if (match is null)
+        {
+            await WriteAsync(
+                writer,
+                ToolResult(id, $"DevBuddy: '{wanted}' is none of the workspaces on this machine: {Names()}. Ask the person which one.", isError: true),
+                cancellationToken);
+            return;
+        }
+
+        // A workspace with no token here would hold the task to something it cannot use.
+        string? missing = null;
+
+        try
+        {
+            if (context.Store.Read(CredentialStores.KeyFor(match.Server, match.Workspace)) is null)
+            {
+                missing = $"DevBuddy: no token is stored on this machine for {Name(match)}, so it was not chosen. "
+                    + "The person runs `devbuddy token set` for it, or chooses another.";
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            missing = $"DevBuddy: the credential store could not be read, so {Name(match)} was not chosen. {exception.Message}";
+        }
+
+        if (missing is not null)
+        {
+            log.Write($"{ChooseTool} refused: no token for {match.Workspace:D}");
+            await WriteAsync(writer, ToolResult(id, missing, isError: true), cancellationToken);
+            return;
+        }
+
+        Checkout? already;
+
+        lock (_state)
+        {
+            already = _chosen;
+            _chosen ??= match;
+        }
+
+        if (already is not null && already.Workspace != match.Workspace)
+        {
+            log.Write($"{ChooseTool} refused: this task already uses {already.Workspace:D}");
+            await WriteAsync(
+                writer,
+                ToolResult(
+                    id,
+                    $"DevBuddy: this task already uses {Name(already)}, and keeps it until it ends, so what it read there "
+                    + $"cannot reach {Name(match)}. Start a new task for {Name(match)}.",
+                    isError: true),
+                cancellationToken);
+            return;
+        }
+
+        log.Write($"{ChooseTool}: {match.Workspace:D}");
+
+        string project = match.Project is { } defaultProject
+            ? $" Its default project is {defaultProject:D}."
+            : " Call list_projects to see its projects.";
+
+        await WriteAsync(
+            writer,
+            ToolResult(
+                id,
+                $"This task now uses {Name(match)}. Every DevBuddy call in it goes there, and to no other workspace; "
+                + $"to use another, the person starts a new task.{project}",
+                isError: false),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Everything answered here, nothing sent: the bridge has no workspace it can use. Every tool
+    /// call gets the reason as its result, which the assistant shows; an exit would not be shown.
+    /// </summary>
+    private async Task AnswerLocallyAsync(
+        StreamWriter writer, JsonNode? id, string method, JsonObject? message, string problem, CancellationToken cancellationToken)
+    {
+        log.Write($"{method} answered here: {problem}");
+
+        string? answer = method switch
+        {
+            "initialize" => Result(id, new JsonObject
+            {
+                ["protocolVersion"] = message?["params"]?["protocolVersion"]?.DeepClone() ?? "2025-06-18",
+                ["capabilities"] = new JsonObject { ["tools"] = new JsonObject() },
+                ["serverInfo"] = new JsonObject { ["name"] = "devbuddy", ["version"] = "bridge" },
+                ["instructions"] = problem,
+            }),
+            "tools/list" => Result(id, new JsonObject { ["tools"] = new JsonArray(ChooseToolDefinition(problem)) }),
+            "tools/call" => ToolResult(id, problem, isError: true),
+            _ when id is not null => Result(id, new JsonObject()),
+            _ => null,
+        };
+
+        if (answer is not null)
+        {
+            await WriteAsync(writer, answer, cancellationToken);
         }
     }
 
@@ -224,9 +402,8 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
     }
 
     /// <summary>
-    /// The answer to <c>initialize</c>, with the workspace and default project added to the
-    /// server's instructions. An assistant inside a sandbox cannot run <c>devbuddy show</c> to
-    /// find them, and every tool needs the workspace.
+    /// The answer to <c>initialize</c>, with the workspace, or the choice to be made, added to the
+    /// server's instructions. An assistant inside a sandbox cannot run <c>devbuddy show</c>.
     /// </summary>
     private string Introduce(string answer)
     {
@@ -237,12 +414,22 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
 
         _protocolVersion = result["protocolVersion"]?.GetValue<string>() ?? _protocolVersion;
 
-        string project = checkout.Project is { } id
-            ? $"The default project is {id:D}."
-            : "No default project is registered; call list_projects to find one.";
-        string introduction =
-            $"This DevBuddy connection works in workspace {checkout.Workspace:D} and no other, and fills "
-            + $"it in on every call, so no tool asks for it. {project} It is a registration, not DevBuddy content.";
+        string introduction;
+
+        if (MustChoose)
+        {
+            introduction = ChooseFirst();
+        }
+        else
+        {
+            Checkout only = targets.Choices[0];
+            string project = only.Project is { } id
+                ? $"The default project is {id:D}."
+                : "No default project is registered; call list_projects to find one.";
+            introduction =
+                $"This DevBuddy connection works in workspace {only.Workspace:D} and no other, and fills "
+                + $"it in on every call, so no tool asks for it. {project} It is a registration, not DevBuddy content.";
+        }
 
         string? existing = result["instructions"]?.GetValue<string>();
         result["instructions"] = string.IsNullOrEmpty(existing) ? introduction : $"{existing}\n\n{introduction}";
@@ -251,9 +438,9 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
     }
 
     /// <summary>
-    /// The tool list with the workspace taken out of every schema. The token works in one
-    /// workspace, so the bridge supplies it; an assistant asked for it would have to guess, and
-    /// Cowork showed one does: it does not pass a server's instructions on.
+    /// The tool list with the workspace taken out of every schema, and, when there is a choice to
+    /// make, the tool that makes it. The token works in one workspace, so the bridge supplies it;
+    /// an assistant asked for it would have to guess, and in Cowork one did.
     /// </summary>
     private string HideWorkspace(string answer)
     {
@@ -273,7 +460,7 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
 
             if (Remove(schema, "workspaceId"))
             {
-                lock (_tools)
+                lock (_state)
                 {
                     _workspaceArgument.Add(name);
                 }
@@ -281,15 +468,50 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
 
             if (schema["properties"]?["scope"] is JsonObject scope && Remove(scope, "workspaceId"))
             {
-                lock (_tools)
+                lock (_state)
                 {
                     _workspaceInScope.Add(name);
                 }
             }
         }
 
+        if (MustChoose)
+        {
+            tools.Insert(0, ChooseToolDefinition(ChooseFirst()));
+        }
+
         return tools.Root.ToJsonString();
     }
+
+    private JsonObject ChooseToolDefinition(string description) => new()
+    {
+        ["name"] = ChooseTool,
+        ["description"] = description,
+        ["inputSchema"] = new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = new JsonObject
+            {
+                ["workspace"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] = targets.Choices.Count > 0
+                        ? $"The name or identifier of one of: {Names()}."
+                        : "There is nothing to choose from on this machine.",
+                },
+            },
+            ["required"] = new JsonArray("workspace"),
+        },
+    };
+
+    private string ChooseFirst() =>
+        $"This machine has {targets.Choices.Count} DevBuddy workspaces: {Names()}. Before any other DevBuddy tool, "
+        + $"ask the person which one this task is for, and call {ChooseTool} with it. Do not choose for them. The "
+        + "choice holds until the task ends, so one task reads one workspace; another needs a new task.";
+
+    private string Names() => string.Join("; ", targets.Choices.Select(Name));
+
+    private static string Name(Checkout choice) => $"{choice.Label} ({choice.Workspace:D})";
 
     private static bool Remove(JsonObject schema, string property)
     {
@@ -308,10 +530,10 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
     }
 
     /// <summary>
-    /// A tool call with the checkout's workspace put where the tool takes it, replacing whatever
-    /// the assistant wrote there. That grants nothing: the token is refused in any other workspace.
+    /// A tool call with the chosen workspace put where the tool takes it, replacing whatever the
+    /// assistant wrote there. That grants nothing: the token is refused in any other workspace.
     /// </summary>
-    private string FillWorkspace(JsonObject call)
+    private string FillWorkspace(JsonObject call, Checkout target)
     {
         if (call["params"] is not JsonObject parameters || parameters["name"]?.GetValue<string>() is not { } name)
         {
@@ -327,13 +549,13 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         bool inScope;
         bool asArgument;
 
-        lock (_tools)
+        lock (_state)
         {
             inScope = _workspaceInScope.Contains(name);
             asArgument = _workspaceArgument.Contains(name);
         }
 
-        string workspace = checkout.Workspace.ToString("D");
+        string workspace = target.Workspace.ToString("D");
 
         // Before a tool list has been seen, the shape of the call is the only guide.
         if (inScope || (!asArgument && arguments["scope"] is JsonObject))
@@ -354,13 +576,13 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         return call.ToJsonString();
     }
 
-    private string Refusal(HttpStatusCode status) => status switch
+    private static string Refusal(Checkout target, HttpStatusCode status) => status switch
     {
-        HttpStatusCode.Unauthorized => $"DevBuddy: {new CheckResult(CheckOutcome.TokenRefused, string.Empty).Explain(checkout.Server)}",
+        HttpStatusCode.Unauthorized => $"DevBuddy: {new CheckResult(CheckOutcome.TokenRefused, string.Empty).Explain(target.Server)}",
         HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed =>
-            $"DevBuddy: {new CheckResult(CheckOutcome.NoMcpEndpoint, string.Empty).Explain(checkout.Server)}",
-        HttpStatusCode.TooManyRequests => $"DevBuddy: {checkout.Server} is limiting requests. Wait a minute and try again.",
-        _ => $"DevBuddy: {checkout.Server} answered HTTP {(int)status}.",
+            $"DevBuddy: {new CheckResult(CheckOutcome.NoMcpEndpoint, string.Empty).Explain(target.Server)}",
+        HttpStatusCode.TooManyRequests => $"DevBuddy: {target.Server} is limiting requests. Wait a minute and try again.",
+        _ => $"DevBuddy: {target.Server} answered HTTP {(int)status}.",
     };
 
     /// <summary>
@@ -384,6 +606,17 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
             ["id"] = id?.DeepClone(),
             ["error"] = new JsonObject { ["code"] = code, ["message"] = text },
         }.ToJsonString();
+
+    private static string Result(JsonNode? id, JsonObject result) =>
+        new JsonObject { ["jsonrpc"] = "2.0", ["id"] = id?.DeepClone(), ["result"] = result }.ToJsonString();
+
+    /// <summary>A tool's answer the assistant reads as text, which is how it learns what to do next.</summary>
+    private static string ToolResult(JsonNode? id, string text, bool isError) =>
+        Result(id, new JsonObject
+        {
+            ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text }),
+            ["isError"] = isError,
+        });
 
     /// <summary>A message as one line, whatever whitespace the server put in it.</summary>
     private static string OneLine(string json)

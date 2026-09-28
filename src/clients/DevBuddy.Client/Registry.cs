@@ -5,9 +5,10 @@ namespace DevBuddy.Client;
 
 /// <summary>
 /// One registered checkout: a folder, the server it belongs to, the workspace its token is for,
-/// and optionally the project an assistant should work in by default.
+/// optionally the project an assistant should work in by default, and optionally a name for the
+/// workspace, such as a customer's, shown when an assistant has to ask which one a task is for.
 /// </summary>
-internal sealed record Checkout(string Path, string Server, Guid Workspace, Guid? Project);
+internal sealed record Checkout(string Path, string Server, Guid Workspace, Guid? Project, string? Label = null);
 
 /// <summary>
 /// The per-user registry of checkouts, <c>checkouts.json</c> in the client's home (ADR-0015).

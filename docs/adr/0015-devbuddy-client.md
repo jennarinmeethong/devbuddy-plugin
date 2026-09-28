@@ -70,8 +70,12 @@ only `url`, `headers` and `oauth` from a plugin's remote entry, but starts a plu
 server on the host. The bridge is that server: each JSON-RPC line goes to `/mcp` with the token
 stored for that server and workspace, read from the store per request. Cowork starts it in the
 system folder and tells it no folder, so it takes, in order, a `--server` and `--workspace` it was
-given, the registered checkout holding the folder, or the one server and workspace every
-registration on the machine shares, and refuses when there are two. The token is keyed by server,
+given, the registered checkout holding the folder, or every server and workspace registered on
+the machine. With one, that one is used. With several, which is how customers are kept apart
+(`info.md`, 2026-09-29), no tool call is sent until the person chooses one through
+`use_workspace`, a tool the bridge adds, and the choice holds until the task ends, so one session
+is still one workspace. Cowork offers no MCP roots, so the task's folder cannot decide. With none,
+the bridge serves anyway and answers every call with the reason. The token is keyed by server,
 so a configuration naming another server finds none to send. It supplies the workspace itself: it takes
 `workspaceId` out of the tool schemas and puts the checkout's into every call, replacing whatever
 the assistant wrote, which grants nothing because the token is refused in any other workspace. In
