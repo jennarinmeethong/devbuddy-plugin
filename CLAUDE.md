@@ -47,7 +47,13 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.10.0` is the current release**, published 2026-09-27 at 10:11 UTC from `de841f8` at the
+**`v1.10.1` is the current release**, published 2026-09-28 at 04:11 UTC from `4082c07`: Thai in
+Leelawadee UI, dependency updates, Go 1.27.1 for the evidence store, and the first release whose
+draft carried the runners' smoke results (A2). The devbox runs it since the same morning, moved by
+the owner, with `mcp` still on the A4 trial image; **never build `mcp` there while that pin
+stands**, because the build would overwrite the `devbuddy-mcp:a4` tag.
+
+**`v1.10.0` was the release before it**, published 2026-09-27 at 10:11 UTC from `de841f8` at the
 owner's instruction. It changes the web client only: the Ocean Mist Light theme with a sidebar,
 Thai and English, bundled fonts and scrolling tables. The upgrade is `up -d` alone, with no
 migration, and nobody signs in again. Its checklist is in `docs/operations/release-matrix.md`. The
@@ -78,7 +84,7 @@ same day. That tag ran in an LXC there, below, until `v1.8.0`.
 
 **The devbox is an LXC since 2026-09-25.** The owner reinstalled jmhp as Proxmox, and DevBuddy now
 runs in an unprivileged LXC on it, with `nesting=1,keyctl=1` so Docker can run inside. It is
-`v1.10.0` from the tag's own Compose file (`v1.9.0` earlier on 2026-09-27, `v1.8.0` before that), with MCP on loopback on
+`v1.10.1` from the tag's own Compose file (`v1.10.0` and `v1.9.0` on 2026-09-27, `v1.8.0` before that), with MCP on loopback on
 5011. **Since 2026-09-26 the LAN reaches the API and web UI only at `https://192.168.1.160:5010`**
 (Phase 14, B1), through a Caddy gateway with its own internal CA in
 `/data/devbuddy-tools/gateway`, outside the stack. Plain HTTP on that port is redirected, and a public address is dropped: outside the LAN it is

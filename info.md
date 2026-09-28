@@ -1,12 +1,12 @@
 # Project Decisions
 
-## Confirmed One Release for Everything: v1.11.0 — 2026-09-28
+## Confirmed Cutting v1.11.0 for A4 — 2026-09-28
 
 After Codex on the Mac mini reached the devbox through the `devbuddy` client, the owner asked for
-everything to go into this upgrade ("รวมทุกอย่างให้เป็น upgrade รอบนี้เลย"). The release is
-`v1.11.0`, not `v1.10.1`: it carries A4, which changes how plugins connect and adds a program, as
-well as what PR #27 prepared for `v1.10.1`. *14.12* in `docs/plan-phase-14.md` says what it
-carries and what an upgrade needs.
+everything to go into this upgrade ("รวมทุกอย่างให้เป็น upgrade รอบนี้เลย"), then, once the other
+session had published `v1.10.1` with the rest, to carry on ("ทำต่อได้เลย"). The next release is
+`v1.11.0` and carries A4, which changes how plugins connect and adds a program, so it is a minor
+version. *14.13* in `docs/plan-phase-14.md` says what it carries and what an upgrade needs.
 
 ## Confirmed MCP over HTTPS with a Machine Token, and a `devbuddy` Client Command — 2026-09-27
 
@@ -58,6 +58,13 @@ OAuth sign-in for MCP was named as a later step and not decided.
 owner the same day. Reaching Secret Service meant running `secret-tool`, and product code starts no
 process (SB-04, `NoExecutionTests`), which failed the first version. Windows and macOS are called
 directly and keep their stores. ADR-0015 records it.
+
+## Confirmed Leelawadee UI, and Cutting v1.10.1 — 2026-09-27
+
+The owner reviewed PR #24 and asked for Thai to be set in Leelawadee UI, then asked for the work to
+continue ("ทำต่อเลย"), which is the instruction to merge PR #26 and cut `v1.10.1` from it, as
+offered. *14.12* in `docs/plan-phase-14.md` says what it carries. The Leelawadee UI decision itself
+is recorded under the Ocean Mist Light entry below.
 
 ## Confirmed A2, B3, Dependabot, and the Demo Removed — 2026-09-27
 
