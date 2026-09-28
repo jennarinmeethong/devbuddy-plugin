@@ -202,6 +202,12 @@ if (servesAdminUi)
     // client is what a person following a link expects. An API caller never sees it: the client
     // invokes operations with POST, and that route answers for itself.
     app.MapFallbackToFile("index.html", adminUiFiles).AllowAnonymous();
+
+    // Except under /.well-known/, which RFC 8615 keeps for metadata a machine reads. Claude Code
+    // asks there for OAuth metadata when the MCP transport answers 401, and was handed the
+    // client's page with a 200, which it reported as "JSON Parse error: Unrecognized token '<'"
+    // instead of the refusal it was (2026-09-28). DevBuddy publishes nothing there, so it is 404.
+    app.MapMethods("/.well-known/{**path}", ["GET", "HEAD"], () => Results.NotFound()).AllowAnonymous();
 }
 
 await app.RunAsync();
