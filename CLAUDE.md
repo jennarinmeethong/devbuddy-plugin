@@ -34,9 +34,9 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 1060 .NET tests and 85 web tests exist. The .NET suite passed at 1005 on devrelease
-for `v1.9.0` on 2026-09-27, and at 1060 on the Windows development machine the same day, when the
-MCP server's HTTP transport took machine tokens and the `devbuddy` client was added (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
+enforcement. 1065 .NET tests and 85 web tests exist. The .NET suite passed at 1005 on devrelease
+for `v1.9.0` on 2026-09-27, and at 1065 on devrelease for `v1.11.0` on 2026-09-28, when the MCP server's HTTP transport took
+machine tokens and the `devbuddy` client was added (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
 day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**, in the job
 `Web client tests`, in the `oven/bun:1` image the API image builds the client with. Until then
 only `bun run build` ran there, which type-checks. The owner's Linux test machine that ran both
@@ -47,7 +47,17 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.10.1` is the current release**, published 2026-09-28 at 04:11 UTC from `4082c07`: Thai in
+**`v1.11.0` is the current release**, published 2026-09-28 at 10:23 UTC from `d2fda9b` at the
+owner's instruction. It is Phase 14's A4: the MCP server's HTTP transport at `/mcp`, taking a
+machine token and nothing else, rate-limited per person; the `devbuddy` client in every archive
+under `Client/`; both plugin packages over HTTPS through it (ADR-0015). **An upgrade is `up -d`
+plus a reverse proxy rule passing `/mcp` to the MCP server**, and each person installs the client
+and registers their checkouts. It breaks anything that reached the HTTP transport with an access
+token or at the root; stdio is unchanged. No migration, and nobody signs in again. Its checklist is
+in `docs/operations/release-matrix.md`. **The devbox runs it since the same day**, moved by the
+owner, with the A4 trial pin removed; its gateway passes `/mcp` to the MCP service.
+
+**`v1.10.1` was the release before it**, published 2026-09-28 at 04:11 UTC from `4082c07`: Thai in
 Leelawadee UI, dependency updates, Go 1.27.1 for the evidence store, and the first release whose
 draft carried the runners' smoke results (A2). The devbox runs it since the same morning, moved by
 the owner, with `mcp` still on the A4 trial image; **never build `mcp` there while that pin
