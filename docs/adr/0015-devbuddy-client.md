@@ -89,3 +89,13 @@ the folder it was started in.
   per program. The owner chose .NET and keeps Smart App Control off on their own machine.
 - **OAuth for MCP.** Both assistants support it, and it would remove pasting a token. Named as a
   later step: it makes DevBuddy an authorization server, which is a larger surface to own.
+
+## Amendment — 2026-09-28 (v1.11.2)
+
+The Claude package passes the URL to the helper itself, `--url "${DEVBUDDY_URL}/mcp"`, as the Codex
+package always did. On JMPC, Claude Code handed the helper `CLAUDE_CODE_MCP_SERVER_URL` with every
+`1` replaced by `REDACTED`: it redacts the values of variables it counts as credentials wherever they
+occur, and one held `1`. The helper refused the garbled URL as not the registered server, which is
+the check doing its job on bad input. The environment variable remains a fallback for a
+configuration that passes no `--url`.
+

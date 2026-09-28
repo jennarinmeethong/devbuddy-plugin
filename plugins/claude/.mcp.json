@@ -3,7 +3,7 @@
     "devbuddy": {
       "type": "http",
       "url": "${DEVBUDDY_URL}/mcp",
-      "headersHelper": "${DEVBUDDY_CLIENT:-devbuddy} mcp-headers --dir \"${CLAUDE_PROJECT_DIR}\""
+      "headersHelper": "${DEVBUDDY_CLIENT:-devbuddy} mcp-headers --dir \"${CLAUDE_PROJECT_DIR}\" --url \"${DEVBUDDY_URL}/mcp\""
     }
   }
 }

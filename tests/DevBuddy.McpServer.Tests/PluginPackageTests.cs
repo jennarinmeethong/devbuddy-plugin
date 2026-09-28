@@ -106,7 +106,10 @@ public sealed partial class PluginPackageTests
     /// <c>devbuddy</c> client's header helper (Phase 14, A4; ADR-0015).
     /// <para>
     /// Claude Code runs a plugin's helper in the plugin's own folder, so the Claude package passes
-    /// the project folder; the helper reads the URL from <c>CLAUDE_CODE_MCP_SERVER_URL</c>. Codex's
+    /// the project folder. Both packages pass the URL to the helper themselves: Claude Code's
+    /// <c>CLAUDE_CODE_MCP_SERVER_URL</c> arrived on JMPC with every <c>1</c> replaced by
+    /// <c>REDACTED</c>, because it redacts the values of credential variables wherever they occur,
+    /// and the helper rightly refused a URL that was not the registered server (2026-09-28). Codex's
     /// file names the URL twice, and the two must agree, because the helper hands the token only
     /// to the server the checkout is registered to.
     /// </para>
@@ -122,6 +125,10 @@ public sealed partial class PluginPackageTests
         Assert.EndsWith("/mcp", server.GetProperty("url").GetString(), StringComparison.Ordinal);
         Assert.Contains("mcp-headers", server.GetProperty("headersHelper").GetString(), StringComparison.Ordinal);
         Assert.Contains("${CLAUDE_PROJECT_DIR}", server.GetProperty("headersHelper").GetString(), StringComparison.Ordinal);
+        Assert.Contains(
+            $"--url \"{server.GetProperty("url").GetString()}\"",
+            server.GetProperty("headersHelper").GetString(),
+            StringComparison.Ordinal);
         Assert.False(server.TryGetProperty("command", out _), "The Claude package still launches a local server.");
 
         string codex = File.ReadAllText(Path.Combine(PackageRoot("codex").FullName, "config.toml"));
