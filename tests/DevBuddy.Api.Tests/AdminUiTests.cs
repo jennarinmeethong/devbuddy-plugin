@@ -110,6 +110,25 @@ public sealed class AdminUiTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    /// <summary>
+    /// Metadata a machine asks for is never answered with the client's page. Claude Code asks for
+    /// OAuth metadata under <c>/.well-known/</c> when the MCP transport refuses it, and a 200 with
+    /// HTML there became a JSON parse error that hid the refusal (2026-09-28).
+    /// </summary>
+    [Theory]
+    [InlineData("/.well-known/oauth-authorization-server")]
+    [InlineData("/.well-known/oauth-protected-resource/mcp")]
+    [InlineData("/.well-known/openid-configuration")]
+    public async Task a_well_known_path_is_not_found_rather_than_the_client(string path)
+    {
+        using HttpClient client = _factory.CreateClient();
+
+        using HttpResponseMessage response = await client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain(Marker, await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task the_method_decides_whether_a_path_belongs_to_the_api_or_the_client()
     {
