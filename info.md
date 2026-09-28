@@ -1,5 +1,13 @@
 # Project Decisions
 
+## Confirmed One Release for Everything: v1.11.0 — 2026-09-28
+
+After Codex on the Mac mini reached the devbox through the `devbuddy` client, the owner asked for
+everything to go into this upgrade ("รวมทุกอย่างให้เป็น upgrade รอบนี้เลย"). The release is
+`v1.11.0`, not `v1.10.1`: it carries A4, which changes how plugins connect and adds a program, as
+well as what PR #27 prepared for `v1.10.1`. *14.12* in `docs/plan-phase-14.md` says what it
+carries and what an upgrade needs.
+
 ## Confirmed MCP over HTTPS with a Machine Token, and a `devbuddy` Client Command — 2026-09-27
 
 The owner asked how to use the plugin from Codex on the Mac mini, then asked why it had to be SSH,

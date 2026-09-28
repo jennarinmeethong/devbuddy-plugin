@@ -109,6 +109,8 @@ Each threat maps to one or more controls in [security-baseline.md](security-base
 | T2.3 | AI reads more than the requesting user is permitted to see. | SB-09 |
 | T2.4 | AI performs a human-gated action: approve, publish, sync, redact, backup. | SB-07, SB-10 |
 | T2.5 | One transport exposes a wider surface than the other. | SB-07 |
+| T2.6 | A plugin's credential is sent to a server other than the one it was issued by, through a configuration somebody changed or got wrong (Phase 14, A4). | SB-11: the `devbuddy` helper sends the token only to the server a checkout is registered to, from a registry outside every repository (ADR-0015) |
+| T2.7 | A request with no working token, or a flood of them, reaches a tool, or stops everybody else's calls (Phase 14, A4). | SB-11, SB-21: the HTTP transport authenticates before any tool runs, and limits per person rather than per address |
 
 ### TB3 and TB4 — Identity, access, tenancy
 
@@ -118,6 +120,7 @@ Each threat maps to one or more controls in [security-baseline.md](security-base
 | T3.2 | Isolation holds for single-record reads but leaks through search, exports, attachments, or caches. | SB-12 |
 | T3.3 | Password guessing or credential stuffing succeeds. | SB-13 |
 | T3.4 | A stolen token stays valid indefinitely, or revocation does not take effect. | SB-14 |
+| T3.7 | A machine token on a person's machine is read by another program, or pasted into a file that travels (Phase 14, A4). | SB-14: the client keeps it in the operating system's credential store, never takes it as an argument, and checks it against the server before storing it. Residual: AL-6 |
 | T3.5 | Account recovery is abused to take over an account. | SB-15 |
 | T3.6 | A viewer reaches approval, audit, or administration functions. | SB-16 |
 
@@ -165,6 +168,11 @@ Carried from the Accepted Security Limitations section of `info.md`:
 - **AL-4** MCP controls do not govern the AI host direct filesystem access or its unrelated tools.
 - **AL-5** Deleted data ages out of backups on the backup schedule, not immediately. See the
   retention table in `docs/plan.md`, Phase 11.
+- **AL-6** (Phase 14, A4; ADR-0015; accepted with the owner's decision of 2026-09-27 in `info.md`,
+  not carried from its limitations section.) A machine token now lives on the person's machine, where any
+  program running as that person can ask the credential store for it, as it could for their other
+  credentials. On Linux the store is a mode-600 file. The token is scoped to one workspace,
+  expires, and is revoked on the next call, which bounds what a stolen one is worth.
 
 Accepting these limitations does not waive any required control, and is not blanket acceptance of
 future vulnerabilities. Each specific residual risk is re-reviewed as implementation and test

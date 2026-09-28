@@ -601,6 +601,32 @@ UTC, and the devbox runs the tag.
   follow the browser's language and a switch at the top changes it; and nothing about the policy,
   the API or the AI surface changed.
 
+## 14.12 — Cutting v1.11.0
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-28): one release carrying
+everything since `v1.10.0`. PR #27 prepared `v1.10.1` for part of it; the owner asked for A4 to go
+in the same upgrade, which makes it a minor version, and #27 is superseded.
+
+- **What it carries since `v1.10.0`:**
+  - **A4:** the MCP server's HTTP transport at `/mcp`, taking a machine token and nothing else,
+    rate-limited per person; the `devbuddy` client in every archive under `Client/`, with its own
+    SBOM; both plugin packages over HTTP through it; the Plugin access screen showing the
+    `devbuddy register` command with this server and workspace filled in;
+  - Thai set in **Leelawadee UI** where the device has it, Sarabun where not;
+  - Dependabot's updates, among them **Go 1.27.1 for the evidence store's build**;
+  - A2's jobs in `release.yml`, so **this is A2's first real run**.
+- **A minor version.** No migration, so the count stays at nine. Nobody signs in again. The
+  content security policy is unchanged. The Claude plugin moves to 1.11.0.
+- **What an upgrade needs beyond `up -d`:** the reverse proxy passes `/mcp` to the MCP server
+  (`deployment.md`); each person installs the client, mints a token and registers their checkouts
+  (`plugin-hosts.md`). **The devbox** also removes the `image: devbuddy-mcp:a4` line its override
+  carries since the A4 trial, or `mcp` stays on that build.
+- **Breaking, and the notes must say so:** the HTTP transport refuses the web client's access token
+  and answers at `/mcp`, not the root. Anything that reached it the old way stops. Stdio is
+  unchanged. The client is unsigned and does not run where Smart App Control is on.
+- **The checklist runs from `tools/release/` at the release commit**, as for `v1.10.0`, with the
+  client's smoke rows new in both smoke scripts.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.

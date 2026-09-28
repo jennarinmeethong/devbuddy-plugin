@@ -8,8 +8,10 @@ import { Failure } from "../components/Failure";
 import { t, tr } from "../i18n";
 
 /**
- * Machine tokens: the credential a locally launched Claude or Codex plugin puts in its
- * configuration.
+ * Machine tokens: the credential Claude Code and Codex present to the MCP server, which the
+ * `devbuddy` client keeps per checkout in the operating system's credential store (Phase 14, A4;
+ * ADR-0015). The page ends with the command that registers a checkout, with this server's address
+ * and this workspace's identifiers filled in, because nothing else on screen shows them.
  *
  * Everybody sees this page, including a viewer, and that is not a loosening. A token carries
  * exactly the permissions its owner already has, so minting one grants nothing new; refusing it
@@ -28,6 +30,15 @@ export function PluginAccess() {
   const queries = useQueryClient();
   const [name, setName] = useState("");
   const [days, setDays] = useState(90);
+
+  const projects = useQuery({
+    queryKey: ["projects", workspaceId],
+    queryFn: () => invoke("list_projects", { workspaceId: workspaceId! }),
+    enabled: Boolean(workspaceId),
+  });
+
+  // The address this page came from is the gateway's, and the MCP endpoint is on it at /mcp.
+  const register = `devbuddy register --server ${window.location.origin} --workspace ${workspaceId}`;
 
   const tokens = useQuery({
     queryKey: ["machine-tokens", workspaceId],
@@ -117,7 +128,7 @@ export function PluginAccess() {
         {tokens.data?.tokens.some((token) => token.needsReplacement) ? (
           <div className="mt-3">
             <Alert tone="error">
-              {t("A token above was issued before tokens were tied to a workspace, and no longer works anywhere. It cannot be repaired — only a hash of it was ever stored — so mint a replacement here, put that in your plugin configuration, and revoke the old one.")}
+              {t("A token above was issued before tokens were tied to a workspace, and no longer works anywhere. It cannot be repaired — only a hash of it was ever stored — so mint a replacement here, register your checkouts with it, and revoke the old one.")}
             </Alert>
           </div>
         ) : null}
@@ -176,18 +187,57 @@ export function PluginAccess() {
             </code>
             <p className="text-xs text-[var(--color-muted)]">
               {tr(
-                "Expires {when}. Put it in your plugin configuration as {variable}, in the environment the assistant is launched from rather than in a file shared by every project on the machine.",
-                {
-                  when: <When value={issue.data.expiresAt} />,
-                  variable: <code className="font-mono">DEVBUDDY_TOKEN</code>,
-                },
+                "Expires {when}. Register a checkout with it using the command below: the devbuddy client asks for the token once per workspace and keeps it in your operating system's credential store. Never put it in a configuration file.",
+                { when: <When value={issue.data.expiresAt} /> },
               )}
             </p>
             <p className="text-xs text-[var(--color-muted)]">
-              {t("It works in this workspace only. Whichever token is in the environment when the assistant starts is the identity every call runs as, and changing folder afterwards does not change it — so start a session per workspace.")}
+              {t("It works in this workspace only. A session is one workspace, the one the checkout it was started in is registered to, and changing folder afterwards does not change it.")}
             </p>
           </div>
         ) : null}
+      </Panel>
+
+      <Panel title={t("Connect a checkout")}>
+        <p className="text-sm">
+          {t("In the checkout, on the machine where Claude Code or Codex runs, with the devbuddy client installed:")}
+        </p>
+        <code className="mt-2 block break-all rounded bg-[var(--color-soft)] p-2 font-mono text-xs">
+          {register}
+        </code>
+        <p className="mt-2 text-xs text-[var(--color-muted)]">
+          {t("Add a project to make it the assistants' default. A project closed to AI is not listed to them at all.")}
+        </p>
+
+        {projects.isError ? (
+          <div className="mt-3">
+            <Failure error={projects.error} />
+          </div>
+        ) : projects.data && projects.data.projects.length > 0 ? (
+          <div className="mt-3">
+            <Table head={[t("Project"), t("AI access"), t("Command")]}>
+              {projects.data.projects.map((project) => (
+                <tr key={project.projectId} className="border-b border-[var(--color-line)] last:border-0">
+                  <td className="px-2 py-2">{project.name}</td>
+                  <td className="px-2 py-2">
+                    {project.aiAccessEnabled ? (
+                      <Badge tone="live">{t("Enabled")}</Badge>
+                    ) : (
+                      <Badge>{t("Denied")}</Badge>
+                    )}
+                  </td>
+                  <td className="px-2 py-2">
+                    <code className="break-all font-mono text-xs">{`${register} --project ${project.projectId}`}</code>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        ) : null}
+
+        <p className="mt-3 text-xs text-[var(--color-muted)]">
+          {t("Then run devbuddy doctor there. It checks the registration, the stored token, this server's certificate and that the token works in this workspace.")}
+        </p>
       </Panel>
     </>
   );
