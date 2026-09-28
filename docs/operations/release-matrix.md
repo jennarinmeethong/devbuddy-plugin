@@ -219,6 +219,39 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.10.1
+
+**Checked before the tag, at `4082c07`**, the commit tagged, at the owner's instruction (`info.md`,
+2026-09-27). *14.12* in `docs/plan-phase-14.md` says what it carries. No check was added.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran 1005 tests with none failed, now on `Microsoft.NET.Test.Sdk` 18 and `coverlet.collector` 10. The web build passed and its suite ran 85 of 85. `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **115 passed, 0 failed**, on 2026-09-28. A first run the day before left its stack up; a second session started part 2 again beside it on 2026-09-28, its bootstrap met the old database, and it failed 2 of 30. That stack was removed and part 2 rerun from clean. The drill includes the evidence store built with Go 1.27.1. |
+| Part 3, `upgrade.sh` from `v1.10.0` | devrelease, amd64 | **47 passed, 0 failed.** Migrations stayed at nine. `restore --evidence-only` restored 1 of 1 objects and changed no row. The access token from `v1.10.0` answered 200, and the machine token answered identically over MCP stdio. |
+| Part 3, `upgrade.sh` from `v1.10.0` | Ubuntu arm64 guest | **47 passed, 0 failed**, with the same restore, token and session results. |
+
+### After the tag
+
+`v1.10.1` was tagged at `4082c07` after PR #27 merged. Release run 36375258645 passed all 24 jobs,
+**the first run with A2's jobs**, which wrote *Runner smoke results* into the draft. Per B4 those
+rows replace the hand runs for `win-arm64`, `linux-arm64`, `linux-musl-arm64` and `osx-arm64`;
+`osx-arm64` also ran on the Mac mini because the dependency updates changed its build.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match.** |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.10.1` and `4082c07`. SBOMs of 36, 38 and 56 components. A wrong-owner control was refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow (`ubuntu-latest`, `ubuntu-24.04-arm`) | **29 of 29 each**; the console lists the same AI operations on both. |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass**: Linux RIDs in their containers, `osx-arm64` on `macos-15`, `win-arm64` on `windows-11-arm`, `win-x64` on `windows-latest`. |
+| `linux-x64`, `linux-musl-x64` | `smoke.sh`, devrelease, by hand | **Pass.** |
+| `osx-arm64` | `smoke.sh`, natively on the Mac mini (macOS 26.6.2), by hand | **Pass.** |
+| `win-x64` | `client-smoke.ps1`, natively on JMPC, by hand | **Pass**, every row, x64 PE. |
+
+**Published on 2026-09-28 at 04:11 UTC**, as Latest. The throwaway stacks, archives and clones were
+removed from every machine.
+
 ## What was verified for v1.10.0
 
 **Checked on 2026-09-27 before the tag**, at the owner's instruction (`info.md`). *14.11* in
