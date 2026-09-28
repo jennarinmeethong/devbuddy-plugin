@@ -1,5 +1,22 @@
 # Project Decisions
 
+## Confirmed A Workspace Per Customer, and Cowork Chooses Its Workspace — 2026-09-29
+
+The owner asked how to count workspaces: ten projects of one programme, or ten projects from
+customers that have nothing to do with each other. Claude answered that a workspace is a trust
+boundary, since a token, the evidence bucket and a workspace administrator's reach all stop at it
+and nothing inside it stops one session reading across projects. The owner agreed that knowledge
+of one customer turning up in another's answer is a problem ("เป็นปัญหา"), and decided that
+**Cowork must be able to choose its workspace** ("cowork ควรระบุ workspace ได้").
+
+- **Unrelated customers get a workspace each.** One programme's projects share one.
+- **The bridge refuses when it cannot choose, and says why to the assistant**, instead of exiting
+  before it can answer, which Cowork showed only as a connector that failed.
+- **How Cowork chooses is open.** The first thing tried is MCP roots, the folder a Cowork task
+  works in, which would let the bridge choose by folder as Claude Code does. Whether Cowork sends
+  roots is being probed. A per-task choice made anywhere else, or two plugins with one workspace
+  each, is the fallback, and the second puts both workspaces in every task.
+
 ## Confirmed A Checkout Need Not Be a Git Repository — 2026-09-28
 
 The owner asked whether requiring git shut out people who do not work in code, such as an SA or a
