@@ -34,7 +34,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 1065 .NET tests and 85 web tests exist. The .NET suite passed at 1005 on devrelease
+enforcement. 1068 .NET tests and 85 web tests exist. The .NET suite passed at 1005 on devrelease
 for `v1.9.0` on 2026-09-27, and at 1065 on devrelease for `v1.11.0` on 2026-09-28, when the MCP server's HTTP transport took
 machine tokens and the `devbuddy` client was added (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
 day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**, in the job
@@ -47,7 +47,13 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.11.0` is the current release**, published 2026-09-28 at 10:23 UTC from `d2fda9b` at the
+**`v1.11.1` is the current release**, published 2026-09-28 at 15:23 UTC from `2075492` at the
+owner's instruction. It answers 404 under `/.well-known/`, where the API's client fallback had
+served the web page: Claude Code, refused by `/mcp` in an unregistered checkout, asks there for
+OAuth metadata and reported the HTML as a JSON parse error. The upgrade is `up -d` alone. Its
+checklist is in `docs/operations/release-matrix.md`.
+
+**`v1.11.0` was the release before it**, published 2026-09-28 at 10:23 UTC from `d2fda9b` at the
 owner's instruction. It is Phase 14's A4: the MCP server's HTTP transport at `/mcp`, taking a
 machine token and nothing else, rate-limited per person; the `devbuddy` client in every archive
 under `Client/`; both plugin packages over HTTPS through it (ADR-0015). **An upgrade is `up -d`
