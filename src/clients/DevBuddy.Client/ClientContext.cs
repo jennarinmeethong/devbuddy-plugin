@@ -2,7 +2,9 @@ namespace DevBuddy.Client;
 
 /// <summary>
 /// Everything a command touches outside itself, so a test can hand it a temporary home, a file
-/// credential store, a server of its own and a scripted token.
+/// credential store, a server of its own and a scripted token. <see cref="Input"/> and
+/// <see cref="Output"/> are the raw standard streams, for the bridge's protocol, which must be
+/// UTF-8 whatever the console's code page.
 /// </summary>
 internal sealed record ClientContext(
     ClientHome Home,
@@ -13,7 +15,9 @@ internal sealed record ClientContext(
     Func<string, string?> Environment,
     string WorkingDirectory,
     Func<string, string?> ReadToken,
-    string UserFolder)
+    string UserFolder,
+    Stream Input,
+    Stream Output)
 {
     public static ClientContext ForThisProcess()
     {
@@ -30,7 +34,9 @@ internal sealed record ClientContext(
             Read,
             System.Environment.CurrentDirectory,
             TokenPrompt.Read,
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile));
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
+            Console.OpenStandardInput(),
+            Console.OpenStandardOutput());
     }
 }
 

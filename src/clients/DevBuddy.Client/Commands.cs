@@ -5,7 +5,7 @@ namespace DevBuddy.Client;
 
 /// <summary>
 /// Every <c>devbuddy</c> command (ADR-0015). Exit codes: 0 done, 1 refused or failed, and for
-/// <c>mcp-headers</c> 2 for an unregistered folder, 3 for a URL that is not the registered server,
+/// <c>mcp-headers</c> and <c>mcp-bridge</c> 2 for an unregistered folder, 3 for a URL that is not the registered server,
 /// 4 for a missing token.
 /// </summary>
 internal static class Commands
@@ -59,6 +59,7 @@ internal static class Commands
         root.Add(Token(context));
         root.Add(Doctor(context));
         root.Add(McpHeaders(context));
+        root.Add(McpBridge(context));
 
         return root;
     }
@@ -452,6 +453,73 @@ internal static class Commands
         });
 
         return command;
+    }
+
+    /// <summary>
+    /// A local MCP server for an assistant that will not run a header helper, such as Cowork: it
+    /// passes each message to the checkout's server with the checkout's token. It takes no URL, so
+    /// no configuration can point it anywhere else.
+    /// </summary>
+    private static Command McpBridge(ClientContext context)
+    {
+        Option<string?> dir = new("--dir") { Description = "The folder the assistant works in. Defaults to the current folder." };
+        Option<string?> log = new("--log")
+        {
+            Description = "A file to note what the bridge did in: methods, statuses and reasons, never a token or content.",
+        };
+
+        Command command = new(
+            "mcp-bridge",
+            "Serves MCP over stdio, and passes every message to the checkout's DevBuddy server over HTTPS.")
+        {
+            dir, log,
+        };
+
+        command.SetAction(async (result, cancellationToken) =>
+        {
+            var bridgeLog = new BridgeLog(result.GetValue(log) is { Length: > 0 } file ? Path.GetFullPath(file) : null);
+            string? given = result.GetValue(dir);
+
+            // An assistant that does not know a variable passes it on as written, or as nothing.
+            string folder = Path.GetFullPath(
+                given is { Length: > 0 } && !given.Contains("${", StringComparison.Ordinal) ? given : context.WorkingDirectory);
+
+            bridgeLog.Write($"started in {context.WorkingDirectory}, --dir '{given}', so the folder is {folder}");
+            bridgeLog.Write($"assistant variables: {AssistantVariables(context)}");
+
+            Checkout? checkout = Registry.Load(context.Home).Find(folder);
+
+            if (checkout is null)
+            {
+                string problem = $"DevBuddy: {folder} is not in a registered checkout, so nothing is sent. Run `devbuddy register` in it.";
+                context.Error.WriteLine(problem);
+                bridgeLog.Write(problem);
+                return NotRegistered;
+            }
+
+            bridgeLog.Write($"checkout {checkout.Path}, server {checkout.Server}, workspace {checkout.Workspace:D}");
+            using var bridge = new McpBridge(context, checkout, bridgeLog);
+            await bridge.RunAsync(context.Input, context.Output, cancellationToken);
+            bridgeLog.Write("standard input closed; stopped");
+            return Done;
+        });
+
+        return command;
+    }
+
+    /// <summary>
+    /// The variables an assistant sets for the servers it starts, for the log: they say which
+    /// folder it meant. Anything whose name suggests a credential is named and not shown.
+    /// </summary>
+    private static string AssistantVariables(ClientContext context)
+    {
+        string[] names = ["CLAUDE_PROJECT_DIR", "CLAUDE_PLUGIN_ROOT", "CLAUDE_CODE_ENTRYPOINT", "PWD", "INIT_CWD"];
+        IEnumerable<string> present = names
+            .Where(name => context.Environment(name) is not null)
+            .Select(name => $"{name}={context.Environment(name)}");
+
+        string joined = string.Join(", ", present);
+        return joined.Length > 0 ? joined : "(none of the known ones)";
     }
 
     /// <summary>

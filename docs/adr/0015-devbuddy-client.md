@@ -65,6 +65,14 @@ checkout's server. Otherwise it prints nothing to standard output, says why on s
 exits non-zero: an unregistered folder, a missing token, or a URL that is not the registered server.
 The last one is what keeps a mistaken or altered configuration from sending the token anywhere else.
 
+**`mcp-bridge` is for an assistant that runs no header helper** (2026-09-28, on trial). Cowork reads
+only `url`, `headers` and `oauth` from a plugin's remote entry, but starts a plugin's local stdio
+server on the host. The bridge is that server: each JSON-RPC line goes to the registered checkout's
+own `/mcp` with its token, read from the store per request. It takes no URL, so the same rule holds:
+the token goes only to the checkout's server. It adds the workspace and default project to the
+server's `instructions` at `initialize`, because a sandboxed assistant cannot run `devbuddy show`.
+`--log` notes methods, statuses and reasons, never a token or content.
+
 **One session is one workspace.** The helper resolves the token when the assistant connects, from
 the folder it was started in.
 
