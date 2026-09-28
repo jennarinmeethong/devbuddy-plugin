@@ -69,8 +69,11 @@ The last one is what keeps a mistaken or altered configuration from sending the 
 only `url`, `headers` and `oauth` from a plugin's remote entry, but starts a plugin's local stdio
 server on the host. The bridge is that server: each JSON-RPC line goes to the registered checkout's
 own `/mcp` with its token, read from the store per request. It takes no URL, so the same rule holds:
-the token goes only to the checkout's server. It adds the workspace and default project to the
-server's `instructions` at `initialize`, because a sandboxed assistant cannot run `devbuddy show`.
+the token goes only to the checkout's server. It supplies the workspace itself: it takes
+`workspaceId` out of the tool schemas and puts the checkout's into every call, replacing whatever
+the assistant wrote, which grants nothing because the token is refused in any other workspace. In
+Cowork an assistant never saw the server's `instructions` and guessed one. The default project is
+still named in those instructions.
 `--log` notes methods, statuses and reasons, never a token or content.
 
 **One session is one workspace.** The helper resolves the token when the assistant connects, from

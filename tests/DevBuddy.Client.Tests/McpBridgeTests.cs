@@ -188,7 +188,74 @@ public sealed class McpBridgeTests : IDisposable
         Assert.DoesNotContain(ClientHarness.GoodToken, written, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Cowork did not pass the server's instructions on, so the assistant guessed a workspace and
+    /// was refused. The schemas it sees ask for none.
+    /// </summary>
+    [Fact]
+    public async Task the_tool_list_asks_for_no_workspace()
+    {
+        string checkout = Registered();
+        _client.Remote.Answer = body => body.Contains("tools/list", StringComparison.Ordinal) ? Stream(ToolList) : null;
+
+        await BridgeAsync(checkout, """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""");
+
+        JsonArray tools = JsonNode.Parse(Lines()[0])!["result"]!["tools"]!.AsArray();
+        JsonNode listProjects = tools.Single(tool => tool!["name"]!.GetValue<string>() == "list_projects")!["inputSchema"]!;
+        JsonNode scope = tools.Single(tool => tool!["name"]!.GetValue<string>() == "list_records")!["inputSchema"]!["properties"]!["scope"]!;
+
+        Assert.Null(listProjects["properties"]!["workspaceId"]);
+        Assert.Empty(listProjects["required"]!.AsArray());
+        Assert.Null(scope["properties"]!["workspaceId"]);
+        Assert.Equal(["projectId"], scope["required"]!.AsArray().Select(entry => entry!.GetValue<string>()));
+    }
+
+    [Fact]
+    public async Task a_call_is_sent_with_the_registered_workspace_where_each_tool_takes_it()
+    {
+        string checkout = Registered();
+        _client.Remote.Answer = body => body.Contains("tools/list", StringComparison.Ordinal) ? Stream(ToolList) : null;
+
+        await BridgeAsync(
+            checkout,
+            """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""",
+            """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_projects"}}""",
+            """{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_records","arguments":{"scope":{"projectId":"57b6c483-9bc2-48ea-9fe3-1e0cada0995b"}}}}""");
+
+        string workspace = ClientHarness.Workspace.ToString("D");
+        JsonNode listProjects = Sent("list_projects");
+        JsonNode listRecords = Sent("list_records");
+
+        Assert.Equal(workspace, listProjects["params"]!["arguments"]!["workspaceId"]!.GetValue<string>());
+        Assert.Equal(workspace, listRecords["params"]!["arguments"]!["scope"]!["workspaceId"]!.GetValue<string>());
+        Assert.Equal(Project.ToString("D"), listRecords["params"]!["arguments"]!["scope"]!["projectId"]!.GetValue<string>());
+    }
+
+    /// <summary>What the assistant in Cowork did: it wrote a workspace of its own.</summary>
+    [Fact]
+    public async Task a_workspace_the_assistant_made_up_is_replaced_before_it_is_sent()
+    {
+        string checkout = Registered();
+
+        await BridgeAsync(
+            checkout,
+            """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_knowledge","arguments":{"queryText":"x","scope":{"workspaceId":"3f2a9c1e-0000-0000-0000-000000000000","projectId":"57b6c483-9bc2-48ea-9fe3-1e0cada0995b"}}}}""");
+
+        Assert.Equal(
+            ClientHarness.Workspace.ToString("D"),
+            Sent("search_knowledge")["params"]!["arguments"]!["scope"]!["workspaceId"]!.GetValue<string>());
+    }
+
     public void Dispose() => _client.Dispose();
+
+    /// <summary>Two tools in the shapes the server gives them: the workspace alone, or in a scope.</summary>
+    private const string ToolList =
+        """{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"list_projects","inputSchema":{"type":"object","properties":{"workspaceId":{"type":"string","format":"uuid"}},"required":["workspaceId"]}},{"name":"list_records","inputSchema":{"type":"object","properties":{"scope":{"type":"object","properties":{"workspaceId":{"type":"string","format":"uuid"},"projectId":{"type":"string","format":"uuid"}},"required":["workspaceId","projectId"]}},"required":["scope"]}}]}}""";
+
+    private JsonNode Sent(string tool) =>
+        _client.Remote.Bodies
+            .Select(body => JsonNode.Parse(body)!)
+            .Single(message => message["params"]?["name"]?.GetValue<string>() == tool);
 
     private string Registered(Guid? project = null)
     {

@@ -25,6 +25,9 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromMinutes(5);
 
     private readonly SemaphoreSlim _writing = new(1, 1);
+    private readonly Lock _tools = new();
+    private readonly HashSet<string> _workspaceArgument = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _workspaceInScope = new(StringComparer.Ordinal);
     private string? _protocolVersion;
 
     public void Dispose() => _writing.Dispose();
@@ -93,6 +96,7 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         JsonNode? id = incoming is not null && incoming.TryGetPropertyValue("id", out JsonNode? given) ? given : null;
         string method = incoming?["method"] is JsonValue name && name.TryGetValue(out string? text) ? text : "(response)";
 
+        string body = method == "tools/call" && incoming is not null ? FillWorkspace(incoming) : line;
         string? token;
 
         try
@@ -118,7 +122,7 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, ServerOrigin.McpEndpoint(checkout.Server))
             {
-                Content = new StringContent(line, Encoding.UTF8, "application/json"),
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
@@ -142,7 +146,14 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
 
             await foreach (string answer in AnswersAsync(response, cancellationToken))
             {
-                await WriteAsync(writer, method == "initialize" ? Introduce(answer) : answer, cancellationToken);
+                string relayed = method switch
+                {
+                    "initialize" => Introduce(answer),
+                    "tools/list" => HideWorkspace(answer),
+                    _ => answer,
+                };
+
+                await WriteAsync(writer, relayed, cancellationToken);
             }
         }
         catch (HttpRequestException exception) when (exception.InnerException is AuthenticationException)
@@ -230,13 +241,117 @@ internal sealed class McpBridge(ClientContext context, Checkout checkout, Bridge
             ? $"The default project is {id:D}."
             : "No default project is registered; call list_projects to find one.";
         string introduction =
-            $"This DevBuddy connection works in workspace {checkout.Workspace:D} and no other: pass it as "
-            + $"workspaceId to every tool. {project} It is a registration, not DevBuddy content.";
+            $"This DevBuddy connection works in workspace {checkout.Workspace:D} and no other, and fills "
+            + $"it in on every call, so no tool asks for it. {project} It is a registration, not DevBuddy content.";
 
         string? existing = result["instructions"]?.GetValue<string>();
         result["instructions"] = string.IsNullOrEmpty(existing) ? introduction : $"{existing}\n\n{introduction}";
 
         return message.ToJsonString();
+    }
+
+    /// <summary>
+    /// The tool list with the workspace taken out of every schema. The token works in one
+    /// workspace, so the bridge supplies it; an assistant asked for it would have to guess, and
+    /// Cowork showed one does: it does not pass a server's instructions on.
+    /// </summary>
+    private string HideWorkspace(string answer)
+    {
+        if (JsonNode.Parse(answer)?["result"]?["tools"] is not JsonArray tools)
+        {
+            return answer;
+        }
+
+        foreach (JsonObject tool in tools.OfType<JsonObject>())
+        {
+            string? name = tool["name"]?.GetValue<string>();
+
+            if (name is null || tool["inputSchema"] is not JsonObject schema)
+            {
+                continue;
+            }
+
+            if (Remove(schema, "workspaceId"))
+            {
+                lock (_tools)
+                {
+                    _workspaceArgument.Add(name);
+                }
+            }
+
+            if (schema["properties"]?["scope"] is JsonObject scope && Remove(scope, "workspaceId"))
+            {
+                lock (_tools)
+                {
+                    _workspaceInScope.Add(name);
+                }
+            }
+        }
+
+        return tools.Root.ToJsonString();
+    }
+
+    private static bool Remove(JsonObject schema, string property)
+    {
+        if (schema["properties"] is not JsonObject properties || !properties.Remove(property))
+        {
+            return false;
+        }
+
+        if (schema["required"] is JsonArray required
+            && required.FirstOrDefault(entry => entry?.GetValue<string>() == property) is { } entry)
+        {
+            required.Remove(entry);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// A tool call with the checkout's workspace put where the tool takes it, replacing whatever
+    /// the assistant wrote there. That grants nothing: the token is refused in any other workspace.
+    /// </summary>
+    private string FillWorkspace(JsonObject call)
+    {
+        if (call["params"] is not JsonObject parameters || parameters["name"]?.GetValue<string>() is not { } name)
+        {
+            return call.ToJsonString();
+        }
+
+        if (parameters["arguments"] is not JsonObject arguments)
+        {
+            arguments = [];
+            parameters["arguments"] = arguments;
+        }
+
+        bool inScope;
+        bool asArgument;
+
+        lock (_tools)
+        {
+            inScope = _workspaceInScope.Contains(name);
+            asArgument = _workspaceArgument.Contains(name);
+        }
+
+        string workspace = checkout.Workspace.ToString("D");
+
+        // Before a tool list has been seen, the shape of the call is the only guide.
+        if (inScope || (!asArgument && arguments["scope"] is JsonObject))
+        {
+            if (arguments["scope"] is not JsonObject scope)
+            {
+                scope = [];
+                arguments["scope"] = scope;
+            }
+
+            scope["workspaceId"] = workspace;
+        }
+        else
+        {
+            arguments["workspaceId"] = workspace;
+        }
+
+        return call.ToJsonString();
     }
 
     private string Refusal(HttpStatusCode status) => status switch
