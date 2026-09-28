@@ -647,6 +647,9 @@ surface be a deliberate allow-list over existing use cases rather than a second 
   are shown as sent. Switching language remounts the tree under `LanguageProvider`, so `t` must be
   called while rendering, never once at module load: mark such text with `m` and translate it
   where it renders.
+- **Thai is Leelawadee UI where the device has it, and Sarabun where not** (2026-09-27). Leelawadee
+  UI is Windows' own font and must not be bundled: its licence does not allow it. It is named in
+  `--font-sans` as an installed font only.
 - **The fonts are bundled, and nothing is inlined** (2026-09-27). Roboto and Sarabun come from
   Fontsource packages pinned in `package.json`, declared in `web/admin/src/fonts.css`. The content
   security policy allows `font-src 'self'`, so a font host is refused, and `vite.config.ts` sets
