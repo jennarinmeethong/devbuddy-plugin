@@ -155,6 +155,42 @@ and `stale-sessions.sh` listed both.
   Refusing an old image would mean killing an open session, which is what restarting it does
   anyway, more cleanly.
 
+### A4 — MCP over HTTPS with a machine token, and the `devbuddy` client
+
+**Status: IN PROGRESS.** Decided by the owner on 2026-09-27 (`info.md`). Written and tested on
+the Windows development machine the same day: the server half, the `devbuddy` client (ADR-0015),
+both plugin packages, the release packaging and the gateway route in `tools/devbox/gateway`.
+Not yet done: the Mac mini trial, the e2e run, a release, and the devbox.
+
+- **Problem:** the plugins reach the devbox over SSH to a stdio wrapper that reads one token from
+  the server. Every key runs as that token, a second user needs an administrator to place theirs,
+  and SSH is unreachable over the VPN. The HTTP transport exists, but it accepts only the web
+  client's access token: fifteen minutes long, and not scoped to a workspace.
+- **Work:**
+  - **Done 2026-09-27:** the MCP server's HTTP transport takes a machine token as its bearer and
+    nothing else, resolved on every request and scoped to its workspace exactly as stdio is,
+    mapped at `/mcp`, and rate-limited per person. ADR-0006 is amended rather than a new ADR
+    written for this half.
+  - **Written 2026-09-27:** the gateway passes `/mcp` to the `mcp` service
+    (`tools/devbox/gateway/Caddyfile`, validated with `caddy validate`, not deployed). `compose run`
+    containers join the network without the service alias unless run with `--use-aliases`; check
+    that on the devbox when it is deployed.
+  - **Written 2026-09-27:** ADR-0015 and the client, `src/clients/DevBuddy.Client`, published in
+    every archive under `Client/`, with its own SBOM and a smoke check in both smoke scripts.
+  - **Written 2026-09-27:** both plugin packages connect over HTTP through the helper and hold no
+    token or server secret; `plugin-hosts.md` describes the install, with stdio as the
+    administrator's route. Still to do: the threat model.
+- **Try first, on the Mac mini, before writing server code:** does Codex's `http_headers_helper`,
+  and Claude Code's `headersHelper`, run in the session's working directory, and how often; and
+  does Codex trust the gateway's CA through `CODEX_CA_CERTIFICATE`. That needs a temporary `/mcp`
+  route on the devbox's gateway, which the owner approves first.
+- **Decided 2026-09-27:** machine tokens instead of access tokens; a per-person limit, with
+  unauthenticated requests not counted.
+- **Exit:** Codex on the Mac mini and Claude Code on the Windows machine both work in one
+  registered checkout over HTTPS with one token; an unregistered checkout is refused with the
+  message; a revoked token is refused on the next call; the tests for the workspace ceiling over
+  HTTP pass and are mutation-checked.
+
 ---
 
 ## B — Decisions waiting on the owner
@@ -587,6 +623,27 @@ UTC, and the devbox runs the tag.
   rebuilding the evidence store; Thai uses Leelawadee UI on Windows and Sarabun elsewhere; and
   nothing about the policy, the API or the AI surface changed.
 
+## 14.13 — Cutting v1.11.0
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-28).
+
+- **What it carries since `v1.10.1`: A4.** The MCP server's HTTP transport at `/mcp`, taking a
+  machine token and nothing else, rate-limited per person; the `devbuddy` client in every archive
+  under `Client/`, with its own SBOM and smoke rows; both plugin packages over HTTP through it; the
+  Plugin access screen showing the `devbuddy register` command with this server and workspace
+  filled in; ADR-0015, ADR-0006's amendment and the threat model's T2.6, T2.7, T3.7 and AL-6.
+- **A minor version.** No migration, so the count stays at nine. Nobody signs in again. The
+  content security policy is unchanged. The Claude plugin moves to 1.11.0.
+- **What an upgrade needs beyond `up -d`:** the reverse proxy passes `/mcp` to the MCP server
+  (`deployment.md`); each person installs the client, mints a token and registers their checkouts
+  (`plugin-hosts.md`). **On the devbox** the gateway already passes `/mcp`; if its override still
+  pins `image: devbuddy-mcp:a4` from the trial, remove that line, or `mcp` stays on that build.
+- **Breaking, and the notes must say so:** the HTTP transport refuses the web client's access token
+  and answers at `/mcp`, not the root. Anything that reached it the old way stops. Stdio is
+  unchanged. The client is unsigned and does not run where Smart App Control is on.
+- **The checklist runs from `tools/release/` at the release commit**, as for `v1.10.1`, with the
+  client's smoke rows new in both smoke scripts.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -653,5 +710,10 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-27 | B2 | **Done: the Windows archives stay unsigned for now**, at the owner's confirmation (`info.md`). The release notes already say so, and nothing in `release.yml` changes. SignPath Foundation and Azure Trusted Signing are recorded as the options if signing comes back. |
 | 2026-09-27 | Docs | **The README, release-readiness and the Thai handbook brought up to `v1.10.0`**, at the owner's request. The README named `v1.3.0` as current and said no worker had run on real data. The handbook (`docs/manual/build-guide.mjs`, regenerated with `bun docs/manual/build-guide.mjs`) still described the 9 September snapshot: MinIO and its KMS key, tokens written to the log, no retention scheduler, no embeddings or worker, and `v1.0.0`'s platforms. It now covers SeaweedFS and `DEVBUDDY_EVIDENCE_SSE_KEK`, the Thai and English client, the `retention` service and the `workers` profile, `restore --evidence-only`, the store's guards, 34 controls, `v1.10.0`'s platforms, the unsigned Windows archives, A2, and the hosted-model kit. `release-readiness.md` records the B2 acceptance. Checked: the generator reports 25 chapters, 63 JSON operations and 20 MCP tools, and the page opened with no console error. |
 | 2026-09-27 | Web | **Thai is set in Leelawadee UI where the device has it**, at the owner's request (`info.md`). It ships with Windows under Microsoft's licence, which does not allow bundling, so `--font-sans` names it as an installed font after Roboto; Sarabun stays bundled as the fallback for macOS, Linux and phones. The content security policy is unchanged, since nothing is fetched for an installed font. Verified on the Windows development machine: `bun run build`, the web suite 85 of 85, and the built client served locally in Thai, where `document.fonts.check` found Leelawadee UI and the only font file downloaded was Roboto's, so Sarabun was not fetched. The handbook is regenerated. **Not run here:** the .NET and e2e suites; CI runs them. It reaches the devbox with the next release. |
+| 2026-09-27 | A4 | **Designed with the owner, nothing built.** The owner asked how to use the plugin from Codex on the Mac mini, then why it had to be SSH, and decided: HTTPS through the gateway as the main path with SSH kept as the fallback, a machine token scoped to a workspace, a per-user registry outside every repository managed by a `devbuddy` command, the token in the operating system's credential store, one session per workspace, no token for an unregistered checkout, and a .NET client left unsigned. A MAC-address binding was rejected. Smart App Control on the Windows development machine read Off (`VerifiedAndReputablePolicyState` 0). Recorded in `info.md`. |
+| 2026-09-27 | A4 | **The server half is written, at the owner's word** (`info.md`): machine tokens instead of access tokens on the HTTP transport, and a rate limit. `MachineTokenAuthenticationHandler` resolves the bearer on every request; the workspace ceiling travels into the caller context as over stdio; the environment is never read for an HTTP request; the transport is at `/mcp`; the limit is per person at the API's defaults, and a request with no working token is not counted. `SessionTokenCheck` and the JWT package left the MCP host. ADR-0006 is amended. **Tests:** `HttpTransportTests` (8). The whole .NET suite passed at 1013 on the Windows development machine, Smart App Control off, and `dotnet format` is clean. **Mutation-checked:** a shared bucket, limiting unauthenticated requests, dropping the ceiling and dropping `RequireAuthorization` each fail a test; reading the environment for a request with no identity survived alone, because authorization refuses such a request first. The e2e client and `mcp.spec.ts` now mint a machine token and use `/mcp`; they type-check and **have not been run**. Not deployed: the gateway route, the client and the packages are still to come. |
+| 2026-09-27 | A4 | **The client, the packages and the gateway route are written.** `devbuddy` (ADR-0015) in `src/clients/DevBuddy.Client`, referencing no project: `register`, `list`, `show`, `update`, `unregister`, `token set`, `token remove`, `doctor` and `mcp-headers`. The helper prints the header only for a registered checkout and only when the URL is on its registered server. The token is checked against the server before it is stored, is 43 base64url characters or refused, and is never an argument. Stores: Credential Manager through advapi32, the macOS keychain through Security.framework, and on Linux a mode-600 file. **A change from `info.md`, for the owner to confirm:** Linux gets the file and not Secret Service, because `NoExecutionTests` (SB-04) failed the first version, which ran `security` and `secret-tool`; product code starts no process. Both packages now connect over HTTP: Claude Code through `headersHelper` with `${CLAUDE_PROJECT_DIR}`, Codex through `http_headers_helper` with the same URL twice. The release and supply-chain workflows publish the client and its SBOM; `smoke.sh` and `client-smoke.ps1` check it refuses an unregistered folder. **Tests:** `DevBuddy.Client.Tests` (47, including a real Credential Manager round trip), an end-to-end test in `HttpTransportTests` that runs the built client against the real server, an architecture test, and the package tests rewritten for HTTP. The whole .NET suite passed at 1060 on the Windows development machine, `dotnet format` is clean, and the client publishes for `osx-arm64`, `linux-x64` and `win-x64`. **Mutation-checked:** dropping the URL check, the longest match, the path separator in the prefix match, the server check before storing, and the token format check each fail a test. **Not verified:** the keychain store has not run on a Mac; Codex's helper has not run at all; the e2e suite has not run. |
+| 2026-09-27 | A4 | **The devbox runs the branch's MCP server, and the gateway passes `/mcp` to it**, with the owner's approval. Backup `backup-20260927-150951-b5c36138ca124506b`, with `.env`, the override and the gateway's Caddyfile in `~/backups/before-a4-20260927/`. The auto-mode classifier refused Claude's remote writes, so the owner built `devbuddy-mcp:a4` from `4e04362` in `~/devbuddy-a4` (a worktree; `/data` belongs to root), set it in the override, recreated `mcp` and edited the gateway. Checked from the devbox: `mcp` on `devbuddy-mcp:a4`, `/` and `/health` 200, `POST /mcp` 401 with `WWW-Authenticate: Bearer`, `GET /mcp` 405, the old root path 404, no errors logged. The `compose run` containers of stdio sessions carry only their own names as aliases, so `mcp` is the service alone. |
 | 2026-09-28 | 14.12, A2 | **`v1.10.1` published, and A2 done.** Pre-tag at `4082c07`: part 1 7 of 7 (.NET 1005, web 85) and part 3 from `v1.10.0` 47 of 47 on devrelease, run on 2026-09-27; part 2 115 of 115 on devrelease on 2026-09-28, rerun from clean after a second start collided with the first run's stack and failed 2; the arm64 upgrade 47 of 47 in the Ubuntu guest. PR #27 merged and the tag pushed. Release run 36375258645 passed all 24 jobs, and **A2's first run** wrote *Runner smoke results* into the draft: `post-images.sh` 29 of 29 on both architectures and all seven archives passing. By hand: checksums, provenance for every archive and image with a wrong-owner control, `post-images.sh` 29 of 29 on devrelease, and the smoke of `linux-x64`, `linux-musl-x64`, `osx-arm64` (Mac mini) and `win-x64` (JMPC). Published at 04:11 UTC as Latest. **Not done by Claude:** the devbox move, which the owner runs (A4 trial pin on `mcp`, `CLAUDE.md`). |
 | 2026-09-28 | 14.12 | **The devbox is on `v1.10.1`**, moved by the owner with the commands Claude gave: the nightly backup script, `.env` and the override copied to `~/backups/before-v1101-20260928/`, checkout of the tag, a build of every service **except `mcp`**, whose A4 trial pin (`devbuddy-mcp:a4`, PR #25) a build would have overwritten, and `up -d --no-build`. The owner saw `/health` 200 through the gateway. Claude then checked, read-only: `git describe` is `v1.10.1`; `api`, `evidence`, `retention` and both workers were recreated at 04:20 UTC and `mcp` still runs `devbuddy-mcp:a4`; services as uid 1654 and the store as 1000; `/operations` 401; the served stylesheet names Leelawadee UI; migrations nine; both workers completed a pass; no `EvidenceStoreUnsafe`. Plugin 1.10.1 is installed on JMPC. |
+| 2026-09-28 | A4 | **Codex on the Mac mini reached DevBuddy over HTTPS through the client.** On the owner's Mac, from a macOS build of `4e04362`: `devbuddy register` and `doctor` passed for two checkouts in one workspace, so the keychain store works and the Mac trusts the gateway's CA. Codex 0.157.1 connected (initialize, tools/list, all 200 in the gateway's log), so **Codex runs `http_headers_helper` in the session's folder** and no `--dir` is needed; then `list_projects` answered the workspace's three projects. **Two faults it found, fixed on the branch:** without the package's `AGENTS.md`, Codex answered "list devbuddy projects" from `devbuddy list`, reading registrations as DevBuddy's projects; and in Codex's sandbox the keychain is out of reach, so `devbuddy show --json` threw a stack trace and Codex then called `list_projects` without a workspace. `show --json` no longer reads the store and gives the MCP URL too; `show`, `doctor` and `mcp-headers` say the store could not be read; any other failure is one sentence; `list` says it lists registrations; both instruction files say to ask DevBuddy through its tools and use `devbuddy show --json` for the workspace. `SandboxTests` (5): the client suite passes at 52 on the Windows machine. `HttpTransportTests` could not run there that day, Docker not running; CI runs them. |

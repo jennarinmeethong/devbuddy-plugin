@@ -6,6 +6,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\hosts\DevBuddy.Api\DevBuddy.Api.csproj" />
     <ProjectReference Include="..\..\src\hosts\DevBuddy.McpServer\DevBuddy.McpServer.csproj" />
+    <!-- Built first and run as a process, the way a person runs it; nothing of it is referenced. -->
+    <ProjectReference Include="..\..\src\clients\DevBuddy.Client\DevBuddy.Client.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

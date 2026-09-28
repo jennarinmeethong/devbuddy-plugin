@@ -176,7 +176,7 @@ echo "==> Waiting for the MCP server to answer" >&2
 compose run --rm --no-deps "${tty[@]}" --entrypoint node e2e -e '
   const deadline = Date.now() + 60_000;
   (async function poll() {
-    try { await fetch("http://mcp:8080/", { method: "POST" }); process.exit(0); }
+    try { await fetch("http://mcp:8080/mcp", { method: "POST" }); process.exit(0); }
     catch { if (Date.now() > deadline) { console.error("MCP never answered"); process.exit(1); } }
     setTimeout(poll, 1000);
   })();

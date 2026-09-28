@@ -11,32 +11,35 @@ them and, more importantly, what installing them does **not** do.
 | Instructions | `skills/devbuddy/SKILL.md` | `AGENTS.md` |
 | Commands | `commands/*.md` | — |
 
-Instructions differ between them. Capability does not: both launch the same
-`DevBuddy.McpServer` with `--stdio`, and a test asserts that both instruction files describe
-exactly the tools the server exposes and never name one it does not. A test derives that list
-from the catalogue rather than hardening a count, which is how it caught both packages when
-semantic search and the embedding sweep took the surface to twenty.
+Instructions differ between them. Capability does not: both reach the same MCP server, and a test
+asserts that both instruction files describe exactly the tools the server exposes and never name
+one it does not. A test derives that list from the catalogue rather than hardening a count, which
+is how it caught both packages when semantic search and the embedding sweep took the surface to
+twenty.
 
-## What the server needs
+## How a plugin reaches the server (Phase 14, A4)
 
-Four environment variables, all set in the plugin configuration:
+**Over HTTPS, at `/mcp`, with the person's own machine token** (`info.md`, 2026-09-27; ADR-0006's
+amendment and ADR-0015). The address is the one the web interface is on; the gateway passes `/mcp`
+to the MCP service and everything else to the API.
 
-| Variable | What it is |
-|---|---|
-| `DEVBUDDY_ConnectionStrings__DevBuddy` | PostgreSQL. The MCP server is a host over the shared core, not a client of the HTTP API, so it connects directly. |
-| `DEVBUDDY_Identity__SigningKey` | The deployment's signing key. Shared with the API so one identity works across both. |
-| `DEVBUDDY_TOKEN` | A machine token. Who you are, and which workspace you are in. |
-| `DEVBUDDY_Analysis__RootPath` | Where analysis reads from: one directory per project, named by project identifier, mounted read-only. |
+Neither package holds a token or any server secret. The token is kept by the **`devbuddy` client**,
+in the operating system's credential store, and handed to the connection by its header helper,
+`devbuddy mcp-headers`, which both assistants run when they connect:
 
-Neither package assigns a value to any of them. Both name the variables and take them from the
-environment the assistant was launched in, and a test fails if either file ever assigns one. The
-Claude package expands them from short names; the Codex package lists them under `env_vars`, which
-is that file's allow-list of variables to forward, as against `env`, which sets literal values.
+| | Claude Code | Codex |
+|---|---|---|
+| Setting | `headersHelper` in `.mcp.json` | `http_headers_helper` in `config.toml` |
+| Where it runs | the plugin's folder, so the package passes `${CLAUDE_PROJECT_DIR}` | the session's folder (to be confirmed on the Mac mini) |
+| The URL it checks | `CLAUDE_CODE_MCP_SERVER_URL`, set by Claude Code | `--url`, written beside `url` in the file |
 
-That distinction matters most for Codex, whose file is `~/.codex/config.toml` — one file for the
-whole operating-system account. A token written into it is the token every project and every
-session on that machine uses, including the ones belonging to another workspace and another
-company.
+The helper finds the registered checkout that holds that folder, and prints the `Authorization`
+header only if the URL is on the server that checkout is registered to. An unregistered folder, a
+missing token, or another server gets nothing, and the assistant's calls are refused.
+
+Until A4 both packages started `DevBuddy.McpServer --stdio` locally, with the database connection
+string and the signing key in the person's environment. That route still exists for an
+administrator, below, and is not what a person installs.
 
 ### The token
 
@@ -128,61 +131,66 @@ somebody tidying up.
 
 ## Installing
 
+### The `devbuddy` client, once per machine
+
+Each release archive carries it in `Client/`: `devbuddy` on Linux and macOS, `devbuddy.exe` on
+Windows. Put that folder on `PATH`. It is unsigned (B2): on Windows with Smart App Control on it
+cannot run at all, and there is no per-program exception.
+
+Trust the gateway's certificate on the machine too, the root CA the web interface already needs.
+Codex reads a CA from `CODEX_CA_CERTIFICATE` or `SSL_CERT_FILE`.
+
+### Each checkout
+
+```bash
+devbuddy register --server https://192.168.1.160:5010 --workspace <workspace id> [--project <project id>]
+```
+
+Run it in the checkout, or pass its path. It asks for a machine token the first time a workspace is
+used (mint one under **Plugin access**), with the input hidden, checks it against the server, and
+stores it. A second checkout in the same workspace is not asked again. `devbuddy doctor` checks the
+whole path: registration, token, certificate, and that the server accepts the token in the
+workspace. `list`, `show`, `update`, `unregister`, `token set` and `token remove` manage the rest.
+
 ### Claude Code
 
-Point Claude Code at `plugins/claude/`, and set the four variables in the environment the plugin
-configuration expands from. `.mcp.json` expands them under shorter names than the settings they
-fill:
-
-| Set this | Fills |
-|---|---|
-| `DEVBUDDY_CONNECTION_STRING` | `DEVBUDDY_ConnectionStrings__DevBuddy` |
-| `DEVBUDDY_SIGNING_KEY` | `DEVBUDDY_Identity__SigningKey` |
-| `DEVBUDDY_TOKEN` | `DEVBUDDY_TOKEN` |
-| `DEVBUDDY_ANALYSIS_ROOT_PATH` | `DEVBUDDY_Analysis__RootPath` |
-
-`DEVBUDDY_MCP_ASSEMBLY` should be the full path to `DevBuddy.McpServer.dll`;
-`DEVBUDDY_MCP_COMMAND` defaults to `dotnet` and exists so a self-contained publish can be used
-instead once Phase 10 produces one.
-
-> The analysis root was the one the package did not declare until this was written, leaving it to
-> ordinary environment inheritance. That worked, and hid the failure it caused when it was not set
-> at all: the server fell back to a path relative to its own working directory, and every
-> `analyze_*` call answered that there was nothing to analyse rather than that it was misconfigured.
-> A test now asserts both packages name all four.
+Point Claude Code at `plugins/claude/`, and set `DEVBUDDY_URL` to the server's address, without
+`/mcp`, in the environment it starts with, for instance `env` in `~/.claude/settings.json`.
+`DEVBUDDY_CLIENT` names the client if it is not on `PATH`.
 
 ### Codex
 
-Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, and put `plugins/codex/AGENTS.md`
-where Codex will read it. Set the assembly path in `args`; there is nothing else in the file to
-fill in.
-
-The four settings are **forwarded, not written**. `env_vars` is Codex's allow-list of variables to
-take from its own environment, as against `env`, which sets literal values. The file therefore
-holds no credential at all, and Codex has to be started from a shell that carries the ones for the
-workspace being worked in.
-
-> This is the one place where a wrong choice is a cross-company leak rather than an inconvenience.
-> `~/.codex/config.toml` is a single file for the whole operating-system account. A token pasted
-> into it is the token every project and every session on that machine presents, so an assistant
-> working in one company's checkout would be reading, and could quote into a file, another
-> company's recorded knowledge — with the server answering correctly throughout, because the
-> credential really did belong to somebody who really was a member.
+Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, and replace **both** example
+addresses with the server's. They must match: the helper gives the token only to the server the
+checkout is registered to. Put `plugins/codex/AGENTS.md` where Codex will read it.
 
 Codex refuses MCP tool calls in non-interactive mode unless approvals are routed somewhere — `codex
 exec --approve-for-me` is the documented way, and an interactive session prompts as usual. Without
 it every call comes back `requires approval, but approval policy is never`, which reads like a
 server refusal and is not one.
 
+### The administrator's route: stdio
+
+`DevBuddy.McpServer --stdio` still takes a machine token in `DEVBUDDY_TOKEN`, and needs
+`DEVBUDDY_ConnectionStrings__DevBuddy`, `DEVBUDDY_Identity__SigningKey` and
+`DEVBUDDY_Analysis__RootPath` beside it, because over stdio it is a host over the core and connects
+to the database itself. On the devbox it is reached through SSH to a wrapper that runs
+`compose run mcp --stdio` inside the stack, with the token kept on the server. Every key in that
+wrapper's `authorized_keys` acts as that one token, which is why it is an administrator's route and
+not how people install the plugin.
+
 ### More than one deployment, or more than one workspace, on one machine
 
-Both packages read their four values from the environment they are launched in, so the environment
-is what separates one deployment or workspace from another — not the folder that happens to be
-open. Since a token is bound to one workspace, the unit those settings belong to is one deployment
-**and** one workspace.
-`docs/operations/workspace-layout.md` sets out the arrangement, and `templates/devbuddy-root/` is
-the copyable form of it. It also covers the junction tree analysis needs, which is the part that
-otherwise fails silently.
+The registry is what separates them: each checkout is registered to one server and one workspace,
+wherever it is on the disk, and the credential store holds one token per server and workspace.
+A session is one workspace, the one the checkout it was started in is registered to.
+
+Two servers need two `devbuddy` entries in the assistant's configuration, one URL each; the helper
+refuses a checkout registered to the other server rather than sending its token there.
+
+`docs/operations/workspace-layout.md` and `templates/devbuddy-root/` describe the arrangement the
+stdio route needed, where the environment was the separation and a junction tree was how analysis
+found a checkout. Over HTTP analysis reads the working copies on the server, so neither is needed.
 
 ### Running either non-interactively
 
@@ -194,31 +202,30 @@ claude -p "..." --mcp-config plugins/claude/.mcp.json --allowedTools "mcp__devbu
 
 ## After the server is upgraded
 
-**Restart every assistant session that was open during the upgrade.** An MCP server over stdio is a
-process the session started, and it keeps the version it started with until the session ends:
-- a plugin that runs `DevBuddy.McpServer` from a local build keeps the old binary loaded;
-- a plugin that reaches the stack through `docker compose run --rm -T mcp --stdio`, as the devbox's
-  SSH wrapper does, keeps a container on the old image.
+Over HTTP there is one `mcp` service, so a session reaches the new server on its next request.
+**After `up -d`, check that `mcp` runs the new image**: on the devbox it once stayed on the old
+one until `--force-recreate --no-deps mcp`.
 
-Nothing reuses an old image or binary. A session opened after the upgrade gets the new one, and
-closing a session removes its container. On 2026-09-24, though, three sessions opened before the
-devbox moved to `v1.6.0` were still answering from the old image hours later. Until they
-restarted, they were running a server without that release's changes.
-
-On the server, `tools/release/stale-sessions.sh` lists the stdio sessions on an image older than
-the running `mcp` service's, and changes nothing. Restart those sessions from the client. Stopping
-their containers instead cuts an assistant off in the middle of a call.
+Over stdio, **restart every assistant session that was open during the upgrade.** An MCP server
+over stdio is a process the session started, and it keeps the version it started with until the
+session ends: a local build keeps the old binary loaded, and the devbox's SSH wrapper keeps a
+container on the old image. On 2026-09-24 three sessions opened before the devbox moved to
+`v1.6.0` were still answering from the old image hours later. On the server,
+`tools/release/stale-sessions.sh` lists them and changes nothing. Restart those sessions from the
+client; stopping their containers instead cuts an assistant off in the middle of a call.
 
 ## Verifying an installation
 
-Ask for a search. A working installation answers; a broken one fails in a way that says which of
-the four things is wrong:
+`devbuddy doctor` in the checkout checks the path end to end. Then ask the assistant for a search.
+A working installation answers; a broken one fails in a way that says which part is wrong:
 
 | Symptom | Cause |
 |---|---|
-| No tools at all | The server did not start. Check the assembly path and `dotnet`. |
-| Tools listed, every call refused for lack of identity | `DEVBUDDY_TOKEN` is missing, wrong, expired, revoked, or was issued before workspace scoping. |
-| Every call refused, saying the credential is not valid in this workspace | The token belongs to a different workspace. Mint one in this workspace, or start the session from the root that holds this workspace's token. |
+| The server fails to connect, and the helper says the folder is not registered | Run `devbuddy register` in the checkout. |
+| The helper says the checkout is registered to another server | The URL in the assistant's configuration is not the registered server's. Correct whichever is wrong. |
+| The connection fails on the certificate | The machine does not trust the gateway's root CA. For Codex, also `CODEX_CA_CERTIFICATE`. |
+| Every call refused with 401 | The token is wrong, expired, revoked, or from before workspace scoping. Mint one and run `devbuddy token set`. |
+| Every call refused, saying the credential is not valid in this workspace | The token belongs to a different workspace. Mint one in this workspace. |
 | `list_projects` returns nothing | No project has AI access enabled, or the token's owner is not a member of any. |
 | A specific project missing | Its owner has not enabled AI access. Working as intended. |
-| Analysis reports nothing to analyse | `DEVBUDDY_Analysis__RootPath` has no directory named for that project. |
+| Analysis reports nothing to analyse | The server's analysis root has no directory named for that project. |

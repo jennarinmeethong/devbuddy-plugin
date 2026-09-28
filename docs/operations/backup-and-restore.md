@@ -102,7 +102,7 @@ drill run against an older build could only ever have exercised five of the six 
 | Evidence | Download an artefact. Rows without bytes is the failure mode this catches. |
 | Audit history | A system recovered without its history cannot say who approved what. |
 | Accounts | Sign in. Everybody will have to refresh; see the note below on what "sessions are not restored" does and does not mean. |
-| Plugins | A machine token that worked before still works. Over stdio, which is where a machine token is presented; the HTTP transport takes a signed-in session instead. |
+| Plugins | A machine token that worked before still works, over stdio and, since Phase 14 (A4), over the HTTP transport, which takes nothing else. |
 
 **What "sessions are not restored" means, exactly.** The refresh-session rows are not in a backup,
 so nobody can refresh a session across a restore and everybody signs in again. **Since Phase 13

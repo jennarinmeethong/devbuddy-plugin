@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using System.Text;
+using System.Threading.RateLimiting;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Dispatch;
 using DevBuddy.Application.Security;
@@ -9,8 +9,7 @@ using DevBuddy.Infrastructure.Identity;
 using DevBuddy.Infrastructure.Observability;
 using DevBuddy.Infrastructure.Persistence;
 using DevBuddy.McpServer;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication;
 using ModelContextProtocol.Protocol;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
@@ -45,11 +44,9 @@ builder.Services.AddDevBuddyTelemetry(
     tracing => tracing.AddAspNetCoreInstrumentation(),
     metrics => metrics.AddAspNetCoreInstrumentation());
 
-// The HTTP transport reads the caller from the request principal, so the accessor has to exist.
-// Under stdio there is no HTTP context and the caller presents a machine token instead.
+// The HTTP transport reads the caller from the request, so the accessor has to exist. Under stdio
+// there is no HTTP context and the caller's token comes from the environment instead.
 builder.Services.AddHttpContextAccessor();
-
-IdentitySettings identitySettings = HostComposition.ReadIdentitySettings(builder.Configuration);
 
 bool useStdio = args.Contains("--stdio", StringComparer.Ordinal);
 
@@ -84,35 +81,58 @@ else
     // caught it because nothing had ever run this branch — the stdio path is what the plugins use.
     builder.Services.AddMcpServer().WithHttpTransport();
 
-    // The HTTP transport shares the API tokens and therefore the API identity. There is no
-    // separate MCP credential to get wrong.
+    // A machine token, the credential stdio takes, and nothing else (Phase 14, A4). The API's
+    // access tokens were accepted here until then: fifteen minutes long, which no assistant can
+    // refresh, and scoped to no workspace.
     builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
-        {
-            options.Events = new JwtBearerEvents { OnTokenValidated = SessionTokenCheck.ValidateAsync };
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidIssuer = identitySettings.Issuer,
-                ValidAudience = identitySettings.Audience,
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(identitySettings.SigningKey)),
-                ValidateIssuerSigningKey = true,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromSeconds(30),
-            };
-        });
+        .AddAuthentication(MachineTokenAuthenticationHandler.SchemeName)
+        .AddScheme<AuthenticationSchemeOptions, MachineTokenAuthenticationHandler>(
+            MachineTokenAuthenticationHandler.SchemeName, configureOptions: null);
 
     builder.Services.AddAuthorization();
+
+    // A ceiling per person, the API's own default and the same settings (SB-21): generous enough
+    // that nobody working notices it, low enough that an assistant caught in a loop cannot
+    // flatten the database. Per person rather than per address, because behind the gateway every
+    // caller arrives from one address, and one bucket would let one person's loop stop everybody.
+    //
+    // A request with no working token is not counted. It is refused before any tool runs, and
+    // behind the gateway the only partition it could have is that shared address, so limiting it
+    // would hand anybody holding no token at all a way to lock out everybody holding one. A token
+    // cannot be guessed (256 random bits); what an unauthenticated flood costs is one indexed
+    // lookup each, which ADR-0006's amendment accepts.
+    int permitLimit = builder.Configuration.GetValue("RateLimiting:RequestPermitLimit", 600);
+    int windowSeconds = builder.Configuration.GetValue("RateLimiting:RequestWindowSeconds", 60);
+
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) is { } person
+                ? RateLimitPartition.GetFixedWindowLimiter(
+                    person,
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        Window = TimeSpan.FromSeconds(windowSeconds),
+                        PermitLimit = permitLimit,
+                        QueueLimit = 0,
+                    })
+                : RateLimitPartition.GetNoLimiter(string.Empty));
+    });
 }
 
 WebApplication app = builder.Build();
 
 if (!useStdio)
 {
+    // Authentication before the limiter, so it can partition by person.
     app.UseAuthentication();
+    app.UseRateLimiter();
     app.UseAuthorization();
-    app.MapMcp().RequireAuthorization();
+
+    // At /mcp, so the gateway can pass one path to this service and everything else to the API
+    // on the same address and certificate.
+    app.MapMcp("/mcp").RequireAuthorization();
 }
 
 await app.RunAsync();
@@ -125,15 +145,17 @@ static McpToolHandlers Surface(IServiceProvider services) =>
 // transport delivered it. The channel is always Ai here: it is decided by which host is running,
 // never by anything in the request (SB-08, SB-09).
 //
-// Over HTTP that is the bearer token the API issues, and it carries no credential scope: it is
-// the same session credential the web interface holds, and it reaches every workspace its owner
-// is a member of, exactly as before.
+// Both transports take a machine token, and since Phase 14 (A4) nothing else. The resolution
+// answers with a workspace as well as a person, and the workspace travels into the caller context
+// as a ceiling the authorization service enforces: a token minted in one workspace is refused
+// every operation naming another, whatever memberships its owner holds there.
 //
-// Over stdio it is a machine token from the plugin configuration, resolved against the database
-// on every call so revoking one takes effect immediately rather than at the next restart. That
-// resolution now answers with a workspace as well as a person, and the workspace travels into the
-// caller context as a ceiling the authorization service enforces: a token minted in one workspace
-// is refused every operation naming another, whatever memberships its owner holds there.
+// Over HTTP the token is the bearer, which MachineTokenAuthenticationHandler has already resolved
+// for this request. The environment is never read there: a server process holding a token of its
+// own must not lend it to a request that arrived without one.
+//
+// Over stdio it is DEVBUDDY_TOKEN from the plugin configuration, resolved against the database on
+// every call so revoking one takes effect immediately rather than at the next restart.
 //
 // A token that is unknown, revoked, expired, or left over from before tokens were scoped leaves
 // the caller anonymous, and an anonymous caller is refused everything.
@@ -141,28 +163,24 @@ static async Task<McpToolHandlers> HandlersAsync(
     IServiceProvider services, CancellationToken cancellationToken)
 {
     var dispatcher = services.GetRequiredService<OperationDispatcher>();
-    var accessor = services.GetService<IHttpContextAccessor>();
+    HttpContext? http = services.GetService<IHttpContextAccessor>()?.HttpContext;
 
-    UserId actor = default;
-    CredentialScope? credential = null;
+    MachineTokenIdentity? identity = null;
 
-    string? subject = accessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-
-    if (Guid.TryParse(subject, out Guid parsed))
+    if (http is not null)
     {
-        actor = new UserId(parsed);
+        identity = http.Items[typeof(MachineTokenIdentity)] as MachineTokenIdentity;
     }
     else if (Environment.GetEnvironmentVariable("DEVBUDDY_TOKEN") is { Length: > 0 } machineToken)
     {
-        MachineTokenIdentity? identity = await services.GetRequiredService<IMachineTokenService>()
+        identity = await services.GetRequiredService<IMachineTokenService>()
             .ResolveAsync(machineToken, cancellationToken);
-
-        if (identity is not null)
-        {
-            actor = identity.UserId;
-            credential = new CredentialScope(identity.TokenId, identity.WorkspaceId);
-        }
     }
+
+    UserId actor = identity?.UserId ?? default;
+    CredentialScope? credential = identity is null
+        ? null
+        : new CredentialScope(identity.TokenId, identity.WorkspaceId);
 
     return new McpToolHandlers(
         dispatcher,

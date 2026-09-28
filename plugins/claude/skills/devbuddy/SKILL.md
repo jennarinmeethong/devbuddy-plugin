@@ -45,14 +45,23 @@ refusal is already in the audit trail.
 appear in `list_projects` and will not answer. That is not a misconfiguration to work around; it
 is the project owner's decision.
 
-**Results are narrowed to the person you are acting for.** You act as whoever the machine token in
-the configuration belongs to, with exactly their permissions — not more.
+**Ask DevBuddy through its MCP tools, never through the shell.** The `devbuddy` command in the
+shell manages this machine's credentials; `devbuddy list` shows registered folders, not DevBuddy's
+projects. Run `devbuddy show --json` for the `workspaceId` (and a default `projectId`, if one was
+registered) the tools take, then `list_projects` with that `workspaceId`.
 
-**And to one workspace.** The token in `DEVBUDDY_TOKEN` works in exactly one DevBuddy workspace,
+**Results are narrowed to the person you are acting for.** You act as whoever the machine token
+belongs to, with exactly their permissions — not more. The `devbuddy` client hands it to the
+connection, per checkout, from the operating system's credential store.
+
+**And to one workspace.** The token works in exactly one DevBuddy workspace, the one this checkout
+was registered to with `devbuddy register`,
 and a call naming any other is refused before anything is read — whatever memberships its owner
 holds there. Somebody working across two workspaces holds two tokens, one for each.
 
-That identity is fixed when this session starts, from the environment it inherited.
+That identity is fixed when this session connects, from the project it was started in.
+`devbuddy show --json` says which workspace and default project that is. If the project is not
+registered, no token is sent and every call is refused; registering it is the person's to do.
 Changing directory does not change it, and neither does opening a checkout that belongs to
 another workspace: what you can reach stays whatever the token allows. If knowledge from the
 wrong workspace is what comes back, the session was started from the wrong place — say so and

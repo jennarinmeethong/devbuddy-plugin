@@ -27,14 +27,23 @@ and `DEVBUDDY_MCP_PORT` in `docker/.env` change the port; the binding stays on l
 
 **It is inside the API image.** `docker/Dockerfile.api` builds `web/admin` with Bun and copies the
 result into `wwwroot`, so the client and the API it was generated from are one origin, one image
-and one deployment. There is no second container, no CORS policy, and nothing for a reverse proxy
-to know beyond the one port:
+and one deployment. There is no second container and no CORS policy. Since `v1.11.0` a reverse
+proxy passes one path, `/mcp`, to the MCP server, and everything else to the API:
 
 ```
 devbuddy.example.com {
-    reverse_proxy 127.0.0.1:5010
+    handle /mcp* {
+        reverse_proxy 127.0.0.1:5011
+    }
+    handle {
+        reverse_proxy 127.0.0.1:5010
+    }
 }
 ```
+
+That is how Claude Code and Codex reach DevBuddy, through the `devbuddy` client, on the same address
+and certificate as the web interface (Phase 14, A4; `plugin-hosts.md`). The devbox's gateway does
+the same inside the Compose network, to `mcp:8080` and `api:8080` (`tools/devbox/gateway`).
 
 Paths that belong to the client — `/`, `/set-password`, and everything under `/w/` — are served
 `index.html` and routed in the browser. Everything the API maps keeps its own answer, refusals

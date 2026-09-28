@@ -253,8 +253,8 @@ export const th: Record<string, string> = {
     "โทเค็นทำงานในนามคุณ ด้วยสิทธิ์ของคุณเท่านั้น และใช้ได้เฉพาะในเวิร์กสเปซนี้ คำขอที่ระบุเวิร์กสเปซอื่นจะถูกปฏิเสธแม้คุณเป็นสมาชิกที่นั่น หากทำงานหลายเวิร์กสเปซ ให้สร้างโทเค็นแยกในแต่ละที่ การเพิกถอนมีผลตั้งแต่คำขอถัดไปโดยไม่ต้องรีสตาร์ต และไม่กระทบรหัสผ่านของคุณ",
   "The same token works in Claude and in Codex. It identifies you to DevBuddy and is not tied to, and does not verify, an account with either of them. A token per assistant is worth having only if you want to revoke or watch them separately.":
     "โทเค็นเดียวกันใช้ได้ทั้งใน Claude และ Codex โทเค็นใช้ยืนยันตัวตนของคุณกับ DevBuddy เท่านั้น ไม่ผูกกับบัญชี Claude หรือ Codex และไม่ได้ตรวจสอบบัญชีเหล่านั้น การแยกโทเค็นตามผู้ช่วยมีประโยชน์เฉพาะเมื่อต้องการเพิกถอนหรือติดตามแยกกัน",
-  "A token above was issued before tokens were tied to a workspace, and no longer works anywhere. It cannot be repaired — only a hash of it was ever stored — so mint a replacement here, put that in your plugin configuration, and revoke the old one.":
-    "มีโทเค็นด้านบนที่ออกก่อนระบบจะผูกโทเค็นกับเวิร์กสเปซ จึงใช้ไม่ได้อีกแล้ว และแก้ไขไม่ได้เพราะระบบเก็บไว้เพียงค่า hash ให้สร้างโทเค็นใหม่ที่นี่ ใส่ในการตั้งค่าปลั๊กอิน แล้วเพิกถอนโทเค็นเดิม",
+  "A token above was issued before tokens were tied to a workspace, and no longer works anywhere. It cannot be repaired — only a hash of it was ever stored — so mint a replacement here, register your checkouts with it, and revoke the old one.":
+    "มีโทเค็นด้านบนที่ออกก่อนระบบจะผูกโทเค็นกับเวิร์กสเปซ จึงใช้ไม่ได้อีกแล้ว และแก้ไขไม่ได้เพราะระบบเก็บไว้เพียงค่า hash ให้สร้างโทเค็นใหม่ที่นี่ ใช้ลงทะเบียน checkout ของคุณ แล้วเพิกถอนโทเค็นเดิม",
   "Mint a token": "สร้างโทเค็น",
   "Where it will live, so you can tell which to revoke later. The machine is the useful part, not the assistant.":
     "ระบุว่าจะใช้โทเค็นนี้ที่ไหน เพื่อให้รู้ภายหลังว่าจะเพิกถอนอันไหน ชื่อเครื่องมีประโยชน์กว่าชื่อผู้ช่วย",
@@ -264,10 +264,18 @@ export const th: Record<string, string> = {
   Mint: "สร้าง",
   "Copy this now. It is shown once and stored only as a hash, so nobody — including this page — can show it to you again.":
     "คัดลอกตอนนี้ โทเค็นแสดงเพียงครั้งเดียว และระบบเก็บไว้เพียงค่า hash จึงไม่มีใคร รวมถึงหน้านี้ แสดงให้คุณเห็นได้อีก",
-  "Expires {when}. Put it in your plugin configuration as {variable}, in the environment the assistant is launched from rather than in a file shared by every project on the machine.":
-    "หมดอายุ {when} ใส่ในการตั้งค่าปลั๊กอินเป็น {variable} ใน environment ที่ใช้เปิดผู้ช่วย ไม่ใช่ในไฟล์ที่ทุกโปรเจกต์บนเครื่องใช้ร่วมกัน",
-  "It works in this workspace only. Whichever token is in the environment when the assistant starts is the identity every call runs as, and changing folder afterwards does not change it — so start a session per workspace.":
-    "โทเค็นนี้ใช้ได้ในเวิร์กสเปซนี้เท่านั้น โทเค็นที่อยู่ใน environment ตอนเปิดผู้ช่วยจะเป็นตัวตนของทุกคำขอ การเปลี่ยนโฟลเดอร์ภายหลังไม่ได้เปลี่ยนตัวตน จึงควรเปิดเซสชันแยกตามเวิร์กสเปซ",
+  "Expires {when}. Register a checkout with it using the command below: the devbuddy client asks for the token once per workspace and keeps it in your operating system's credential store. Never put it in a configuration file.":
+    "หมดอายุ {when} ใช้คำสั่งด้านล่างลงทะเบียน checkout โปรแกรม devbuddy จะขอโทเค็นครั้งเดียวต่อเวิร์กสเปซ และเก็บไว้ในที่เก็บรหัสผ่านของระบบปฏิบัติการ ห้ามใส่โทเค็นในไฟล์ตั้งค่าใดๆ",
+  "It works in this workspace only. A session is one workspace, the one the checkout it was started in is registered to, and changing folder afterwards does not change it.":
+    "โทเค็นนี้ใช้ได้ในเวิร์กสเปซนี้เท่านั้น หนึ่งเซสชันคือหนึ่งเวิร์กสเปซ คือเวิร์กสเปซที่ checkout ซึ่งเปิดเซสชันลงทะเบียนไว้ การเปลี่ยนโฟลเดอร์ภายหลังไม่ได้เปลี่ยนเวิร์กสเปซ",
+  "Connect a checkout": "เชื่อมต่อ checkout",
+  "In the checkout, on the machine where Claude Code or Codex runs, with the devbuddy client installed:":
+    "รันใน checkout บนเครื่องที่ใช้ Claude Code หรือ Codex ซึ่งติดตั้งโปรแกรม devbuddy ไว้แล้ว:",
+  "Add a project to make it the assistants' default. A project closed to AI is not listed to them at all.":
+    "ระบุโปรเจกต์เพื่อให้ผู้ช่วยใช้เป็นค่าเริ่มต้นได้ โปรเจกต์ที่ปิดการเข้าถึงของ AI จะไม่แสดงให้ผู้ช่วยเห็นเลย",
+  Command: "คำสั่ง",
+  "Then run devbuddy doctor there. It checks the registration, the stored token, this server's certificate and that the token works in this workspace.":
+    "จากนั้นรัน devbuddy doctor ใน checkout นั้น เพื่อตรวจการลงทะเบียน โทเค็นที่เก็บไว้ ใบรับรองของเซิร์ฟเวอร์นี้ และตรวจว่าโทเค็นใช้ได้ในเวิร์กสเปซนี้",
 
   // Projects
   Projects: "โปรเจกต์",

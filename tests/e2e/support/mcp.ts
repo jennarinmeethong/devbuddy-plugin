@@ -1,13 +1,15 @@
 import { request, type APIRequestContext, type APIResponse } from "@playwright/test";
-import { env } from "./env";
+import type { Api } from "./api";
+import { env, unique } from "./env";
 
 /**
  * A minimal MCP client over the streamable HTTP transport, which is what a self-hosted deployment
  * exposes. It speaks just enough JSON-RPC to list tools and call them, and nothing about it is
  * DevBuddy-specific: that is the point, since an assistant knows nothing about this server either.
  *
- * The bearer is the API's own access token. The HTTP transport shares the API identity, and every
- * call it makes runs on the AI channel, whatever the token was issued for.
+ * The bearer is a machine token, minted by the person under Plugin access, and since Phase 14 (A4)
+ * nothing else: the API's own access token is refused here. Every call runs on the AI channel.
+ * The transport is at /mcp, which is the path the gateway passes to it.
  */
 
 export interface ToolResult {
@@ -29,10 +31,21 @@ export class McpSession {
 
   private constructor(private readonly http: APIRequestContext) {}
 
-  static async open(accessToken: string): Promise<McpSession> {
+  /** Mints a machine token for this person in this workspace, as Plugin access does, and opens with it. */
+  static async as(person: Api, workspaceId: string): Promise<McpSession> {
+    const minted = await person.invoke("issue_machine_token", {
+      workspaceId,
+      name: unique("e2e assistant"),
+      lifetimeDays: 1,
+    });
+
+    return McpSession.open(minted.token);
+  }
+
+  static async open(machineToken: string): Promise<McpSession> {
     const http = await request.newContext({
       baseURL: env.mcpURL,
-      extraHTTPHeaders: { authorization: `Bearer ${accessToken}` },
+      extraHTTPHeaders: { authorization: `Bearer ${machineToken}` },
     });
 
     const session = new McpSession(http);
@@ -49,15 +62,15 @@ export class McpSession {
   }
 
   /** The unauthenticated request, for the test that proves there is no such thing. */
-  static async post(accessToken: string | null, body: unknown): Promise<APIResponse> {
+  static async post(bearer: string | null, body: unknown): Promise<APIResponse> {
     const http = await request.newContext({ baseURL: env.mcpURL });
 
     try {
-      const response = await http.post("/", {
+      const response = await http.post("/mcp", {
         data: body,
         headers: {
           accept: "application/json, text/event-stream",
-          ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+          ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
         },
       });
 
@@ -100,7 +113,7 @@ export class McpSession {
 
   async close(): Promise<void> {
     if (this.sessionId) {
-      await this.http.delete("/", { headers: { "mcp-session-id": this.sessionId } }).catch(() => undefined);
+      await this.http.delete("/mcp", { headers: { "mcp-session-id": this.sessionId } }).catch(() => undefined);
     }
 
     await this.http.dispose();
@@ -123,7 +136,7 @@ export class McpSession {
   }
 
   private async send(body: unknown): Promise<APIResponse> {
-    const response = await this.http.post("/", {
+    const response = await this.http.post("/mcp", {
       data: body,
       headers: {
         accept: "application/json, text/event-stream",

@@ -17,8 +17,8 @@ namespace DevBuddy.Api;
 /// </para>
 /// <para>
 /// In the host rather than in Infrastructure because it is ASP.NET Core's event model, and that
-/// framework reference must not reach the console image. The same class exists in the MCP server,
-/// whose HTTP transport takes the same tokens.
+/// framework reference must not reach the console image. The MCP server had a copy until Phase 14
+/// (A4), when its HTTP transport stopped taking access tokens and took machine tokens instead.
 /// </para>
 /// </summary>
 internal static class SessionTokenCheck

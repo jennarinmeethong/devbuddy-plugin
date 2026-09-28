@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The `devbuddy` client (Phase 14, A4; ADR-0015). Holds a person's machine token for the
+       plugins, per checkout, and hands it to Claude Code and Codex as a header helper. It talks to
+       the server only over HTTPS and references nothing in this repository: no database, no
+       signing key, no core project. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>devbuddy</AssemblyName>
+    <RootNamespace>DevBuddy.Client</RootNamespace>
+    <!-- Credential Manager is reached through advapi32, by source-generated interop. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DevBuddy.Client.Tests" />
+  </ItemGroup>
+
+</Project>

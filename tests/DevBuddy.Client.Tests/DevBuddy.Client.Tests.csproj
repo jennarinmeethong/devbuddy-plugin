@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The `devbuddy` client: its registry, its credential stores and its header helper
+       (Phase 14, A4). The part that talks to a real server is in DevBuddy.Api.Tests. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\clients\DevBuddy.Client\DevBuddy.Client.csproj" />
+  </ItemGroup>
+
+</Project>

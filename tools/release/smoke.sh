@@ -46,6 +46,12 @@ check "identical to the console image" "$(cmp -s "$DIR/names.txt" "$EXPECTED" &&
 "$CLI" retention --every 24 > "$DIR/every.txt" 2>&1
 check "retention --every 24 exit" "$?" 2
 echo "  $(head -c 160 "$DIR/every.txt" | tr '\n' ' ')"
+# The client starts, and gives nothing to a folder nobody registered (ADR-0015).
+DEVBUDDY_HOME="$DIR/client-home" DEVBUDDY_CREDENTIAL_STORE=file \
+  "$DIR/Client/devbuddy" mcp-headers --dir "$DIR" --url https://devbuddy.example.test/mcp \
+  > "$DIR/headers.txt" 2> "$DIR/headers.err"
+check "client mcp-headers, unregistered, exit" "$?" 2
+check "client mcp-headers, unregistered, output" "$(wc -c < "$DIR/headers.txt" | tr -d ' ')" 0
 rm -rf "$DIR"
 echo "=== $FAILED failed"
 [ "$FAILED" -eq 0 ]

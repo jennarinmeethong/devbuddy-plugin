@@ -101,105 +101,80 @@ public sealed partial class PluginPackageTests
         }
     }
 
-    [Fact]
-    public void both_packages_launch_the_same_server_over_stdio()
-    {
-        string claude = File.ReadAllText(Path.Combine(PackageRoot("claude").FullName, ".mcp.json"));
-        string codex = File.ReadAllText(Path.Combine(PackageRoot("codex").FullName, "config.toml"));
-
-        foreach (string configuration in new[] { claude, codex })
-        {
-            Assert.Contains("DevBuddy.McpServer", configuration, StringComparison.Ordinal);
-            Assert.Contains("--stdio", configuration, StringComparison.Ordinal);
-        }
-    }
-
     /// <summary>
-    /// Identity comes from a credential, never from a claim.
+    /// Both packages reach the server over HTTP at <c>/mcp</c>, and take the token from the
+    /// <c>devbuddy</c> client's header helper (Phase 14, A4; ADR-0015).
     /// <para>
-    /// Before Phase 9 the stdio server read the caller identifier from <c>DEVBUDDY_ACTOR</c>, which
-    /// anybody who could start the process could set to anybody. Shipping plugin packages that
-    /// documented it would have shipped impersonation as configuration, so the name is banned from
-    /// them and a token is required instead.
+    /// Claude Code runs a plugin's helper in the plugin's own folder, so the Claude package passes
+    /// the project folder; the helper reads the URL from <c>CLAUDE_CODE_MCP_SERVER_URL</c>. Codex's
+    /// file names the URL twice, and the two must agree, because the helper hands the token only
+    /// to the server the checkout is registered to.
     /// </para>
     /// </summary>
     [Fact]
-    public void both_packages_configure_a_token_and_never_an_actor_identifier()
+    public void both_packages_connect_over_http_at_mcp_through_the_devbuddy_client()
     {
+        using JsonDocument claude = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(PackageRoot("claude").FullName, ".mcp.json")));
+        JsonElement server = claude.RootElement.GetProperty("mcpServers").GetProperty("devbuddy");
+
+        Assert.Equal("http", server.GetProperty("type").GetString());
+        Assert.EndsWith("/mcp", server.GetProperty("url").GetString(), StringComparison.Ordinal);
+        Assert.Contains("mcp-headers", server.GetProperty("headersHelper").GetString(), StringComparison.Ordinal);
+        Assert.Contains("${CLAUDE_PROJECT_DIR}", server.GetProperty("headersHelper").GetString(), StringComparison.Ordinal);
+        Assert.False(server.TryGetProperty("command", out _), "The Claude package still launches a local server.");
+
+        string codex = File.ReadAllText(Path.Combine(PackageRoot("codex").FullName, "config.toml"));
+        string url = TomlString(codex, "url");
+        string helper = TomlString(codex, "http_headers_helper");
+
+        Assert.EndsWith("/mcp", url, StringComparison.Ordinal);
+        Assert.Contains($"mcp-headers --url {url}", helper, StringComparison.Ordinal);
+        Assert.DoesNotContain("command =", codex, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Neither package holds a credential, or anything a server keeps secret.
+    /// <para>
+    /// The token lives in the operating system's credential store and reaches the connection
+    /// through the helper. A token in a package would be copied into <c>~/.codex/config.toml</c>,
+    /// one file for the whole operating-system account, or into a variable every command the
+    /// assistant runs inherits. The database and the signing key were in these files while the
+    /// server ran locally over stdio; a client of the HTTP transport needs neither, and must not be
+    /// told them. <c>DEVBUDDY_ACTOR</c>, the pre-Phase 9 identity claim, stays banned.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void neither_package_holds_a_token_or_a_server_secret()
+    {
+        string[] banned =
+        [
+            "DEVBUDDY_ACTOR",
+            "DEVBUDDY_TOKEN",
+            "DEVBUDDY_ConnectionStrings__DevBuddy",
+            "DEVBUDDY_CONNECTION_STRING",
+            "DEVBUDDY_Identity__SigningKey",
+            "DEVBUDDY_SIGNING_KEY",
+            "bearer_token_env_var",
+            "Bearer ",
+        ];
+
         foreach (FileInfo file in PluginFiles())
         {
-            Assert.DoesNotContain(
-                "DEVBUDDY_ACTOR",
-                File.ReadAllText(file.FullName),
-                StringComparison.Ordinal);
-        }
+            string text = File.ReadAllText(file.FullName);
 
-        Assert.Contains(
-            "DEVBUDDY_TOKEN",
-            File.ReadAllText(Path.Combine(PackageRoot("claude").FullName, ".mcp.json")),
-            StringComparison.Ordinal);
-
-        Assert.Contains(
-            "DEVBUDDY_TOKEN",
-            File.ReadAllText(Path.Combine(PackageRoot("codex").FullName, "config.toml")),
-            StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// Both packages configure all four settings the server needs.
-    /// <para>
-    /// The Claude package named three and left <c>DEVBUDDY_Analysis__RootPath</c> to ordinary
-    /// environment inheritance, which worked and was invisible until it did not: the server fell
-    /// back to a path relative to its own working directory and every <c>analyze_*</c> call
-    /// answered that there was nothing to analyse. A missing setting that degrades into a plausible
-    /// empty answer is worse than one that fails, so the package declares it and this asserts it.
-    /// </para>
-    /// </summary>
-    [Fact]
-    public void both_packages_configure_every_setting_the_server_needs()
-    {
-        string[] settings =
-        [
-            "DEVBUDDY_ConnectionStrings__DevBuddy",
-            "DEVBUDDY_Identity__SigningKey",
-            "DEVBUDDY_TOKEN",
-            "DEVBUDDY_Analysis__RootPath",
-        ];
-
-        (string Package, string Path)[] configurations =
-        [
-            ("claude", Path.Combine(PackageRoot("claude").FullName, ".mcp.json")),
-            ("codex", Path.Combine(PackageRoot("codex").FullName, "config.toml")),
-        ];
-
-        foreach ((string package, string path) in configurations)
-        {
-            string configuration = File.ReadAllText(path);
-
-            foreach (string setting in settings)
+            foreach (string name in banned)
             {
-                Assert.True(
-                    configuration.Contains(setting, StringComparison.Ordinal),
-                    $"The {package} package does not configure {setting}.");
+                Assert.False(
+                    text.Contains(name, StringComparison.Ordinal),
+                    $"{file.Name} mentions {name}.");
             }
         }
     }
 
     /// <summary>
-    /// Neither package assigns a value to any setting. They name variables and let the
-    /// environment supply them.
-    /// <para>
-    /// The Codex package is the one this is really for. Its file is <c>~/.codex/config.toml</c>,
-    /// one file for the whole operating-system account, so a token written into it is the token
-    /// every project and every session on that machine uses — including sessions belonging to
-    /// another workspace and another company. Forwarding named variables instead means the
-    /// credential comes from the shell the session was started in, and a session started
-    /// somewhere else gets a different one, or none.
-    /// </para>
-    /// <para>
-    /// It is also the thing a committed example gets wrong most easily: a placeholder becomes a
-    /// real value the first time somebody fills it in locally and then pastes their file back.
-    /// </para>
+    /// Neither package assigns a value to any setting. A placeholder in a committed example becomes
+    /// a real value the first time somebody fills it in locally and pastes their file back.
     /// </summary>
     [Fact]
     public void neither_package_assigns_a_value_to_any_devbuddy_setting()
@@ -235,24 +210,6 @@ public sealed partial class PluginPackageTests
         }
 
         Assert.Empty(offences);
-    }
-
-    /// <summary>
-    /// The Codex package forwards the settings rather than setting them, which in that file's
-    /// syntax means an allow-list of variable names and no environment table at all.
-    /// </summary>
-    [Fact]
-    public void the_codex_package_forwards_its_settings_from_the_environment()
-    {
-        string configuration = File.ReadAllText(
-            Path.Combine(PackageRoot("codex").FullName, "config.toml"));
-
-        Assert.Contains("env_vars", configuration, StringComparison.Ordinal);
-
-        Assert.DoesNotContain(
-            "[mcp_servers.devbuddy.env]",
-            configuration,
-            StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -390,6 +347,14 @@ public sealed partial class PluginPackageTests
     /// An operation name as these files write one: in backticks, snake_case. Narrow on purpose —
     /// matching bare prose would turn every sentence containing "create" into a finding.
     /// </summary>
+    /// <summary>The quoted value of a top-level key in the Codex file.</summary>
+    private static string TomlString(string toml, string key)
+    {
+        Match match = Regex.Match(toml, $@"(?m)^{Regex.Escape(key)}\s*=\s*""(?<value>[^""]*)""");
+        Assert.True(match.Success, $"config.toml has no {key}.");
+        return match.Groups["value"].Value;
+    }
+
     [GeneratedRegex(@"`(?<name>[a-z][a-z0-9]*(?:_[a-z0-9]+)+)`")]
     private static partial Regex OperationName();
 

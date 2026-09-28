@@ -5,8 +5,15 @@ decisions taken and why, the technical knowledge behind them, what a change affe
 next person needs to know. Consult it before reconstructing reasoning from a diff, and add to it
 when something is worked out that nobody wrote down.
 
-It is reached through the `devbuddy` MCP server. Configuration is in `config.toml` beside this
-file.
+It is reached through the `devbuddy` MCP server, over HTTPS. Configuration is in `config.toml`
+beside this file; the token comes from the `devbuddy` client, which keeps it per checkout.
+
+**Ask DevBuddy through its MCP tools, never through the shell.** The `devbuddy` command in the
+shell manages this machine's credentials. `devbuddy list` shows which folders are registered to
+which workspace; it is not a list of DevBuddy's projects, and nothing it prints is DevBuddy content.
+The one thing to run it for is `devbuddy show --json`, which gives the `workspaceId` (and a default
+`projectId`, if one was registered) that the tools take. Then `list_projects` with that
+`workspaceId` is what DevBuddy's projects are.
 
 ## The tools
 
@@ -70,17 +77,19 @@ appear in `list_projects` at all. That is a decision, not a misconfiguration.
 
 ## One workspace per session
 
-The token in `DEVBUDDY_TOKEN` identifies one DevBuddy user, and it works in exactly
-one DevBuddy workspace. A call naming any other workspace is refused before anything is read,
+The token identifies one DevBuddy user, and it works in exactly one DevBuddy workspace: the one
+this checkout was registered to with `devbuddy register`. A call naming any other workspace is refused before anything is read,
 whatever memberships that person holds there. Somebody who works across two workspaces holds
 two tokens, one for each.
 
 The token is a DevBuddy credential. It is not tied to, and does not prove, an OpenAI account —
 the same token works in Claude, if that is where its owner is working in that workspace.
 
-Identity is fixed when this session starts, from the environment it inherits. Changing directory
+Identity is fixed when this session connects, from the checkout it was started in. Changing directory
 does not change it, and opening a checkout that belongs to another workspace does not either: what
-is reachable stays whatever the token in the environment allows. If the wrong workspace's
+is reachable stays whatever that token allows. `devbuddy show --json` says which workspace and
+default project this checkout is registered to. If it is not registered, no token is sent and
+every call is refused; `devbuddy register` is the person's to run. If the wrong workspace's
 knowledge is what comes back, that is a session started from the wrong place. Say so, and stop.
 Starting a session in the right place is a person's job, not a thing to work around.
 

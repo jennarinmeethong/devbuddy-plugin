@@ -108,6 +108,12 @@ jobs:
               --self-contained true \
               -o "publish/${{ matrix.rid }}/$host"
           done
+          # The `devbuddy` client (ADR-0015), which a person installs where their assistants run.
+          dotnet publish "src/clients/DevBuddy.Client/DevBuddy.Client.csproj" \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained true \
+            -o "publish/${{ matrix.rid }}/Client"
 
       - name: Archive
         run: |
@@ -150,6 +156,10 @@ jobs:
               --filename "devbuddy-$project.cdx.json" \
               --json
           done
+          dotnet CycloneDX "src/clients/DevBuddy.Client/DevBuddy.Client.csproj" \
+            --output sbom \
+            --filename "devbuddy-Client.cdx.json" \
+            --json
 
       - name: Upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
