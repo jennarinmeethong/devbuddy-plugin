@@ -67,9 +67,12 @@ The last one is what keeps a mistaken or altered configuration from sending the 
 
 **`mcp-bridge` is for an assistant that runs no header helper** (2026-09-28, on trial). Cowork reads
 only `url`, `headers` and `oauth` from a plugin's remote entry, but starts a plugin's local stdio
-server on the host. The bridge is that server: each JSON-RPC line goes to the registered checkout's
-own `/mcp` with its token, read from the store per request. It takes no URL, so the same rule holds:
-the token goes only to the checkout's server. It supplies the workspace itself: it takes
+server on the host. The bridge is that server: each JSON-RPC line goes to `/mcp` with the token
+stored for that server and workspace, read from the store per request. Cowork starts it in the
+system folder and tells it no folder, so it takes, in order, a `--server` and `--workspace` it was
+given, the registered checkout holding the folder, or the one server and workspace every
+registration on the machine shares, and refuses when there are two. The token is keyed by server,
+so a configuration naming another server finds none to send. It supplies the workspace itself: it takes
 `workspaceId` out of the tool schemas and puts the checkout's into every call, replacing whatever
 the assistant wrote, which grants nothing because the token is refused in any other workspace. In
 Cowork an assistant never saw the server's `instructions` and guessed one. The default project is

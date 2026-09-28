@@ -457,11 +457,15 @@ internal static class Commands
 
     /// <summary>
     /// A local MCP server for an assistant that will not run a header helper, such as Cowork: it
-    /// passes each message to the checkout's server with the checkout's token. It takes no URL, so
-    /// no configuration can point it anywhere else.
+    /// passes each message to a server with the token stored for that server and workspace. A
+    /// server given with <c>--server</c> gets only its own token, so a configuration that names
+    /// another server finds none to send.
     /// </summary>
     private static Command McpBridge(ClientContext context)
     {
+        Option<string?> server = new("--server") { Description = "The DevBuddy server, with --workspace, when no folder says." };
+        Option<string?> workspace = new("--workspace") { Description = "The workspace, with --server." };
+        Option<string?> project = new("--project") { Description = "The project assistants should work in by default, with --server." };
         Option<string?> dir = new("--dir") { Description = "The folder the assistant works in. Defaults to the current folder." };
         Option<string?> log = new("--log")
         {
@@ -470,34 +474,32 @@ internal static class Commands
 
         Command command = new(
             "mcp-bridge",
-            "Serves MCP over stdio, and passes every message to the checkout's DevBuddy server over HTTPS.")
+            "Serves MCP over stdio, and passes every message to a registered DevBuddy server over HTTPS.")
         {
-            dir, log,
+            server, workspace, project, dir, log,
         };
 
         command.SetAction(async (result, cancellationToken) =>
         {
             var bridgeLog = new BridgeLog(result.GetValue(log) is { Length: > 0 } file ? Path.GetFullPath(file) : null);
-            string? given = result.GetValue(dir);
+            string? givenDir = Given(result.GetValue(dir));
+            string folder = Path.GetFullPath(givenDir ?? context.WorkingDirectory);
 
-            // An assistant that does not know a variable passes it on as written, or as nothing.
-            string folder = Path.GetFullPath(
-                given is { Length: > 0 } && !given.Contains("${", StringComparison.Ordinal) ? given : context.WorkingDirectory);
-
-            bridgeLog.Write($"started in {context.WorkingDirectory}, --dir '{given}', so the folder is {folder}");
+            bridgeLog.Write($"started in {context.WorkingDirectory}, --dir '{result.GetValue(dir)}', so the folder is {folder}");
             bridgeLog.Write($"assistant variables: {AssistantVariables(context)}");
 
-            Checkout? checkout = Registry.Load(context.Home).Find(folder);
+            Checkout? checkout = BridgeTarget(
+                context, Given(result.GetValue(server)), Given(result.GetValue(workspace)), Given(result.GetValue(project)),
+                folder, out string problem);
 
             if (checkout is null)
             {
-                string problem = $"DevBuddy: {folder} is not in a registered checkout, so nothing is sent. Run `devbuddy register` in it.";
                 context.Error.WriteLine(problem);
                 bridgeLog.Write(problem);
                 return NotRegistered;
             }
 
-            bridgeLog.Write($"checkout {checkout.Path}, server {checkout.Server}, workspace {checkout.Workspace:D}");
+            bridgeLog.Write($"server {checkout.Server}, workspace {checkout.Workspace:D}, from {checkout.Path}");
             using var bridge = new McpBridge(context, checkout, bridgeLog);
             await bridge.RunAsync(context.Input, context.Output, cancellationToken);
             bridgeLog.Write("standard input closed; stopped");
@@ -505,6 +507,86 @@ internal static class Commands
         });
 
         return command;
+    }
+
+    /// <summary>
+    /// A value an assistant actually filled in. One that does not know a variable passes it on as
+    /// written, or as nothing, and that is the same as not being given it.
+    /// </summary>
+    private static string? Given(string? value) =>
+        value is { Length: > 0 } && !value.Contains("${", StringComparison.Ordinal) ? value.Trim() : null;
+
+    /// <summary>
+    /// Where the bridge sends, in order: a server and workspace it was given; the registered
+    /// checkout holding the folder; or, when no folder says, the one server and workspace every
+    /// registered checkout shares. Cowork starts a local server in the system folder and tells it
+    /// nothing about where the person works, so the last is how a person with one workspace needs
+    /// no configuration. With two, it refuses rather than choosing.
+    /// </summary>
+    private static Checkout? BridgeTarget(
+        ClientContext context, string? server, string? workspace, string? project, string folder, out string problem)
+    {
+        problem = string.Empty;
+
+        if (server is not null || workspace is not null)
+        {
+            if (server is null || workspace is null)
+            {
+                problem = "DevBuddy: --server and --workspace go together, so nothing is sent.";
+                return null;
+            }
+
+            if (!ServerOrigin.TryParse(server, out string origin, out string invalid))
+            {
+                problem = $"DevBuddy: {invalid} Nothing is sent.";
+                return null;
+            }
+
+            if (!Guid.TryParse(workspace, out Guid workspaceId) || (project is not null && !Guid.TryParse(project, out _)))
+            {
+                problem = "DevBuddy: --workspace and --project take identifiers, so nothing is sent.";
+                return null;
+            }
+
+            return new Checkout("(given)", origin, workspaceId, project is null ? null : Guid.Parse(project));
+        }
+
+        var registry = Registry.Load(context.Home);
+
+        if (registry.Find(folder) is { } checkout)
+        {
+            return checkout;
+        }
+
+        Checkout[] distinct =
+        [
+            .. registry.All
+                .GroupBy(entry => (Server: entry.Server.ToLowerInvariant(), entry.Workspace))
+                .Select(group => group.First())
+        ];
+
+        if (distinct.Length == 1)
+        {
+            Checkout only = distinct[0];
+            Guid?[] projects =
+            [
+                .. registry.All
+                    .Where(entry => entry.Workspace == only.Workspace && entry.Project is not null)
+                    .Select(entry => entry.Project)
+                    .Distinct()
+            ];
+
+            // A default project only when the registrations agree on one.
+            Guid? sharedProject = projects.Length == 1 ? projects[0] : null;
+
+            return only with { Path = $"(the only workspace registered, via {only.Path})", Project = sharedProject };
+        }
+
+        problem = distinct.Length == 0
+            ? "DevBuddy: nothing is registered on this machine, so nothing is sent. Run `devbuddy register` in the folder you work in."
+            : $"DevBuddy: {folder} is not in a registered checkout, and {distinct.Length} workspaces are registered, so nothing "
+                + "is sent. Give the bridge --server and --workspace.";
+        return null;
     }
 
     /// <summary>

@@ -12,9 +12,9 @@ namespace DevBuddy.Client;
 /// starts a local server but will not run a header helper: Cowork reads <c>url</c>, <c>headers</c>
 /// and <c>oauth</c> from a plugin's <c>.mcp.json</c> and nothing else.
 /// <para>
-/// Each line on standard input is one JSON-RPC message, posted as it is to the checkout's own
-/// server, never to an address it was given, with the checkout's token read from the store for
-/// every request so a replaced token is picked up. Every message in the answer, JSON or an event
+/// Each line on standard input is one JSON-RPC message, posted to the server with the token
+/// stored for that server and workspace, read from the store for every request so a replaced
+/// token is picked up. The token is keyed by the server, so it goes nowhere else. Every message in the answer, JSON or an event
 /// stream, is written back as one line. A request the server or the network refuses is answered
 /// with a JSON-RPC error saying why, so the assistant can tell the person.
 /// </para>

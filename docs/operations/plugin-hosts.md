@@ -158,6 +158,31 @@ Point Claude Code at `plugins/claude/`, and set `DEVBUDDY_URL` to the server's a
 `/mcp`, in the environment it starts with, for instance `env` in `~/.claude/settings.json`.
 `DEVBUDDY_CLIENT` names the client if it is not on `PATH`.
 
+### Cowork
+
+Cowork does not run a header helper from a plugin, so `plugins/cowork/` starts the client's
+bridge instead: `devbuddy mcp-bridge`, a local MCP server over stdio that Cowork runs on the
+machine itself, outside its sandbox, where the credential store and the LAN are. It needs no
+repository and no code.
+
+1. Put the client on `PATH` and trust the gateway's certificate, as above. Cowork starts the
+   bridge by name, so a client that is not on `PATH` is not found.
+2. Register once, in any folder that is not a drive root or the home folder, for instance a folder
+   of documents: `devbuddy register --server https://192.168.1.160:5010 --workspace <workspace id>`.
+   A folder need not be a git repository.
+3. Zip the contents of `plugins/cowork/` and upload the zip under Plugins in Cowork. Cowork warns
+   that the plugin runs a local process; that process is the bridge.
+4. Start a Cowork task **on this machine** and ask what projects DevBuddy has. A Cowork project
+   whose threads run away from this machine cannot start the bridge.
+
+Cowork starts the bridge in the system folder and tells it nothing about the folder the task works
+in, so the bridge cannot choose a registration by folder. It uses the one server and workspace every
+registration on the machine shares. **Somebody with two workspaces registered** gets a refusal
+instead of a guess, and passes `--server` and `--workspace` to the bridge in the plugin's
+`.mcp.json` before uploading it. The bridge fills the workspace into every call, so no tool asks the
+assistant for one. `--log <file>` records methods, statuses and reasons, never a token or content,
+which is the way to see why a Cowork task cannot reach DevBuddy.
+
 ### Codex
 
 Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, and replace **both** example

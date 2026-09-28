@@ -246,6 +246,97 @@ public sealed class McpBridgeTests : IDisposable
             Sent("search_knowledge")["params"]!["arguments"]!["scope"]!["workspaceId"]!.GetValue<string>());
     }
 
+    /// <summary>
+    /// Cowork starts the bridge in the system folder and says nothing about where the person
+    /// works, so a person with one workspace registered needs no configuration.
+    /// </summary>
+    [Fact]
+    public async Task outside_any_checkout_the_only_registered_workspace_is_used()
+    {
+        Registered(Project);
+        string elsewhere = Directory.CreateDirectory(Path.Combine(_client.Root, "System32")).FullName;
+
+        Assert.Equal(Commands.Done, await BridgeAsync(
+            elsewhere, """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"""));
+
+        Assert.Single(_client.Remote.Requests);
+        Assert.Contains(Project.ToString("D"), Lines()[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task outside_any_checkout_with_two_workspaces_registered_nothing_is_sent()
+    {
+        Registered();
+        var registry = Registry.Load(_client.Home);
+        registry.Put(new Checkout(
+            Directory.CreateDirectory(Path.Combine(_client.Root, "other")).FullName, ClientHarness.Server, Guid.NewGuid(), null));
+        registry.Save();
+        string elsewhere = Directory.CreateDirectory(Path.Combine(_client.Root, "System32")).FullName;
+
+        Assert.Equal(Commands.NotRegistered, await BridgeAsync(elsewhere, """{"jsonrpc":"2.0","id":1,"method":"ping"}"""));
+
+        Assert.Empty(_client.Remote.Requests);
+        Assert.Contains("--server and --workspace", _client.Error.ToString(), StringComparison.Ordinal);
+    }
+
+    /// <summary>What a managed configuration passes: no folder, no registration, a token already stored.</summary>
+    [Fact]
+    public async Task a_server_and_workspace_given_need_no_registration()
+    {
+        _client.Store.Write(CredentialStores.KeyFor(ClientHarness.Server, ClientHarness.Workspace), ClientHarness.GoodToken);
+        _client.Remote.Accepted.Add(ClientHarness.GoodToken);
+
+        Assert.Equal(Commands.Done, await RunAsync(
+            ["mcp-bridge", "--server", ClientHarness.Server + "/", "--workspace", ClientHarness.Workspace.ToString()],
+            """{"jsonrpc":"2.0","id":1,"method":"ping"}"""));
+
+        Assert.Equal(new Uri($"{ClientHarness.Server}/mcp"), Assert.Single(_client.Remote.Requests));
+    }
+
+    /// <summary>The token is kept per server, so a configuration naming another server finds none to send.</summary>
+    [Fact]
+    public async Task a_server_given_that_holds_no_token_is_sent_nothing()
+    {
+        Registered();
+
+        await RunAsync(
+            ["mcp-bridge", "--server", "https://elsewhere.example.test", "--workspace", ClientHarness.Workspace.ToString()],
+            """{"jsonrpc":"2.0","id":1,"method":"ping"}""");
+
+        Assert.Empty(_client.Remote.Requests);
+        Assert.Contains("devbuddy token set", Assert.Single(Lines()), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("--server", "http://192.168.1.160:5010")]
+    [InlineData("--server", "https://devbuddy.example.test:5010", "--workspace", "not-an-id")]
+    [InlineData("--workspace", "5cd6f516-5b45-45ed-a5c9-6cdbb60df2dc")]
+    public async Task a_server_or_workspace_that_cannot_be_used_is_refused_before_anything_is_sent(params string[] options)
+    {
+        Registered();
+        string[] args = options.Length == 2 && options[0] == "--server"
+            ? ["mcp-bridge", .. options, "--workspace", ClientHarness.Workspace.ToString()]
+            : ["mcp-bridge", .. options];
+
+        Assert.Equal(Commands.NotRegistered, await RunAsync(args, """{"jsonrpc":"2.0","id":1,"method":"ping"}"""));
+
+        Assert.Empty(_client.Remote.Requests);
+    }
+
+    /// <summary>A plugin setting nobody filled in reaches the bridge as written, and counts as absent.</summary>
+    [Fact]
+    public async Task settings_left_unexpanded_fall_back_to_the_registration()
+    {
+        string checkout = Registered();
+        _client.WorkingDirectory = checkout;
+
+        Assert.Equal(Commands.Done, await RunAsync(
+            ["mcp-bridge", "--server", "${user_config.server}", "--workspace", "${user_config.workspace}"],
+            """{"jsonrpc":"2.0","id":1,"method":"ping"}"""));
+
+        Assert.Single(_client.Remote.Requests);
+    }
+
     public void Dispose() => _client.Dispose();
 
     /// <summary>Two tools in the shapes the server gives them: the workspace alone, or in a scope.</summary>
