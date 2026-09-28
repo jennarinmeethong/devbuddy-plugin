@@ -6,4 +6,4 @@ using DevBuddy.Client;
 
 ClientContext context = ClientContext.ForThisProcess();
 
-return await Commands.Build(context).Parse(args, Commands.Parsing).InvokeAsync();
+return await Commands.RunAsync(context, args);

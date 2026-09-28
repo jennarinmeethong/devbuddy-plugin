@@ -8,6 +8,13 @@ when something is worked out that nobody wrote down.
 It is reached through the `devbuddy` MCP server, over HTTPS. Configuration is in `config.toml`
 beside this file; the token comes from the `devbuddy` client, which keeps it per checkout.
 
+**Ask DevBuddy through its MCP tools, never through the shell.** The `devbuddy` command in the
+shell manages this machine's credentials. `devbuddy list` shows which folders are registered to
+which workspace; it is not a list of DevBuddy's projects, and nothing it prints is DevBuddy content.
+The one thing to run it for is `devbuddy show --json`, which gives the `workspaceId` (and a default
+`projectId`, if one was registered) that the tools take. Then `list_projects` with that
+`workspaceId` is what DevBuddy's projects are.
+
 ## The tools
 
 Twenty, in five groups:

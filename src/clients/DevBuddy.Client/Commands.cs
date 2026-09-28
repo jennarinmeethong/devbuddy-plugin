@@ -24,6 +24,27 @@ internal static class Commands
     /// </summary>
     public static ParserConfiguration Parsing { get; } = new() { ResponseFileTokenReplacer = null };
 
+    /// <summary>
+    /// A failure is reported by <see cref="RunAsync"/> as one sentence, not a stack trace: the
+    /// person reading it, or the assistant, needs what went wrong and not where in the client.
+    /// </summary>
+    private static InvocationConfiguration Invocation { get; } = new() { EnableDefaultExceptionHandler = false };
+
+    public static async Task<int> RunAsync(ClientContext context, string[] args)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        try
+        {
+            return await Build(context).Parse(args, Parsing).InvokeAsync(Invocation);
+        }
+        catch (InvalidOperationException exception)
+        {
+            context.Error.WriteLine($"DevBuddy: {exception.Message}");
+            return Failed;
+        }
+    }
+
     public static RootCommand Build(ClientContext context)
     {
         RootCommand root = new(
@@ -109,6 +130,10 @@ internal static class Commands
                 return Done;
             }
 
+            context.Out.WriteLine(
+                "Registered checkouts. These say which server and workspace a folder's token is for; "
+                + "DevBuddy's projects and knowledge come from its MCP tools, such as list_projects.");
+
             foreach (Checkout checkout in registry.All)
             {
                 string missing = Directory.Exists(checkout.Path) ? string.Empty : "  (folder missing)";
@@ -126,7 +151,10 @@ internal static class Commands
     private static Command Show(ClientContext context)
     {
         Argument<string?> path = PathArgument();
-        Option<bool> json = new("--json") { Description = "Machine-readable, for an assistant to read its workspace and project from." };
+        Option<bool> json = new("--json")
+        {
+            Description = "Machine-readable, for an assistant to read its workspace and project from. Never reads the token.",
+        };
 
         Command command = new("show", "Shows what the checkout holding a folder is registered to.") { path, json };
 
@@ -141,26 +169,30 @@ internal static class Commands
                 return NotRegistered;
             }
 
-            bool hasToken = context.Store.Read(CredentialStores.KeyFor(checkout.Server, checkout.Workspace)) is not null;
-
+            // What an assistant asks for, from inside its sandbox, where the credential store may be
+            // out of reach. It needs the workspace and project, never the token, so the store is
+            // not touched: Codex's sandbox refused the keychain, and this threw, on 2026-09-28.
             if (result.GetValue(json))
             {
                 context.Out.WriteLine(JsonSerializer.Serialize(new
                 {
                     path = checkout.Path,
                     server = checkout.Server,
+                    mcpUrl = ServerOrigin.McpEndpoint(checkout.Server).ToString(),
                     workspaceId = checkout.Workspace,
                     projectId = checkout.Project,
-                    token = hasToken,
+                    note = "This is a registration, not DevBuddy content. Ask DevBuddy through its MCP tools.",
                 }, Json));
 
                 return Done;
             }
 
             Describe(context, checkout);
-            context.Out.WriteLine(hasToken
+            context.Out.WriteLine(TryReadToken(context, checkout, out string? problem) is not null
                 ? $"Token:     stored in {context.Store.Description}"
-                : "Token:     none stored. Run `devbuddy token set`.");
+                : problem is null
+                    ? "Token:     none stored. Run `devbuddy token set`."
+                    : $"Token:     could not be checked here. {problem}");
             return Done;
         });
 
@@ -334,11 +366,13 @@ internal static class Commands
             context.Out.WriteLine($"[ok]   registered: {checkout.Path}");
             context.Out.WriteLine($"       server {checkout.Server}, workspace {checkout.Workspace:D}");
 
-            string? token = context.Store.Read(CredentialStores.KeyFor(checkout.Server, checkout.Workspace));
+            string? token = TryReadToken(context, checkout, out string? problem);
 
             if (token is null)
             {
-                context.Out.WriteLine("[fail] no token stored for that server and workspace. Run `devbuddy token set`.");
+                context.Out.WriteLine(problem is null
+                    ? "[fail] no token stored for that server and workspace. Run `devbuddy token set`."
+                    : $"[fail] the credential store could not be read. {problem}");
                 return NoToken;
             }
 
@@ -401,13 +435,14 @@ internal static class Commands
                 return WrongServer;
             }
 
-            string? token = context.Store.Read(CredentialStores.KeyFor(checkout.Server, checkout.Workspace));
+            string? token = TryReadToken(context, checkout, out string? problem);
 
             if (token is null)
             {
-                context.Error.WriteLine(
-                    $"DevBuddy: no token is stored for {checkout.Server}, workspace {checkout.Workspace:D}. "
-                    + "Run `devbuddy token set`.");
+                context.Error.WriteLine(problem is null
+                    ? $"DevBuddy: no token is stored for {checkout.Server}, workspace {checkout.Workspace:D}. "
+                        + "Run `devbuddy token set`."
+                    : $"DevBuddy: the credential store could not be read, so no token was sent. {problem}");
                 return NoToken;
             }
 
@@ -504,6 +539,25 @@ internal static class Commands
         context.Store.Write(CredentialStores.KeyFor(origin, workspace), token!);
         context.Out.WriteLine($"Token stored in {context.Store.Description}.");
         return true;
+    }
+
+    /// <summary>
+    /// The stored token, or null with the reason when the store cannot be reached: a locked
+    /// keychain, or an assistant's sandbox that does not let a command reach it at all.
+    /// </summary>
+    private static string? TryReadToken(ClientContext context, Checkout checkout, out string? problem)
+    {
+        problem = null;
+
+        try
+        {
+            return context.Store.Read(CredentialStores.KeyFor(checkout.Server, checkout.Workspace));
+        }
+        catch (InvalidOperationException exception)
+        {
+            problem = exception.Message;
+            return null;
+        }
     }
 
     private static void Describe(ClientContext context, Checkout checkout)

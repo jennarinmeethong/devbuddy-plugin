@@ -22,7 +22,8 @@ internal sealed class ClientHarness : IDisposable
     {
         Root = Directory.CreateTempSubdirectory("devbuddy-client-").FullName;
         Home = new ClientHome(Path.Combine(Root, "home"));
-        Store = new FileCredentialStore(Home);
+        Files = new FileCredentialStore(Home);
+        Store = new SwitchableStore(Files);
         WorkingDirectory = Root;
     }
 
@@ -30,7 +31,10 @@ internal sealed class ClientHarness : IDisposable
 
     public ClientHome Home { get; }
 
-    public FileCredentialStore Store { get; }
+    public FileCredentialStore Files { get; }
+
+    /// <summary>The file store, which a test can make unreachable, as a sandbox makes the keychain.</summary>
+    public SwitchableStore Store { get; }
 
     public FakeServer Remote { get; } = new();
 
@@ -73,7 +77,7 @@ internal sealed class ClientHarness : IDisposable
                 return Tokens.Count > 0 ? Tokens.Dequeue() : null;
             });
 
-        return await Commands.Build(context).Parse(args, Commands.Parsing).InvokeAsync();
+        return await Commands.RunAsync(context, args);
     }
 
     public void Dispose()
@@ -136,4 +140,29 @@ internal sealed class FakeServer : HttpMessageHandler
             Content = new StringContent($"event: message\ndata: {answer}\n\n", Encoding.UTF8, "text/event-stream"),
         };
     }
+}
+
+/// <summary>A credential store that can be made to fail the way a sandboxed keychain does.</summary>
+internal sealed class SwitchableStore(ICredentialStore inner) : ICredentialStore
+{
+    public bool Unreachable { get; set; }
+
+    public string Description => inner.Description;
+
+    public string? Read(string key) => Unreachable ? throw Refused() : inner.Read(key);
+
+    public void Write(string key, string secret)
+    {
+        if (Unreachable)
+        {
+            throw Refused();
+        }
+
+        inner.Write(key, secret);
+    }
+
+    public bool Delete(string key) => Unreachable ? throw Refused() : inner.Delete(key);
+
+    private static InvalidOperationException Refused() =>
+        new("The keychain could not read the token (OSStatus -25308). If it is locked, unlock it and try again.");
 }

@@ -45,6 +45,11 @@ refusal is already in the audit trail.
 appear in `list_projects` and will not answer. That is not a misconfiguration to work around; it
 is the project owner's decision.
 
+**Ask DevBuddy through its MCP tools, never through the shell.** The `devbuddy` command in the
+shell manages this machine's credentials; `devbuddy list` shows registered folders, not DevBuddy's
+projects. Run `devbuddy show --json` for the `workspaceId` (and a default `projectId`, if one was
+registered) the tools take, then `list_projects` with that `workspaceId`.
+
 **Results are narrowed to the person you are acting for.** You act as whoever the machine token
 belongs to, with exactly their permissions — not more. The `devbuddy` client hands it to the
 connection, per checkout, from the operating system's credential store.
