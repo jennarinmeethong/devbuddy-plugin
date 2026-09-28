@@ -54,8 +54,8 @@ under `Client/`; both plugin packages over HTTPS through it (ADR-0015). **An upg
 plus a reverse proxy rule passing `/mcp` to the MCP server**, and each person installs the client
 and registers their checkouts. It breaks anything that reached the HTTP transport with an access
 token or at the root; stdio is unchanged. No migration, and nobody signs in again. Its checklist is
-in `docs/operations/release-matrix.md`. **The devbox is not on it yet**: it runs `v1.10.1` with `mcp`
-pinned to the A4 trial image.
+in `docs/operations/release-matrix.md`. **The devbox runs it since the same day**, moved by the
+owner, with the A4 trial pin removed; its gateway passes `/mcp` to the MCP service.
 
 **`v1.10.1` was the release before it**, published 2026-09-28 at 04:11 UTC from `4082c07`: Thai in
 Leelawadee UI, dependency updates, Go 1.27.1 for the evidence store, and the first release whose
