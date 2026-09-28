@@ -66,7 +66,8 @@ compose_from_clean() {
   expect "api /health" "$(code $API/health)" 200
   expect "api /operations unauthenticated" "$(code $API/operations)" 401
   expect "web UI /" "$(code $API/)" 200
-  expect "mcp POST / unauthenticated" "$(code -X POST -H 'Content-Type: application/json' -d '{}' $MCPURL/)" 401
+  # At /mcp since v1.11.0 (Phase 14, A4); the root is no longer the transport.
+  expect "mcp POST /mcp unauthenticated" "$(code -X POST -H 'Content-Type: application/json' -d '{}' $MCPURL/mcp)" 401
   expect "mcp GET /no-such-path (control)" "$(code $MCPURL/no-such-path)" 404
   expect "listening on 5432 or 9000" "$(ss -ltn | awk '{print $4}' | grep -cE ':(5432|9000)$')" 0
   note "published: $(docker ps --filter "name=$P-" --format '{{.Ports}}' | grep -oE '[0-9.]+:[0-9]+->[0-9]+' | tr '\n' ' ')"
@@ -166,6 +167,10 @@ drill() {
   token=$(op issue_machine_token "$(jq -nc --arg ws "$WS" '{name:"drill-plugin", lifetimeDays:30, workspaceId:$ws}')" | jq -r .token)
   mcp_call "$token" > "$D/mcp-before.json"
   expect "mcp stdio with the machine token, before" "$(jq -r '.result.isError // false' "$D/mcp-before.json" 2>/dev/null)" false
+  expect "mcp HTTP with the machine token" "$(code -X POST -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' -H "Authorization: Bearer $token" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"checklist","version":"1"}}}' \
+    $MCPURL/mcp)" 200
 
   op get_record "$(record_args "$RECORD")" > "$D/record-before.json"
   op view_record_history "$(record_args "$RECORD")" > "$D/history-before.json"

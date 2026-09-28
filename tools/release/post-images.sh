@@ -62,7 +62,8 @@ expect "migrations" "$(docker exec "$P-database-1" psql -U devbuddy -d devbuddy 
 expect "api /health" "$(code $API/health)" 200
 expect "api /operations unauthenticated" "$(code $API/operations)" 401
 expect "web UI /" "$(code $API/)" 200
-expect "mcp POST / unauthenticated" "$(code -X POST -H 'Content-Type: application/json' -d '{}' $MCP/)" 401
+# At /mcp since v1.11.0 (Phase 14, A4); the root is no longer the transport.
+expect "mcp POST /mcp unauthenticated" "$(code -X POST -H 'Content-Type: application/json' -d '{}' $MCP/mcp)" 401
 expect "mcp GET /no-such-path (control)" "$(code $MCP/no-such-path)" 404
 for s in api mcp retention; do
   expect "$s uid" "$(uid_of "$P-$s-1")" 1654
