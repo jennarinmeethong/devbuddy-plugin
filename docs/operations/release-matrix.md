@@ -219,6 +219,44 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.11.0
+
+**Checked before the tag**, at the owner's instruction (`info.md`, 2026-09-28). *14.13* in
+`docs/plan-phase-14.md` says what it carries: Phase 14's A4, the MCP transport over HTTPS with a
+machine token, and the `devbuddy` client. Parts 1 and 3 ran at `2b7f854`, the merge of PR #25.
+Part 2 found a stale probe in the checklist itself; PR #31 fixed it and part 2 was rerun. The tag
+is `d2fda9b`, the merge of #31, which differs from `2b7f854` only in `stack-drill-tokens.sh` and
+`post-images.sh`.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1065** tests with none failed, among them `DevBuddy.Client.Tests` (52) and `HttpTransportTests`, which the Windows development machine could not run that day. The web build passed and its suite ran 85 of 85. `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **First run: 114 passed, 1 failed.** `mcp POST / unauthenticated` got 404, wanted 401: the probe still posted to the MCP server's root, which is not the transport since A4. `post-images.sh` had the same probe. PR #31 moved both to `/mcp` and added a check that the drill's machine token is accepted over HTTP. **Rerun with #31's script on the same build: 116 passed, 0 failed**, `mcp HTTP with the machine token` 200 among them. |
+| Part 3, `upgrade.sh` from `v1.10.1` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.10.1` | Ubuntu arm64 guest | **47 passed, 0 failed.** |
+
+### After the tag
+
+`v1.11.0` was tagged at `d2fda9b`, by the owner. Release run 36393885247 passed all 24 jobs, and A2's
+jobs wrote *Runner smoke results* into the draft. `osx-arm64` also ran on the Mac mini, because the
+client changed its build. The `main` CI run at `d2fda9b` needed one rerun: WebKit's page process
+crashed in `auth.spec.ts:48`, which it has done on unrelated branches since 2026-09-27; the rerun
+passed.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match**, and the two x64 Linux archives again on devrelease. |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.11.0` and `d2fda9b`. The images' CycloneDX SBOM attestations carry 37 (`api`), 35 (`mcp`) and 57 (`cli`) `bom-ref` entries; `mcp` lost the JWT package. A wrong owner, and a wrong tag (`v1.10.1`), were refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow | **29 of 29 each**, with the probe at `/mcp`. |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass**, each with the new client rows: `devbuddy mcp-headers` for an unregistered folder exits 2 and prints nothing. |
+| `linux-x64` (in `ubuntu:24.04` and natively), `linux-musl-x64` (in `alpine:3`) | `smoke.sh`, devrelease, by hand | **Pass**, client rows included. |
+| `osx-arm64` | `smoke.sh`, natively on the Mac mini (macOS 26.6.2), by hand | **Pass**, client rows included. |
+| `win-x64` | `client-smoke.ps1`, natively on JMPC, by hand | **Pass**, every row, x64 PE, client rows included. |
+
+**Published on 2026-09-28 at 10:23 UTC**, as Latest, at the owner's instruction. The throwaway
+stacks were removed from devrelease and the Ubuntu guest.
+
 ## What was verified for v1.10.1
 
 **Checked before the tag, at `4082c07`**, the commit tagged, at the owner's instruction (`info.md`,

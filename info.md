@@ -7,6 +7,8 @@ everything to go into this upgrade ("รวมทุกอย่างให้�
 session had published `v1.10.1` with the rest, to carry on ("ทำต่อได้เลย"). The next release is
 `v1.11.0` and carries A4, which changes how plugins connect and adds a program, so it is a minor
 version. *14.13* in `docs/plan-phase-14.md` says what it carries and what an upgrade needs.
+The owner reviewed and merged PR #25 and PR #31, pushed the tag, and asked for it to be published
+("publish ได้เลย"); it was, on 2026-09-28 at 10:23 UTC.
 
 ## Confirmed MCP over HTTPS with a Machine Token, and a `devbuddy` Client Command — 2026-09-27
 
