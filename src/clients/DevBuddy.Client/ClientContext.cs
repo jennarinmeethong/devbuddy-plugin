@@ -12,7 +12,8 @@ internal sealed record ClientContext(
     TextWriter Error,
     Func<string, string?> Environment,
     string WorkingDirectory,
-    Func<string, string?> ReadToken)
+    Func<string, string?> ReadToken,
+    string UserFolder)
 {
     public static ClientContext ForThisProcess()
     {
@@ -28,7 +29,8 @@ internal sealed record ClientContext(
             Console.Error,
             Read,
             System.Environment.CurrentDirectory,
-            TokenPrompt.Read);
+            TokenPrompt.Read,
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile));
     }
 }
 

@@ -1,5 +1,22 @@
 # Project Decisions
 
+## Confirmed A Checkout Need Not Be a Git Repository — 2026-09-28
+
+The owner asked whether requiring git shut out people who do not work in code, such as an SA or a
+BA using the plugin from Cowork with no access to git, and chose the first of the two options
+Claude gave ("ทำทางเลือก ก. ไปก่อนเลย"): `devbuddy register` takes a plain folder.
+
+- **A checkout is the git repository holding the folder, or, outside one, the folder itself.** The
+  registry, the token per workspace and the helper's server check are unchanged; none of them
+  depended on git.
+- **A folder too broad to hold a token is refused**: the root of a drive, the home folder, or a
+  folder above it, whether it was found as a repository root or given as a plain folder, because a
+  home folder can be a dotfiles clone.
+- **Not chosen:** a default workspace per user with no folder at all. It would give every session
+  the token, and would need ADR-0015 changed.
+- Whether Cowork, or ChatGPT's equivalent, can run the header helper at all is a separate question
+  and is not answered by this change.
+
 ## Confirmed Cutting v1.11.1 — 2026-09-28
 
 JMPC's move to HTTPS found that `/.well-known/` served the web client's page (PR #33). The owner asked

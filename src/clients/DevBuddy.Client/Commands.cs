@@ -65,7 +65,7 @@ internal static class Commands
 
     private static Argument<string?> PathArgument() => new("path")
     {
-        Description = "The checkout. Defaults to the git repository holding the current folder.",
+        Description = "The checkout. Defaults to the git repository holding the current folder, or the folder itself outside one.",
         Arity = ArgumentArity.ZeroOrOne,
     };
 
@@ -455,8 +455,9 @@ internal static class Commands
     }
 
     /// <summary>
-    /// The git repository holding a folder, or the folder itself when it is already registered.
-    /// A folder that is neither is refused rather than registered as a guess.
+    /// The git repository holding a folder, or the folder itself outside any repository: an
+    /// analyst's folder of documents is a checkout as much as a clone is. A folder so broad that
+    /// every session on the machine would carry the token is refused, whichever way it was found.
     /// </summary>
     private static string? CheckoutRoot(ClientContext context, string? path)
     {
@@ -468,13 +469,17 @@ internal static class Commands
             return null;
         }
 
-        if (Folders.GitRoot(folder) is { } root)
+        string root = Folders.GitRoot(folder) ?? Folders.Normalise(folder);
+
+        if (Folders.TooBroad(root, context.UserFolder) is { } reason)
         {
-            return root;
+            context.Error.WriteLine(
+                $"{root} is {reason}, so every assistant session under it would carry the token. "
+                + "Register the folder you work in.");
+            return null;
         }
 
-        context.Error.WriteLine($"{folder} is not in a git repository. Register a checkout.");
-        return null;
+        return root;
     }
 
     private static Checkout? Registered(ClientContext context, Registry registry, string? path)

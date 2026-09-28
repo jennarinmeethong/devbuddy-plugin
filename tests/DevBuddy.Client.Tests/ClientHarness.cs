@@ -25,7 +25,11 @@ internal sealed class ClientHarness : IDisposable
         Files = new FileCredentialStore(Home);
         Store = new SwitchableStore(Files);
         WorkingDirectory = Root;
+        UserFolder = Directory.CreateDirectory(Path.Combine(Root, "user")).FullName;
     }
+
+    /// <summary>The person's home folder, as the client sees it; a folder of the harness, not theirs.</summary>
+    public string UserFolder { get; }
 
     public string Root { get; }
 
@@ -75,7 +79,8 @@ internal sealed class ClientHarness : IDisposable
             {
                 TokenPrompts++;
                 return Tokens.Count > 0 ? Tokens.Dequeue() : null;
-            });
+            },
+            UserFolder);
 
         return await Commands.RunAsync(context, args);
     }

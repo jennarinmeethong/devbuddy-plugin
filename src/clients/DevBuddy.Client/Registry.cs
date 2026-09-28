@@ -139,6 +139,28 @@ internal static class Folders
         return folder.StartsWith(prefix, Comparison);
     }
 
+    /// <summary>
+    /// Why a folder is too broad to register, or null when it is not: a file system root, the
+    /// home folder, or a folder above it. A home folder can be a git repository of its own, a
+    /// dotfiles clone, so this is asked of a repository root too.
+    /// </summary>
+    public static string? TooBroad(string folder, string? home)
+    {
+        string wanted = Normalise(folder);
+
+        if (Same(wanted, Normalise(System.IO.Path.GetPathRoot(wanted) ?? wanted)))
+        {
+            return "the root of a drive";
+        }
+
+        if (home is { Length: > 0 } && Contains(wanted, Normalise(home)))
+        {
+            return Same(wanted, Normalise(home)) ? "your home folder" : "above your home folder";
+        }
+
+        return null;
+    }
+
     /// <summary>The nearest folder at or above this one holding a <c>.git</c> entry.</summary>
     public static string? GitRoot(string folder)
     {

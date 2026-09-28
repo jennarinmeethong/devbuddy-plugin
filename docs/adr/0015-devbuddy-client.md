@@ -38,7 +38,10 @@ HTTPS.
 **A per-user registry, `~/.devbuddy/checkouts.json`**, maps a checkout's folder to a server origin,
 a workspace and, optionally, a default project. It is outside every repository, so no pull request
 can change which server a token is sent to. A checkout may be anywhere. On Unix the file is mode 600
-in a mode-700 folder.
+in a mode-700 folder. A checkout is the git repository holding the folder, or, outside one, the
+folder itself (`info.md`, 2026-09-28), so somebody who works in documents rather than code can
+register too. The root of a drive, the home folder and a folder above it are refused, as a
+repository root or a plain folder, because every session under them would carry the token.
 
 **The token is kept in the operating system's credential store**, keyed by server origin and
 workspace: Credential Manager on Windows through advapi32, and the login keychain on macOS through
