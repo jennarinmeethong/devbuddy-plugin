@@ -662,7 +662,8 @@ UTC, and the devbox runs the tag.
 
 ## 14.15 — Cutting v1.12.0
 
-**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-29).
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-29). The pre-tag
+checklist passed at `235a17c` (`release-matrix.md`); the tag is the owner's.
 
 - **What it carries since `v1.11.1`: DevBuddy from Cowork** (PR #37 and PR #38).
   - `devbuddy register` takes a folder that is not a git repository; a drive root, the home folder
@@ -773,3 +774,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-29 | A4 | **The owner confirmed that one registered workspace is used without asking**, recorded in `info.md`, and asked for PR #37 to be merged. After the rename, the Code tab session in this checkout listed the two packages apart, `devbuddy` over HTTP and `devbuddy-cowork` through the bridge. |
 | 2026-09-29 | A4 | **Prepared for the release that carries the Cowork bridge**, at the owner's request. `plugins/cowork` is 1.12.0, proposing `v1.12.0`, a minor version because it adds a command and a package; the Claude package moves with the release commit as usual. `plugin-hosts.md` says how to put the client on `PATH`, which only Cowork cannot do without, and that Claude Desktop must be restarted to see it. `smoke.sh` and `client-smoke.ps1` start `devbuddy mcp-bridge` from the published archive with nothing registered: it must exit 0 once its input closes, answer both messages, begin with `{`, answer `initialize` itself, and answer a tool call with why. **Run** on archives built the way `release.yml` builds them: `client-smoke.ps1` on `win-x64` on the Windows development machine, 0 failed; `smoke.sh` in `ubuntu:24.04` on devrelease, 0 failed, after re-packing there, because tar on Windows drops the execute bits. |
 | 2026-09-29 | 14.15 | **`v1.12.0` prepared**, at the owner's request, on top of PR #38: both plugins at 1.12.0, *14.15* written, and `info.md`. The server is unchanged since `v1.11.1`, so the upgrade is `up -d` alone; people's machines take the new client, and Cowork users add it to `PATH` and upload `plugins/cowork/`. The pre-tag checklist has not run. |
+| 2026-09-29 | 14.15 | **The pre-tag checklist for `v1.12.0` passed** at `235a17c`, the merge of PR #39, at the owner's request. On devrelease: part 1 7 of 7, with 1108 .NET tests (89 the client's) and the web suite 85; part 2 116 of 116; part 3 from `v1.11.1` 47 of 47. In the Ubuntu arm64 guest, the upgrade from `v1.11.1` 47 of 47. devrelease had 8.8 GB free, so old release images were removed first (`release-matrix.md`). A first start on devrelease ran nothing, because a path in the command was expanded to nothing on JMPC; it was started again. **The tag waits on the owner.** |

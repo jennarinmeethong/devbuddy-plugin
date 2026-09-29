@@ -219,6 +219,27 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.12.0
+
+**Checked before the tag, at `235a17c`**, the merge of PR #39, whose tree is the release commit
+`1f11f13`'s, at the owner's instruction (`info.md`, 2026-09-29). *14.15* in
+`docs/plan-phase-14.md` says what it carries: DevBuddy from Cowork, through `devbuddy mcp-bridge`
+and `plugins/cowork/` (PRs #37 and #38). The server is unchanged since `v1.11.1`. The bridge's five
+rows are new in `smoke.sh` and `client-smoke.ps1`; they run after the tag.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1108** tests with none failed, 89 of them the client's. The web build and suite (85) passed, `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.11.1` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.11.1` | Ubuntu arm64 guest | **47 passed, 0 failed.** |
+
+Before the run, images from the checklists of `v1.8.0` to `v1.11.0`, the published images of
+`v1.7.0` to `v1.11.0`, two older Go images and an untagged Ollama image were removed from
+devrelease, which had 8.8 GB free; it had 24 GB for the run. Everything removed can be pulled or
+built again. The arm64 guest's stack was removed after its run; devrelease's two stacks,
+`devbuddy-v1120` and `devbuddy-up1120`, are left for inspection until publication.
+
 ## What was verified for v1.11.1
 
 **Checked before the tag, at `2075492`**, the commit tagged, at the owner's instruction (`info.md`,
