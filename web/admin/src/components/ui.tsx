@@ -39,11 +39,16 @@ export function Button({ variant = "secondary", className, ...rest }: ButtonProp
     ].join(" "),
   }[variant];
 
+  // Every property Tailwind's `transition` animates except `filter`. Animating the primary button's
+  // `hover:brightness-110` while `disabled` toggled its opacity stopped WebKit painting the page
+  // for good: 16 of 90 lockout runs in WebKit on Linux, and none with `filter` left out
+  // (docs/plan-phase-14.md, 2026-09-28). The brightness still applies on hover, at once.
   return (
     <button
       type="button"
       className={join(
-        "inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
+        "inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium whitespace-nowrap",
+        "transition-[color,background-color,border-color,opacity,box-shadow]",
         "disabled:cursor-not-allowed disabled:opacity-50",
         styles,
         className,
