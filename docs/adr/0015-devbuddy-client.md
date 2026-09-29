@@ -38,7 +38,10 @@ HTTPS.
 **A per-user registry, `~/.devbuddy/checkouts.json`**, maps a checkout's folder to a server origin,
 a workspace and, optionally, a default project. It is outside every repository, so no pull request
 can change which server a token is sent to. A checkout may be anywhere. On Unix the file is mode 600
-in a mode-700 folder.
+in a mode-700 folder. A checkout is the git repository holding the folder, or, outside one, the
+folder itself (`info.md`, 2026-09-28), so somebody who works in documents rather than code can
+register too. The root of a drive, the home folder and a folder above it are refused, as a
+repository root or a plain folder, because every session under them would carry the token.
 
 **The token is kept in the operating system's credential store**, keyed by server origin and
 workspace: Credential Manager on Windows through advapi32, and the login keychain on macOS through
@@ -61,6 +64,24 @@ longest match winning, and prints the `Authorization` header only if the URL's o
 checkout's server. Otherwise it prints nothing to standard output, says why on standard error, and
 exits non-zero: an unregistered folder, a missing token, or a URL that is not the registered server.
 The last one is what keeps a mistaken or altered configuration from sending the token anywhere else.
+
+**`mcp-bridge` is for an assistant that runs no header helper** (2026-09-28, on trial). Cowork reads
+only `url`, `headers` and `oauth` from a plugin's remote entry, but starts a plugin's local stdio
+server on the host. The bridge is that server: each JSON-RPC line goes to `/mcp` with the token
+stored for that server and workspace, read from the store per request. Cowork starts it in the
+system folder and tells it no folder, so it takes, in order, a `--server` and `--workspace` it was
+given, the registered checkout holding the folder, or every server and workspace registered on
+the machine. With one, that one is used. With several, which is how customers are kept apart
+(`info.md`, 2026-09-29), no tool call is sent until the person chooses one through
+`use_workspace`, a tool the bridge adds, and the choice holds until the task ends, so one session
+is still one workspace. Cowork offers no MCP roots, so the task's folder cannot decide. With none,
+the bridge serves anyway and answers every call with the reason. The token is keyed by server,
+so a configuration naming another server finds none to send. It supplies the workspace itself: it takes
+`workspaceId` out of the tool schemas and puts the checkout's into every call, replacing whatever
+the assistant wrote, which grants nothing because the token is refused in any other workspace. In
+Cowork an assistant never saw the server's `instructions` and guessed one. The default project is
+still named in those instructions.
+`--log` notes methods, statuses and reasons, never a token or content.
 
 **One session is one workspace.** The helper resolves the token when the assistant connects, from
 the folder it was started in.

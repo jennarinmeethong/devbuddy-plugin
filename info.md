@@ -1,5 +1,52 @@
 # Project Decisions
 
+## Confirmed A Workspace Per Customer, and Cowork Chooses Its Workspace — 2026-09-29
+
+The owner asked how to count workspaces: ten projects of one programme, or ten projects from
+customers that have nothing to do with each other. Claude answered that a workspace is a trust
+boundary, since a token, the evidence bucket and a workspace administrator's reach all stop at it
+and nothing inside it stops one session reading across projects. The owner agreed that knowledge
+of one customer turning up in another's answer is a problem ("เป็นปัญหา"), and decided that
+**Cowork must be able to choose its workspace** ("cowork ควรระบุ workspace ได้").
+
+- **Unrelated customers get a workspace each.** One programme's projects share one.
+- **The bridge refuses when it cannot choose, and says why to the assistant**, instead of exiting
+  before it can answer, which Cowork showed only as a connector that failed.
+- **The person chooses the workspace once per task** (the owner's choice, "เลือกทาง ข", over two
+  plugins with one workspace each, which would put both in every task unless Cowork let a
+  connector be switched off per task). With more than one workspace registered, the bridge holds
+  every tool call until `use_workspace` is called, and refuses a second choice of another
+  workspace, so one task reads one workspace. `devbuddy register --label` names a workspace for
+  that question. It keeps one task to one customer by accident; it is not a boundary against the
+  person, who holds both tokens.
+- **With one workspace registered, the bridge uses it without asking** (the owner confirmed Claude's
+  proposal, "ยืนยัน"). Cowork names no folder, so the bridge takes, in order, a `--server` and
+  `--workspace` it was given, the registered checkout holding the folder, or the workspaces
+  registered on the machine: one is used, several are chosen between as above.
+- **The Cowork package is named `devbuddy-cowork`**, apart from the Claude package's
+  `devbuddy` (the owner: "แยกชื่อกันดีกว่า"). Claude Desktop loaded the plugin uploaded to Cowork
+  into its Code tab as well, and under the shared name it replaced the Claude package there.
+  Merging the two into one package that uses the bridge everywhere was offered and not chosen.
+- **MCP roots were tried first and Cowork does not offer them**: a probe logged its `initialize`
+  on 2026-09-29, and its capabilities carry no `roots`.
+
+## Confirmed A Checkout Need Not Be a Git Repository — 2026-09-28
+
+The owner asked whether requiring git shut out people who do not work in code, such as an SA or a
+BA using the plugin from Cowork with no access to git, and chose the first of the two options
+Claude gave ("ทำทางเลือก ก. ไปก่อนเลย"): `devbuddy register` takes a plain folder.
+
+- **A checkout is the git repository holding the folder, or, outside one, the folder itself.** The
+  registry, the token per workspace and the helper's server check are unchanged; none of them
+  depended on git.
+- **A folder too broad to hold a token is refused**: the root of a drive, the home folder, or a
+  folder above it, whether it was found as a repository root or given as a plain folder, because a
+  home folder can be a dotfiles clone.
+- **Not chosen:** a default workspace per user with no folder at all. It would give every session
+  the token, and would need ADR-0015 changed.
+- Whether Cowork, or ChatGPT's equivalent, can run the header helper at all is a separate question
+  and is not answered by this change.
+
 ## Confirmed Cutting v1.11.1 — 2026-09-28
 
 JMPC's move to HTTPS found that `/.well-known/` served the web client's page (PR #33). The owner asked
