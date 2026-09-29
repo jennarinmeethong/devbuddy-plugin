@@ -219,6 +219,20 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.12.3
+
+**Checked before the tag, at `e64b4ee`**, the head of PR #47, at the owner's instruction
+(`info.md`, 2026-09-30). *14.18* in `docs/plan-phase-14.md` says what it carries: the entropy rule
+no longer reports a file name, and every package says to ask the person when a draft is Blocked.
+No check was added.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1118** tests with none failed, the new corpus cases and package test among them. The web build passed and its suite ran **86** of 86. `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** A first start failed at `compose up`, because `v1.12.2`'s part-2 stack, left running for inspection, still held `127.0.0.1:18080`. Claude removed the `v1.12.2` stacks, moved the folder aside as `v1.12.3-aborted-portclash`, and reran all three parts from clean. |
+| Part 3, `upgrade.sh` from `v1.12.2` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.12.2` | Ubuntu arm64 guest | **47 passed, 0 failed.** |
+
 ## What was verified for v1.12.2
 
 **Checked before the tag, at `785f790`**, the head of PR #46, at the owner's instruction
