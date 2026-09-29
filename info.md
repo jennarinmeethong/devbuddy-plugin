@@ -228,7 +228,8 @@ The owner confirmed ADR-0014 as written, and asked for it to be merged and built
 On 2026-09-26 the owner's router forwarded TCP 8840 on `jennarin.thddns.net` to the devbox's
 gateway, which made DevBuddy reachable from the internet. Sign-in was open to anyone, and the
 shared rate limit let anybody lock the administrator's account. Asked to choose, the owner chose a
-VPN, as the HomeHub rule set in `samples/` prescribes.
+VPN, as the HomeHub rule set prescribes (then a copy in `samples/`, now only in the HomeHub
+repository).
 
 - **WireGuard on UDP 8840**, in an LXC of its own (102, `192.168.1.162`), not in LXC 100. A peer
   reaches `192.168.1.160:5010/tcp` and nothing else, and each device has its own key.
@@ -257,8 +258,8 @@ VPN, as the HomeHub rule set in `samples/` prescribes.
 ## Confirmed HTTPS for the Devbox Through an Internal CA and Caddy in LXC 100 — 2026-09-26
 
 The owner answered B1 of `docs/plan-phase-14.md`: "no domain, use an internal CA, install Caddy
-in LXC 100". The rule set in `samples/` (HomeHub) says the same for a name with no DNS API: an
-internal CA and a trusted root, not a certificate that pretends.
+in LXC 100". The HomeHub rule set (in the HomeHub repository) says the same for a name with no
+DNS API: an internal CA and a trusted root, not a certificate that pretends.
 
 - **Caddy 2.11.4, pinned by digest, as a Compose project of its own** in
   `/data/devbuddy-tools/gateway`, not in the product's stack, whose images have no shell on
@@ -279,8 +280,8 @@ internal CA and a trusted root, not a certificate that pretends.
 ## Confirmed Gitleaks, Trivy, CodeQL, Actions Pinned by Commit, and Dependabot — 2026-09-26
 
 The owner approved the first recommendation from comparing this project with the HomeHub rule set
-the owner placed in `samples/`: "Gitleaks Trivy CodeQL pin SHA Dependabot". It is item C5 of
-`docs/plan-phase-14.md`. What was decided, where the owner named nothing more precise:
+the owner placed in `samples/` (removed 2026-09-29; the HomeHub repository holds it): "Gitleaks
+Trivy CodeQL pin SHA Dependabot". It is item C5 of `docs/plan-phase-14.md`. What was decided, where the owner named nothing more precise:
 
 - **Gitleaks** scans the whole history on every push, pull request and the weekly schedule, and
   any finding fails the run. `.gitleaksignore` accepts a finding by exact fingerprint only.
