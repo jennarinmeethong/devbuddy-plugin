@@ -31,7 +31,11 @@ in the operating system's credential store, and handed to the connection by its 
 |---|---|---|
 | Setting | `headersHelper` in `.mcp.json` | `http_headers_helper` in `config.toml` |
 | Where it runs | the plugin's folder, so the package passes `${CLAUDE_PROJECT_DIR}` | the session's folder (to be confirmed on the Mac mini) |
-| The URL it checks | `CLAUDE_CODE_MCP_SERVER_URL`, set by Claude Code | `--url`, written beside `url` in the file |
+| The URL it checks | `--url`, from the same `DEVBUDDY_URL` as `url` | `--url`, written beside `url` in the file |
+
+Neither relies on `CLAUDE_CODE_MCP_SERVER_URL`. Claude Code redacts the value of any variable it
+counts as a credential wherever that value occurs in the URL, and on JMPC one of them held `1`, so
+the helper received `https://REDACTED92.REDACTED68…` and refused it as another server (fixed in v1.12.0).
 
 The helper finds the registered checkout that holds that folder, and prints the `Authorization`
 header only if the URL is on the server that checkout is registered to. An unregistered folder, a

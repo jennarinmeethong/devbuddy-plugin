@@ -7,6 +7,11 @@ prepared ("เตรียม commit ของ release v1.12.0 เลย"), taki
 minor version, because it adds `devbuddy mcp-bridge` and the `devbuddy-cowork` package. *14.15* in
 `docs/plan-phase-14.md` says what it carries and what an upgrade needs.
 
+On 2026-09-29, before the tag, the owner put PR #36 into it ("เอา #36 เข้า v1.12.0"): the Claude
+package passes the MCP URL to the helper, which `main` did not, and the `v1.11.2` planned for that
+alone is dropped. The WebKit rendering fix from the e2e investigation goes out separately, as
+`v1.12.1` ("WebKit แยกเป็น v1.12.1"), because it changes the web client and so the API image.
+
 ## Confirmed A Workspace Per Customer, and Cowork Chooses Its Workspace — 2026-09-29
 
 The owner asked how to count workspaces: ten projects of one programme, or ten projects from

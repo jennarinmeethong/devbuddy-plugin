@@ -677,8 +677,10 @@ checklist passed at `235a17c` (`release-matrix.md`); the tag is the owner's.
 - **A minor version**, because it adds a command and a package. **The server is unchanged:**
   nothing under `src/core`, `src/hosts`, `docker` or `web` changed, so the images, the operations,
   the MCP transport and the content security policy are the same. No migration, so the count stays
-  at nine. Nobody signs in again. Both plugins move to 1.12.0; the Claude package's content is
-  unchanged.
+  at nine. Nobody signs in again. Both plugins move to 1.12.0. **The Claude package passes the MCP
+  URL to its helper** (`--url "${DEVBUDDY_URL}/mcp"`, PR #36, added at the owner's word on
+  2026-09-29): Claude Code handed the helper `CLAUDE_CODE_MCP_SERVER_URL` with every `1` redacted on
+  JMPC, and the helper rightly refused it. A `v1.11.2` for that alone was planned and dropped.
 - **The upgrade is `up -d` alone** on a server, with the usual check that `mcp` runs the new image.
   On a person's machine, the client from the archive replaces the old one; Cowork additionally
   needs it on `PATH`, Claude Desktop restarted, and `plugins/cowork/` uploaded (`plugin-hosts.md`).
