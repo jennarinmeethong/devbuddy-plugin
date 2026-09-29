@@ -694,7 +694,8 @@ upgrade.
 
 ## 14.16 — Cutting v1.12.1
 
-**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-29). The devbox runs it since the same day, moved by the owner.
+**Status: PUBLISHED 2026-09-29**, at 09:04 UTC, from `9cd1934`, at the owner's instruction
+(`info.md`, 2026-09-29). The devbox runs it since the same day, moved by the owner.
 
 - **What it carries since `v1.12.0`:**
   - **The Claude Code package passes the MCP URL to its helper** (PR #36), which `v1.12.0`'s does
