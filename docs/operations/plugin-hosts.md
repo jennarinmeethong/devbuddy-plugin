@@ -283,7 +283,7 @@ A working installation answers; a broken one fails in a way that says which part
 
 | Symptom | Cause |
 |---|---|
-| The server fails to connect, and the helper says the folder is not registered | Run `devbuddy register` in the checkout. |
+| The server fails to connect, and the helper says the folder is not registered | Copy the `devbuddy register` command from Plugin access and run it in the checkout, then start a new session. A folder that does not use DevBuddy can be left as it is. |
 | The helper says the checkout is registered to another server | The URL in the assistant's configuration is not the registered server's. Correct whichever is wrong. |
 | The connection fails on the certificate | The machine does not trust the gateway's root CA. For Codex, also `CODEX_CA_CERTIFICATE`. |
 | Every call refused with 401 | The token is wrong, expired, revoked, or from before workspace scoping. Mint one and run `devbuddy token set`. |

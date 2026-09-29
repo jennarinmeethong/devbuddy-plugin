@@ -66,6 +66,7 @@ public sealed class McpHeadersTests : IDisposable
         Assert.Equal(Commands.NotRegistered, exit);
         Assert.Equal(string.Empty, _client.Out.ToString());
         Assert.Contains("devbuddy register", _client.Error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Plugin access", _client.Error.ToString(), StringComparison.Ordinal);
     }
 
     /// <summary>
