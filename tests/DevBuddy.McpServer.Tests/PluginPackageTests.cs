@@ -277,9 +277,9 @@ public sealed partial class PluginPackageTests
     }
 
     [Theory]
-    [InlineData("claude")]
-    [InlineData("cowork")]
-    public void the_manifest_is_valid_and_names_the_plugin(string package)
+    [InlineData("claude", "devbuddy")]
+    [InlineData("cowork", "devbuddy-cowork")]
+    public void the_manifest_is_valid_and_names_the_plugin(string package, string name)
     {
         var manifest = new FileInfo(
             Path.Combine(PackageRoot(package).FullName, ".claude-plugin", "plugin.json"));
@@ -288,9 +288,24 @@ public sealed partial class PluginPackageTests
 
         JsonElement content = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(manifest.FullName));
 
-        Assert.Equal("devbuddy", content.GetProperty("name").GetString());
+        Assert.Equal(name, content.GetProperty("name").GetString());
         Assert.False(string.IsNullOrWhiteSpace(content.GetProperty("description").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(content.GetProperty("version").GetString()));
+    }
+
+    /// <summary>
+    /// Claude Desktop loads a plugin uploaded to Cowork into its Code tab too. With one name for
+    /// both packages, the Cowork upload took the Claude package's place in a Code tab session on
+    /// 2026-09-29, so the two are named apart (<c>info.md</c>).
+    /// </summary>
+    [Fact]
+    public void the_claude_and_cowork_packages_have_different_names()
+    {
+        string Name(string package) => JsonSerializer.Deserialize<JsonElement>(
+            File.ReadAllText(Path.Combine(PackageRoot(package).FullName, ".claude-plugin", "plugin.json")))
+            .GetProperty("name").GetString()!;
+
+        Assert.NotEqual(Name("claude"), Name("cowork"));
     }
 
     [Fact]

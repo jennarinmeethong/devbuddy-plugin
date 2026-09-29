@@ -171,7 +171,12 @@ repository and no code.
    of documents: `devbuddy register --server https://192.168.1.160:5010 --workspace <workspace id>`.
    A folder need not be a git repository.
 3. Zip the contents of `plugins/cowork/` and upload the zip under Plugins in Cowork. Cowork warns
-   that the plugin runs a local process; that process is the bridge.
+   that the plugin runs a local process; that process is the bridge. The plugin is
+   `devbuddy-cowork`, a name apart from the Claude package's `devbuddy`, because Claude Desktop
+   loads a Cowork upload into its Code tab too: under one name, the upload took the Claude
+   package's place there. Under two, a Code tab session that has both lists DevBuddy twice. Both
+   reach the same workspace for a registered folder, since the Code tab starts the bridge in the
+   project folder.
 4. Start a Cowork task **on this machine** and ask what projects DevBuddy has. A Cowork project
    whose threads run away from this machine cannot start the bridge.
 

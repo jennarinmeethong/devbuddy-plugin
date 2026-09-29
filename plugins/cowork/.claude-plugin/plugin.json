@@ -1,5 +1,5 @@
 {
-  "name": "devbuddy",
+  "name": "devbuddy-cowork",
   "description": "Search, analyse, and draft engineering knowledge from a self-hosted DevBuddy installation, in Cowork. Read and draft only; approving and publishing stay with people.",
   "version": "1.11.1",
   "author": { "name": "DevBuddy" },

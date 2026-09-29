@@ -19,6 +19,10 @@ of one customer turning up in another's answer is a problem ("เป็นปั
   workspace, so one task reads one workspace. `devbuddy register --label` names a workspace for
   that question. It keeps one task to one customer by accident; it is not a boundary against the
   person, who holds both tokens.
+- **The Cowork package is named `devbuddy-cowork`**, apart from the Claude package's
+  `devbuddy` (the owner: "แยกชื่อกันดีกว่า"). Claude Desktop loaded the plugin uploaded to Cowork
+  into its Code tab as well, and under the shared name it replaced the Claude package there.
+  Merging the two into one package that uses the bridge everywhere was offered and not chosen.
 - **MCP roots were tried first and Cowork does not offer them**: a probe logged its `initialize`
   on 2026-09-29, and its capabilities carry no `roots`.
 
