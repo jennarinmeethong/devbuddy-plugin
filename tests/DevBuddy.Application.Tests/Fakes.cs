@@ -373,9 +373,17 @@ internal sealed class FakePorts :
     public Task<SecretScanResult> ScanAsync(string content, CancellationToken cancellationToken)
     {
         Touch();
-        return Task.FromResult(content.Contains("SECRET", StringComparison.Ordinal)
-            ? new SecretScanResult([new SecretFinding("literal", 1, 6)])
-            : SecretScanResult.Clean);
+
+        // One finding per line that carries the marker, as the real scanner reports them.
+        SecretFinding[] findings =
+        [
+            .. content.Split('\n')
+                .Select((line, index) => (line, number: index + 1))
+                .Where(entry => entry.line.Contains("SECRET", StringComparison.Ordinal))
+                .Select(entry => new SecretFinding("literal", entry.number, 6)),
+        ];
+
+        return Task.FromResult(findings.Length == 0 ? SecretScanResult.Clean : new SecretScanResult(findings));
     }
 
     public Task<IReadOnlyList<Project>> ListProjectsForUserAsync(

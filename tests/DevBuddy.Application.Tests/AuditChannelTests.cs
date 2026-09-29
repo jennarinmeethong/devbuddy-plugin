@@ -91,6 +91,31 @@ public sealed class AuditChannelTests
         Assert.Equal(AuditChannel.Ai, entry.Channel);
     }
 
+    /// <summary>
+    /// On 2026-09-29 a draft matched some twenty times, the joined findings outgrew the audit
+    /// entry's 200 characters, and the assistant was told only that the tool had failed.
+    /// </summary>
+    [Fact]
+    public async Task content_blocked_many_times_over_is_still_answered_blocked_and_audited()
+    {
+        var harness = new Harness();
+        string body = string.Join('\n', Enumerable.Repeat("api key: SECRET", 40));
+
+        UseCaseResult<LifecycleResult> result = await harness.RunAsync(
+            new CreateDraftUseCase(harness.Ports, harness.Ports),
+            new CreateDraftRequest(
+                TestData.Scope, TestData.WorkItem, RecordKind.Decision, "Title", body, TestData.Draft),
+            TestData.Ai);
+
+        Assert.Equal(ExecutionOutcome.Blocked, result.Outcome);
+        Assert.Equal(40, result.ValidationErrors.Count);
+
+        AuditEvent entry = Assert.Single(harness.Audit.Entries);
+        Assert.Equal(AuditAction.ContentScanned, entry.Action);
+        Assert.Equal("literal x40", entry.Details["blocked_findings"]);
+        Assert.Equal("40", entry.Details["blocked_count"]);
+    }
+
     [Fact]
     public async Task a_rejected_domain_rule_from_a_person_is_audited_as_human()
     {
