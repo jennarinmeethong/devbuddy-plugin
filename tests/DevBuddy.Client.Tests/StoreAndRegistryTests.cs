@@ -99,6 +99,18 @@ public sealed class StoreAndRegistryTests : IDisposable
             Folders.GitRoot(worktree)!));
     }
 
+    [Fact]
+    public void a_folder_is_too_broad_at_or_above_home_and_at_a_drive_root_and_nowhere_else()
+    {
+        string home = Directory.CreateDirectory(Path.Combine(_client.Root, "people", "someone")).FullName;
+
+        Assert.Equal("your home folder", Folders.TooBroad(home, home));
+        Assert.Equal("above your home folder", Folders.TooBroad(Path.Combine(_client.Root, "people"), home));
+        Assert.Equal("the root of a drive", Folders.TooBroad(Path.GetPathRoot(home)!, home));
+        Assert.Null(Folders.TooBroad(Path.Combine(home, "Documents", "requirements"), home));
+        Assert.Null(Folders.TooBroad(Path.Combine(_client.Root, "people", "someone-else"), home));
+    }
+
     [Theory]
     [InlineData("https://192.168.1.160:5010", "https://192.168.1.160:5010")]
     [InlineData("https://192.168.1.160:5010/", "https://192.168.1.160:5010")]

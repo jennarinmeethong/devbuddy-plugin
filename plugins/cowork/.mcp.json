@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "devbuddy": {
+      "command": "devbuddy",
+      "args": ["mcp-bridge"]
+    }
+  }
+}

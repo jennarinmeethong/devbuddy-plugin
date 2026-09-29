@@ -219,6 +219,60 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.12.0
+
+**Checked before the tag, at `235a17c`**, the merge of PR #39, whose tree is the release commit
+`1f11f13`'s, at the owner's instruction (`info.md`, 2026-09-29). *14.15* in
+`docs/plan-phase-14.md` says what it carries: DevBuddy from Cowork, through `devbuddy mcp-bridge`
+and `plugins/cowork/` (PRs #37 and #38). The server is unchanged since `v1.11.1`. The bridge's five
+rows are new in `smoke.sh` and `client-smoke.ps1`; they run after the tag.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1108** tests with none failed, 89 of them the client's. The web build and suite (85) passed, `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.11.1` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.11.1` | Ubuntu arm64 guest | **47 passed, 0 failed.** |
+
+Before the run, images from the checklists of `v1.8.0` to `v1.11.0`, the published images of
+`v1.7.0` to `v1.11.0`, two older Go images and an untagged Ollama image were removed from
+devrelease, which had 8.8 GB free; it had 24 GB for the run. Everything removed can be pulled or
+built again. The arm64 guest's stack was removed after its run; devrelease's two stacks,
+`devbuddy-v1120` and `devbuddy-up1120`, are left for inspection until publication.
+
+## What was verified for v1.11.1
+
+**Checked before the tag, at `2075492`**, the commit tagged, at the owner's instruction (`info.md`,
+2026-09-28). *14.14* in `docs/plan-phase-14.md` says what it carries: `/.well-known/` answers 404
+instead of the web client's page (PR #33). No check was added.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1068** tests with none failed. The web build and suite passed, `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.11.0` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.11.0` | Ubuntu arm64 guest | **47 passed, 0 failed.** |
+
+### After the tag
+
+`v1.11.1` was tagged at `2075492` after PR #34 merged. Release run 36439479931 passed all 23 jobs,
+and A2's jobs wrote *Runner smoke results* into the draft. #33's CI needed one rerun for the WebKit
+crash that predates it.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match**, and the x64 Linux pair again on devrelease and `osx-arm64` on the Mac mini. |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.11.1` and `2075492`. A wrong owner, and a wrong tag (`v1.11.0`), were refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow | **29 of 29 each.** |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass.** |
+| `linux-x64` (in `ubuntu:24.04` and natively), `linux-musl-x64` (in `alpine:3`) | `smoke.sh`, devrelease, by hand | **Pass.** |
+| `osx-arm64` | `smoke.sh`, natively on the Mac mini, by hand | **Pass.** |
+| `win-x64` | `client-smoke.ps1`, natively on JMPC, by hand | **Pass.** |
+
+**Published on 2026-09-28 at 15:23 UTC**, as Latest, at the owner's instruction. The throwaway
+stacks were removed from devrelease and the Ubuntu guest.
+
 ## What was verified for v1.11.0
 
 **Checked before the tag**, at the owner's instruction (`info.md`, 2026-09-28). *14.13* in

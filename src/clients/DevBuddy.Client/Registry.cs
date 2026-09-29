@@ -5,9 +5,10 @@ namespace DevBuddy.Client;
 
 /// <summary>
 /// One registered checkout: a folder, the server it belongs to, the workspace its token is for,
-/// and optionally the project an assistant should work in by default.
+/// optionally the project an assistant should work in by default, and optionally a name for the
+/// workspace, such as a customer's, shown when an assistant has to ask which one a task is for.
 /// </summary>
-internal sealed record Checkout(string Path, string Server, Guid Workspace, Guid? Project);
+internal sealed record Checkout(string Path, string Server, Guid Workspace, Guid? Project, string? Label = null);
 
 /// <summary>
 /// The per-user registry of checkouts, <c>checkouts.json</c> in the client's home (ADR-0015).
@@ -137,6 +138,28 @@ internal static class Folders
             : checkout + System.IO.Path.DirectorySeparatorChar;
 
         return folder.StartsWith(prefix, Comparison);
+    }
+
+    /// <summary>
+    /// Why a folder is too broad to register, or null when it is not: a file system root, the
+    /// home folder, or a folder above it. A home folder can be a git repository of its own, a
+    /// dotfiles clone, so this is asked of a repository root too.
+    /// </summary>
+    public static string? TooBroad(string folder, string? home)
+    {
+        string wanted = Normalise(folder);
+
+        if (Same(wanted, Normalise(System.IO.Path.GetPathRoot(wanted) ?? wanted)))
+        {
+            return "the root of a drive";
+        }
+
+        if (home is { Length: > 0 } && Contains(wanted, Normalise(home)))
+        {
+            return Same(wanted, Normalise(home)) ? "your home folder" : "above your home folder";
+        }
+
+        return null;
     }
 
     /// <summary>The nearest folder at or above this one holding a <c>.git</c> entry.</summary>

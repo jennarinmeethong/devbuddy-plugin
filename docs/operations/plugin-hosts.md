@@ -35,7 +35,7 @@ in the operating system's credential store, and handed to the connection by its 
 
 Neither relies on `CLAUDE_CODE_MCP_SERVER_URL`. Claude Code redacts the value of any variable it
 counts as a credential wherever that value occurs in the URL, and on JMPC one of them held `1`, so
-the helper received `https://REDACTED92.REDACTED68…` and refused it as another server (v1.11.2).
+the helper received `https://REDACTED92.REDACTED68…` and refused it as another server (fixed in v1.12.0).
 
 The helper finds the registered checkout that holds that folder, and prints the `Authorization`
 header only if the URL is on the server that checkout is registered to. An unregistered folder, a
@@ -141,6 +141,21 @@ Each release archive carries it in `Client/`: `devbuddy` on Linux and macOS, `de
 Windows. Put that folder on `PATH`. It is unsigned (B2): on Windows with Smart App Control on it
 cannot run at all, and there is no per-program exception.
 
+`PATH` matters most for Cowork, which starts the bridge as `devbuddy` and finds nothing otherwise.
+Claude Code and Codex can name the client another way (`DEVBUDDY_CLIENT`, or the path in
+`config.toml`); Cowork cannot. With the folder copied to `~/.devbuddy/bin`, on Windows, once:
+
+```powershell
+$bin = Join-Path $HOME '.devbuddy\bin'
+$user = [Environment]::GetEnvironmentVariable('Path', 'User')
+if (($user -split ';') -notcontains $bin) { [Environment]::SetEnvironmentVariable('Path', "$user;$bin", 'User') }
+```
+
+On macOS and Linux, add `export PATH="$HOME/.devbuddy/bin:$PATH"` to the shell's profile. **Then
+quit and reopen Claude Desktop**, from the tray or the menu bar and not only its window: an app
+keeps the `PATH` it started with, and a Cowork task started before the change still finds nothing.
+`devbuddy doctor` in a new terminal shows the client is found.
+
 Trust the gateway's certificate on the machine too, the root CA the web interface already needs.
 Codex reads a CA from `CODEX_CA_CERTIFICATE` or `SSL_CERT_FILE`.
 
@@ -161,6 +176,49 @@ workspace. `list`, `show`, `update`, `unregister`, `token set` and `token remove
 Point Claude Code at `plugins/claude/`, and set `DEVBUDDY_URL` to the server's address, without
 `/mcp`, in the environment it starts with, for instance `env` in `~/.claude/settings.json`.
 `DEVBUDDY_CLIENT` names the client if it is not on `PATH`.
+
+### Cowork
+
+Cowork does not run a header helper from a plugin, so `plugins/cowork/` starts the client's
+bridge instead: `devbuddy mcp-bridge`, a local MCP server over stdio that Cowork runs on the
+machine itself, outside its sandbox, where the credential store and the LAN are. It needs no
+repository and no code.
+
+1. Put the client on `PATH` and trust the gateway's certificate, as above. Cowork starts the
+   bridge by name, so a client that is not on `PATH` is not found.
+2. Register once, in any folder that is not a drive root or the home folder, for instance a folder
+   of documents: `devbuddy register --server https://192.168.1.160:5010 --workspace <workspace id>`.
+   A folder need not be a git repository.
+3. Zip the contents of `plugins/cowork/` and upload the zip under Plugins in Cowork. Cowork warns
+   that the plugin runs a local process; that process is the bridge. The plugin is
+   `devbuddy-cowork`, a name apart from the Claude package's `devbuddy`, because Claude Desktop
+   loads a Cowork upload into its Code tab too: under one name, the upload took the Claude
+   package's place there. Under two, a Code tab session that has both lists DevBuddy twice. Both
+   reach the same workspace for a registered folder, since the Code tab starts the bridge in the
+   project folder.
+4. Start a Cowork task **on this machine** and ask what projects DevBuddy has. A Cowork project
+   whose threads run away from this machine cannot start the bridge.
+
+Cowork starts the bridge in the system folder and tells it nothing about the folder the task works
+in: not in the working directory, not in a variable, and not through MCP roots, which it does not
+offer. So the bridge cannot choose a registration by folder.
+
+- **One workspace registered on the machine:** the bridge uses it, and nothing is asked.
+- **More than one, which is how customers are kept apart** (`info.md`, 2026-09-29): every tool
+  call is held and answered that a workspace has to be chosen, and the tools include
+  `use_workspace`. The assistant asks the person which workspace the task is for and calls it. The
+  choice holds until the task ends, and a second choice of another workspace is refused, so one
+  task reads one customer's knowledge. The bridge is started per task, so a new task chooses again.
+  Give each workspace a name when registering it, `devbuddy register --label "Customer A"` (or
+  `devbuddy update --label` later); without one the choices are named by their registered folders.
+- **Nothing registered, or a `--server` or `--workspace` that cannot be used:** the bridge still
+  starts, and every tool call answers with the reason, which the assistant shows. An exit would
+  show in Cowork only as a connector that failed.
+
+The bridge fills the workspace into every call, so no tool asks the assistant for an identifier.
+`--server` and `--workspace` in the plugin's `.mcp.json` pin one workspace instead. `--log <file>`
+records methods, statuses and reasons, never a token or content, which is the way to see why a
+Cowork task cannot reach DevBuddy.
 
 ### Codex
 

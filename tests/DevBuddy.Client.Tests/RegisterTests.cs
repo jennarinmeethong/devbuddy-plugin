@@ -77,13 +77,67 @@ public sealed class RegisterTests : IDisposable
         Assert.Null(_client.Store.Read(CredentialStores.KeyFor(ClientHarness.Server, ClientHarness.Workspace)));
     }
 
+    /// <summary>An analyst's folder of documents, with no repository: the folder itself is the checkout.</summary>
     [Fact]
-    public async Task a_folder_outside_any_git_repository_is_refused()
+    public async Task a_folder_outside_any_git_repository_registers_itself()
     {
-        string plain = Directory.CreateDirectory(Path.Combine(_client.Root, "not-a-repo")).FullName;
+        string plain = Directory.CreateDirectory(Path.Combine(_client.Root, "requirements")).FullName;
+        _client.Remote.Accepted.Add(ClientHarness.GoodToken);
+        _client.Tokens.Enqueue(ClientHarness.GoodToken);
 
-        Assert.Equal(Commands.Failed, await RegisterAsync(plain));
+        Assert.Equal(Commands.Done, await RegisterAsync(plain));
+
+        Assert.True(Folders.Same(Folders.Normalise(plain), Registry.Load(_client.Home).All.Single().Path));
+    }
+
+    [Fact]
+    public async Task the_root_of_a_drive_is_refused_before_the_token_is_asked_for()
+    {
+        string driveRoot = Path.GetPathRoot(_client.Root)!;
+
+        Assert.Equal(Commands.Failed, await RegisterAsync(driveRoot));
+
         Assert.Equal(0, _client.TokenPrompts);
+        Assert.Empty(Registry.Load(_client.Home).All);
+        Assert.Contains("the root of a drive", _client.Error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task the_home_folder_and_the_folders_above_it_are_refused_before_the_token_is_asked_for()
+    {
+        Assert.Equal(Commands.Failed, await RegisterAsync(_client.UserFolder));
+        Assert.Equal(Commands.Failed, await RegisterAsync(_client.Root));
+
+        Assert.Equal(0, _client.TokenPrompts);
+        Assert.Empty(Registry.Load(_client.Home).All);
+    }
+
+    /// <summary>
+    /// A dotfiles clone makes the home folder a repository, so a plain folder under it would
+    /// otherwise register the whole home folder as its checkout.
+    /// </summary>
+    [Fact]
+    public async Task a_folder_under_a_home_folder_that_is_a_repository_is_refused()
+    {
+        Directory.CreateDirectory(Path.Combine(_client.UserFolder, ".git"));
+        string documents = Directory.CreateDirectory(Path.Combine(_client.UserFolder, "Documents")).FullName;
+
+        Assert.Equal(Commands.Failed, await RegisterAsync(documents));
+
+        Assert.Equal(0, _client.TokenPrompts);
+        Assert.Contains("your home folder", _client.Error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task a_plain_folder_under_the_home_folder_registers_itself()
+    {
+        string documents = Directory.CreateDirectory(Path.Combine(_client.UserFolder, "Documents", "requirements")).FullName;
+        _client.Remote.Accepted.Add(ClientHarness.GoodToken);
+        _client.Tokens.Enqueue(ClientHarness.GoodToken);
+
+        Assert.Equal(Commands.Done, await RegisterAsync(documents));
+
+        Assert.True(Folders.Same(Folders.Normalise(documents), Registry.Load(_client.Home).All.Single().Path));
     }
 
     [Theory]
@@ -161,6 +215,25 @@ public sealed class RegisterTests : IDisposable
 
         Assert.Equal(other, Registry.Load(_client.Home).Exact(api)!.Workspace);
         Assert.Equal(otherToken, _client.Store.Read(CredentialStores.KeyFor(ClientHarness.Server, other)));
+    }
+
+    /// <summary>The name a person sees when an assistant asks which workspace a task is for.</summary>
+    [Fact]
+    public async Task a_label_is_kept_with_the_registration_and_an_empty_one_removes_it()
+    {
+        string checkout = _client.Checkout("api");
+        _client.Remote.Accepted.Add(ClientHarness.GoodToken);
+        _client.Tokens.Enqueue(ClientHarness.GoodToken);
+
+        await _client.RunAsync(
+            "register", checkout, "--server", ClientHarness.Server, "--workspace", ClientHarness.Workspace.ToString(),
+            "--label", "  Customer A  ");
+
+        Assert.Equal("Customer A", Registry.Load(_client.Home).Exact(checkout)!.Label);
+
+        Assert.Equal(Commands.Done, await _client.RunAsync("update", checkout, "--label", ""));
+
+        Assert.Null(Registry.Load(_client.Home).Exact(checkout)!.Label);
     }
 
     public void Dispose() => _client.Dispose();

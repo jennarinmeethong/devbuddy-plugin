@@ -6,7 +6,7 @@ using DevBuddy.Application.Pipeline;
 namespace DevBuddy.McpServer.Tests;
 
 /// <summary>
-/// The two plugin packages, checked against the surface they claim to describe.
+/// The three plugin packages, checked against the surface they claim to describe.
 /// <para>
 /// Without this they are prose, and prose drifts: an operation gets renamed, a command keeps
 /// calling the old name, and nobody notices until somebody runs it. Worse, a package could name a
@@ -20,7 +20,7 @@ namespace DevBuddy.McpServer.Tests;
 /// </summary>
 public sealed partial class PluginPackageTests
 {
-    private static readonly string[] Packages = ["claude", "codex"];
+    private static readonly string[] Packages = ["claude", "codex", "cowork"];
 
     [Fact]
     public void no_plugin_file_names_an_operation_that_people_alone_may_perform()
@@ -259,19 +259,60 @@ public sealed partial class PluginPackageTests
         }
     }
 
+    /// <summary>
+    /// Cowork reads no header helper from a plugin, but starts a plugin's local server on the
+    /// host, so its package runs the client's bridge (ADR-0015). It names no server, URL or
+    /// header: the bridge finds the server, the workspace and the token on the machine, and a
+    /// package that named a server would be one person's configuration committed for everybody.
+    /// </summary>
     [Fact]
-    public void the_claude_manifest_is_valid_and_names_the_plugin()
+    public void the_cowork_package_runs_the_devbuddy_bridge_and_names_no_server()
+    {
+        string file = File.ReadAllText(Path.Combine(PackageRoot("cowork").FullName, ".mcp.json"));
+        using JsonDocument cowork = JsonDocument.Parse(file);
+        JsonElement server = cowork.RootElement.GetProperty("mcpServers").GetProperty("devbuddy");
+
+        Assert.Equal("devbuddy", server.GetProperty("command").GetString());
+        Assert.Equal("mcp-bridge", server.GetProperty("args")[0].GetString());
+
+        foreach (string remote in (string[])["type", "url", "headers", "headersHelper"])
+        {
+            Assert.False(server.TryGetProperty(remote, out _), $"The Cowork package sets {remote}.");
+        }
+
+        Assert.DoesNotContain("://", file, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("claude", "devbuddy")]
+    [InlineData("cowork", "devbuddy-cowork")]
+    public void the_manifest_is_valid_and_names_the_plugin(string package, string name)
     {
         var manifest = new FileInfo(
-            Path.Combine(PackageRoot("claude").FullName, ".claude-plugin", "plugin.json"));
+            Path.Combine(PackageRoot(package).FullName, ".claude-plugin", "plugin.json"));
 
         Assert.True(manifest.Exists, $"{manifest.FullName} is missing.");
 
         JsonElement content = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(manifest.FullName));
 
-        Assert.Equal("devbuddy", content.GetProperty("name").GetString());
+        Assert.Equal(name, content.GetProperty("name").GetString());
         Assert.False(string.IsNullOrWhiteSpace(content.GetProperty("description").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(content.GetProperty("version").GetString()));
+    }
+
+    /// <summary>
+    /// Claude Desktop loads a plugin uploaded to Cowork into its Code tab too. With one name for
+    /// both packages, the Cowork upload took the Claude package's place in a Code tab session on
+    /// 2026-09-29, so the two are named apart (<c>info.md</c>).
+    /// </summary>
+    [Fact]
+    public void the_claude_and_cowork_packages_have_different_names()
+    {
+        string Name(string package) => JsonSerializer.Deserialize<JsonElement>(
+            File.ReadAllText(Path.Combine(PackageRoot(package).FullName, ".claude-plugin", "plugin.json")))
+            .GetProperty("name").GetString()!;
+
+        Assert.NotEqual(Name("claude"), Name("cowork"));
     }
 
     [Fact]
@@ -323,11 +364,11 @@ public sealed partial class PluginPackageTests
         }
     }
 
-    /// <summary>The file a host reads for behaviour: a skill for Claude, AGENTS.md for Codex.</summary>
+    /// <summary>The file a host reads for behaviour: a skill for Claude and Cowork, AGENTS.md for Codex.</summary>
     private static FileInfo InstructionsFor(string package) => package switch
     {
-        "claude" => new FileInfo(Path.Combine(
-            PackageRoot("claude").FullName, "skills", "devbuddy", "SKILL.md")),
+        "claude" or "cowork" => new FileInfo(Path.Combine(
+            PackageRoot(package).FullName, "skills", "devbuddy", "SKILL.md")),
         "codex" => new FileInfo(Path.Combine(PackageRoot("codex").FullName, "AGENTS.md")),
         _ => throw new ArgumentOutOfRangeException(nameof(package)),
     };

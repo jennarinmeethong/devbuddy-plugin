@@ -25,7 +25,11 @@ internal sealed class ClientHarness : IDisposable
         Files = new FileCredentialStore(Home);
         Store = new SwitchableStore(Files);
         WorkingDirectory = Root;
+        UserFolder = Directory.CreateDirectory(Path.Combine(Root, "user")).FullName;
     }
+
+    /// <summary>The person's home folder, as the client sees it; a folder of the harness, not theirs.</summary>
+    public string UserFolder { get; }
 
     public string Root { get; }
 
@@ -48,6 +52,12 @@ internal sealed class ClientHarness : IDisposable
 
     public StringWriter Error { get; private set; } = new();
 
+    /// <summary>What the bridge reads as standard input; set before running it.</summary>
+    public Stream Input { get; set; } = Stream.Null;
+
+    /// <summary>What the bridge writes as standard output.</summary>
+    public MemoryStream Output { get; private set; } = new();
+
     public void SetEnvironment(string name, string? value) => _environment[name] = value;
 
     /// <summary>A folder with a <c>.git</c> directory, as a clone has.</summary>
@@ -62,6 +72,7 @@ internal sealed class ClientHarness : IDisposable
     {
         Out = new StringWriter();
         Error = new StringWriter();
+        Output = new MemoryStream();
 
         var context = new ClientContext(
             Home,
@@ -75,7 +86,10 @@ internal sealed class ClientHarness : IDisposable
             {
                 TokenPrompts++;
                 return Tokens.Count > 0 ? Tokens.Dequeue() : null;
-            });
+            },
+            UserFolder,
+            Input,
+            Output);
 
         return await Commands.RunAsync(context, args);
     }
@@ -108,12 +122,30 @@ internal sealed class FakeServer : HttpMessageHandler
 
     public List<Uri> Requests { get; } = [];
 
+    /// <summary>The bearer of every request, in order.</summary>
+    public List<string?> Bearers { get; } = [];
+
+    /// <summary>Every body posted, in order.</summary>
+    public List<string> Bodies { get; } = [];
+
+    /// <summary>The <c>MCP-Protocol-Version</c> header of every request, or null.</summary>
+    public List<string?> ProtocolVersions { get; } = [];
+
+    /// <summary>How long the answer to <c>initialize</c> takes, so a test can see what waits for it.</summary>
+    public TimeSpan InitializeDelay { get; set; }
+
+    /// <summary>An answer of the test's own to a known bearer's message, instead of the default.</summary>
+    public Func<string, HttpResponseMessage?>? Answer { get; set; }
+
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Requests.Add(request.RequestUri!);
+        ProtocolVersions.Add(
+            request.Headers.TryGetValues("MCP-Protocol-Version", out IEnumerable<string>? versions) ? versions.Single() : null);
 
         string? bearer = request.Headers.Authorization?.Parameter;
+        Bearers.Add(bearer);
         bool known = bearer is not null && (Accepted.Contains(bearer) || OtherWorkspace.Contains(bearer));
 
         if (request.RequestUri!.AbsolutePath != "/mcp")
@@ -127,6 +159,23 @@ internal sealed class FakeServer : HttpMessageHandler
         }
 
         string body = await request.Content!.ReadAsStringAsync(cancellationToken);
+        Bodies.Add(body);
+
+        if (Answer?.Invoke(body) is { } own)
+        {
+            return own;
+        }
+
+        // A notification has no id, and the transport accepts it with nothing to say.
+        if (!body.Contains("\"id\"", StringComparison.Ordinal))
+        {
+            return new HttpResponseMessage(HttpStatusCode.Accepted);
+        }
+
+        if (body.Contains("\"initialize\"", StringComparison.Ordinal))
+        {
+            await Task.Delay(InitializeDelay, cancellationToken);
+        }
 
         string answer = body.Contains("\"initialize\"", StringComparison.Ordinal)
             ? """{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18"}}"""
