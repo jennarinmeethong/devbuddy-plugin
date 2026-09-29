@@ -1,5 +1,25 @@
 # Project Decisions
 
+## Confirmed A File Name Is Not A High-Entropy Secret, and Cutting v1.12.3 — 2026-09-30
+
+A draft citing its source documents was Blocked eighteen times by `high-entropy-string`: names
+such as `TOP-BMS-SRS-Contingency-IT_Rev02.docx` mix case, digits and separators and score above
+4.0 on the part before the extension. Claude proposed skipping a run that ends in a file
+extension, and the owner agreed and put it into `v1.12.3` ("ตกลง แก้เลย รวมเข้า v1.12.3").
+
+- **What it relaxes.** A run of 32 or more base64-ish characters followed by `.` and an extension
+  of two to five characters, optionally after a browser's ` (1)`, is no longer reported by the
+  entropy rule. Every rule with a shape of its own (AWS, GitHub, Slack, JWT, bearer, assignment,
+  connection string, private key) still applies to it. **What now gets through** is a shapeless
+  secret written directly before an extension. The owner accepted that. AL-2 already says the
+  scanner catches shapes and entropy, not everything.
+- **What it does not relax.** A long URL or a path with no extension is still reported, and a
+  secret is still refused inside an approved bounded scope. No setting lets a finding through.
+- **The assistant asks the person when a draft is Blocked**, in the same message ("ถ้ามีค่าอะไรที่
+  ไม่แน่ใจให้ถาม user ในตอนนั้นเลย", then chosen as "AI ถาม user เมื่อโดนบล็อก"). Every package's
+  instructions say to show the lines named, ask whether each is a credential, never resend
+  unchanged and never alter a value on its own to get past the scan.
+
 ## Confirmed Cutting v1.12.2 — 2026-09-29
 
 After PR #44 and #45 merged, the owner asked for `v1.12.2` to be prepared ("เตรียมออก v1.12.2

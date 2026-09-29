@@ -131,7 +131,19 @@ internal static partial class SecretRules
 
     // Long unbroken base64-ish or hex runs. Only reported when the entropy check agrees, so
     // ordinary identifiers and file hashes in prose do not trip it constantly.
-    [GeneratedRegex(@"\b[A-Za-z0-9+/_-]{32,}={0,2}\b", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
+    //
+    // A run that ends in a file extension is a file name, and is not reported (info.md,
+    // 2026-09-30). Document names such as TOP-BMS-SRS-Contingency-IT_Rev02.docx mix case, digits
+    // and separators, and scored above the threshold, so a draft that cited its sources was
+    // refused eighteen times over. The lookahead skips the rest of the run first, so a shorter
+    // match found by backtracking inside a file name is refused too, and it allows the " (1)" a
+    // browser adds to a second download. A token with a shape of its own is still caught by its
+    // own rule, extension or not; what this lets through is a shapeless secret written as a
+    // file name.
+    [GeneratedRegex(
+        @"\b[A-Za-z0-9+/_-]{32,}={0,2}\b(?![A-Za-z0-9+/_-]*(?: ?\(\d{1,3}\))?\.[A-Za-z][A-Za-z0-9]{1,4}\b)",
+        RegexOptions.None,
+        matchTimeoutMilliseconds: 2000)]
     private static partial Regex HighEntropyCandidate();
 }
 
