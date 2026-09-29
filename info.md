@@ -1,5 +1,12 @@
 # Project Decisions
 
+## Confirmed Cutting v1.12.0 — 2026-09-29
+
+After the Cowork bridge ran in Cowork and PR #37 was merged, the owner asked for the release to be
+prepared ("เตรียม commit ของ release v1.12.0 เลย"), taking the version Claude proposed in PR #38: a
+minor version, because it adds `devbuddy mcp-bridge` and the `devbuddy-cowork` package. *14.15* in
+`docs/plan-phase-14.md` says what it carries and what an upgrade needs.
+
 ## Confirmed A Workspace Per Customer, and Cowork Chooses Its Workspace — 2026-09-29
 
 The owner asked how to count workspaces: ten projects of one programme, or ten projects from

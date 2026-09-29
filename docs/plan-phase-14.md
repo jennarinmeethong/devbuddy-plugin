@@ -660,6 +660,33 @@ UTC, and the devbox runs the tag.
 - **The upgrade is `up -d` alone**, with the usual check that `mcp` runs the new image.
 - **The checklist runs from `tools/release/` at the release commit**, with no new check.
 
+## 14.15 — Cutting v1.12.0
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-29).
+
+- **What it carries since `v1.11.1`: DevBuddy from Cowork** (PR #37 and PR #38).
+  - `devbuddy register` takes a folder that is not a git repository; a drive root, the home folder
+    and a folder above it are refused. `--label` names a workspace.
+  - `devbuddy mcp-bridge`, the local MCP server Cowork starts on the host: it strips the workspace
+    from tool schemas and fills it in, uses the one registered workspace without asking, and with
+    several holds every call until the person chooses one with `use_workspace`, once per task.
+  - `plugins/cowork/`, named `devbuddy-cowork` so a Cowork upload does not replace the Claude
+    package in Claude Desktop's Code tab, with a skill written for Cowork.
+  - `plugin-hosts.md` on putting the client on `PATH`, and bridge rows in both smoke scripts.
+- **A minor version**, because it adds a command and a package. **The server is unchanged:**
+  nothing under `src/core`, `src/hosts`, `docker` or `web` changed, so the images, the operations,
+  the MCP transport and the content security policy are the same. No migration, so the count stays
+  at nine. Nobody signs in again. Both plugins move to 1.12.0; the Claude package's content is
+  unchanged.
+- **The upgrade is `up -d` alone** on a server, with the usual check that `mcp` runs the new image.
+  On a person's machine, the client from the archive replaces the old one; Cowork additionally
+  needs it on `PATH`, Claude Desktop restarted, and `plugins/cowork/` uploaded (`plugin-hosts.md`).
+- **Not breaking.** The registry gains an optional `label`; an older client reads the file and
+  ignores it, but drops it if it saves the registry, so downgrading the client loses labels and
+  nothing else. The client is still unsigned and does not run where Smart App Control is on.
+- **The checklist runs from `tools/release/` at the release commit**, with the bridge's five rows
+  new in both smoke scripts.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -745,3 +772,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-29 | A4 | **The Cowork package is `devbuddy-cowork`**, at the owner's choice (`info.md`), so a Cowork upload no longer takes the Claude package's place in Claude Desktop's Code tab. A Code tab session holding both lists DevBuddy twice; for a registered folder both reach the same workspace. `PluginPackageTests` holds the two names apart (15; putting the old name back fails two). Merging the packages into one bridge-based package was offered and not chosen. |
 | 2026-09-29 | A4 | **The owner confirmed that one registered workspace is used without asking**, recorded in `info.md`, and asked for PR #37 to be merged. After the rename, the Code tab session in this checkout listed the two packages apart, `devbuddy` over HTTP and `devbuddy-cowork` through the bridge. |
 | 2026-09-29 | A4 | **Prepared for the release that carries the Cowork bridge**, at the owner's request. `plugins/cowork` is 1.12.0, proposing `v1.12.0`, a minor version because it adds a command and a package; the Claude package moves with the release commit as usual. `plugin-hosts.md` says how to put the client on `PATH`, which only Cowork cannot do without, and that Claude Desktop must be restarted to see it. `smoke.sh` and `client-smoke.ps1` start `devbuddy mcp-bridge` from the published archive with nothing registered: it must exit 0 once its input closes, answer both messages, begin with `{`, answer `initialize` itself, and answer a tool call with why. **Run** on archives built the way `release.yml` builds them: `client-smoke.ps1` on `win-x64` on the Windows development machine, 0 failed; `smoke.sh` in `ubuntu:24.04` on devrelease, 0 failed, after re-packing there, because tar on Windows drops the execute bits. |
+| 2026-09-29 | 14.15 | **`v1.12.0` prepared**, at the owner's request, on top of PR #38: both plugins at 1.12.0, *14.15* written, and `info.md`. The server is unchanged since `v1.11.1`, so the upgrade is `up -d` alone; people's machines take the new client, and Cowork users add it to `PATH` and upload `plugins/cowork/`. The pre-tag checklist has not run. |
