@@ -219,6 +219,40 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.12.1
+
+**Checked before the tag, at `9cd1934`**, the commit tagged, at the owner's instruction (`info.md`,
+2026-09-29). *14.16* in `docs/plan-phase-14.md` says what it carries: the Claude Code package
+passes the MCP URL to its helper (PR #36), and the WebKit fix (PR #42). No check was added.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1108** tests with none failed. The web build passed and its suite ran **86** of 86, the new button test among them. `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** A first start was stopped after its clone, because Claude's script named the wrong version for part 2; its folder was moved aside as `…-aborted-075931` and all three parts rerun from clean. |
+| Part 3, `upgrade.sh` from `v1.12.0` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.12.0` | Ubuntu arm64 guest | **47 passed, 0 failed.** |
+
+PR #42's CI passed all 18 checks on its first run, the Playwright suite in WebKit on amd64 among them.
+
+### After the tag
+
+`v1.12.1` was tagged at `9cd1934` after PR #42 merged. Release run 36544486163 passed all 23 jobs,
+and A2's jobs wrote *Runner smoke results* into the draft.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match**, and the x64 Linux pair again on devrelease and `osx-arm64` on the Mac mini. |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.12.1` and `9cd1934`. A wrong owner, and a wrong tag (`v1.12.0`), were refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow | **29 of 29 each.** |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass.** |
+| `linux-x64` (in `ubuntu:24.04` and natively), `linux-musl-x64` (in `alpine:3`) | `smoke.sh` at `v1.12.1`, devrelease, by hand | **Pass.** |
+| `osx-arm64` | `smoke.sh` at `v1.12.1`, natively on the Mac mini, by hand | **Pass.** |
+| `win-x64` | `client-smoke.ps1` at `v1.12.1`, natively on JMPC, by hand | **Pass.** |
+
+**Published on 2026-09-29 at 09:04 UTC**, as Latest, at the owner's instruction. The throwaway
+stacks were removed from devrelease and the Ubuntu guest.
+
 ## What was verified for v1.12.0
 
 **Checked before the tag, at `235a17c`**, the merge of PR #39, whose tree is the release commit
@@ -239,6 +273,31 @@ Before the run, images from the checklists of `v1.8.0` to `v1.11.0`, the publish
 devrelease, which had 8.8 GB free; it had 24 GB for the run. Everything removed can be pulled or
 built again. The arm64 guest's stack was removed after its run; devrelease's two stacks,
 `devbuddy-v1120` and `devbuddy-up1120`, are left for inspection until publication.
+
+**Rerun at `46ebb1d`, the commit #36 was merged from.** Claude ran the checklist again for a tag that
+would carry #36: part 1 7 of 7 (.NET 1108), part 2 116 of 116, part 3 from `v1.11.1` 47 of 47 on
+devrelease and on the Ubuntu arm64 guest. The first run's work folders were moved aside as
+`…-at-235a17c`. That tag was not made: the owner had tagged `235a17c`, and chose to publish it.
+
+### After the tag
+
+`v1.12.0` was tagged at `235a17c` by the owner. Release run 36529633284 passed, and A2's jobs wrote
+*Runner smoke results* into the draft.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match**, and the x64 Linux pair again on devrelease and `osx-arm64` on the Mac mini. |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.12.0` and `235a17c`. A wrong owner, and a wrong tag (`v1.11.1`), were refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow | **29 of 29 each.** |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass.** |
+| `linux-x64` (in `ubuntu:24.04` and natively), `linux-musl-x64` (in `alpine:3`) | `smoke.sh` at `v1.12.0`, devrelease, by hand | **Pass**, the bridge's five rows included. |
+| `osx-arm64` | `smoke.sh` at `v1.12.0`, natively on the Mac mini, by hand | **Pass**, bridge rows included. |
+| `win-x64` | `client-smoke.ps1` at `v1.12.0`, natively on JMPC, by hand | **Pass**, bridge rows included. |
+
+**Published on 2026-09-29 at 06:55 UTC**, as Latest, at the owner's instruction, with a known issue:
+its Claude Code package lacks #36, so its notes say not to update that plugin to 1.12.0. The
+throwaway stacks were removed from devrelease and the Ubuntu guest.
 
 ## What was verified for v1.11.1
 
