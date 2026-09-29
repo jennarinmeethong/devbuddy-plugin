@@ -47,7 +47,11 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.12.0` is the current release**, published 2026-09-29 at 06:55 UTC from `235a17c`: DevBuddy
+**`v1.12.1` is the current release**, published 2026-09-29 at 09:04 UTC from `9cd1934`: the Claude
+Code package passes the MCP URL to its helper (PR #36), and the primary button no longer animates
+`filter`, which stopped WebKit on Linux painting the page (PR #42). The upgrade is `up -d` alone.
+
+**`v1.12.0` was the release before it**, published 2026-09-29 at 06:55 UTC from `235a17c`: DevBuddy
 from Cowork through `devbuddy mcp-bridge` and the `devbuddy-cowork` package. The server is
 unchanged. **Its Claude Code package lacks the `--url` fix (PR #36)**, merged after the tag, so its
 notes say not to update that plugin to 1.12.0; `v1.12.1` carries it with the WebKit fix.
