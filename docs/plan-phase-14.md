@@ -735,7 +735,10 @@ upgrade.
   - **The Thai handbook's install chapters are rewritten for a first-time user**: the root CA, the
     client from a release archive with its checksum, a token, `register`, `doctor`, then Claude
     Code, Cowork or Codex. Until now they described the stdio route with a connection string in
-    the person's environment, which A4 retired. The troubleshooting rows follow the client's
+    the person's environment, which A4 retired. They say where `root.crt` comes from: the
+    administrator copies it from the gateway's `pki/authorities/local`, never the `.key` files
+    beside it, and gives its SHA-256 fingerprint, which the user checks before trusting it.
+    The troubleshooting rows follow the client's
     messages. `plugin-hosts.md` says how to install from the marketplace.
 - **A patch version.** No migration, so the count stays at nine. Nobody signs in again. The server,
   the images, the operations, the MCP transport and the content security policy are unchanged; the
