@@ -719,6 +719,31 @@ upgrade.
   On a person's machine, update the Claude Code plugin to 1.12.1.
 - **The checklist runs from `tools/release/` at the release commit**, with no new check.
 
+## 14.17 — Cutting v1.12.2
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-29).
+
+- **What it carries since `v1.12.1`:**
+  - **The client says how to register a folder** (PR #44). Every message for a folder that is not
+    registered said to run `devbuddy register`, which fails without `--server` and `--workspace`;
+    they now point to Plugin access, which shows the command filled in, and `mcp-headers` says a
+    folder that does not use DevBuddy needs nothing.
+  - **The repository is a Claude Code marketplace.** `.claude-plugin/marketplace.json` lists the
+    Claude package alone, so `claude plugin marketplace add jennarinmeethong/devbuddy-plugin` and
+    `claude plugin install devbuddy@devbuddy-plugin` install it with no clone and no local
+    marketplace. `PluginPackageTests` holds its name, source and version to the package's.
+  - **The Thai handbook's install chapters are rewritten for a first-time user**: the root CA, the
+    client from a release archive with its checksum, a token, `register`, `doctor`, then Claude
+    Code, Cowork or Codex. Until now they described the stdio route with a connection string in
+    the person's environment, which A4 retired. The troubleshooting rows follow the client's
+    messages. `plugin-hosts.md` says how to install from the marketplace.
+- **A patch version.** No migration, so the count stays at nine. Nobody signs in again. The server,
+  the images, the operations, the MCP transport and the content security policy are unchanged; the
+  client and the plugins change. Both plugins move to 1.12.2.
+- **The upgrade:** nothing on a server. On a person's machine, the client from the archive replaces
+  the old one, and the Claude Code plugin moves to 1.12.2.
+- **The checklist runs from `tools/release/` at the release commit**, with no new check.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -813,3 +838,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-29 | 14.16 | **The devbox is on `v1.12.1`**, moved by the owner with the commands Claude gave: the nightly backup script (exit 0 at 11:41 UTC), `.env` and the override copied to `~/backups/before-v1121-20260929/`, the tag checked out, `compose --profile workers build`, `up -d --no-build` and `mcp` recreated. Claude then checked, read-only: `git describe` is `v1.12.1`; `api` and `mcp` built at 11:42 UTC, `api` healthy, the workers and retention recreated; `/health` 200, `POST /mcp` 401 and `/.well-known/oauth-authorization-server` 404 through the gateway; the served stylesheet transitions `color, background-color, border-color, opacity, box-shadow` and not `filter`; no error in the `api` or `mcp` logs. JMPC runs the Claude Code plugin 1.12.1 and the `v1.12.1` client (`devbuddy doctor` passes); the plugin had been uninstalled there in the meantime, and was installed again from the tag. **One slip:** Claude's own attempt at the same upgrade, made before seeing the owner had done it, broke its SSH quoting on an apostrophe in a comment, so part of the script ran on JMPC; it stopped at its first `cp`, left one empty folder there, since removed, and did nothing on the devbox. |
 | 2026-09-29 | A4 | **The client says how to register a folder, not only that it should be.** Every message for a folder that is not registered said to run `devbuddy register`, which fails on its own: it needs `--server` and `--workspace`. `show`, `doctor`, `list`, `mcp-headers` and the bridge now say to copy the command from Plugin access, which shows it filled in, and say that no folder above this one is registered either. `mcp-headers`, whose message Claude Code shows for every session in a folder that has nothing to do with DevBuddy, also says that such a folder needs nothing, and that a registered one needs a new session. `plugin-hosts.md`'s troubleshooting row says the same. `McpHeadersTests` holds the Plugin access pointer; the client suite passes at 89 on the Windows development machine. Not in a release yet. |
 | 2026-09-29 | A4 | **A4 is DONE.** The last exit row without a record was Claude Code on Windows: from this session on JMPC, Claude Code with plugin 1.12.1 and the `v1.12.1` client, in `C:\Codes\devbuddy-plugin` registered to the devbox's workspace, `list_projects` answered over `https://192.168.1.160:5010/mcp` with the workspace's one AI-enabled project. The status line now names the evidence for each exit row, and says what was not done: a revoked token tried by hand. The stale "Still to do: the threat model" is replaced; T2.6, T2.7, T3.7 and AL-6 went out in `v1.11.0`. |
+| 2026-09-29 | 14.17 | **`v1.12.2` prepared**, at the owner's instruction (`info.md`). It carries #44. It adds `.claude-plugin/marketplace.json`, listing the Claude package, with `the_marketplace_lists_the_claude_package_at_its_own_version` in `PluginPackageTests`, which fails when the marketplace's version drifts from the package's. Claude Code 2.1.259, in a throwaway `CLAUDE_CONFIG_DIR`, added the marketplace from the checkout and installed `devbuddy@devbuddy-plugin` at 1.12.2; installing from GitHub waits for the merge. The Thai handbook's chapters 03 to 06, its status note and its troubleshooting rows are rewritten for a first-time user of the client, and `plugin-hosts.md` describes the marketplace. Both plugins are 1.12.2. **Verified on the Windows development machine:** web 86; `dotnet format` clean; Domain 62, Client 89, McpServer 33 and Application 303. Infrastructure, Api and Security did not run, because Docker was not running; CI runs them. The handbook's code blocks were checked in the browser pane. **Not verified:** the macOS login-keychain command for the root CA, which the handbook gives, has not been tried on the Mac mini. |
