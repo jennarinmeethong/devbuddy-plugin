@@ -157,10 +157,15 @@ and `stale-sessions.sh` listed both.
 
 ### A4 — MCP over HTTPS with a machine token, and the `devbuddy` client
 
-**Status: IN PROGRESS.** Decided by the owner on 2026-09-27 (`info.md`). Written and tested on
-the Windows development machine the same day: the server half, the `devbuddy` client (ADR-0015),
-both plugin packages, the release packaging and the gateway route in `tools/devbox/gateway`.
-Not yet done: the Mac mini trial, the e2e run, a release, and the devbox.
+**Status: DONE 2026-09-29.** Decided by the owner on 2026-09-27 (`info.md`). Released in
+`v1.11.0`, with the Cowork bridge in `v1.12.0` and the Claude package's URL fix in `v1.12.1`; the
+devbox runs `v1.12.1`. Against the exit: Codex on the Mac mini answered `list_projects` over HTTPS
+on 2026-09-28, and Claude Code on JMPC did on 2026-09-29 with plugin 1.12.1, each in a checkout
+registered to the devbox's workspace (two machines, so two registrations, not literally one
+checkout); an unregistered checkout gets no token and the message saying how to register, held by
+`McpHeadersTests` and the smoke rows; `revoking_a_token_stops_it_on_the_next_request` and the
+workspace-ceiling tests in `HttpTransportTests` pass and were mutation-checked (log, 2026-09-27).
+A revoked token was not tried by hand on the devbox.
 
 - **Problem:** the plugins reach the devbox over SSH to a stdio wrapper that reads one token from
   the server. Every key runs as that token, a second user needs an administrator to place theirs,
@@ -179,7 +184,7 @@ Not yet done: the Mac mini trial, the e2e run, a release, and the devbox.
     every archive under `Client/`, with its own SBOM and a smoke check in both smoke scripts.
   - **Written 2026-09-27:** both plugin packages connect over HTTP through the helper and hold no
     token or server secret; `plugin-hosts.md` describes the install, with stdio as the
-    administrator's route. Still to do: the threat model.
+    administrator's route. The threat model gained T2.6, T2.7, T3.7 and AL-6 for `v1.11.0`.
 - **Try first, on the Mac mini, before writing server code:** does Codex's `http_headers_helper`,
   and Claude Code's `headersHelper`, run in the session's working directory, and how often; and
   does Codex trust the gateway's CA through `CODEX_CA_CERTIFICATE`. That needs a temporary `/mcp`
@@ -806,3 +811,5 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-29 | 14.16 | **The WebKit fix brought onto `main` for `v1.12.1`.** The row above was written by the session that found it, which left its change uncommitted on the local branch `e2e/webkit-crash` and ended. Claude applied that change unaltered to `release/v1.12.1` from `main`: `ui.tsx`, `fixtures.ts` and `web/admin/test/button.test.tsx`. On the Windows development machine the web build passed and the web suite passed at **86**; restoring `main`'s `ui.tsx` fails the new test. The Claude and Cowork plugins move to 1.12.1. |
 | 2026-09-29 | 14.16 | **`v1.12.1` published.** PR #42's CI passed all 18 checks on its first run, WebKit's Playwright job included: the first CI evidence for the WebKit fix. Pre-tag at `9cd1934`: part 1 7 of 7 (.NET 1108, web 86), part 2 116 of 116 and part 3 from `v1.12.0` 47 of 47 on devrelease, after one start was stopped for a wrong version in Claude's script and rerun from clean; part 3 47 of 47 on the Ubuntu arm64 guest. #42 merged as `49cfdf2`; tagged at `9cd1934`; release run 36544486163 passed all 23 jobs. By hand: checksums, provenance for every archive and image with wrong-owner and wrong-tag controls, `post-images.sh` 29 of 29 on devrelease, and smoke of `linux-x64`, `linux-musl-x64`, `osx-arm64` (Mac mini) and `win-x64` (JMPC). Published at 09:04 UTC as Latest. The devbox has to move to it: the web client changed. |
 | 2026-09-29 | 14.16 | **The devbox is on `v1.12.1`**, moved by the owner with the commands Claude gave: the nightly backup script (exit 0 at 11:41 UTC), `.env` and the override copied to `~/backups/before-v1121-20260929/`, the tag checked out, `compose --profile workers build`, `up -d --no-build` and `mcp` recreated. Claude then checked, read-only: `git describe` is `v1.12.1`; `api` and `mcp` built at 11:42 UTC, `api` healthy, the workers and retention recreated; `/health` 200, `POST /mcp` 401 and `/.well-known/oauth-authorization-server` 404 through the gateway; the served stylesheet transitions `color, background-color, border-color, opacity, box-shadow` and not `filter`; no error in the `api` or `mcp` logs. JMPC runs the Claude Code plugin 1.12.1 and the `v1.12.1` client (`devbuddy doctor` passes); the plugin had been uninstalled there in the meantime, and was installed again from the tag. **One slip:** Claude's own attempt at the same upgrade, made before seeing the owner had done it, broke its SSH quoting on an apostrophe in a comment, so part of the script ran on JMPC; it stopped at its first `cp`, left one empty folder there, since removed, and did nothing on the devbox. |
+| 2026-09-29 | A4 | **The client says how to register a folder, not only that it should be.** Every message for a folder that is not registered said to run `devbuddy register`, which fails on its own: it needs `--server` and `--workspace`. `show`, `doctor`, `list`, `mcp-headers` and the bridge now say to copy the command from Plugin access, which shows it filled in, and say that no folder above this one is registered either. `mcp-headers`, whose message Claude Code shows for every session in a folder that has nothing to do with DevBuddy, also says that such a folder needs nothing, and that a registered one needs a new session. `plugin-hosts.md`'s troubleshooting row says the same. `McpHeadersTests` holds the Plugin access pointer; the client suite passes at 89 on the Windows development machine. Not in a release yet. |
+| 2026-09-29 | A4 | **A4 is DONE.** The last exit row without a record was Claude Code on Windows: from this session on JMPC, Claude Code with plugin 1.12.1 and the `v1.12.1` client, in `C:\Codes\devbuddy-plugin` registered to the devbox's workspace, `list_projects` answered over `https://192.168.1.160:5010/mcp` with the workspace's one AI-enabled project. The status line now names the evidence for each exit row, and says what was not done: a revoked token tried by hand. The stale "Still to do: the threat model" is replaced; T2.6, T2.7, T3.7 and AL-6 went out in `v1.11.0`. |

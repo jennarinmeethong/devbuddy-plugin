@@ -19,6 +19,13 @@ internal static class Commands
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     /// <summary>
+    /// How a folder gets registered. The bare command is not enough, because it needs the server
+    /// and the workspace; Plugin access in the web interface shows it with both filled in.
+    /// </summary>
+    private const string CopyRegister =
+        "copy the `devbuddy register` command from Plugin access in DevBuddy's web interface";
+
+    /// <summary>
     /// Response files off, as the console has them: a path beginning with <c>@</c> would
     /// otherwise be read as a file of further arguments.
     /// </summary>
@@ -131,7 +138,7 @@ internal static class Commands
 
             if (registry.All.Count == 0)
             {
-                context.Out.WriteLine("No checkout is registered. Run `devbuddy register` in one.");
+                context.Out.WriteLine($"No checkout is registered. To register one, {CopyRegister} and run it in that folder.");
                 return Done;
             }
 
@@ -171,7 +178,7 @@ internal static class Commands
 
             if (checkout is null)
             {
-                context.Error.WriteLine($"{folder} is not in a registered checkout. Run `devbuddy register` there.");
+                context.Error.WriteLine($"{Unregistered(folder)} To register it, {CopyRegister} and run it there.");
                 return NotRegistered;
             }
 
@@ -370,7 +377,9 @@ internal static class Commands
 
             if (checkout is null)
             {
-                context.Out.WriteLine($"[fail] {folder} is not in a registered checkout. Run `devbuddy register` there.");
+                context.Out.WriteLine(
+                    $"[fail] {Unregistered(folder)} To register it, {CopyRegister}, run it there, "
+                    + "then run `devbuddy doctor` again.");
                 return NotRegistered;
             }
 
@@ -431,8 +440,9 @@ internal static class Commands
             if (checkout is null)
             {
                 context.Error.WriteLine(
-                    $"DevBuddy: {folder} is not in a registered checkout, so no token was sent. "
-                    + "Run `devbuddy register` in it.");
+                    $"DevBuddy: {Unregistered(folder)} No token was sent, so DevBuddy is not available in "
+                    + "this session. If this folder does not use DevBuddy, nothing needs doing. Otherwise "
+                    + $"{CopyRegister}, run it in this folder, and start a new session.");
                 return NotRegistered;
             }
 
@@ -578,7 +588,8 @@ internal static class Commands
 
         return choices.Length == 0
             ? BridgeTargets.None(
-                "DevBuddy: nothing is registered on this machine. The person runs `devbuddy register` once, in the folder they work in.")
+                "DevBuddy: nothing is registered on this machine. The person registers once: they copy the `devbuddy register` "
+                + "command from Plugin access in DevBuddy's web interface and run it in the folder they work in.")
             : new BridgeTargets(choices, null);
     }
 
@@ -647,11 +658,18 @@ internal static class Commands
 
         if (checkout is null)
         {
-            context.Error.WriteLine($"{folder} is not in a registered checkout.");
+            context.Error.WriteLine(Unregistered(folder));
         }
 
         return checkout;
     }
+
+    /// <summary>
+    /// A folder below a registered one belongs to it, so this says neither is, and does not read
+    /// as though registering a subfolder were the fix.
+    /// </summary>
+    private static string Unregistered(string folder) =>
+        $"{folder} is not registered with DevBuddy, and neither is any folder above it.";
 
     /// <summary>
     /// A stored token that still works, or a new one asked for, checked and stored. A stored one
