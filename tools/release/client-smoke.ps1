@@ -56,6 +56,24 @@ $env:DEVBUDDY_HOME = Join-Path $Work 'client-home'; $env:DEVBUDDY_CREDENTIAL_STO
 $headers = & $client mcp-headers --dir $Work --url https://devbuddy.example.test/mcp 2>$null
 Check 'client mcp-headers, unregistered, exit' $LASTEXITCODE 2
 Check 'client mcp-headers, unregistered, output' "$headers" ''
+
+# The bridge Cowork starts (plugins/cowork): with nothing registered it still serves, sends nothing,
+# and answers a tool call with why, in UTF-8 with no byte order mark. Bytes, not PowerShell's pipeline,
+# because the pipeline would re-encode what it read.
+$bridgeIn = Join-Path $Work 'bridge-in.txt'; $bridgeOut = Join-Path $Work 'bridge-out.txt'
+[IO.File]::WriteAllText($bridgeIn, (
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}' + "`n" +
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects"}}' + "`n"), (New-Object Text.UTF8Encoding $false))
+$bridge = Start-Process -FilePath $client -ArgumentList 'mcp-bridge' -NoNewWindow -Wait -PassThru `
+  -RedirectStandardInput $bridgeIn -RedirectStandardOutput $bridgeOut -RedirectStandardError (Join-Path $Work 'bridge-err.txt')
+Check 'client mcp-bridge, unregistered, exit' $bridge.ExitCode 0
+$bridgeBytes = [IO.File]::ReadAllBytes($bridgeOut)
+Check 'client mcp-bridge, first byte' ([char]$bridgeBytes[0]) '{'
+$answers = @([Text.Encoding]::UTF8.GetString($bridgeBytes).Split("`n") | Where-Object { $_.Trim() } | ForEach-Object { $_ | ConvertFrom-Json })
+Check 'client mcp-bridge, answers' $answers.Count 2
+Check 'client mcp-bridge, initialize answered' ($answers | Where-Object { $_.id -eq 1 }).result.protocolVersion '2025-06-18'
+$toolCall = ($answers | Where-Object { $_.id -eq 2 }).result
+Check 'client mcp-bridge, tool call says why' ($toolCall.isError -and $toolCall.content[0].text -like '*devbuddy register*') $true
 $env:DEVBUDDY_HOME = $null; $env:DEVBUDDY_CREDENTIAL_STORE = $null
 
 # The MCP server over stdio, pointed at a database that is not there, as a client machine is. The

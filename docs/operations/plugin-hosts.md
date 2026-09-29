@@ -137,6 +137,21 @@ Each release archive carries it in `Client/`: `devbuddy` on Linux and macOS, `de
 Windows. Put that folder on `PATH`. It is unsigned (B2): on Windows with Smart App Control on it
 cannot run at all, and there is no per-program exception.
 
+`PATH` matters most for Cowork, which starts the bridge as `devbuddy` and finds nothing otherwise.
+Claude Code and Codex can name the client another way (`DEVBUDDY_CLIENT`, or the path in
+`config.toml`); Cowork cannot. With the folder copied to `~/.devbuddy/bin`, on Windows, once:
+
+```powershell
+$bin = Join-Path $HOME '.devbuddy\bin'
+$user = [Environment]::GetEnvironmentVariable('Path', 'User')
+if (($user -split ';') -notcontains $bin) { [Environment]::SetEnvironmentVariable('Path', "$user;$bin", 'User') }
+```
+
+On macOS and Linux, add `export PATH="$HOME/.devbuddy/bin:$PATH"` to the shell's profile. **Then
+quit and reopen Claude Desktop**, from the tray or the menu bar and not only its window: an app
+keeps the `PATH` it started with, and a Cowork task started before the change still finds nothing.
+`devbuddy doctor` in a new terminal shows the client is found.
+
 Trust the gateway's certificate on the machine too, the root CA the web interface already needs.
 Codex reads a CA from `CODEX_CA_CERTIFICATE` or `SSL_CERT_FILE`.
 
