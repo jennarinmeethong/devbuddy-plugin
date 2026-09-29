@@ -160,7 +160,24 @@ export async function clickUntilSent(button: Locator, pathname: string): Promise
       // answered and the page moved on. WebKit under load can report the request later than the
       // window, and retrying then found no button at all (the invite test, 2026-09-27). Only a
       // button still there and enabled, with nothing sent, is a press that was lost.
-      if (!(await button.isVisible()) || !(await button.isEnabled({ timeout: 1_000 }))) {
+      // `isEnabled` throws when the button is gone by the time it looks. That is the same answer as
+      // `isVisible` returning false: in CI run 36328568141 the invite test's sign-in succeeded
+      // between the two calls, and the throw was retried as a lost press. Only a button that is
+      // no longer there counts; one still there that cannot answer is a page that has stopped,
+      // and that stays a failure.
+      if (!(await button.isVisible())) {
+        return;
+      }
+      let enabled: boolean;
+      try {
+        enabled = await button.isEnabled({ timeout: 1_000 });
+      } catch (gone) {
+        if ((await button.count()) === 0) {
+          return;
+        }
+        throw gone;
+      }
+      if (!enabled) {
         return;
       }
       if (process.env.DEVBUDDY_E2E_FIRST_CLICK) {

@@ -1,5 +1,13 @@
 # Project Decisions
 
+## Confirmed Cutting v1.12.1 — 2026-09-29
+
+After `v1.12.0` was published without PR #36, the owner asked for `v1.12.1` to be started ("เริ่ม
+v1.12.1 ได้เลย"), carrying #36 and the WebKit fix, as decided the same day ("WebKit แยกเป็น
+v1.12.1"). The session that found the WebKit fix had ended with its change uncommitted; the owner
+confirmed it was closed before Claude brought the change across. *14.16* in `docs/plan-phase-14.md`
+says what it carries.
+
 ## Confirmed Cutting v1.12.0 — 2026-09-29
 
 After the Cowork bridge ran in Cowork and PR #37 was merged, the owner asked for the release to be
