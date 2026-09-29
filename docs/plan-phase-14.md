@@ -662,8 +662,9 @@ UTC, and the devbox runs the tag.
 
 ## 14.15 — Cutting v1.12.0
 
-**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-29). The pre-tag
-checklist passed at `235a17c` (`release-matrix.md`); the tag is the owner's.
+**Status: PUBLISHED 2026-09-29**, at 06:55 UTC, from `235a17c`, the commit the owner tagged, at the
+owner's instruction (`info.md`, 2026-09-29). The server is unchanged, so the devbox has nothing to
+upgrade.
 
 - **What it carries since `v1.11.1`: DevBuddy from Cowork** (PR #37 and PR #38).
   - `devbuddy register` takes a folder that is not a git repository; a drive root, the home folder
@@ -677,10 +678,11 @@ checklist passed at `235a17c` (`release-matrix.md`); the tag is the owner's.
 - **A minor version**, because it adds a command and a package. **The server is unchanged:**
   nothing under `src/core`, `src/hosts`, `docker` or `web` changed, so the images, the operations,
   the MCP transport and the content security policy are the same. No migration, so the count stays
-  at nine. Nobody signs in again. Both plugins move to 1.12.0. **The Claude package passes the MCP
-  URL to its helper** (`--url "${DEVBUDDY_URL}/mcp"`, PR #36, added at the owner's word on
-  2026-09-29): Claude Code handed the helper `CLAUDE_CODE_MCP_SERVER_URL` with every `1` redacted on
-  JMPC, and the helper rightly refused it. A `v1.11.2` for that alone was planned and dropped.
+  at nine. Nobody signs in again. Both plugins move to 1.12.0. **The Claude package in it does not
+  pass the MCP URL to its helper.** PR #36 does, and was meant to be in it, but the owner had
+  already tagged `235a17c` when #36 merged; the owner then chose to publish that tag and carry #36
+  in `v1.12.1` (`info.md`). The release notes tell people not to update the Claude Code plugin to
+  1.12.0.
 - **The upgrade is `up -d` alone** on a server, with the usual check that `mcp` runs the new image.
   On a person's machine, the client from the archive replaces the old one; Cowork additionally
   needs it on `PATH`, Claude Desktop restarted, and `plugins/cowork/` uploaded (`plugin-hosts.md`).
@@ -777,3 +779,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-29 | A4 | **Prepared for the release that carries the Cowork bridge**, at the owner's request. `plugins/cowork` is 1.12.0, proposing `v1.12.0`, a minor version because it adds a command and a package; the Claude package moves with the release commit as usual. `plugin-hosts.md` says how to put the client on `PATH`, which only Cowork cannot do without, and that Claude Desktop must be restarted to see it. `smoke.sh` and `client-smoke.ps1` start `devbuddy mcp-bridge` from the published archive with nothing registered: it must exit 0 once its input closes, answer both messages, begin with `{`, answer `initialize` itself, and answer a tool call with why. **Run** on archives built the way `release.yml` builds them: `client-smoke.ps1` on `win-x64` on the Windows development machine, 0 failed; `smoke.sh` in `ubuntu:24.04` on devrelease, 0 failed, after re-packing there, because tar on Windows drops the execute bits. |
 | 2026-09-29 | 14.15 | **`v1.12.0` prepared**, at the owner's request, on top of PR #38: both plugins at 1.12.0, *14.15* written, and `info.md`. The server is unchanged since `v1.11.1`, so the upgrade is `up -d` alone; people's machines take the new client, and Cowork users add it to `PATH` and upload `plugins/cowork/`. The pre-tag checklist has not run. |
 | 2026-09-29 | 14.15 | **The pre-tag checklist for `v1.12.0` passed** at `235a17c`, the merge of PR #39, at the owner's request. On devrelease: part 1 7 of 7, with 1108 .NET tests (89 the client's) and the web suite 85; part 2 116 of 116; part 3 from `v1.11.1` 47 of 47. In the Ubuntu arm64 guest, the upgrade from `v1.11.1` 47 of 47. devrelease had 8.8 GB free, so old release images were removed first (`release-matrix.md`). A first start on devrelease ran nothing, because a path in the command was expanded to nothing on JMPC; it was started again. **The tag waits on the owner.** |
+| 2026-09-29 | 14.15 | **`v1.12.0` published, from `235a17c` and without #36.** Claude reran the pre-tag checklist at `46ebb1d` (#36 on `main`): part 1 7 of 7 (.NET 1108), part 2 116 of 116, part 3 from `v1.11.1` 47 of 47 on devrelease and on the Ubuntu arm64 guest, after moving the first run's work folders aside as `…-at-235a17c`. #36 merged as `2f9b4e8` after CI passed Build and test on a rerun (`EvidenceStoreTests.concurrent_first_captures…` failed once with "bucket does not exist" from SeaweedFS and passed on the rerun and on devrelease) and failed only WebKit's `auth.spec.ts:48`. The tag, though, was already the owner's, at `235a17c`, with release run 36529633284 done; the owner chose to publish it and move #36 to `v1.12.1` rather than re-tag. After the tag, on `235a17c`: checksums; provenance for every archive and image with wrong-owner and wrong-tag controls; runner smoke on every archive; by hand `post-images.sh` 29 of 29 on devrelease and smoke of `linux-x64` (Ubuntu and native), `linux-musl-x64`, `osx-arm64` (Mac mini) and `win-x64` (JMPC), each with the bridge's five rows. Published at 06:55 UTC as Latest, with a known issue telling people not to update the Claude Code plugin to 1.12.0. |

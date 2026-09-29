@@ -240,6 +240,31 @@ devrelease, which had 8.8 GB free; it had 24 GB for the run. Everything removed 
 built again. The arm64 guest's stack was removed after its run; devrelease's two stacks,
 `devbuddy-v1120` and `devbuddy-up1120`, are left for inspection until publication.
 
+**Rerun at `46ebb1d`, the commit #36 was merged from.** Claude ran the checklist again for a tag that
+would carry #36: part 1 7 of 7 (.NET 1108), part 2 116 of 116, part 3 from `v1.11.1` 47 of 47 on
+devrelease and on the Ubuntu arm64 guest. The first run's work folders were moved aside as
+`…-at-235a17c`. That tag was not made: the owner had tagged `235a17c`, and chose to publish it.
+
+### After the tag
+
+`v1.12.0` was tagged at `235a17c` by the owner. Release run 36529633284 passed, and A2's jobs wrote
+*Runner smoke results* into the draft.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match**, and the x64 Linux pair again on devrelease and `osx-arm64` on the Mac mini. |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.12.0` and `235a17c`. A wrong owner, and a wrong tag (`v1.11.1`), were refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow | **29 of 29 each.** |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass.** |
+| `linux-x64` (in `ubuntu:24.04` and natively), `linux-musl-x64` (in `alpine:3`) | `smoke.sh` at `v1.12.0`, devrelease, by hand | **Pass**, the bridge's five rows included. |
+| `osx-arm64` | `smoke.sh` at `v1.12.0`, natively on the Mac mini, by hand | **Pass**, bridge rows included. |
+| `win-x64` | `client-smoke.ps1` at `v1.12.0`, natively on JMPC, by hand | **Pass**, bridge rows included. |
+
+**Published on 2026-09-29 at 06:55 UTC**, as Latest, at the owner's instruction, with a known issue:
+its Claude Code package lacks #36, so its notes say not to update that plugin to 1.12.0. The
+throwaway stacks were removed from devrelease and the Ubuntu guest.
+
 ## What was verified for v1.11.1
 
 **Checked before the tag, at `2075492`**, the commit tagged, at the owner's instruction (`info.md`,

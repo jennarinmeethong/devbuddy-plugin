@@ -7,10 +7,16 @@ prepared ("เตรียม commit ของ release v1.12.0 เลย"), taki
 minor version, because it adds `devbuddy mcp-bridge` and the `devbuddy-cowork` package. *14.15* in
 `docs/plan-phase-14.md` says what it carries and what an upgrade needs.
 
-On 2026-09-29, before the tag, the owner put PR #36 into it ("เอา #36 เข้า v1.12.0"): the Claude
-package passes the MCP URL to the helper, which `main` did not, and the `v1.11.2` planned for that
-alone is dropped. The WebKit rendering fix from the e2e investigation goes out separately, as
-`v1.12.1` ("WebKit แยกเป็น v1.12.1"), because it changes the web client and so the API image.
+On 2026-09-29 the owner put PR #36 into it ("เอา #36 เข้า v1.12.0"): the Claude package passes the
+MCP URL to the helper, which `main` did not, and the `v1.11.2` planned for that alone is dropped.
+The WebKit rendering fix from the e2e investigation goes out separately, as `v1.12.1` ("WebKit
+แยกเป็น v1.12.1"), because it changes the web client and so the API image.
+
+**Correction, the same day:** the owner had already pushed `v1.12.0` at `235a17c`, before #36
+merged, and its release run had finished. Asked whether to re-tag at `46ebb1d` or publish the tag
+as it stood, the owner chose to publish it and carry #36 in `v1.12.1` ("เอาแบบ A แล้ว publish
+v1.12.0 ต่อเลย"). `v1.12.0` was published at 06:55 UTC, with a known issue in its notes: do not
+update the Claude Code plugin to 1.12.0.
 
 ## Confirmed A Workspace Per Customer, and Cowork Chooses Its Workspace — 2026-09-29
 
