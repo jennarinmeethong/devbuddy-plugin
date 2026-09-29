@@ -52,6 +52,18 @@ DEVBUDDY_HOME="$DIR/client-home" DEVBUDDY_CREDENTIAL_STORE=file \
   > "$DIR/headers.txt" 2> "$DIR/headers.err"
 check "client mcp-headers, unregistered, exit" "$?" 2
 check "client mcp-headers, unregistered, output" "$(wc -c < "$DIR/headers.txt" | tr -d ' ')" 0
+# The bridge Cowork starts (plugins/cowork): with nothing registered it still serves, sends nothing,
+# and answers a tool call with why, in UTF-8 with no byte order mark.
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_projects"}}' \
+  | DEVBUDDY_HOME="$DIR/bridge-home" DEVBUDDY_CREDENTIAL_STORE=file "$DIR/Client/devbuddy" mcp-bridge \
+  > "$DIR/bridge.txt" 2> "$DIR/bridge.err"
+check "client mcp-bridge, unregistered, exit" "$?" 0
+check "client mcp-bridge, answers" "$(wc -l < "$DIR/bridge.txt" | tr -d ' ')" 2
+check "client mcp-bridge, first byte" "$(head -c 1 "$DIR/bridge.txt")" "{"
+check "client mcp-bridge, initialize answered" "$(grep -c '"id":1,"result":{"protocolVersion":"2025-06-18"' "$DIR/bridge.txt")" 1
+check "client mcp-bridge, tool call says why" "$(grep '"id":2' "$DIR/bridge.txt" | grep '"isError":true' | grep -c 'devbuddy register')" 1
 rm -rf "$DIR"
 echo "=== $FAILED failed"
 [ "$FAILED" -eq 0 ]
