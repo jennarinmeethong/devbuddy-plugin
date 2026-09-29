@@ -219,6 +219,22 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.12.2
+
+**Checked before the tag, at `785f790`**, the head of PR #46, at the owner's instruction
+(`info.md`, 2026-09-29). *14.17* in `docs/plan-phase-14.md` says what it carries: the register
+message (PR #44), the marketplace, the first-install handbook, and a blocked draft with many
+findings answered Blocked rather than as an unhandled exception. No check was added.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1110** tests with none failed, the new Application test among them. The web build passed and its suite ran **86** of 86. `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.12.1` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.12.1` | Ubuntu arm64 guest | **47 passed, 0 failed.** The guest was off, and Claude started it headless on the Mac mini with `vmrun`. |
+
+PR #46's CI passed all 18 checks at `785f790`.
+
 ## What was verified for v1.12.1
 
 **Checked before the tag, at `9cd1934`**, the commit tagged, at the owner's instruction (`info.md`,
