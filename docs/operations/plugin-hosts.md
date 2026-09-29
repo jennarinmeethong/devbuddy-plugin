@@ -177,7 +177,7 @@ The repository is a marketplace since `v1.12.2` (`.claude-plugin/marketplace.jso
 Claude package alone, so no clone is needed:
 
 ```bash
-claude plugin marketplace add jennarinmeethong/devbuddy-plugin --sparse .claude-plugin plugins
+claude plugin marketplace add jennarinmeethong/devbuddy-plugin
 claude plugin install devbuddy@devbuddy-plugin
 ```
 
