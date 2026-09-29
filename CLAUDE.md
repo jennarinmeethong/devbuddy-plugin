@@ -34,7 +34,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 1108 .NET tests and 86 web tests exist. The .NET suite passed at 1005 on devrelease
+enforcement. 1109 .NET tests and 86 web tests exist. The .NET suite passed at 1005 on devrelease
 for `v1.9.0` on 2026-09-27, and at 1065 on devrelease for `v1.11.0` on 2026-09-28, when the MCP server's HTTP transport took
 machine tokens and the `devbuddy` client was added (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
 day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**, in the job

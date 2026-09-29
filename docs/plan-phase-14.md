@@ -719,6 +719,45 @@ upgrade.
   On a person's machine, update the Claude Code plugin to 1.12.1.
 - **The checklist runs from `tools/release/` at the release commit**, with no new check.
 
+## 14.17 — Cutting v1.12.2
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-09-29).
+
+- **What it carries since `v1.12.1`:**
+  - **The client says how to register a folder** (PR #44). Every message for a folder that is not
+    registered said to run `devbuddy register`, which fails without `--server` and `--workspace`;
+    they now point to Plugin access, which shows the command filled in, and `mcp-headers` says a
+    folder that does not use DevBuddy needs nothing.
+  - **The repository is a Claude Code marketplace.** `.claude-plugin/marketplace.json` lists the
+    Claude package alone, so `claude plugin marketplace add jennarinmeethong/devbuddy-plugin` and
+    `claude plugin install devbuddy@devbuddy-plugin` install it with no clone and no local
+    marketplace. `PluginPackageTests` holds its name, source and version to the package's.
+  - **The Thai handbook's install chapters are rewritten for a first-time user**: the root CA, the
+    client from a release archive with its checksum, a token, `register`, `doctor`, then Claude
+    Code, Cowork or Codex. Until now they described the stdio route with a connection string in
+    the person's environment, which A4 retired. They say where `root.crt` comes from: the
+    administrator copies it from the gateway's `pki/authorities/local`, never the `.key` files
+    beside it, and gives its SHA-256 fingerprint, which the user checks before trusting it.
+    Each assistant has GUI and CLI steps: Claude Code in the terminal, the Desktop app's Code tab
+    and VS Code; Codex in the CLI, the ChatGPT desktop app and the IDE extension, all through
+    `config.toml` because neither `codex mcp add` nor the app's form can set the header helper.
+    macOS has a section on Gatekeeper and the quarantine mark: download with `curl`, or remove the
+    mark from `~/.devbuddy/bin` after checking the checksum. The troubleshooting rows follow the client's
+    messages. `plugin-hosts.md` says how to install from the marketplace.
+  - **Content blocked many times over is answered Blocked, not as a failure.** The executor joined
+    every finding into one audit detail, which the domain caps at 200 characters. A draft the owner
+    wrote over MCP on 2026-09-29 matched about twenty times, the detail came to 574 characters, and
+    the assistant got only "An error occurred invoking 'create_draft'", with nothing saying what to
+    remove. The detail is now summarised to fit, with `blocked_count` beside it; the caller still
+    receives every finding.
+- **A patch version.** No migration, so the count stays at nine. Nobody signs in again. The
+  operations, the MCP transport and the content security policy are unchanged. The server images
+  change for the fix above; the client and the plugins change too. Both plugins move to 1.12.2.
+- **The upgrade:** `up -d` on a server, then check that `mcp` runs the new image. On a person's
+  machine, the client from the archive replaces the old one, and the Claude Code plugin moves to
+  1.12.2.
+- **The checklist runs from `tools/release/` at the release commit**, with no new check.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -813,3 +852,6 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-29 | 14.16 | **The devbox is on `v1.12.1`**, moved by the owner with the commands Claude gave: the nightly backup script (exit 0 at 11:41 UTC), `.env` and the override copied to `~/backups/before-v1121-20260929/`, the tag checked out, `compose --profile workers build`, `up -d --no-build` and `mcp` recreated. Claude then checked, read-only: `git describe` is `v1.12.1`; `api` and `mcp` built at 11:42 UTC, `api` healthy, the workers and retention recreated; `/health` 200, `POST /mcp` 401 and `/.well-known/oauth-authorization-server` 404 through the gateway; the served stylesheet transitions `color, background-color, border-color, opacity, box-shadow` and not `filter`; no error in the `api` or `mcp` logs. JMPC runs the Claude Code plugin 1.12.1 and the `v1.12.1` client (`devbuddy doctor` passes); the plugin had been uninstalled there in the meantime, and was installed again from the tag. **One slip:** Claude's own attempt at the same upgrade, made before seeing the owner had done it, broke its SSH quoting on an apostrophe in a comment, so part of the script ran on JMPC; it stopped at its first `cp`, left one empty folder there, since removed, and did nothing on the devbox. |
 | 2026-09-29 | A4 | **The client says how to register a folder, not only that it should be.** Every message for a folder that is not registered said to run `devbuddy register`, which fails on its own: it needs `--server` and `--workspace`. `show`, `doctor`, `list`, `mcp-headers` and the bridge now say to copy the command from Plugin access, which shows it filled in, and say that no folder above this one is registered either. `mcp-headers`, whose message Claude Code shows for every session in a folder that has nothing to do with DevBuddy, also says that such a folder needs nothing, and that a registered one needs a new session. `plugin-hosts.md`'s troubleshooting row says the same. `McpHeadersTests` holds the Plugin access pointer; the client suite passes at 89 on the Windows development machine. Not in a release yet. |
 | 2026-09-29 | A4 | **A4 is DONE.** The last exit row without a record was Claude Code on Windows: from this session on JMPC, Claude Code with plugin 1.12.1 and the `v1.12.1` client, in `C:\Codes\devbuddy-plugin` registered to the devbox's workspace, `list_projects` answered over `https://192.168.1.160:5010/mcp` with the workspace's one AI-enabled project. The status line now names the evidence for each exit row, and says what was not done: a revoked token tried by hand. The stale "Still to do: the threat model" is replaced; T2.6, T2.7, T3.7 and AL-6 went out in `v1.11.0`. |
+| 2026-09-29 | 14.17 | **`v1.12.2` prepared**, at the owner's instruction (`info.md`). It carries #44. It adds `.claude-plugin/marketplace.json`, listing the Claude package, with `the_marketplace_lists_the_claude_package_at_its_own_version` in `PluginPackageTests`, which fails when the marketplace's version drifts from the package's. Claude Code 2.1.259, in a throwaway `CLAUDE_CONFIG_DIR`, added the marketplace from the checkout and installed `devbuddy@devbuddy-plugin` at 1.12.2; installing from GitHub waits for the merge. The Thai handbook's chapters 03 to 06, its status note and its troubleshooting rows are rewritten for a first-time user of the client, and `plugin-hosts.md` describes the marketplace. Both plugins are 1.12.2. **Verified on the Windows development machine:** web 86; `dotnet format` clean; Domain 62, Client 89, McpServer 33 and Application 303. Infrastructure, Api and Security did not run, because Docker was not running; CI runs them. The handbook's code blocks were checked in the browser pane. **Not verified:** the macOS login-keychain command for the root CA, which the handbook gives, has not been tried on the Mac mini. |
+| 2026-09-29 | 14.17 | **The handbook gains GUI and CLI steps for each assistant, and a macOS Gatekeeper section**, at the owner's request. The menu names come from the vendors' current documentation (code.claude.com's plugin and desktop pages; learn.chatgpt.com's MCP page), not from memory. **Verified on JMPC:** Claude Code 2.1.259 in a throwaway `CLAUDE_CONFIG_DIR` added the marketplace **from GitHub** (`jennarinmeethong/devbuddy-plugin#release/v1.12.2`) and installed `devbuddy@devbuddy-plugin` at 1.12.2; `codex mcp get devbuddy` in a throwaway `CODEX_HOME` read the handbook's block as `streamable_http` with the helper set; the raw `AGENTS.md` URL answers 200. `--sparse` was dropped from both documents, because the GitHub install was tested without it. **On the Mac mini**, in a temporary folder since removed: an archive carrying a browser's quarantine mark passes it to every extracted file, `spctl` rejects the ad-hoc-signed client, and `xattr -dr` removes every mark. **Not verified, and caused by Claude:** running the quarantined copy left `devbuddy` launches on the Mac mini stuck in `_dyld_start`, the installed one used by Codex included, most likely behind a Gatekeeper dialog on its screen. Whether the client then runs at once awaits the owner clearing that dialog. The Desktop app's plugin browser and the Codex GUIs were not driven by hand. |
+| 2026-09-29 | 14.17 | **A blocked draft with many findings is answered Blocked** (at the owner's instruction, into `v1.12.2`). The owner's assistant got "An error occurred invoking 'create_draft'" twice from the devbox; its `mcp` log showed `DomainValidationException: detail value for blocked_findings is limited to 200 characters but was 574` from the audit write in `UseCaseExecutor`. `SummariseFindings` keeps every finding with its line while they fit in 200 characters, then each rule with its count, then as many rules as fit and how many more; `blocked_count` records the total. The fake secret scanner now reports a finding per line, as the real one does. `content_blocked_many_times_over_is_still_answered_blocked_and_audited` fails with the old join (789 characters) and passes with the fix. **Verified on the Windows development machine:** Application 304, `dotnet format` clean. The branch that cuts to as many rules as fit is not reached by a test, because the fakes have one rule. |

@@ -173,9 +173,21 @@ workspace. `list`, `show`, `update`, `unregister`, `token set` and `token remove
 
 ### Claude Code
 
-Point Claude Code at `plugins/claude/`, and set `DEVBUDDY_URL` to the server's address, without
-`/mcp`, in the environment it starts with, for instance `env` in `~/.claude/settings.json`.
-`DEVBUDDY_CLIENT` names the client if it is not on `PATH`.
+The repository is a marketplace since `v1.12.2` (`.claude-plugin/marketplace.json`), listing the
+Claude package alone, so no clone is needed:
+
+```bash
+claude plugin marketplace add jennarinmeethong/devbuddy-plugin
+claude plugin install devbuddy@devbuddy-plugin
+```
+
+`/plugin` inside a session does the same. The marketplace follows `main`, so
+`claude plugin marketplace update devbuddy-plugin` brings the package of the latest merge, not only
+of a tag. A marketplace made from a local folder, as JMPC's `devbuddy-local` is, still works.
+
+Then set `DEVBUDDY_URL` to the server's address, without `/mcp`, in the environment Claude Code
+starts with, for instance `env` in `~/.claude/settings.json`. `DEVBUDDY_CLIENT` names the client if
+it is not on `PATH`.
 
 ### Cowork
 

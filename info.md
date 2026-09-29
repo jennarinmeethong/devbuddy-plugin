@@ -1,5 +1,13 @@
 # Project Decisions
 
+## Confirmed Cutting v1.12.2 — 2026-09-29
+
+After PR #44 and #45 merged, the owner asked for `v1.12.2` to be prepared ("เตรียมออก v1.12.2
+เลย"), and in the same message for a manual that teaches somebody who has never used DevBuddy to
+install the plugin and the client. *14.17* in `docs/plan-phase-14.md` says what it carries. The
+repository becoming a Claude Code marketplace is Claude's proposal in that PR, for the manual's
+sake, and is the owner's to accept or refuse there.
+
 ## Confirmed Cutting v1.12.1 — 2026-09-29
 
 After `v1.12.0` was published without PR #36, the owner asked for `v1.12.1` to be started ("เริ่ม

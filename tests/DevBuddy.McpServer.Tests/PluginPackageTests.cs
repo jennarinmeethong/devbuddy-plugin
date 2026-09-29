@@ -315,6 +315,28 @@ public sealed partial class PluginPackageTests
         Assert.NotEqual(Name("claude"), Name("cowork"));
     }
 
+    /// <summary>
+    /// The marketplace at the repository root is how a person installs the Claude package without a
+    /// clone: <c>claude plugin marketplace add jennarinmeethong/devbuddy-plugin</c>. It lists that
+    /// package alone, by its own name and version, so the two cannot drift apart at a release. The
+    /// Cowork package is uploaded as a zip and is not listed.
+    /// </summary>
+    [Fact]
+    public void the_marketplace_lists_the_claude_package_at_its_own_version()
+    {
+        JsonElement Read(string path) =>
+            JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(RepositoryRoot().FullName, path)));
+
+        JsonElement marketplace = Read(Path.Combine(".claude-plugin", "marketplace.json"));
+        JsonElement manifest = Read(Path.Combine("plugins", "claude", ".claude-plugin", "plugin.json"));
+
+        JsonElement entry = Assert.Single(marketplace.GetProperty("plugins").EnumerateArray());
+
+        Assert.Equal("./plugins/claude", entry.GetProperty("source").GetString());
+        Assert.Equal(manifest.GetProperty("name").GetString(), entry.GetProperty("name").GetString());
+        Assert.Equal(manifest.GetProperty("version").GetString(), entry.GetProperty("version").GetString());
+    }
+
     [Fact]
     public void every_slash_command_declares_what_it_is_for()
     {
