@@ -381,8 +381,8 @@ triaged, the fixes merged, and `tests/e2e/zap/rules.tsv` now decides whether a r
 ### C5 — Secret, source and image scans, and every action pinned
 **Status: DONE 2026-09-27.** Supply chain and CodeQL pass on `main`, and C6 removed the MinIO
 findings the image gate had accepted. Approved 2026-09-26 (`info.md`), from a comparison with the HomeHub rule
-set in `samples/`, which requires Gitleaks, a SAST tool, Trivy, actions pinned by commit and a
-controlled update process. This repository had none of the five.
+set (then a copy in `samples/`, now only in the HomeHub repository), which requires Gitleaks,
+a SAST tool, Trivy, actions pinned by commit and a controlled update process. This repository had none of the five.
 
 - **Gitleaks** over the whole history, in `supply-chain.yml`. A finding is accepted in
   `.gitleaksignore` by exact fingerprint only.
