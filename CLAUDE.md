@@ -50,6 +50,7 @@ ADR-0012 required a control for, closed on 2026-09-13.
 **`v1.12.1` is the current release**, published 2026-09-29 at 09:04 UTC from `9cd1934`: the Claude
 Code package passes the MCP URL to its helper (PR #36), and the primary button no longer animates
 `filter`, which stopped WebKit on Linux painting the page (PR #42). The upgrade is `up -d` alone.
+The devbox runs it since the same day, and JMPC the Claude Code plugin and client of the tag.
 
 **`v1.12.0` was the release before it**, published 2026-09-29 at 06:55 UTC from `235a17c`: DevBuddy
 from Cowork through `devbuddy mcp-bridge` and the `devbuddy-cowork` package. The server is
