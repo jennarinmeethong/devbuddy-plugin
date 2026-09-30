@@ -1,5 +1,41 @@
 # Project Decisions
 
+## Confirmed Accepting CVE-2026-84782 in the .NET Base Images Until 2026-10-30 — 2026-09-30
+
+PR #47's `Container images` check failed on its last commit, which changed documentation only:
+Trivy reported CVE-2026-84782, HIGH, in `libssl3t64` 3.0.13-0ubuntu3.15, in the API, MCP server
+and console images. Ubuntu has fixed it in 3.0.13-0ubuntu3.16. The images inherit it from
+`mcr.microsoft.com/dotnet/aspnet` and `runtime:10.0-noble-chiseled`, whose newest build is from
+2026-09-04, and a chiseled image cannot be upgraded in place. `v1.12.2`, which the devbox runs,
+carries the same package. Claude offered accepting it for thirty days, releasing without fixing
+the check, or waiting for Microsoft; the owner chose to accept it ("ยอมรับชั่วคราว แล้ว release").
+
+- `.trivyignore.yaml` accepts it until 2026-10-30, by ID alone, because an OS package has no path
+  to narrow it to.
+- The first base image carrying the fix is rebuilt into a release, and the entry is removed then.
+  Renewing it is a decision of its own.
+- `release.yml` does not run Trivy, so this acceptance does not change what a release checks.
+
+## Confirmed A File Name Is Not A High-Entropy Secret, and Cutting v1.12.3 — 2026-09-30
+
+A draft citing its source documents was Blocked eighteen times by `high-entropy-string`: names
+such as `TOP-BMS-SRS-Contingency-IT_Rev02.docx` mix case, digits and separators and score above
+4.0 on the part before the extension. Claude proposed skipping a run that ends in a file
+extension, and the owner agreed and put it into `v1.12.3` ("ตกลง แก้เลย รวมเข้า v1.12.3").
+
+- **What it relaxes.** A run of 32 or more base64-ish characters followed by `.` and an extension
+  of two to five characters, optionally after a browser's ` (1)`, is no longer reported by the
+  entropy rule. Every rule with a shape of its own (AWS, GitHub, Slack, JWT, bearer, assignment,
+  connection string, private key) still applies to it. **What now gets through** is a shapeless
+  secret written directly before an extension. The owner accepted that. AL-2 already says the
+  scanner catches shapes and entropy, not everything.
+- **What it does not relax.** A long URL or a path with no extension is still reported, and a
+  secret is still refused inside an approved bounded scope. No setting lets a finding through.
+- **The assistant asks the person when a draft is Blocked**, in the same message ("ถ้ามีค่าอะไรที่
+  ไม่แน่ใจให้ถาม user ในตอนนั้นเลย", then chosen as "AI ถาม user เมื่อโดนบล็อก"). Every package's
+  instructions say to show the lines named, ask whether each is a credential, never resend
+  unchanged and never alter a value on its own to get past the scan.
+
 ## Confirmed Cutting v1.12.2 — 2026-09-29
 
 After PR #44 and #45 merged, the owner asked for `v1.12.2` to be prepared ("เตรียมออก v1.12.2

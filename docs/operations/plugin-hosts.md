@@ -187,7 +187,21 @@ of a tag. A marketplace made from a local folder, as JMPC's `devbuddy-local` is,
 
 Then set `DEVBUDDY_URL` to the server's address, without `/mcp`, in the environment Claude Code
 starts with, for instance `env` in `~/.claude/settings.json`. `DEVBUDDY_CLIENT` names the client if
-it is not on `PATH`.
+it is not on `PATH`. Prefer `settings.json` to a shell profile: the Desktop app's Code tab and
+background agents do not read `~/.zshrc`.
+
+Claude Code trusts the operating system's certificate store by default (the native installer, or
+npm with Node 22.15 or later), so the gateway's root CA installed on the machine is enough. Where
+`/mcp` still fails on the certificate, set `NODE_EXTRA_CA_CERTS` to the root CA's file in the same
+`env` block; `claude --debug` logs `CA certs: Appended extra certificates from NODE_EXTRA_CA_CERTS`
+when it loaded. This was taken from Anthropic's network configuration page on 2026-09-30, not
+tried on a machine whose store lacked the CA.
+
+`claude plugin marketplace update devbuddy-plugin` answers `Marketplace 'devbuddy-plugin' not
+found` on a machine that never added it; add it first. A marketplace with another name, such as
+`devbuddy`, may belong to another repository. The Mac mini had one, from `devbuddy-skill`, with an
+unrelated `devbuddy-claude-code` plugin enabled: disable any DevBuddy plugin that does not come
+from `@devbuddy-plugin`, so that two sets of tools and instructions do not compete.
 
 ### Cowork
 
@@ -237,6 +251,13 @@ Cowork task cannot reach DevBuddy.
 Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, and replace **both** example
 addresses with the server's. They must match: the helper gives the token only to the server the
 checkout is registered to. Put `plugins/codex/AGENTS.md` where Codex will read it.
+
+**Updating replaces DevBuddy's section of `~/.codex/AGENTS.md`; it never appends again.** Codex has
+no plugin to update and no way to include one file in another, and it reads at most 32 KiB of
+instructions. The package's file has one top-level heading, `# DevBuddy`, so everything from that
+line to the next `# ` heading is DevBuddy's. The handbook's chapter 05 gives the commands for
+macOS, Linux and Windows, which keep a `.bak` copy and end by counting that heading, which must be
+1. On 2026-09-30 the Mac mini's file held the section twice, from two installs.
 
 Codex refuses MCP tool calls in non-interactive mode unless approvals are routed somewhere — `codex
 exec --approve-for-me` is the documented way, and an interactive session prompts as usual. Without

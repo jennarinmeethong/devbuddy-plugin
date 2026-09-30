@@ -374,6 +374,23 @@ public sealed partial class PluginPackageTests
         }
     }
 
+    /// <summary>
+    /// On 2026-09-30 a draft citing document names was Blocked eighteen times over. Whether a
+    /// finding is a credential is the person's to say, not the assistant's to guess, and an
+    /// assistant left to itself resends, or edits the value until the scanner stops matching.
+    /// </summary>
+    [Fact]
+    public void every_package_says_to_ask_the_person_when_a_draft_is_blocked()
+    {
+        foreach (string package in Packages)
+        {
+            string instructions = File.ReadAllText(InstructionsFor(package).FullName);
+
+            Assert.Contains("When a draft is Blocked, ask the person", instructions, StringComparison.Ordinal);
+            Assert.Contains("Do not send the same content again", instructions, StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public void both_packages_say_prompt_text_is_not_a_security_boundary()
     {

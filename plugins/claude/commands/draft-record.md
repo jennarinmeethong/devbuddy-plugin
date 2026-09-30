@@ -22,3 +22,7 @@ Say clearly afterwards that it is a **draft awaiting approval**, not a published
 person has to review the exact revision before anyone reading published knowledge will see it. Do
 not paste configuration, logs, or environment blocks into the body — the server refuses content
 carrying a credential rather than storing it redacted.
+
+If `create_draft` answers Blocked, stop and ask the person. Show them the lines it names and the
+rule for each, and ask whether each is a real credential or a false alarm, such as a long document
+name. Do not resend the same content, and do not alter a value on your own to get past the scan.
