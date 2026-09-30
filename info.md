@@ -1,5 +1,21 @@
 # Project Decisions
 
+## Confirmed Accepting CVE-2026-84782 in the .NET Base Images Until 2026-10-30 — 2026-09-30
+
+PR #47's `Container images` check failed on its last commit, which changed documentation only:
+Trivy reported CVE-2026-84782, HIGH, in `libssl3t64` 3.0.13-0ubuntu3.15, in the API, MCP server
+and console images. Ubuntu has fixed it in 3.0.13-0ubuntu3.16. The images inherit it from
+`mcr.microsoft.com/dotnet/aspnet` and `runtime:10.0-noble-chiseled`, whose newest build is from
+2026-09-04, and a chiseled image cannot be upgraded in place. `v1.12.2`, which the devbox runs,
+carries the same package. Claude offered accepting it for thirty days, releasing without fixing
+the check, or waiting for Microsoft; the owner chose to accept it ("ยอมรับชั่วคราว แล้ว release").
+
+- `.trivyignore.yaml` accepts it until 2026-10-30, by ID alone, because an OS package has no path
+  to narrow it to.
+- The first base image carrying the fix is rebuilt into a release, and the entry is removed then.
+  Renewing it is a decision of its own.
+- `release.yml` does not run Trivy, so this acceptance does not change what a release checks.
+
 ## Confirmed A File Name Is Not A High-Entropy Secret, and Cutting v1.12.3 — 2026-09-30
 
 A draft citing its source documents was Blocked eighteen times by `high-entropy-string`: names
