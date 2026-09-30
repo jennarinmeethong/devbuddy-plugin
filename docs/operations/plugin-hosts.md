@@ -252,6 +252,13 @@ Merge `plugins/codex/config.toml` into `~/.codex/config.toml`, and replace **bot
 addresses with the server's. They must match: the helper gives the token only to the server the
 checkout is registered to. Put `plugins/codex/AGENTS.md` where Codex will read it.
 
+**Updating replaces DevBuddy's section of `~/.codex/AGENTS.md`; it never appends again.** Codex has
+no plugin to update and no way to include one file in another, and it reads at most 32 KiB of
+instructions. The package's file has one top-level heading, `# DevBuddy`, so everything from that
+line to the next `# ` heading is DevBuddy's. The handbook's chapter 05 gives the commands for
+macOS, Linux and Windows, which keep a `.bak` copy and end by counting that heading, which must be
+1. On 2026-09-30 the Mac mini's file held the section twice, from two installs.
+
 Codex refuses MCP tool calls in non-interactive mode unless approvals are routed somewhere — `codex
 exec --approve-for-me` is the documented way, and an interactive session prompts as usual. Without
 it every call comes back `requires approval, but approval policy is never`, which reads like a
