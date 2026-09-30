@@ -187,7 +187,21 @@ of a tag. A marketplace made from a local folder, as JMPC's `devbuddy-local` is,
 
 Then set `DEVBUDDY_URL` to the server's address, without `/mcp`, in the environment Claude Code
 starts with, for instance `env` in `~/.claude/settings.json`. `DEVBUDDY_CLIENT` names the client if
-it is not on `PATH`.
+it is not on `PATH`. Prefer `settings.json` to a shell profile: the Desktop app's Code tab and
+background agents do not read `~/.zshrc`.
+
+Claude Code trusts the operating system's certificate store by default (the native installer, or
+npm with Node 22.15 or later), so the gateway's root CA installed on the machine is enough. Where
+`/mcp` still fails on the certificate, set `NODE_EXTRA_CA_CERTS` to the root CA's file in the same
+`env` block; `claude --debug` logs `CA certs: Appended extra certificates from NODE_EXTRA_CA_CERTS`
+when it loaded. This was taken from Anthropic's network configuration page on 2026-09-30, not
+tried on a machine whose store lacked the CA.
+
+`claude plugin marketplace update devbuddy-plugin` answers `Marketplace 'devbuddy-plugin' not
+found` on a machine that never added it; add it first. A marketplace with another name, such as
+`devbuddy`, may belong to another repository. The Mac mini had one, from `devbuddy-skill`, with an
+unrelated `devbuddy-claude-code` plugin enabled: disable any DevBuddy plugin that does not come
+from `@devbuddy-plugin`, so that two sets of tools and instructions do not compete.
 
 ### Cowork
 
