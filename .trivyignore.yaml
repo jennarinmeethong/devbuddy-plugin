@@ -34,3 +34,15 @@ vulnerabilities:
       HIGH google.golang.org/grpc, pinned by SeaweedFS as the untagged v1.85.0-dev, which Trivy
       cannot order against the fixed versions. Internal network only; see the note above.
     expired_at: 2026-12-26
+
+# The .NET chiseled base images (info.md, 2026-09-30). Ubuntu fixed OpenSSL in 3.0.13-0ubuntu3.16,
+# but mcr.microsoft.com/dotnet/{aspnet,runtime}:10.0-noble-chiseled still carry 3.0.13-0ubuntu3.15:
+# the newest was built on 2026-09-04, and a chiseled image has no package manager to upgrade it in.
+# The API, MCP server and console images inherit it. Accepted for thirty days so that v1.12.3 can
+# ship its scanner fix; the first base image carrying the fix is rebuilt into a release, and this
+# entry goes with it. An OS package has no path to narrow it to.
+  - id: CVE-2026-84782
+    statement: >-
+      HIGH OpenSSL information disclosure in libssl3t64 3.0.13-0ubuntu3.15, inherited from the
+      .NET 10 noble-chiseled base images, which Microsoft has not yet rebuilt with the fixed package.
+    expired_at: 2026-10-30

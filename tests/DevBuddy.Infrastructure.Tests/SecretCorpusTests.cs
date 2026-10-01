@@ -61,6 +61,25 @@ public sealed class SecretCorpusTests
             "Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MEFCQ0RFRkdISUpLTE0",
             "the blob was Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MEFCQ0RFRkdISUpLTE0"
         },
+
+        // A full stop ending the sentence is not a file extension.
+        {
+            "high-entropy-string",
+            "Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MEFCQ0RFRkdISUpLTE0",
+            "The key is Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MEFCQ0RFRkdISUpLTE0. Rotate it."
+        },
+        {
+            "high-entropy-string",
+            "Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MEFCQ0RFRkdISUpLTE0",
+            "The key is Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MEFCQ0RFRkdISUpLTE0."
+        },
+
+        // A token with a shape of its own is caught by its own rule, file name or not.
+        {
+            "github-token",
+            "ghp_1234567890abcdefghijklmnopqrstuvwxyzAB",
+            "uploaded ghp_1234567890abcdefghijklmnopqrstuvwxyzAB.txt by mistake"
+        },
     };
 
     /// <summary>
@@ -75,6 +94,12 @@ public sealed class SecretCorpusTests
         "password rotation is documented in the runbook",
         "commit e10fc43 introduced the persistence layer",
         "AKIA is the prefix AWS uses for access key identifiers",
+
+        // Document names a draft cites, which scored above the threshold until 2026-09-30.
+        "Source: TOP-BMS-SRS-Contingency-IT_Rev02.docx and TOP-BMS-SRS-Contingency-TSR_Rev02 (1).docx",
+        "See TOP-BMS-SRS-Phasing_20260227_final.docx, then Prototype_Design_Phasing_19022016.pdf.",
+        "The CAPEX figures are in TOP-BMS-SRS-Contingency_CEO_CAPEX_Rev01.pdf",
+        "Kept at backups/before-embeddings-20260926/Application/Pipeline/UseCaseExecutor.cs",
     ];
 
     [Theory]

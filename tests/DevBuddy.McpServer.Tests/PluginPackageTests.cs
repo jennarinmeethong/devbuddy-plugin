@@ -315,6 +315,28 @@ public sealed partial class PluginPackageTests
         Assert.NotEqual(Name("claude"), Name("cowork"));
     }
 
+    /// <summary>
+    /// The marketplace at the repository root is how a person installs the Claude package without a
+    /// clone: <c>claude plugin marketplace add jennarinmeethong/devbuddy-plugin</c>. It lists that
+    /// package alone, by its own name and version, so the two cannot drift apart at a release. The
+    /// Cowork package is uploaded as a zip and is not listed.
+    /// </summary>
+    [Fact]
+    public void the_marketplace_lists_the_claude_package_at_its_own_version()
+    {
+        JsonElement Read(string path) =>
+            JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(RepositoryRoot().FullName, path)));
+
+        JsonElement marketplace = Read(Path.Combine(".claude-plugin", "marketplace.json"));
+        JsonElement manifest = Read(Path.Combine("plugins", "claude", ".claude-plugin", "plugin.json"));
+
+        JsonElement entry = Assert.Single(marketplace.GetProperty("plugins").EnumerateArray());
+
+        Assert.Equal("./plugins/claude", entry.GetProperty("source").GetString());
+        Assert.Equal(manifest.GetProperty("name").GetString(), entry.GetProperty("name").GetString());
+        Assert.Equal(manifest.GetProperty("version").GetString(), entry.GetProperty("version").GetString());
+    }
+
     [Fact]
     public void every_slash_command_declares_what_it_is_for()
     {
@@ -349,6 +371,23 @@ public sealed partial class PluginPackageTests
 
             Assert.Contains("shell commands", instructions, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("not filtered by it", instructions, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// On 2026-09-30 a draft citing document names was Blocked eighteen times over. Whether a
+    /// finding is a credential is the person's to say, not the assistant's to guess, and an
+    /// assistant left to itself resends, or edits the value until the scanner stops matching.
+    /// </summary>
+    [Fact]
+    public void every_package_says_to_ask_the_person_when_a_draft_is_blocked()
+    {
+        foreach (string package in Packages)
+        {
+            string instructions = File.ReadAllText(InstructionsFor(package).FullName);
+
+            Assert.Contains("When a draft is Blocked, ask the person", instructions, StringComparison.Ordinal);
+            Assert.Contains("Do not send the same content again", instructions, StringComparison.Ordinal);
         }
     }
 

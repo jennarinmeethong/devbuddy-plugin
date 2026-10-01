@@ -114,6 +114,15 @@ carrying one rather than storing it redacted, so a draft with a connection strin
 has to be rewritten. Do not paste configuration, logs, or environment blocks into a record body
 without reading them first.
 
+**When a draft is Blocked, ask the person before anything else.** The refusal names a rule and a
+line for each finding, never the value. Show the person those lines of your draft, say which rule
+matched, and ask whether each one is a real credential or something the scanner mistook for one,
+such as a long document name, path or identifier. Do not send the same content again, and do not
+shorten, mask, split or drop a value on your own to get it past the scanner. If it is a credential,
+take it out and tell the person it has been exposed to this conversation. If it is not, rewrite it
+the way the person chooses and send the draft again. There is no setting that lets a secret
+through, so do not look for one.
+
 **Cite provenance.** Every draft needs to say where its content came from — a document, a meeting,
 a conversation, a tool run. That is a required field, and it is the thing that makes a record
 worth trusting a year later.

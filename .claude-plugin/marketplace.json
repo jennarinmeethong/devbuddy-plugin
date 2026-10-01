@@ -1,0 +1,12 @@
+{
+  "name": "devbuddy-plugin",
+  "owner": { "name": "DevBuddy" },
+  "plugins": [
+    {
+      "name": "devbuddy",
+      "source": "./plugins/claude",
+      "description": "Search, analyse, and draft engineering knowledge from a self-hosted DevBuddy installation. Read and draft only; approving and publishing stay with people.",
+      "version": "1.12.3"
+    }
+  ]
+}

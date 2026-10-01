@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using DevBuddy.Application.Abstractions;
 using DevBuddy.Application.Observability;
 using DevBuddy.Application.Security;
@@ -204,7 +205,8 @@ public sealed class UseCaseExecutor
                     new Dictionary<string, string>(StringComparer.Ordinal)
                     {
                         // Rule names and positions. Never the matched text.
-                        ["blocked_findings"] = string.Join("; ", findings),
+                        ["blocked_findings"] = SummariseFindings(findings),
+                        ["blocked_count"] = findings.Count.ToString(CultureInfo.InvariantCulture),
                     },
                     cancellationToken);
 
@@ -418,6 +420,59 @@ public sealed class UseCaseExecutor
     /// </summary>
     private static string Summarise(Exception rejected) =>
         rejected.Message.Length <= 200 ? rejected.Message : rejected.GetType().Name;
+
+    /// <summary>
+    /// The findings as one audit detail, inside the domain's 200 characters. Every finding with
+    /// its line while they fit; otherwise each rule with how often it matched, and past that as
+    /// many rules as fit and a count of the rest. The caller still receives every finding.
+    /// <para>
+    /// On 2026-09-29 a draft written over MCP matched some twenty times, the joined list was 574
+    /// characters, the audit entry refused it, and the caller got an unhandled exception instead
+    /// of the Blocked answer that would have said what to remove.
+    /// </para>
+    /// </summary>
+    private static string SummariseFindings(IReadOnlyList<string> findings)
+    {
+        const int Limit = 200;
+
+        string all = string.Join("; ", findings);
+
+        if (all.Length <= Limit)
+        {
+            return all;
+        }
+
+        string[] rules =
+        [
+            .. findings
+                .GroupBy(finding => finding.Split(" at line ", 2)[0], StringComparer.Ordinal)
+                .Select(group => $"{group.Key} x{group.Count()}"),
+        ];
+
+        string byRule = string.Join("; ", rules);
+
+        if (byRule.Length <= Limit)
+        {
+            return byRule;
+        }
+
+        var kept = new List<string>();
+
+        foreach (string rule in rules)
+        {
+            string more = $"; +{rules.Length - kept.Count - 1} more rules";
+
+            if (string.Join("; ", [.. kept, rule]).Length + more.Length > Limit)
+            {
+                break;
+            }
+
+            kept.Add(rule);
+        }
+
+        string rest = $"+{rules.Length - kept.Count} more rules";
+        return kept.Count == 0 ? rest : $"{string.Join("; ", kept)}; {rest}";
+    }
 
     /// <summary>
     /// The caller stopped waiting. Not a failure of the operation and not audited as one; the
