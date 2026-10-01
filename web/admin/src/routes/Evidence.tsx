@@ -8,6 +8,8 @@ import { Button, Empty, Field, Input, Panel, Table, When } from "../components/u
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
 import { t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Artefacts attached to a project: a log, a screenshot, an export.
@@ -21,6 +23,8 @@ export function Evidence() {
   const access = useWorkspace(workspaceId);
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
 
+  usePageTour(TOURS.evidence);
+
   const evidence = useQuery({
     queryKey: ["evidence", workspaceId, projectId],
     queryFn: () => invoke("list_evidence", { scope }),
@@ -31,7 +35,7 @@ export function Evidence() {
     <>
       <ProjectNav title={t("Evidence")} />
 
-      <Panel title={t("Attached to this project")}>
+      <Panel title={t("Attached to this project")} tour="evidence-list" hint={<Hint topic={HINTS.evidenceState} />}>
         {evidence.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : evidence.isError ? (
@@ -137,7 +141,7 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
   });
 
   return (
-    <Panel title={t("Attach an artefact")}>
+    <Panel title={t("Attach an artefact")} tour="evidence-attach" hint={<Hint topic={HINTS.evidenceScan} />}>
       <form
         className="grid gap-3"
         onSubmit={(event) => {

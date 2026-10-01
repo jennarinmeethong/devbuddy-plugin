@@ -103,6 +103,11 @@ without reading them first.
 a tool run, a conversation. That is a required field, and it is the thing that makes a record
 worth trusting a year later.
 
+**When asked what is waiting for approval, list it and link it.** The `review-queue` command does
+this: `list_records` with `statuses` set to `["PendingApproval"]`, per project, and a link to each
+record's page in the web interface. Approving is the person's, on that page, where the approval
+binds to the content hash they read. If they ask you to approve, say so and give them the link.
+
 ## What MCP does not cover
 
 The tool boundary governs DevBuddy and nothing else. Your own file reads, shell commands, and

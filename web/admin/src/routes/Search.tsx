@@ -7,6 +7,8 @@ import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
 import { KIND_LABELS, KINDS, STATUS_LABELS, STATUSES, type RecordKind, type RecordStatus } from "../components/labels";
 import { t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Finding what the team already wrote down, the two ways the server offers.
@@ -20,6 +22,8 @@ import { t } from "../i18n";
 export function Search() {
   const { workspaceId, projectId } = useParams();
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
+  usePageTour(TOURS.search);
+
   const recordLink = (recordId: string) => `/w/${workspaceId}/p/${projectId}/records/${recordId}`;
 
   const [query, setQuery] = useState("");
@@ -46,7 +50,7 @@ export function Search() {
     <>
       <ProjectNav title={t("Search")} />
 
-      <Panel title={t("Ask")}>
+      <Panel title={t("Ask")} tour="search-ask" hint={<Hint topic={HINTS.searchModes} />}>
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -87,7 +91,7 @@ export function Search() {
             </Field>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-tour="search-buttons">
             <Button type="submit" variant="primary" disabled={fullText.isPending || query.trim() === ""}>
               {t("Search the text")}
             </Button>
@@ -100,7 +104,7 @@ export function Search() {
 
       {fullText.isError ? <Failure error={fullText.error} /> : null}
       {fullText.data ? (
-        <Panel title={t("Full-text results")}>
+        <Panel title={t("Full-text results")} tour="search-text-results">
           {fullText.data.hits.length === 0 ? (
             <Empty>{t("Nothing matched.")}</Empty>
           ) : (
@@ -130,7 +134,7 @@ export function Search() {
 
       {semantic.isError ? <Failure error={semantic.error} /> : null}
       {semantic.data ? (
-        <Panel title={t("Results by meaning")}>
+        <Panel title={t("Results by meaning")} tour="search-meaning-results" hint={<Hint topic={HINTS.distance} />}>
           {semantic.data.unavailable ? (
             <Alert>{semantic.data.unavailable}</Alert>
           ) : semantic.data.hits.length === 0 ? (

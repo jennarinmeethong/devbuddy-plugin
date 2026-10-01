@@ -36,6 +36,7 @@ export function ProjectNav({ title }: { title: string }) {
       </div>
       <nav
         aria-label={t("Project")}
+        data-tour="project-nav"
         className="flex flex-wrap gap-1 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-1 text-sm shadow-small"
       >
         {links.map((link) => (

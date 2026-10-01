@@ -5,6 +5,8 @@ import { invoke } from "../api/client";
 import { Badge, Empty, Field, Input, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { m, t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * The audit trail for one project.
@@ -35,6 +37,8 @@ export function Audit() {
   // recorded, which match no channel filter and are never guessed into one.
   const [channel, setChannel] = useState<Channel | "" | "unrecorded">("");
 
+  usePageTour(TOURS.audit);
+
   const projects = useQuery({
     queryKey: ["projects", workspaceId],
     queryFn: () => invoke("list_projects", { workspaceId: workspaceId! }),
@@ -58,8 +62,8 @@ export function Audit() {
   });
 
   return (
-    <Panel title={t("Audit history")}>
-      <form className="mb-4 grid gap-3 sm:grid-cols-3">
+    <Panel title={t("Audit history")} tour="audit-entries" hint={<Hint topic={HINTS.auditEntry} />}>
+      <form className="mb-4 grid gap-3 sm:grid-cols-3" data-tour="audit-filters">
         <Field label={t("Project")}>
           <Select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
             <option value="">{t("Choose a project…")}</option>
@@ -81,7 +85,7 @@ export function Audit() {
           />
         </Field>
 
-        <Field label={t("Channel")}>
+        <Field label={t("Channel")} help={<Hint topic={HINTS.channel} />}>
           <Select
             value={channel}
             onChange={(event) => setChannel(event.target.value as Channel | "" | "unrecorded")}

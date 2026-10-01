@@ -7,6 +7,8 @@ import { refetchAfterWrite } from "../api/queries";
 import { Alert, Button, Empty, Field, Input, Panel, Select, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 import { roleLabel } from "../components/labels";
 
 /**
@@ -22,6 +24,8 @@ export function Teams() {
   const queries = useQueryClient();
   const [name, setName] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+
+  usePageTour(TOURS.teams);
 
   const teams = useQuery({
     queryKey: ["teams", workspaceId],
@@ -39,7 +43,11 @@ export function Teams() {
 
   return (
     <>
-      <Panel title={access ? t("Teams in {name}", { name: access.name }) : t("Teams in this workspace")}>
+      <Panel
+        title={access ? t("Teams in {name}", { name: access.name }) : t("Teams in this workspace")}
+        tour="teams-list"
+        hint={<Hint topic={HINTS.team} />}
+      >
         {teams.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : teams.isError ? (
@@ -66,7 +74,7 @@ export function Teams() {
         </p>
       </Panel>
 
-      <Panel title={t("New team")}>
+      <Panel title={t("New team")} tour="teams-new">
         <form
           className="flex items-end gap-3"
           onSubmit={(event) => {

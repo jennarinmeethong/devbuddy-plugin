@@ -6,6 +6,8 @@ import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { t, tr } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Machine tokens: the credential Claude Code and Codex present to the MCP server, which the
@@ -30,6 +32,8 @@ export function PluginAccess() {
   const queries = useQueryClient();
   const [name, setName] = useState("");
   const [days, setDays] = useState(90);
+
+  usePageTour(TOURS.pluginAccess);
 
   const projects = useQuery({
     queryKey: ["projects", workspaceId],
@@ -63,7 +67,7 @@ export function PluginAccess() {
 
   return (
     <>
-      <Panel title={t("Your plugin tokens for this workspace")}>
+      <Panel title={t("Your plugin tokens for this workspace")} tour="plugin-tokens" hint={<Hint topic={HINTS.machineToken} />}>
         {tokens.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : tokens.isError ? (
@@ -134,7 +138,7 @@ export function PluginAccess() {
         ) : null}
       </Panel>
 
-      <Panel title={t("Mint a token")}>
+      <Panel title={t("Mint a token")} tour="plugin-mint">
         <form
           className="grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {
@@ -198,7 +202,7 @@ export function PluginAccess() {
         ) : null}
       </Panel>
 
-      <Panel title={t("Connect a checkout")}>
+      <Panel title={t("Connect a checkout")} tour="plugin-connect" hint={<Hint topic={HINTS.registerCheckout} />}>
         <p className="text-sm">
           {t("In the checkout, on the machine where Claude Code or Codex runs, with the devbuddy client installed:")}
         </p>

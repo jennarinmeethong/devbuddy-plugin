@@ -8,6 +8,8 @@ import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Hash, Input, Panel, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { m, t, tr } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 import { SOURCE_KIND_LABELS } from "../components/labels";
 
 /**
@@ -29,6 +31,8 @@ export function RecordDetail() {
   const { workspaceId, projectId, recordId } = useParams();
   const access = useWorkspace(workspaceId);
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
+
+  usePageTour(TOURS.record);
 
   const history = useQuery({
     queryKey: ["history", workspaceId, projectId, recordId],
@@ -84,6 +88,8 @@ export function RecordDetail() {
 
       <Panel
         title={unpublished ? t("Published content") : t("Current content")}
+        tour="record-content"
+        hint={<Hint topic={HINTS.publishedVersusCurrent} />}
         actions={status ? <Badge>{status}</Badge> : null}
       >
         {record.isPending ? (
@@ -96,7 +102,7 @@ export function RecordDetail() {
       </Panel>
 
       {unpublished ? (
-        <Panel title={t("Revision {revision} — not published", { revision: unpublished.number })}>
+        <Panel title={t("Revision {revision} — not published", { revision: unpublished.number })} tour="record-unpublished">
           {underWork.isPending ? (
             <Empty>{t("Loading…")}</Empty>
           ) : underWork.isError ? (
@@ -136,7 +142,7 @@ export function RecordDetail() {
         <MarkAiGenerated scope={scope} recordId={recordId!} />
       ) : null}
 
-      <Panel title={t("History")}>
+      <Panel title={t("History")} tour="record-history" hint={<Hint topic={HINTS.lifecycle} />}>
         {history.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : (
@@ -310,7 +316,7 @@ function Revise({
   });
 
   return (
-    <Panel title={t("Revise this draft")}>
+    <Panel title={t("Revise this draft")} tour="record-revise">
       <div className="space-y-3">
         {sentBack.map((correction, index) => (
           <Alert key={`${correction.requestedAt}-${index}`} tone="error">
@@ -421,7 +427,10 @@ function ReviseForm({
       </Field>
 
       <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">{t("Front matter")}</legend>
+        <legend className="flex items-center gap-2 text-sm font-medium">
+          {t("Front matter")}
+          <Hint topic={HINTS.frontMatter} />
+        </legend>
         {rows.map((row, index) => (
           <div key={index} className="flex gap-2">
             <Input
@@ -481,7 +490,7 @@ function Submit({ scope, recordId, revision }: { scope: Scope; recordId: string;
   });
 
   return (
-    <Panel title={t("Submit for approval")}>
+    <Panel title={t("Submit for approval")} tour="record-submit" hint={<Hint topic={HINTS.lifecycle} />}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           {t("Revision {number} is a draft, and nobody is asked to review a draft. Submitting it puts it in the review queue, where a reviewer approves this exact content or sends it back. Submitting publishes nothing.", { number: revision.number })}
@@ -516,7 +525,7 @@ function Approval({ scope, recordId, revision }: { scope: Scope; recordId: strin
   });
 
   return (
-    <Panel title={t("Approve or send back")}>
+    <Panel title={t("Approve or send back")} tour="record-approval" hint={<Hint topic={HINTS.contentHash} />}>
       <div className="space-y-4">
         <Alert>
           {tr("You are approving {revision}, and nothing else. The approval binds to this exact content:", {
@@ -571,7 +580,7 @@ function Publish({ scope, recordId }: { scope: Scope; recordId: string }) {
   });
 
   return (
-    <Panel title={t("Publish")}>
+    <Panel title={t("Publish")} tour="record-publish">
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           {t("Publishing makes the approved revision the one readers see. An approval that no longer covers the current content is refused.")}
@@ -603,7 +612,7 @@ function MarkAiGenerated({ scope, recordId }: { scope: Scope; recordId: string }
   });
 
   return (
-    <Panel title={t("Record as written by AI")}>
+    <Panel title={t("Record as written by AI")} tour="record-mark-ai" hint={<Hint topic={HINTS.markAi} />}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -641,7 +650,7 @@ function Archive({ scope, recordId }: { scope: Scope; recordId: string }) {
   // Confirmed rather than one click, because nothing reverses it: an archived record refuses
   // every further change, and no operation takes it out of that state.
   return (
-    <Panel title={t("Archive")}>
+    <Panel title={t("Archive")} tour="record-archive" hint={<Hint topic={HINTS.archive} />}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           {t("Archiving takes this record out of use. An archived record cannot be revised, approved, or published again, and there is no way to bring it back. Its history stays readable.")}

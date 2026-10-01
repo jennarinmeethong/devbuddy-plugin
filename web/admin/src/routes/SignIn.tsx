@@ -5,6 +5,8 @@ import { useSession } from "../api/session";
 import { Alert, BrandMark, Button, Field, Input, Panel } from "../components/ui";
 import { LanguageSwitch } from "../components/LanguageSwitch";
 import { t } from "../i18n";
+import { Hint, TourButton } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Sign in, and start account recovery.
@@ -54,11 +56,12 @@ export function SignIn() {
           <h1 className="text-xl font-bold tracking-wide">DevBuddy</h1>
           <p className="text-xs tracking-[0.18em] text-[var(--color-muted)]">{t("ADMINISTRATION")}</p>
         </div>
+        <TourButton steps={TOURS.signIn} />
         <LanguageSwitch />
       </div>
 
       <Panel title={mode === "sign-in" ? t("Sign in") : t("Recover your account")}>
-        <form className="space-y-4" onSubmit={submit}>
+        <form className="space-y-4" onSubmit={submit} data-tour="sign-in-form">
           {error ? <Alert tone="error">{error}</Alert> : null}
 
           {sent ? (
@@ -97,6 +100,7 @@ export function SignIn() {
             </Button>
 
             <Button
+              data-tour="sign-in-recover"
               onClick={() => {
                 setMode(mode === "sign-in" ? "recover" : "sign-in");
                 setError(null);
@@ -107,7 +111,8 @@ export function SignIn() {
             </Button>
           </div>
 
-          <p className="text-xs text-[var(--color-muted)]">
+          <p className="flex flex-wrap items-center gap-1 text-xs text-[var(--color-muted)]" data-tour="sign-in-token">
+            <Hint topic={HINTS.recoveryToken} />
             {t("Have a setup or recovery token?")} <Link className="underline" to="/set-password">{t("Set a password")}</Link>.
           </p>
         </form>
