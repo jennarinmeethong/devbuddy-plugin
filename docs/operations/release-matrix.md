@@ -233,6 +233,27 @@ screen, the ? hints, and the review queue (PR #49). No check was added. The prev
 | Part 3, `upgrade.sh` from `v1.12.3` | devrelease, amd64 | **47 passed, 0 failed.** |
 | Part 3, `upgrade.sh` from `v1.12.3` | Ubuntu arm64 guest | **47 passed, 0 failed.** The Mac mini that hosts the guest was off at first; it ran once the owner switched it on, the same day. |
 
+PR #50's CI passed all 18 checks.
+
+### After the tag
+
+`v1.13.0` was tagged at `4ee9f25`, the merge of PR #50, at the owner's instruction ("merge #50
+แล้ว tag v1.13.0 เลย"). Its `src`, `docker`, `web` and `tools` are identical to `5ebb4ab`, where
+the checklist ran; the commits between added the matrix rows above. Release run 37124946674
+passed, and A2's jobs wrote *Runner smoke results* into the draft, every row passing. CI, CodeQL
+and supply chain passed on `main` at the same commit.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match**, and the x64 Linux pair again on devrelease and `osx-arm64` on the Mac mini. |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives**, against `release.yml`, `refs/tags/v1.13.0` and `4ee9f25`, and **all three images** against the workflow and the tag, each with its CycloneDX SBOM attestation. A wrong owner, and a wrong tag (`v1.12.3`), were refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow | **29 of 29 each.** |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass.** |
+| `linux-x64` (in `ubuntu:24.04` and natively), `linux-musl-x64` (in `alpine:3`) | `smoke.sh` at `v1.13.0`, devrelease, by hand | **Pass**, 10 checks each, against the archives copied there and checked against `SHA256SUMS` on devrelease itself. |
+| `osx-arm64` | `smoke.sh` at `v1.13.0`, natively on the Mac mini, by hand | **Pass**, 10 checks. |
+| `win-x64` | `client-smoke.ps1` at `v1.13.0`, natively on JMPC, by hand | **Pass**, 17 checks. |
+
 ## What was verified for v1.12.3
 
 **Checked before the tag, at `e64b4ee`**, the head of PR #47, at the owner's instruction
