@@ -781,8 +781,12 @@ upgrade.
 
 **Status: PUBLISHED 2026-10-03**, at 13:40 UTC, from `4ee9f25`, the merge of PR #50, at the
 owner's instruction ("merge #51 แล้ว publish v1.13.0 เลย"). Every row before and after the tag
-passed (`release-matrix.md`). `v1.12.2` and `v1.12.3` stay unpublished drafts. Not done: the
-devbox upgrade and plugin 1.13.0 on the owner's machines.
+passed (`release-matrix.md`). `v1.12.2` and `v1.12.3` stay unpublished drafts. The devbox runs
+it since the same day: the owner upgraded it, and Claude checked that every service runs its new
+image as a non-root user, `/health` answers 200 and the UI 200 through the gateway, an MCP `POST`
+401, the served client carries the tour, both workers completed a pass, `scope-report` is clean,
+no error was logged, and no session is on an older image. Not done: plugin 1.13.0 on the owner's
+machines.
 
 - **What it carries since `v1.12.3`:**
   - **A tour on every screen, and a ? beside what is easy to misread** (PR #49). A Tour button in

@@ -51,7 +51,9 @@ ADR-0012 required a control for, closed on 2026-09-13.
 owner's instruction: a tour on every screen of the web client, thirty-nine ? hints, and the Claude
 package's `review-queue` command with the same guidance for Codex and Cowork (PR #49). It also
 carries `v1.12.2` and `v1.12.3`, which stay unpublished drafts. The upgrade is `up -d` alone, and
-both plugins move to 1.13.0. The devbox has not been moved to it yet.
+both plugins move to 1.13.0. The devbox runs it since the same day, upgraded by the owner and
+checked by Claude: every service on its new image as a non-root user, `/health` 200 through the
+gateway, an MCP `POST` 401, both workers completed a pass, `scope-report` clean, and no stale session.
 
 **`v1.12.1` was the release before it**, published 2026-09-29 at 09:04 UTC from `9cd1934`: the Claude
 Code package passes the MCP URL to its helper (PR #36), and the primary button no longer animates
