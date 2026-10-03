@@ -233,6 +233,25 @@ No check was added.
 | Part 3, `upgrade.sh` from `v1.12.2` | devrelease, amd64 | **47 passed, 0 failed.** |
 | Part 3, `upgrade.sh` from `v1.12.2` | Ubuntu arm64 guest | **47 passed, 0 failed.** |
 
+### After the tag
+
+`v1.12.3` was tagged at `12ce537`, the merge of PR #47, at the owner's instruction ("merge แล้ว tag
+v1.12.3 ให้เลย"). Its `src`, `docker` and `tools` are identical to `e64b4ee`, where the checklist
+ran; the commits between added documentation and the `.trivyignore.yaml` entry for CVE-2026-84782
+(`info.md`, 2026-09-30). Release run 36698831581 passed all 23 jobs, and A2's jobs wrote *Runner
+smoke results* into the draft, every row passing.
+
+| Check | Script, where | Result |
+| --- | --- | --- |
+| `SHA256SUMS` | JMPC | **All seven archives match**, and the x64 Linux pair again on devrelease and `osx-arm64` on the Mac mini. |
+| Provenance | `gh attestation verify`, JMPC | **All seven archives and all three images**, against `release.yml`, `refs/tags/v1.12.3` and `12ce537`. A wrong owner, and a wrong tag (`v1.12.2`), were refused. |
+| Published images, amd64 and arm64 | `post-images.sh`, release workflow | **29 of 29 each.** |
+| Published images, amd64 | `post-images.sh`, devrelease, by hand | **29 of 29.** |
+| All seven archives | `smoke.sh` / `client-smoke.ps1`, release workflow | **Pass.** |
+| `linux-x64` (in `ubuntu:24.04` and natively), `linux-musl-x64` (in `alpine:3`) | `smoke.sh` at `v1.12.3`, devrelease, by hand | **Pass.** A first run failed all three with nine checks each, because Claude's copy of the archives to devrelease never ran (an `&&` after a `grep -c` that found nothing) and Docker bind-mounted the missing paths as empty directories. Claude also reported the local `SHA256SUMS` lines as devrelease's checksums. The run was moved aside as `post1123-aborted-noarchives`, the archives copied and checked on devrelease itself, and all of it rerun. |
+| `osx-arm64` | `smoke.sh` at `v1.12.3`, natively on the Mac mini, by hand | **Pass.** |
+| `win-x64` | `client-smoke.ps1` at `v1.12.3`, natively on JMPC, by hand | **Pass.** |
+
 ## What was verified for v1.12.2
 
 **Checked before the tag, at `785f790`**, the head of PR #46, at the owner's instruction
