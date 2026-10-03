@@ -34,7 +34,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 1109 .NET tests and 86 web tests exist. The .NET suite passed at 1005 on devrelease
+enforcement. 1118 .NET tests and 97 web tests exist. The .NET suite passed at 1005 on devrelease
 for `v1.9.0` on 2026-09-27, and at 1065 on devrelease for `v1.11.0` on 2026-09-28, when the MCP server's HTTP transport took
 machine tokens and the `devbuddy` client was added (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
 day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**, in the job
@@ -47,7 +47,15 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.12.1` is the current release**, published 2026-09-29 at 09:04 UTC from `9cd1934`: the Claude
+**`v1.13.0` is the current release**, published 2026-10-03 at 13:40 UTC from `4ee9f25` at the
+owner's instruction: a tour on every screen of the web client, thirty-nine ? hints, and the Claude
+package's `review-queue` command with the same guidance for Codex and Cowork (PR #49). It also
+carries `v1.12.2` and `v1.12.3`, which stay unpublished drafts. The upgrade is `up -d` alone, and
+both plugins move to 1.13.0. The devbox runs it since the same day, upgraded by the owner and
+checked by Claude: every service on its new image as a non-root user, `/health` 200 through the
+gateway, an MCP `POST` 401, both workers completed a pass, `scope-report` clean, and no stale session.
+
+**`v1.12.1` was the release before it**, published 2026-09-29 at 09:04 UTC from `9cd1934`: the Claude
 Code package passes the MCP URL to its helper (PR #36), and the primary button no longer animates
 `filter`, which stopped WebKit on Linux painting the page (PR #42). The upgrade is `up -d` alone.
 The devbox runs it since the same day, and JMPC the Claude Code plugin and client of the tag.
