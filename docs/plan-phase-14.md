@@ -777,6 +777,31 @@ upgrade.
   and Cowork plugins move to 1.12.3 for the new instruction; the client is unchanged.
 - **The checklist runs from `tools/release/` at the release commit**, with no new check.
 
+## 14.19 — Cutting v1.13.0
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-10-03).
+
+- **What it carries since `v1.12.3`:**
+  - **A tour on every screen, and a ? beside what is easy to misread** (PR #49). A Tour button in
+    the header, and on the sign-in, set-password and workspace picker pages, walks through the
+    screen and skips what the caller's role hides. Thirty-nine hints open a dialog explaining one
+    part in full. English and Thai, in `web/admin/src/guide/content.ts` and `th.ts`.
+  - **A review queue for assistants** (PR #49). The Claude package gains `review-queue`, and Codex
+    and Cowork the same guidance: list what is waiting for approval and link each record's page.
+    It uses the existing twenty tools; approving stays a person's, and the owner decided not to
+    grow the AI surface (`info.md`, 2026-10-01).
+- **A minor version**, because it adds a feature to the web client and a command to the Claude
+  package. No migration, and nobody signs in again. The content security policy is unchanged: the
+  tour positions itself through the CSSOM. The web client changes, so the API image is rebuilt;
+  the operations, the MCP transport and the client do not change. Both plugins move to 1.13.0.
+- **`v1.12.2` and `v1.12.3` are drafts, never published.** Their changes are in this release too.
+  Whether they are published first, or left as drafts, is the owner's to decide at publication.
+- **The upgrade:** `up -d` on a server, then check that `mcp` runs the new image. The Claude Code
+  and Cowork plugins move to 1.13.0 for the new command.
+- **The checklist runs from `tools/release/` at the release commit**, with no new check, and the
+  upgrade from `v1.12.3`, whose images the release workflow pushed although its draft is
+  unpublished.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.

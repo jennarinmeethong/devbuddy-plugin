@@ -1,5 +1,13 @@
 # Project Decisions
 
+## Confirmed Preparing v1.13.0 — 2026-10-03
+
+After PR #49 merged and `main`'s CI passed at `3f7198f`, Claude offered to prepare a release
+carrying the tours and the review queue, as `v1.13.0` because it adds a feature. The owner said to
+go ahead ("ทำต่อเลย"). *14.19* in `docs/plan-phase-14.md` says what it carries. Tagging and
+publishing wait on the checklist and the owner, as before; `v1.12.2` and `v1.12.3` are still
+unpublished drafts.
+
 ## Asked For: a Tour and Hints on Every Screen, and Assistants Acting on a Person's Word — 2026-10-01
 
 The owner asked for three things, and to build whatever Claude judged could be built without a
