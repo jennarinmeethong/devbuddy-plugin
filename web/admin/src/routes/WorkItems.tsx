@@ -8,6 +8,8 @@ import { refetchAfterWrite } from "../api/queries";
 import { Button, Empty, Field, Input, Panel, Select, Table, TextArea, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { m, t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Work items in a project: the anchor every knowledge record hangs off.
@@ -30,6 +32,8 @@ export function WorkItems() {
   const access = useWorkspace(workspaceId);
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
 
+  usePageTour(TOURS.workItems);
+
   const items = useQuery({
     queryKey: ["work-items", workspaceId, projectId],
     queryFn: () => invoke("list_work_items", { scope }),
@@ -40,7 +44,7 @@ export function WorkItems() {
     <>
       <ProjectNav title={t("Work")} />
 
-      <Panel title={t("Work items")}>
+      <Panel title={t("Work items")} tour="work-items-list">
         {items.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : items.isError ? (
@@ -103,7 +107,7 @@ function NewWorkItem({ scope }: { scope: { workspaceId: string; projectId: strin
   });
 
   return (
-    <Panel title={t("Register work")}>
+    <Panel title={t("Register work")} tour="work-items-new">
       <form
         className="grid gap-3 sm:grid-cols-2"
         onSubmit={(event) => {
@@ -115,7 +119,7 @@ function NewWorkItem({ scope }: { scope: { workspaceId: string; projectId: strin
           <Input required value={key} onChange={(event) => setKey(event.target.value)} />
         </Field>
 
-        <Field label={t("Type")}>
+        <Field label={t("Type")} help={<Hint topic={HINTS.workType} />}>
           <Select value={type} onChange={(event) => setType(event.target.value as (typeof TYPES)[number])}>
             {TYPES.map((option) => (
               <option key={option} value={option}>

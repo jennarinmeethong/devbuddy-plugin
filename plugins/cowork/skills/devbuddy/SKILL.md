@@ -127,6 +127,14 @@ through, so do not look for one.
 a conversation, a tool run. That is a required field, and it is the thing that makes a record
 worth trusting a year later.
 
+**When asked what is waiting for approval, list it.** `list_records` with `statuses` set to
+`["PendingApproval"]`, per project from `list_projects`, and `view_record_history` for the
+revision waiting, who wrote it and any earlier reason it was sent back. Name each record's title,
+project and identifier, and say that a person reviews it on the Knowledge records page of that
+project in DevBuddy's web interface. Approving is theirs, there, where the approval binds to the
+content hash they read; if they ask you to approve, say so. Do not judge a record fit to approve on
+their behalf.
+
 ## What MCP does not cover
 
 The tool boundary governs DevBuddy and nothing else. Your own file reads, shell commands, and

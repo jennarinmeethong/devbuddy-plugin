@@ -71,6 +71,14 @@ through, so do not look for one.
 **Cite provenance.** Where the content came from, who worked it out, and when. It is required and
 it is what makes the record worth anything later.
 
+**When asked what is waiting for approval, list it and link it.** `list_records` with `statuses`
+set to `["PendingApproval"]`, per project from `list_projects`, and `view_record_history` for the
+revision waiting, who wrote it and any earlier reason it was sent back. Give one line per record
+with a link to its page, `<server>/w/<workspaceId>/p/<projectId>/records/<recordId>`, taking
+`server` and `workspaceId` from `devbuddy show --json`. Approving is the person's, on that page,
+where the approval binds to the content hash they read; if they ask you to approve, say so and give
+them the link. Do not judge a record fit to approve on their behalf.
+
 ## The refusals are real
 
 The server decides what you may reach — per project, per person, on every call — and it decides

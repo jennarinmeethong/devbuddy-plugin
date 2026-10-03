@@ -4,6 +4,8 @@ import { invoke } from "../api/client";
 import { Alert, Badge, Button, Empty, Panel, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { t, tr } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Component health.
@@ -21,10 +23,13 @@ export function Health() {
     enabled: Boolean(workspaceId),
   });
 
+  usePageTour(TOURS.health);
+
   return (
     <>
       <Panel
         title={t("System health")}
+        tour="health-components"
         actions={
           health.data ? (
             health.data.isHealthy ? (
@@ -66,7 +71,7 @@ function Backup({ workspaceId }: { workspaceId: string }) {
   const backup = useMutation({ mutationFn: () => invoke("backup_system", { workspaceId }) });
 
   return (
-    <Panel title={t("Backup")}>
+    <Panel title={t("Backup")} tour="health-backup" hint={<Hint topic={HINTS.backup} />}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           {t("Writes a backup of every workspace to the server's backup volume. Copy it off that volume to keep it; restoring is done from the console.")}

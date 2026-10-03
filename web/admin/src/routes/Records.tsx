@@ -7,6 +7,8 @@ import { Badge, Empty, Panel, Select, Table, When } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
 import { m, t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 type Status = NonNullable<ListRecordsArguments["statuses"]>[number];
 
@@ -33,6 +35,8 @@ export function Records() {
 
   const scope = { workspaceId: workspaceId!, projectId: projectId! };
 
+  usePageTour(TOURS.records);
+
   const records = useQuery({
     queryKey: ["records", workspaceId, projectId, status],
     queryFn: () =>
@@ -52,8 +56,10 @@ export function Records() {
 
       <Panel
         title={t("Records")}
+        tour="records-list"
+        hint={<Hint topic={HINTS.lifecycle} />}
         actions={
-          <div className="w-56">
+          <div className="w-56" data-tour="records-filter">
             <Select
               aria-label={t("Status")}
               value={status}

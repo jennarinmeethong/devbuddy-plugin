@@ -6,6 +6,8 @@ import { useSession, useWorkspace } from "../api/session";
 import { Alert, Badge, Button, Field, Input, Panel, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { t, tr } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Standing up another workspace, sponsored by this one.
@@ -22,6 +24,8 @@ export function WorkspaceProvisioning() {
 
   const [name, setName] = useState("");
   const [firstProjectName, setFirstProjectName] = useState("");
+
+  usePageTour(TOURS.workspaces);
 
   const create = useMutation({
     mutationFn: () =>
@@ -45,7 +49,7 @@ export function WorkspaceProvisioning() {
 
   return (
     <>
-      <Panel title={t("Workspaces you can reach")}>
+      <Panel title={t("Workspaces you can reach")} tour="workspaces-list">
         <Table head={[t("Workspace"), t("Role"), ""]}>
           {workspaces.map((entry) => (
             <tr key={entry.workspaceId} className="border-b border-[var(--color-line)] last:border-0">
@@ -69,7 +73,7 @@ export function WorkspaceProvisioning() {
         </p>
       </Panel>
 
-      <Panel title={t("New workspace")}>
+      <Panel title={t("New workspace")} tour="workspaces-new" hint={<Hint topic={HINTS.sponsor} />}>
         <form
           className="grid gap-3 sm:grid-cols-2"
           onSubmit={(event) => {

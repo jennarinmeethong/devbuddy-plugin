@@ -8,6 +8,8 @@ import { Alert, Badge, Button, Empty, Field, Input, Panel, Select, Table, When }
 import { Failure } from "../components/Failure";
 import { t, tr } from "../i18n";
 import { roleLabel } from "../components/labels";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 const ROLES = ["Viewer", "Contributor", "Reviewer", "Administrator", "IndexMaintainer"] as const;
 
@@ -26,11 +28,19 @@ export function Members() {
   const { user } = useSession();
   const queries = useQueryClient();
 
+  usePageTour(TOURS.members);
+
   const memberships = useQuery({
     queryKey: ["memberships", workspaceId],
     queryFn: () => invoke("list_memberships", { workspaceId: workspaceId! }),
     enabled: Boolean(workspaceId),
   });
+
+  // The actions' "?" goes on one row only, the first that offers them: the caller's own grant offers
+  // Revoke alone.
+  const explainedOn = memberships.data?.memberships.find(
+    (membership) => membership.isActive && membership.userId !== user?.userId,
+  )?.membershipId;
 
   const revoke = useMutation({
     mutationFn: (membershipId: string) =>
@@ -40,7 +50,11 @@ export function Members() {
 
   return (
     <>
-      <Panel title={access ? t("Members of {name}", { name: access.name }) : t("Members of this workspace")}>
+      <Panel
+        title={access ? t("Members of {name}", { name: access.name }) : t("Members of this workspace")}
+        tour="members-list"
+        hint={<Hint topic={HINTS.role} />}
+      >
         {memberships.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : memberships.isError ? (
@@ -49,7 +63,7 @@ export function Members() {
           <Empty>{t("No memberships.")}</Empty>
         ) : (
           <Table head={[t("User"), t("Role"), t("Scope"), t("Granted"), t("State"), ""]}>
-            {memberships.data.memberships.map((membership) => (
+            {memberships.data.memberships.map((membership, index) => (
               <tr
                 key={membership.membershipId}
                 className="border-b border-[var(--color-line)] last:border-0"
@@ -57,6 +71,11 @@ export function Members() {
                 <td className="px-2 py-2 font-mono text-xs">{membership.userId}</td>
                 <td className="px-2 py-2">{t(roleLabel(membership.role))}</td>
                 <td className="px-2 py-2 text-xs text-[var(--color-muted)]">
+                  {index === 0 ? (
+                    <span className="float-right ml-1">
+                      <Hint topic={HINTS.grantScope} />
+                    </span>
+                  ) : null}
                   {membership.scopedToProject ? t("Project {project}", { project: membership.scopedToProject }) : t("Whole workspace")}
                 </td>
                 <td className="px-2 py-2 text-xs">
@@ -67,11 +86,22 @@ export function Members() {
                 </td>
                 <td className="px-2 py-2 text-right">
                   {membership.isActive ? (
-                    <div className="flex items-center justify-end gap-2">
+                    <div
+                      className="flex items-center justify-end gap-2"
+                      data-tour={membership.membershipId === explainedOn ? "members-actions" : undefined}
+                    >
                       {membership.userId !== user?.userId ? (
                         <>
-                          <ChangeRole workspaceId={workspaceId!} membership={membership} />
-                          <ResetPassword workspaceId={workspaceId!} userId={membership.userId} />
+                          <ChangeRole
+                            workspaceId={workspaceId!}
+                            membership={membership}
+                            explained={membership.membershipId === explainedOn}
+                          />
+                          <ResetPassword
+                            workspaceId={workspaceId!}
+                            userId={membership.userId}
+                            explained={membership.membershipId === explainedOn}
+                          />
                           <Downloads workspaceId={workspaceId!} userId={membership.userId} />
                         </>
                       ) : null}
@@ -96,7 +126,8 @@ export function Members() {
           </div>
         ) : null}
 
-        <p className="mt-3 text-xs text-[var(--color-muted)]">
+        <p className="mt-3 flex items-start gap-2 text-xs text-[var(--color-muted)]">
+          <Hint topic={HINTS.revoked} />
           {t("Revoked grants stay listed. Hiding them would make a revocation look like the grant never happened, and a revocation takes effect on the next request rather than the next sign-in.")}
         </p>
       </Panel>
@@ -128,7 +159,15 @@ interface Grant {
  * the second step is refused, the person has less access than intended rather than more, and the
  * screen says so. Not offered on the caller's own grant, which the second step would need.
  */
-function ChangeRole({ workspaceId, membership }: { workspaceId: string; membership: Grant }) {
+function ChangeRole({
+  workspaceId,
+  membership,
+  explained,
+}: {
+  workspaceId: string;
+  membership: Grant;
+  explained: boolean;
+}) {
   const queries = useQueryClient();
   const [role, setRole] = useState<Role>(membership.role);
 
@@ -167,6 +206,7 @@ function ChangeRole({ workspaceId, membership }: { workspaceId: string; membersh
       <Button disabled={change.isPending || role === membership.role} onClick={() => change.mutate()}>
         {t("Change role")}
       </Button>
+      {explained ? <Hint topic={HINTS.changeRole} /> : null}
       {change.error instanceof PartialChange ? (
         <Alert tone="error">{t("The old grant was revoked, but the new one was refused. Grant it again below.")}</Alert>
       ) : change.isError ? (
@@ -237,7 +277,7 @@ function Downloads({ workspaceId, userId }: { workspaceId: string; userId: strin
  * administer, because a password works everywhere they do. The refusal says so rather than
  * failing quietly.
  */
-function ResetPassword({ workspaceId, userId }: { workspaceId: string; userId: string }) {
+function ResetPassword({ workspaceId, userId, explained }: { workspaceId: string; userId: string; explained: boolean }) {
   const [open, setOpen] = useState(false);
   const reset = useMutation({
     mutationFn: () => invoke("issue_password_reset", { workspaceId, subjectUserId: userId }),
@@ -245,9 +285,12 @@ function ResetPassword({ workspaceId, userId }: { workspaceId: string; userId: s
 
   if (!open) {
     return (
-      <Button variant="secondary" onClick={() => setOpen(true)}>
-        {t("Reset password")}
-      </Button>
+      <span className="inline-flex items-center gap-1">
+        <Button variant="secondary" onClick={() => setOpen(true)}>
+          {t("Reset password")}
+        </Button>
+        {explained ? <Hint topic={HINTS.resetPassword} /> : null}
+      </span>
     );
   }
 
@@ -313,7 +356,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
   }
 
   return (
-    <Panel title={t("Grant access to somebody already here")}>
+    <Panel title={t("Grant access to somebody already here")} tour="members-grant" hint={<Hint topic={HINTS.grantScope} />}>
       <form
         className="grid gap-3 sm:grid-cols-4"
         onSubmit={(event) => {
@@ -389,7 +432,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
   });
 
   return (
-    <Panel title={t("Add somebody")}>
+    <Panel title={t("Add somebody")} tour="members-invite" hint={<Hint topic={HINTS.setupToken} />}>
       <form
         className="grid gap-3 sm:grid-cols-2"
         onSubmit={(event) => {

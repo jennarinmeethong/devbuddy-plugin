@@ -8,6 +8,8 @@ import { Alert, Badge, Button, Field, Input, Panel, Table, TextArea, When } from
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
 import { t, tr } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 type Scope = { workspaceId: string; projectId: string };
 
@@ -24,6 +26,8 @@ export function Maintenance() {
   const { workspaceId, projectId } = useParams();
   const access = useWorkspace(workspaceId);
   const scope: Scope = { workspaceId: workspaceId!, projectId: projectId! };
+
+  usePageTour(TOURS.maintenance);
 
   return (
     <>
@@ -48,7 +52,7 @@ function Sweeps({ scope }: { scope: Scope }) {
   });
 
   return (
-    <Panel title={t("Quality sweeps")}>
+    <Panel title={t("Quality sweeps")} tour="maintenance-sweeps" hint={<Hint topic={HINTS.sweeps} />}>
       <div className="space-y-4">
         <p className="text-sm text-[var(--color-muted)]">
           {t("Each sweep reads the project's records and reports what it finds. Nothing is changed.")}
@@ -134,7 +138,7 @@ function Reindex({ scope }: { scope: Scope }) {
   const reindex = useMutation({ mutationFn: () => invoke("reindex", { scope }) });
 
   return (
-    <Panel title={t("Search index")}>
+    <Panel title={t("Search index")} tour="maintenance-index">
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           {t("Rebuilds this project's full-text index from its records. The semantic index is kept by the embedding worker, not by this.")}
@@ -160,7 +164,7 @@ function CheckText({ scope }: { scope: Scope }) {
   const redact = useMutation({ mutationFn: () => invoke("redact_sensitive_data", { scope, content }) });
 
   return (
-    <Panel title={t("Check text")}>
+    <Panel title={t("Check text")} tour="maintenance-check" hint={<Hint topic={HINTS.checkText} />}>
       <div className="space-y-3">
         <Field label={t("Text")} hint={t("Nothing typed here is stored.")}>
           <TextArea rows={6} value={content} onChange={(event) => setContent(event.target.value)} />
@@ -210,7 +214,7 @@ function Export({ scope }: { scope: Scope }) {
   const exported = useMutation({ mutationFn: () => invoke("export_project", { scope }) });
 
   return (
-    <Panel title={t("Export")}>
+    <Panel title={t("Export")} tour="maintenance-export" hint={<Hint topic={HINTS.export} />}>
       <div className="space-y-3">
         <p className="text-sm text-[var(--color-muted)]">
           {t("Writes a copy of this project — records, work items and evidence — to the server's export volume, where the retention sweep removes it when it expires.")}

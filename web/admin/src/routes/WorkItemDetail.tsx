@@ -9,6 +9,8 @@ import { Alert, Badge, Button, Empty, Field, Input, Panel, Select, Table, TextAr
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
 import { t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 import {
   KIND_LABELS,
   KINDS,
@@ -33,6 +35,8 @@ export function WorkItemDetail() {
   const access = useWorkspace(workspaceId);
   const scope: Scope = { workspaceId: workspaceId!, projectId: projectId! };
 
+  usePageTour(TOURS.workItem);
+
   const item = useQuery({
     queryKey: ["work-item", workspaceId, projectId, workItemId],
     queryFn: () => invoke("get_work_item", { scope, workItemId: workItemId! }),
@@ -51,7 +55,7 @@ export function WorkItemDetail() {
     <>
       <ProjectNav title={item.data ? `${item.data.key} · ${item.data.title}` : t("Work item")} />
 
-      <Panel title={t("The work")}>
+      <Panel title={t("The work")} tour="work-item-facts">
         {item.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : item.isError ? (
@@ -70,7 +74,7 @@ export function WorkItemDetail() {
         )}
       </Panel>
 
-      <Panel title={t("Knowledge written for this work")}>
+      <Panel title={t("Knowledge written for this work")} tour="work-item-records" hint={<Hint topic={HINTS.lifecycle} />}>
         {records.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : records.isError ? (
@@ -201,7 +205,7 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
   }
 
   return (
-    <Panel title={t("Write a new draft")}>
+    <Panel title={t("Write a new draft")} tour="work-item-draft">
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -214,7 +218,7 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={t("Kind")}>
+          <Field label={t("Kind")} help={<Hint topic={HINTS.recordKind} />}>
             <Select value={kind} onChange={(event) => setKind(event.target.value as RecordKind)}>
               {KINDS.map((option) => (
                 <option key={option} value={option}>
@@ -224,7 +228,7 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
             </Select>
           </Field>
 
-          <Field label={t("Where it came from")}>
+          <Field label={t("Where it came from")} help={<Hint topic={HINTS.provenance} />}>
             <Select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as SourceKind)}>
               {SOURCE_KINDS.map((option) => (
                 <option key={option} value={option}>
@@ -248,7 +252,10 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
         </Field>
 
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">{t("Front matter")}</legend>
+          <legend className="flex items-center gap-2 text-sm font-medium">
+            {t("Front matter")}
+            <Hint topic={HINTS.frontMatter} />
+          </legend>
           {rows.map((row, index) => (
             <div key={index} className="flex gap-2">
               <Input
@@ -274,7 +281,10 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
         </fieldset>
 
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">{t("Evidence")}</legend>
+          <legend className="flex items-center gap-2 text-sm font-medium">
+            {t("Evidence")}
+            <Hint topic={HINTS.draftEvidence} />
+          </legend>
           {available.isPending ? (
             <p className="text-xs text-[var(--color-muted)]">{t("Loading…")}</p>
           ) : available.isError ? (
@@ -341,7 +351,7 @@ function Handover({ scope, workItemId }: { scope: Scope; workItemId: string }) {
   });
 
   return (
-    <Panel title={t("Handing this work over")}>
+    <Panel title={t("Handing this work over")} tour="work-item-handover" hint={<Hint topic={HINTS.handover} />}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => handover.mutate()} disabled={handover.isPending}>

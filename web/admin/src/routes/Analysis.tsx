@@ -8,6 +8,8 @@ import { Alert, Button, Empty, Field, Input, Panel, Select, Table } from "../com
 import { Failure } from "../components/Failure";
 import { ProjectNav } from "../components/ProjectNav";
 import { m, t, tr } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 type Scope = { workspaceId: string; projectId: string };
 
@@ -39,6 +41,8 @@ export function Analysis() {
   const access = useWorkspace(workspaceId);
   const scope: Scope = { workspaceId: workspaceId!, projectId: projectId! };
 
+  usePageTour(TOURS.analysis);
+
   const repositories = useQuery({
     queryKey: ["source-repositories", workspaceId, projectId],
     queryFn: () => invoke("list_source_repositories", { scope }),
@@ -51,7 +55,11 @@ export function Analysis() {
     <>
       <ProjectNav title={t("Analysis")} />
 
-      <Panel title={t("Repositories this project can read")}>
+      <Panel
+        title={t("Repositories this project can read")}
+        tour="analysis-repositories"
+        hint={<Hint topic={HINTS.repositories} />}
+      >
         {repositories.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : repositories.isError ? (
@@ -127,7 +135,7 @@ function RunAnalysis({ scope, repositories }: { scope: Scope; repositories: Repo
   });
 
   return (
-    <Panel title={t("Run an analysis")}>
+    <Panel title={t("Run an analysis")} tour="analysis-run" hint={<Hint topic={HINTS.readOnlyAnalysis} />}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -199,7 +207,7 @@ function ChangeImpact({ scope, repositories }: { scope: Scope; repositories: Rep
   });
 
   return (
-    <Panel title={t("What a change affects")}>
+    <Panel title={t("What a change affects")} tour="analysis-impact" hint={<Hint topic={HINTS.commitRange} />}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -256,7 +264,7 @@ function CompareReferences({ scope, repositories }: { scope: Scope; repositories
   });
 
   return (
-    <Panel title={t("Compare two references")}>
+    <Panel title={t("Compare two references")} tour="analysis-compare">
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -340,7 +348,7 @@ function Synchronise({ scope, repositories }: { scope: Scope; repositories: Repo
   });
 
   return (
-    <Panel title={t("Synchronise a repository")}>
+    <Panel title={t("Synchronise a repository")} tour="analysis-sync" hint={<Hint topic={HINTS.synchronise} />}>
       <form
         className="space-y-3"
         onSubmit={(event) => {

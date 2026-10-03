@@ -58,21 +58,41 @@ export function Button({ variant = "secondary", className, ...rest }: ButtonProp
   );
 }
 
+/**
+ * A labelled control. `help` is a `Hint` from `Guide`: it sits beside the label but outside the
+ * `label` element, because a button inside a label would become what the label names, and the
+ * control would lose its name.
+ */
 export function Field({
   label,
   hint,
+  help,
+  tour,
   children,
 }: {
   label: string;
   hint?: ReactNode;
+  help?: ReactNode;
+  tour?: string;
   children: ReactNode;
 }) {
-  return (
+  const field = (
     <label className="block space-y-1">
-      <span className="block text-sm font-semibold">{label}</span>
+      <span className={join("block text-sm font-semibold", Boolean(help) && "pr-7")}>{label}</span>
       {children}
       {hint ? <span className="block text-xs text-[var(--color-muted)]">{hint}</span> : null}
     </label>
+  );
+
+  if (!help && !tour) {
+    return field;
+  }
+
+  return (
+    <div className="relative" data-tour={tour}>
+      {field}
+      {help ? <span className="absolute top-0 right-0">{help}</span> : null}
+    </div>
   );
 }
 
@@ -120,11 +140,34 @@ export function Select({ className, children, ...rest }: SelectHTMLAttributes<HT
   );
 }
 
-export function Panel({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
+/**
+ * A titled section. `tour` names it for a page's tour (`data-tour`), and `hint` is a `Hint` from
+ * `Guide`, shown beside the title.
+ */
+export function Panel({
+  title,
+  actions,
+  hint,
+  tour,
+  children,
+}: {
+  title: string;
+  actions?: ReactNode;
+  hint?: ReactNode;
+  tour?: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] shadow-panel">
+    <section
+      data-tour={tour}
+      className="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] shadow-panel"
+    >
       <header className="flex items-center justify-between gap-3 border-b border-[var(--color-line)] bg-[var(--color-soft)] px-5 py-3">
-        <h2 className="text-base font-semibold">{title}</h2>
+        {/* Beside the heading rather than in it, so the heading's name stays its title. */}
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="text-base font-semibold">{title}</h2>
+          {hint}
+        </div>
         {actions}
       </header>
       <div className="p-5">{children}</div>

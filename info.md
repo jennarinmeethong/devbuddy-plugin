@@ -1,5 +1,27 @@
 # Project Decisions
 
+## Asked For: a Tour and Hints on Every Screen, and Assistants Acting on a Person's Word — 2026-10-01
+
+The owner asked for three things, and to build whatever Claude judged could be built without a
+problem ("ถ้าประเมินแล้วว่าทำได้ไม่มีปัญหาให้ทำเลย"):
+
+- **A list of what does not work yet, in Claude, Codex or anywhere.** Answered in the session.
+- **A tour on every screen, and a small ? that explains a hard part in a dialog.** Built on branch
+  `web/page-tours`: a Tour button in the header (and on the sign-in, set-password and workspace
+  picker pages), steps that skip what the caller's role hides, and the text in English and Thai in
+  `web/admin/src/guide/content.ts`.
+- **Assistants attaching evidence, and acting for a person when told to, such as approving what is
+  waiting.** Only the part inside the twenty tools is built: a `review-queue` command for Claude,
+  and the same guidance for Codex and Cowork, that lists what is waiting for approval and links
+  each record's page. **Approving through an assistant is not built**: it contradicts *Knowledge
+  Tooling and Permissions* above (approval stays under human control, and AI gets search, get,
+  analyse, draft and handover only) and Phase 14's *Growing the AI surface*. **Evidence captured
+  through an assistant is not built either**: it grows the AI surface, which Phase 14 keeps at
+  twenty. Either needs the owner to change those decisions explicitly first.
+
+Asked the same day whether to let assistants read `list_work_items` and `list_evidence`, and
+whether to let them capture evidence, the owner answered no to both ("ไม่ทำ"). The AI surface
+stays at twenty. The owner asked for the work above to be committed and opened as a PR ("ทำเลย").
 ## Confirmed Accepting CVE-2026-84782 in the .NET Base Images Until 2026-10-30 — 2026-09-30
 
 PR #47's `Container images` check failed on its last commit, which changed documentation only:

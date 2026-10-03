@@ -4,6 +4,8 @@ import { ApiError, completeRecovery } from "../api/client";
 import { Alert, BrandMark, Button, Field, Input, Panel } from "../components/ui";
 import { LanguageSwitch } from "../components/LanguageSwitch";
 import { t } from "../i18n";
+import { TourButton } from "../components/Guide";
+import { TOURS } from "../guide/content";
 
 /**
  * Redeems a setup or recovery token and sets a password.
@@ -55,10 +57,11 @@ export function SetPassword() {
           <h1 className="text-xl font-bold tracking-wide">DevBuddy</h1>
           <p className="text-xs tracking-[0.18em] text-[var(--color-muted)]">{t("ADMINISTRATION")}</p>
         </div>
+        <TourButton steps={TOURS.setPassword} />
         <LanguageSwitch />
       </div>
 
-      <Panel title={t("Set a password")}>
+      <Panel title={t("Set a password")} tour="set-password-form">
         {done ? (
           <div className="space-y-4">
             <Alert tone="success">

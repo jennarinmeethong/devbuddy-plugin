@@ -7,6 +7,8 @@ import { refetchAfterWrite } from "../api/queries";
 import { Alert, Badge, Button, Empty, Field, Input, Panel, Table } from "../components/ui";
 import { Failure } from "../components/Failure";
 import { m, t } from "../i18n";
+import { Hint, usePageTour } from "../components/Guide";
+import { HINTS, TOURS } from "../guide/content";
 
 /**
  * Projects in a workspace, and the per-project AI access policy.
@@ -40,9 +42,11 @@ export function Projects() {
   const canCreate = grants(access, "ManageProjects");
   const canManageAi = grants(access, "ManageAccess");
 
+  usePageTour(TOURS.projects);
+
   return (
     <>
-      <Panel title={t("Projects")}>
+      <Panel title={t("Projects")} tour="projects-list" hint={<Hint topic={HINTS.aiAccess} />}>
         {projects.isPending ? (
           <Empty>{t("Loading…")}</Empty>
         ) : projects.isError ? (
@@ -54,7 +58,7 @@ export function Projects() {
           </Empty>
         ) : (
           <Table head={[t("Project"), t("AI access"), ""]}>
-            {projects.data.projects.map((project) => (
+            {projects.data.projects.map((project, index) => (
               <tr key={project.projectId} className="border-b border-[var(--color-line)] last:border-0">
                 <td className="px-2 py-2">
                   <Link className="underline" to={`p/${project.projectId}`}>
@@ -78,7 +82,7 @@ export function Projects() {
                   ) : null}
                 </td>
                 <td className="px-2 py-2 text-right">
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center gap-2" data-tour={index === 0 ? "project-actions" : undefined}>
                     {canManageAi ? (
                       <AiAccessButton
                         workspaceId={workspaceId!}
@@ -110,7 +114,7 @@ export function Projects() {
       </Panel>
 
       {canCreate ? (
-        <Panel title={t("New project")}>
+        <Panel title={t("New project")} tour="projects-new">
           <form
             className="flex items-end gap-3"
             onSubmit={(event) => {
@@ -178,9 +182,12 @@ function DeleteProjectButton({
 
   if (!confirming) {
     return (
-      <Button variant="danger" onClick={() => setConfirming(true)}>
-        {t("Delete")}
-      </Button>
+      <span className="inline-flex items-center gap-1">
+        <Button variant="danger" onClick={() => setConfirming(true)}>
+          {t("Delete")}
+        </Button>
+        <Hint topic={HINTS.deleteProject} />
+      </span>
     );
   }
 
@@ -272,7 +279,12 @@ function BoundedScopeButton({
   });
 
   if (!open) {
-    return <Button onClick={() => setOpen(true)}>{t("Bounded scope")}</Button>;
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Button onClick={() => setOpen(true)}>{t("Bounded scope")}</Button>
+        <Hint topic={HINTS.boundedScope} />
+      </span>
+    );
   }
 
   const labels = PERSONAL_DATA_RULES.filter(([rule]) => rules.includes(rule)).map(([, label]) => t(label));
