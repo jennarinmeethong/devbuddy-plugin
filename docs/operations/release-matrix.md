@@ -231,7 +231,7 @@ screen, the ? hints, and the review queue (PR #49). No check was added. The prev
 | Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1118** tests with none failed. The web build passed and its suite ran **97** of 97, the eleven tour and hint tests among them. `dotnet format` found nothing, and the `linux-x64` publish passed. |
 | Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** `v1.12.3`'s stacks, left running for inspection, were removed first so they could not hold the ports. |
 | Part 3, `upgrade.sh` from `v1.12.3` | devrelease, amd64 | **47 passed, 0 failed.** |
-| Part 3, `upgrade.sh` from `v1.12.3` | Ubuntu arm64 guest | **Not run yet.** The guest and the Mac mini that hosts it did not answer on 2026-10-03. |
+| Part 3, `upgrade.sh` from `v1.12.3` | Ubuntu arm64 guest | **47 passed, 0 failed.** The Mac mini that hosts the guest was off at first; it ran once the owner switched it on, the same day. |
 
 ## What was verified for v1.12.3
 
