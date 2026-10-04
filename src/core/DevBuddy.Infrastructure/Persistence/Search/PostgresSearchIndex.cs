@@ -53,6 +53,32 @@ internal sealed class PostgresSearchIndex(DevBuddyDbContext db) : ISearchIndex
             records = records.Where(record => statuses.Contains(record.Status));
         }
 
+        List<RawHit> raw = ThaiText.IsPresentIn(criteria.QueryText)
+            ? await SearchBySubstringAsync(records, criteria, cancellationToken)
+            : await SearchByTextVectorAsync(records, criteria, cancellationToken);
+
+        // One hit per record. A published record is represented by its published revision; an
+        // unpublished one by its latest, because that is the revision a reviewer would open.
+        return
+        [
+            .. raw
+                .GroupBy(hit => hit.RecordId)
+                .Select(group => group.OrderByDescending(hit => hit.RevisionNumber).First())
+                .OrderByDescending(hit => hit.Rank)
+                .Take(criteria.MaxResults)
+                .Select(hit => new KnowledgeSearchHit(
+                    new KnowledgeRecordId(hit.RecordId),
+                    (RecordKind)hit.Kind,
+                    (RecordStatus)hit.Status,
+                    hit.Title,
+                    Snippet(hit.Body),
+                    hit.Rank))
+        ];
+    }
+
+    private async Task<List<RawHit>> SearchByTextVectorAsync(
+        IQueryable<KnowledgeRecordRow> records, KnowledgeSearchCriteria criteria, CancellationToken cancellationToken)
+    {
         // Ordering happens before the projection on purpose: EF cannot translate an OrderBy over
         // a member of a constructed object, so the rank expression has to be the sort key itself.
         var query =
@@ -72,28 +98,62 @@ internal sealed class PostgresSearchIndex(DevBuddyDbContext db) : ISearchIndex
                 revision.Body,
                 revision.SearchVector!.Rank(EF.Functions.PlainToTsQuery("english", criteria.QueryText)));
 
-        List<RawHit> raw = await query
+        return await query
             .Take(criteria.MaxResults * FetchMultiplier)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+    }
 
-        // One hit per record. A published record is represented by its published revision; an
-        // unpublished one by its latest, because that is the revision a reviewer would open.
-        return
-        [
-            .. raw
-                .GroupBy(hit => hit.RecordId)
-                .Select(group => group.OrderByDescending(hit => hit.RevisionNumber).First())
-                .OrderByDescending(hit => hit.Rank)
-                .Take(criteria.MaxResults)
-                .Select(hit => new KnowledgeSearchHit(
-                    new KnowledgeRecordId(hit.RecordId),
-                    (RecordKind)hit.Kind,
-                    (RecordStatus)hit.Status,
-                    hit.Title,
-                    Snippet(hit.Body),
-                    hit.Rank))
-        ];
+    /// <summary>
+    /// A query holding Thai is matched by substring instead of by the text vector.
+    /// <para>
+    /// The vector is built with the <c>english</c> configuration, which splits words at spaces.
+    /// Thai is written without spaces between words, so a whole Thai phrase becomes one token and a
+    /// word inside it could never be found. Here every space-separated term of the query must
+    /// occur in the title or the body. There is no index behind it, so the scan is bounded by the
+    /// project scope and the fetch limit, and English stemming does not apply to a mixed query.
+    /// </para>
+    /// <para>
+    /// Rank is computed after the fetch: a term in the title counts twice what one in the body
+    /// does, so the rank is above zero for every hit and at most one.
+    /// </para>
+    /// </summary>
+    private async Task<List<RawHit>> SearchBySubstringAsync(
+        IQueryable<KnowledgeRecordRow> records, KnowledgeSearchCriteria criteria, CancellationToken cancellationToken)
+    {
+        string[] terms = ThaiText.Terms(criteria.QueryText);
+
+        var candidates =
+            from record in records
+            join revision in _db.RecordRevisions on record.Id equals revision.RecordId
+            where record.PublishedRevisionNumber == null
+                || record.PublishedRevisionNumber == revision.Number
+            select new { record, revision };
+
+        foreach (string term in terms)
+        {
+            string pattern = ThaiText.ContainsPattern(term);
+            candidates = candidates.Where(candidate =>
+                EF.Functions.ILike(candidate.revision.Title, pattern, ThaiText.Escape)
+                || EF.Functions.ILike(candidate.revision.Body, pattern, ThaiText.Escape));
+        }
+
+        List<RawHit> raw = await candidates
+            .OrderByDescending(candidate => candidate.record.LastUpdatedAt)
+            .Take(criteria.MaxResults * FetchMultiplier)
+            .Select(candidate => new RawHit(
+                candidate.record.Id,
+                candidate.record.Kind,
+                candidate.record.Status,
+                candidate.record.PublishedRevisionNumber,
+                candidate.revision.Number,
+                candidate.revision.Title,
+                candidate.revision.Body,
+                0f))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return [.. raw.Select(hit => hit with { Rank = ThaiText.Rank(terms, hit.Title, hit.Body) })];
     }
 
     /// <summary>
