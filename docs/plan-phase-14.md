@@ -809,6 +809,32 @@ machines.
   upgrade from `v1.12.3`, whose images the release workflow pushed although its draft is
   unpublished.
 
+## 14.20 — Cutting v1.14.0
+
+**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-10-04).
+
+- **What it carries since `v1.13.0`:**
+  - **Full-text search finds a Thai word inside a phrase** (PR #54). The search vector is built
+    with the `english` configuration, which splits words at spaces, so a Thai phrase was one token
+    and `ความหมาย` found nothing in a record whose title holds it. A query holding Thai is now
+    matched by substring: every term in the title or body, wildcards escaped, in the same project
+    scope and published-revision join. Every other query is unchanged.
+  - **Every package tells the assistant to search in English as well** (PR #55): with the
+    person's words and again with its English translation, answering in the person's language,
+    saying when it translates a record, and never translating a person's words into a draft. The
+    owner chose this over translating what is stored (`info.md`, 2026-10-04).
+  - **The HomeHub embedding worker's approval** (PR #53) is documentation only.
+- **A minor version**, at the owner's choice, because the plugins gain guidance. No migration, and
+  nobody signs in again. The server images change for the search; the operations, the MCP
+  transport, the client and the content security policy do not. Both plugins and the marketplace
+  move to 1.14.0.
+- **The upgrade:** `up -d` on a server, then check that `mcp` runs the new image. The Claude Code
+  and Cowork plugins move to 1.14.0, and Codex's `~/.codex/AGENTS.md` takes the new DevBuddy part.
+  An installation with a second embedding worker in its override, like the devbox, recreates it
+  too: it runs `record-embedding-sweep`'s image.
+- **The checklist runs from `tools/release/` at the release commit**, with no new check, and the
+  upgrade from `v1.13.0`.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -911,3 +937,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-30 | 14.18 | **The handbook says how to update Codex's instructions**, at the owner's request, CLI and GUI. Codex has no plugin to update, and OpenAI's AGENTS.md page (learn.chatgpt.com, read the same day) names no include mechanism, so chapter 05 gains a section C that replaces DevBuddy's part of `~/.codex/AGENTS.md`: from `# DevBuddy` to the next top-level heading, with a `.bak` copy, and a count of that heading that must be 1. The Mac mini's file held the section twice. **Tried:** the `awk` form on a copy of that file on the Mac mini, which left one section carrying the new paragraph, and the PowerShell form on JMPC against a file with rules before and after two sections, which kept both rules and left one section. The originals were not changed. The GUI steps, in Notepad or TextEdit, were not driven by hand. The Windows install command now reads and writes UTF-8, because PowerShell 5.1 read the file in the ANSI code page and garbled its em dashes. |
 | 2026-09-30 | 14.18 | **The handbook's sidebar is grouped**, at the owner's request. Twenty-five chapters were one list; they are now six groups, each a contiguous run named for who reads it (start, installing, daily use, administration, operations, developers), with the reader and the count beside the title. A group collapses on a click, a search hides a group with no match and opens the rest, and the group holding the current chapter is marked and opened. `navGroups` in `build-guide.mjs` must list every chapter once, in order, or the build stops, so a new chapter cannot be left out of the sidebar. The footer said `v1.10.0` and now says `v1.12.3`. **Checked in the browser pane:** 1280 and 900 wide, and 375 with the menu open (no horizontal scroll); collapse, reopen, the search case, and no console errors. |
 | 2026-09-30 | 14.18 | **CVE-2026-84782 is accepted in the .NET base images until 2026-10-30** (`info.md`, same day). PR #47's `Container images` check failed at `9b3e784`: Trivy found the HIGH OpenSSL finding in `libssl3t64` 3.0.13-0ubuntu3.15 in the API, MCP server and console images, inherited from the noble-chiseled base images, digest `9651fa59…` for `aspnet`, the same one CI and devrelease pulled. Its newest build is from 2026-09-04. Trivy 0.74.0 on devrelease did not report it the same day, so its database had not caught up with CI's. `.trivyignore.yaml` gains the entry, by ID, and `SupplyChainPolicyTests` holds its statement and expiry. |
+| 2026-10-04 | 14.20 | **`v1.14.0` is being prepared** at the owner's instruction ("merge แล้ว ใช้ v1.14.0"), from `21c2f2f`, the merge of PR #55. It carries PR #54 (Thai full-text search by substring) and PR #55 (the packages search in English as well); PR #53 is documentation. Both plugins and the marketplace move to 1.14.0. The pre-tag rows run on devrelease and the Ubuntu arm64 guest, upgrading from `v1.13.0`. |
