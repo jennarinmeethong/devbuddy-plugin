@@ -219,6 +219,20 @@ attestations still verify. The rc's untagged child manifests and its attestation
 None of this is the `v1.2.0` checklist: it proves the workflow, not the release, and no smoke test,
 Compose run or drill was performed against it.
 
+## What was verified for v1.14.0
+
+**Checked before the tag, at `8ecd5cc`**, the head of PR #56, at the owner's instruction
+(`info.md`, 2026-10-04). *14.20* in `docs/plan-phase-14.md` says what it carries: Thai full-text
+search by substring (PR #54) and the packages searching in English as well (PR #55). No check was
+added. The previous release is `v1.13.0`.
+
+| Row | Where | Result |
+| --- | --- | --- |
+| Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1131** tests with none failed, the five Thai `SearchTests` and the `ThaiTextTests` among them. The web build passed and its suite ran **97** of 97. `dotnet format` found nothing, and the `linux-x64` publish passed. |
+| Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** `v1.13.0`'s stacks, left running, were stopped first (not removed) so they could not hold the ports. |
+| Part 3, `upgrade.sh` from `v1.13.0` | devrelease, amd64 | **47 passed, 0 failed.** |
+| Part 3, `upgrade.sh` from `v1.13.0` | Ubuntu arm64 guest | Not run yet: it waits for the owner's approval. |
+
 ## What was verified for v1.13.0
 
 **Checked before the tag, at `5ebb4ab`**, the head of PR #50, at the owner's instruction
