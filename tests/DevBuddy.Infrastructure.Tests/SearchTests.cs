@@ -192,6 +192,120 @@ public sealed class SearchTests(PostgresFixture fixture)
         Assert.Equal(1, await index.ReindexAsync(seed.Beta, Ct));
     }
 
+    [Fact]
+    public async Task a_thai_word_is_found_inside_a_phrase_written_without_spaces()
+    {
+        Seed seed = await Seed.CreateAsync(_fixture);
+        WorkItem item = await seed.AddWorkItemAsync(_fixture, seed.Alpha, "SRCH-8");
+
+        await AddAsync(seed, seed.Alpha, item.Id, "ทดสอบการค้นหาตามความหมาย",
+            "บันทึกนี้อธิบายการค้นหาแบบตรงคำและการค้นหาตามความหมาย");
+
+        await AddAsync(seed, seed.Alpha, item.Id, "Unrelated note", "รายงานประจำคืนสร้างจากคลังข้อมูล");
+
+        await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
+        var index = new PostgresSearchIndex(context);
+
+        // The english configuration makes the whole title one token, so the text vector alone
+        // finds nothing here. This is the case that failed on the devbox on 2026-10-04.
+        KnowledgeSearchHit hit = Assert.Single(await index.SearchAsync(
+            new KnowledgeSearchCriteria(seed.Alpha, "ความหมาย"), Ct));
+
+        Assert.Equal("ทดสอบการค้นหาตามความหมาย", hit.Title);
+        Assert.True(hit.Rank > 0);
+    }
+
+    [Fact]
+    public async Task every_term_of_a_thai_query_must_be_present()
+    {
+        Seed seed = await Seed.CreateAsync(_fixture);
+        WorkItem item = await seed.AddWorkItemAsync(_fixture, seed.Alpha, "SRCH-9");
+
+        await AddAsync(seed, seed.Alpha, item.Id, "Both", "การสำรองข้อมูลทำทุกคืน");
+        await AddAsync(seed, seed.Alpha, item.Id, "One", "การสำรองข้อมูลทำทุกสัปดาห์");
+
+        await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
+
+        KnowledgeSearchHit hit = Assert.Single(await new PostgresSearchIndex(context)
+            .SearchAsync(new KnowledgeSearchCriteria(seed.Alpha, "สำรองข้อมูล ทุกคืน"), Ct));
+
+        Assert.Equal("Both", hit.Title);
+    }
+
+    [Fact]
+    public async Task a_thai_search_ranks_a_title_match_above_a_body_match()
+    {
+        Seed seed = await Seed.CreateAsync(_fixture);
+        WorkItem item = await seed.AddWorkItemAsync(_fixture, seed.Alpha, "SRCH-10");
+
+        await AddAsync(seed, seed.Alpha, item.Id, "Body only", "ขั้นตอนการติดตั้งระบบ");
+        await AddAsync(seed, seed.Alpha, item.Id, "การติดตั้งระบบ", "Steps.");
+
+        await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
+
+        IReadOnlyList<KnowledgeSearchHit> hits = await new PostgresSearchIndex(context)
+            .SearchAsync(new KnowledgeSearchCriteria(seed.Alpha, "ติดตั้ง"), Ct);
+
+        Assert.Collection(
+            hits,
+            first => Assert.Equal("การติดตั้งระบบ", first.Title),
+            second => Assert.Equal("Body only", second.Title));
+    }
+
+    [Fact]
+    public async Task a_thai_search_treats_wildcard_characters_literally()
+    {
+        Seed seed = await Seed.CreateAsync(_fixture);
+        WorkItem item = await seed.AddWorkItemAsync(_fixture, seed.Alpha, "SRCH-11");
+
+        await AddAsync(seed, seed.Alpha, item.Id, "Percent", "ส่วนลด 10% ทุกรายการ");
+        await AddAsync(seed, seed.Alpha, item.Id, "No percent", "ส่วนลด 10 บาท ทุกรายการ");
+
+        await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
+
+        // Unescaped, "10%" would be "10" followed by anything and match both.
+        KnowledgeSearchHit hit = Assert.Single(await new PostgresSearchIndex(context)
+            .SearchAsync(new KnowledgeSearchCriteria(seed.Alpha, "ส่วนลด 10%"), Ct));
+
+        Assert.Equal("Percent", hit.Title);
+    }
+
+    [Fact]
+    public async Task a_thai_search_keeps_to_its_project_and_to_the_published_revision()
+    {
+        Seed seed = await Seed.CreateAsync(_fixture);
+        WorkItem alphaItem = await seed.AddWorkItemAsync(_fixture, seed.Alpha, "SRCH-12A");
+        WorkItem betaItem = await seed.AddWorkItemAsync(_fixture, seed.Beta, "SRCH-12B");
+        var reviewer = UserId.New();
+
+        KnowledgeRecord record = seed.NewPublished(
+            seed.Alpha, alphaItem.Id, "Alpha", "คำที่เผยแพร่คือมะละกอ", reviewer);
+
+        await using DevBuddyDbContext context = _fixture.CreateContext(seed.Workspace);
+        var repository = new KnowledgeRepository(context);
+        await repository.AddRecordAsync(record, Ct);
+
+        record.AddRevision(
+            "Alpha",
+            "คำที่ยังไม่อนุมัติคือมังคุด",
+            null,
+            new Provenance(ProvenanceSourceKind.HumanAuthored, "review", "Jennarin", Seed.Now),
+            Seed.Now.AddMinutes(20),
+            seed.Author);
+
+        await repository.UpdateRecordAsync(record, Ct);
+        await AddAsync(seed, seed.Beta, betaItem.Id, "Beta", "คำที่เผยแพร่คือมะละกอ");
+
+        var index = new PostgresSearchIndex(context);
+
+        // The substring path joins the same scoped records to the same revisions as the text
+        // vector does (SB-12, SB-26); a separate query is a separate chance to forget either.
+        Assert.Equal("Alpha", Assert.Single(await index.SearchAsync(
+            new KnowledgeSearchCriteria(seed.Alpha, "มะละกอ"), Ct)).Title);
+
+        Assert.Empty(await index.SearchAsync(new KnowledgeSearchCriteria(seed.Alpha, "มังคุด"), Ct));
+    }
+
     private async Task AddAsync(
         Seed seed, Domain.Tenancy.ProjectScope scope, WorkItemId workItemId, string title, string body)
     {

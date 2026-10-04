@@ -15,6 +15,33 @@ and no generative model is approved here. The owner chose the alternative ("ท�
   has no assistant, so a Thai search there relies on the substring match of PR #54.
 - **Storing an English copy beside the original, for search only,** remains possible later. It
   needs an ADR and an approved generative model first.
+## Confirmed a Second Embedding Worker on the LXC Devbox, for HomeHub's Workspace — 2026-10-04
+
+The 2026-09-26 approval below gave `record-embedding-sweep` a Viewer account "in the one
+workspace", `5cd6f516-…`. HomeHub, the project the owner works in, is in another workspace,
+`3d7a215c-fe49-4f7d-96ae-371de34265ed`, created on 2026-09-28. A token works in the workspace it was
+minted in and no other, so the sweep never saw HomeHub: on 2026-10-04 its pass listed only
+`c2204d35-…`, and a test record published in HomeHub stayed unindexed. Offered three ways, the
+owner chose a second worker ("เอาข้อ 2"), and stated that HomeHub holds no personal data.
+
+- **Approved:** a second `record-embedding-sweep` on the same installation, as an account of its
+  own, `embedding-worker-homehub@workers.invalid`, holding Viewer in workspace `3d7a215c-…` and
+  nothing anywhere else. No password; a 365-day token minted by that account; at most **50** texts
+  per pass, every 24h. It is the Compose service `record-embedding-sweep-homehub` in the
+  installation's `compose.override.yaml`, extending `record-embedding-sweep` and running its image,
+  with `DEVBUDDY_EMBEDDING_SWEEP_HOMEHUB_TOKEN` in `.env`.
+- **Unchanged:** every other term of the 2026-09-26 approval — the same Ollama model, no egress,
+  LAN only, SB-18 fully in force, only projects opened to AI and only published revisions. The
+  first worker keeps its workspace.
+- **Data:** HomeHub holds no customer, production or personal data, in the owner's words. Anything
+  else needs a decision here first.
+- **Not approved:** a worker for any other workspace. Each one is a decision of its own.
+- **Done the same day.** The owner ran the script Claude wrote for it. Afterwards
+  `search_similar_records` over the plugin found the published test record
+  `796e0d24-606b-4a9f-8717-76e6b7b2c60b` for a Thai and an English query. Claude did not see the
+  script's own output or `embedding-check`. The same test showed that `search_knowledge` finds
+  nothing for a Thai word the record contains (`ความหมาย`), because the full-text configuration is
+  `english` and does not split Thai into words.
 
 ## Confirmed Preparing v1.13.0 — 2026-10-03
 
