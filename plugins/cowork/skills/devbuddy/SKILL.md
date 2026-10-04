@@ -97,6 +97,15 @@ provider and a vector index, which an installation may not have, and it says so 
 returning nothing. And `list_records` shows you what a project holds before you search it; it
 returns summaries, never bodies, so read a hit with `get_record`.
 
+**Search in the person's language and in English.** When the question is not in English — Thai,
+most often — call `search_knowledge` twice: once with the person's own words, and once with your
+English translation of them. Full-text search matches words, not meaning, and much of what a team
+records is written in English. `search_similar_records` compares meaning across languages, so the
+question as asked is enough there. Then answer in the language the person asked in. Quote a record
+as it is stored, and say so when you translate it: a translation is yours, not what the team
+approved. Do not translate a person's words into a draft on your own; write a draft in the
+language they work in unless they ask otherwise.
+
 **Say where an answer came from.** Name the record, its status and its revision. A published
 record is what the team approved; a draft is somebody's proposal and must be called one.
 

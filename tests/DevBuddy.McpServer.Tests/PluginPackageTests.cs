@@ -391,6 +391,24 @@ public sealed partial class PluginPackageTests
         }
     }
 
+    /// <summary>
+    /// Full-text search matches words, so a Thai question misses a record written in English.
+    /// The assistant searching in English as well is the fix the owner chose over translating what
+    /// is stored (2026-10-04): a stored record stays what its approver read.
+    /// </summary>
+    [Fact]
+    public void every_package_says_to_search_in_english_as_well_and_answer_in_the_persons_language()
+    {
+        foreach (string package in Packages)
+        {
+            string instructions = File.ReadAllText(InstructionsFor(package).FullName);
+
+            Assert.Contains("Search in the person's language and in English", instructions, StringComparison.Ordinal);
+            Assert.Contains("answer in the language the person asked in", instructions, StringComparison.Ordinal);
+            Assert.Contains("Do not translate a person's words into a draft", instructions, StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public void both_packages_say_prompt_text_is_not_a_security_boundary()
     {

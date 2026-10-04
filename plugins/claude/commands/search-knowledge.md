@@ -10,6 +10,8 @@ owner has enabled AI access appear there, and a project that is absent is a deci
 an error.
 
 Then `search_knowledge`, and `get_record` for anything that looks like it answers the question.
+If the question is not in English, search with the person's words and again with your English
+translation of them, and answer in the language they asked in.
 Read the provenance on what you find: a decision from eighteen months ago with no evidence behind
 it is worth less than a recent one that cites the commit it came from.
 
