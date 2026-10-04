@@ -1,5 +1,21 @@
 # Project Decisions
 
+## Confirmed Searching in English as Well, Not Translating What Is Stored — 2026-10-04
+
+The owner asked whether records could be stored in English only, a Thai search or draft translated
+to English, and results shown in the language asked. Claude advised against translating what is
+stored: an approval binds the exact text its approver read, a translation loses terms and names,
+and no generative model is approved here. The owner chose the alternative ("ทำตามวิธีที่แนะนำเลย").
+
+- **The assistant translates the query, not the record.** Every package tells it to search with
+  the person's words and again in English, answer in the person's language, say when it
+  translates a record, and never translate a person's words into a draft on its own.
+  `PluginPackageTests` holds all three packages to it.
+- **Nothing stored changes, and the server does not translate.** The web client's Search screen
+  has no assistant, so a Thai search there relies on the substring match of PR #54.
+- **Storing an English copy beside the original, for search only,** remains possible later. It
+  needs an ADR and an approved generative model first.
+
 ## Confirmed Preparing v1.13.0 — 2026-10-03
 
 After PR #49 merged and `main`'s CI passed at `3f7198f`, Claude offered to prepare a release
