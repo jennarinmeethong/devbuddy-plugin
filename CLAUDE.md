@@ -34,7 +34,7 @@ hosts — the HTTP API, the MCP server over stdio and authenticated HTTP, and th
 the provisioning operations and the React administration UI in `web/admin`; Phase 9 machine tokens
 and the Claude and Codex plugin packages; Phase 10 the container images, the Compose stack, backup
 and restore, and the supply-chain checks; Phase 11 the personal-data policy and retention
-enforcement. 1118 .NET tests and 97 web tests exist. The .NET suite passed at 1005 on devrelease
+enforcement. 1131 .NET tests and 97 web tests exist, and both suites passed at those figures in CI on `ab39ebb` on 2026-10-05. The .NET suite passed at 1005 on devrelease
 for `v1.9.0` on 2026-09-27, and at 1065 on devrelease for `v1.11.0` on 2026-09-28, when the MCP server's HTTP transport took
 machine tokens and the `devbuddy` client was added (Phase 14, A4). The web suite passed at 85 on the Windows development machine the same
 day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**, in the job
@@ -42,7 +42,7 @@ day, when the client gained Thai. **Since 2026-09-26 CI runs the web suite too**
 only `bun run build` ran there, which type-checks. The owner's Linux test machine that ran both
 suites until 2026-09-25 is gone, above. Count them rather than trusting this sentence, which has been stale many times
 already: it sat at the release figure of 433 and 31 while both grew, at 495 and 36 through Phase 12,
-and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix, and at 993 and 78 until the ports moved to 5010, and at 1005 and 78 until the web client gained Thai and English, and at 1005 and 85 until the HTTP transport took machine tokens and the client was added. `docs/plan.md` keeps the per-phase figures, and
+and at 624 and 36 until the worker schedule landed, at 655 and 36 until the audit channel landed, at 672 and 36 until the 2026-09-16 merge, at 861 and 47 until the draft editor landed, at 867 and 57 until the audit reference fix landed, at 870 and 57 until archived records left semantic search, at 878 and 57 until every operation got a screen, at 887 and 72 until the evidence bucket race was fixed, at 888 and 72 until the project in a scope was checked and the session refresh stopped unmounting the screen, at 896 and 73 until Phase 13 and the Voyage withdrawal, and at 958 and 78 until the release checklist's secret guard (Phase 14, A1), which passed at 959 on jmhp on 2026-09-24, and at 959 and 78 until the query instruction (Phase 14, C1), which passed at 968 on jmhp on 2026-09-25, and at 968 and 78 until ZAP's fixes (Phase 14, C4) and the email fix, and at 993 and 78 until the ports moved to 5010, and at 1005 and 78 until the web client gained Thai and English, and at 1005 and 85 until the HTTP transport took machine tokens and the client was added, and at 1118 and 97 until 2026-10-05. `docs/plan.md` keeps the per-phase figures, and
 the ones under *v1 is released* are what passed at `v1.0.0`; they are a record and are not updated.
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
@@ -629,8 +629,8 @@ prefixed `DEVBUDDY_`, and refuse to start without a connection string rather tha
 
 The whole system is tested end to end by Playwright in `tests/e2e`: `bash tests/e2e/run.sh` builds
 the images, starts a throwaway stack under its own Compose project, and drives the web client, the
-HTTP API and the MCP server's HTTP transport, in Chromium, Firefox and WebKit. It has 233 tests.
-On 2026-09-26, in CI run 36238723460 on `f321f82`, both Playwright runners passed 211 and skipped
+HTTP API and the MCP server's HTTP transport, in Chromium, Firefox and WebKit. It has 235 tests.
+On 2026-10-05, in CI run 37354138756 on `ab39ebb`, both Playwright runners passed 214 and skipped
 21, the tests that belong to the embeddings, GitHub-source and observability modes, which their
 own jobs run. It
 last ran outside CI on 2026-09-24, at 205, on the owner's Linux test machine, now gone. CI runs it
