@@ -1,5 +1,12 @@
 # Project Decisions
 
+## Confirmed Preparing v1.14.0 — 2026-10-04
+
+After PRs #53, #54 and #55 merged, the owner asked for a release and chose `v1.14.0` over
+`v1.13.1` ("merge แล้ว ใช้ v1.14.0"): a minor version, because the plugins gain guidance besides
+the search fix. *14.20* in `docs/plan-phase-14.md` says what it carries. Tagging and publishing
+wait on the checklist and the owner, as before.
+
 ## Confirmed Searching in English as Well, Not Translating What Is Stored — 2026-10-04
 
 The owner asked whether records could be stored in English only, a Thai search or draft translated
