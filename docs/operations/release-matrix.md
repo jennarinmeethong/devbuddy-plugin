@@ -231,7 +231,7 @@ added. The previous release is `v1.13.0`.
 | Part 1, `setup-and-suite.sh` | devrelease, amd64 | **7 passed, 0 failed.** The .NET suite ran **1131** tests with none failed, the five Thai `SearchTests` and the `ThaiTextTests` among them. The web build passed and its suite ran **97** of 97. `dotnet format` found nothing, and the `linux-x64` publish passed. |
 | Part 2, `stack-drill-tokens.sh` | devrelease, amd64 | **116 passed, 0 failed.** `v1.13.0`'s stacks, left running, were stopped first (not removed) so they could not hold the ports. |
 | Part 3, `upgrade.sh` from `v1.13.0` | devrelease, amd64 | **47 passed, 0 failed.** |
-| Part 3, `upgrade.sh` from `v1.13.0` | Ubuntu arm64 guest | Not run yet: it waits for the owner's approval. |
+| Part 3, `upgrade.sh` from `v1.13.0` | Ubuntu arm64 guest | **47 passed, 0 failed.** Run by the owner from Claude's commands, on 2026-10-05. |
 
 ## What was verified for v1.13.0
 
