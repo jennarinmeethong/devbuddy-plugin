@@ -34,3 +34,4 @@
 10111	IGNORE	(Authentication Request Identified)	Informational. It finds the sign-in endpoint, which is meant to be there.
 10109	IGNORE	(Modern Web Application)	Informational. The client is a single-page application.
 10049	IGNORE	(Content Cacheability)	Informational. Hashed assets are cached for good and index.html never, by design, and AdminUiTests holds both.
+10027	IGNORE	(Information Disclosure - Suspicious Comments)	Informational. Since vite 8 (owner, 2026-10-06) the baseline flags the word "bug" in the Thai translation "Fix a bug" in the minified client, where a // in a regular expression nearby looks like a comment to it. The bundle carries no comments of ours and no source map.
