@@ -1,5 +1,15 @@
 # Project Decisions
 
+## Confirmed Vite 8, and Accepting ZAP's Suspicious-Comments Finding — 2026-10-06
+
+Dependabot's vite 8 (PRs #29 and #59) failed only the ZAP baseline, on rule 10027. Its one
+finding is the word "bug" in the Thai translation of "Fix a bug" in the minified client, which it
+took for a comment because of a `//` in a regular expression beside it; vite 7's output did not
+trip it. The owner chose to accept the rule ("เอาข้อ 1") rather than stay on vite 7. It is
+informational, the client ships no source map, and the cost is that a real comment reaching the
+bundle would no longer be reported. The same change takes `@vitejs/plugin-react` 6, which #8 waited
+on.
+
 ## Confirmed Preparing v1.14.0 — 2026-10-04
 
 After PRs #53, #54 and #55 merged, the owner asked for a release and chose `v1.14.0` over
