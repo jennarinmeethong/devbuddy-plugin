@@ -811,7 +811,17 @@ machines.
 
 ## 14.20 — Cutting v1.14.0
 
-**Status: IN PROGRESS**, at the owner's instruction (`info.md`, 2026-10-04).
+**Status: PUBLISHED 2026-10-06**, at 08:00 UTC, from `cc58cc9`, the merge of PR #56, published by
+Claude at the owner's instruction ("publish ให้เลย"). Every row before and after the tag passed
+(`release-matrix.md`). The devbox runs it since 2026-10-05: the owner upgraded it, and Claude
+checked that every service runs as a non-root user with `mcp` and both embedding workers on the new
+images, `/health` and the UI answer 200 and an MCP `POST` 401 through the gateway, all three workers
+completed a pass, `scope-report` is clean, no error was logged, and no session is on an older
+image. `search_knowledge` in HomeHub found the test record for `ความหมาย` (rank 1) and for
+`ค้นหา ใกล้เคียง` (0.75), found nothing for a Thai word the record lacks, and ranked
+`semantic search` as before. The `evidence` container still runs the untagged image it was
+created from for `v1.13.0`; `docker/evidence` did not change. Not done: plugin 1.14.0 on the
+owner's machines.
 
 - **What it carries since `v1.13.0`:**
   - **Full-text search finds a Thai word inside a phrase** (PR #54). The search vector is built
@@ -939,3 +949,4 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-09-30 | 14.18 | **CVE-2026-84782 is accepted in the .NET base images until 2026-10-30** (`info.md`, same day). PR #47's `Container images` check failed at `9b3e784`: Trivy found the HIGH OpenSSL finding in `libssl3t64` 3.0.13-0ubuntu3.15 in the API, MCP server and console images, inherited from the noble-chiseled base images, digest `9651fa59…` for `aspnet`, the same one CI and devrelease pulled. Its newest build is from 2026-09-04. Trivy 0.74.0 on devrelease did not report it the same day, so its database had not caught up with CI's. `.trivyignore.yaml` gains the entry, by ID, and `SupplyChainPolicyTests` holds its statement and expiry. |
 | 2026-10-04 | 14.20 | **`v1.14.0` is being prepared** at the owner's instruction ("merge แล้ว ใช้ v1.14.0"), from `21c2f2f`, the merge of PR #55. It carries PR #54 (Thai full-text search by substring) and PR #55 (the packages search in English as well); PR #53 is documentation. Both plugins and the marketplace move to 1.14.0. The pre-tag rows run on devrelease and the Ubuntu arm64 guest, upgrading from `v1.13.0`. |
 | 2026-10-06 | Other | **Vite 8 and `@vitejs/plugin-react` 6** (`info.md`, same day), replacing Dependabot's #59. ZAP rule 10027 is `IGNORE` in `tests/e2e/zap/rules.tsv`, with its reason: its only finding is a false positive in the minified client. **Verified on the Windows development machine:** `bun run build` (type-check included) passed, the built `index.html` still loads one script and one stylesheet and nothing inline, and `bun test` ran 97 of 97. Vite warns that the bundle is over 500 kB, which it is (584 kB). The e2e suite and ZAP were left to CI. |
+| 2026-10-06 | 14.20 | **`v1.14.0` is published**, at 08:00 UTC from `cc58cc9`, by Claude at the owner's instruction, after the owner's publication from the web had left it a draft twice. The post-tag rows passed on 2026-10-05 (PR #57), and the devbox runs the tag: Thai full-text search found the HomeHub test record. |
