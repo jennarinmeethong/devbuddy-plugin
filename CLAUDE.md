@@ -47,7 +47,17 @@ the ones under *v1 is released* are what passed at `v1.0.0`; they are a record a
 All 34 controls are `TESTED`. SB-29 closed on that publication; SB-34, the embedding egress path
 ADR-0012 required a control for, closed on 2026-09-13.
 
-**`v1.13.0` is the current release**, published 2026-10-03 at 13:40 UTC from `4ee9f25` at the
+**`v1.14.0` is the current release**, published 2026-10-06 at 08:00 UTC from `cc58cc9` at the
+owner's instruction: full-text search finds a Thai word inside a phrase written without spaces, by
+substring when the query holds Thai (PR #54), and every package tells the assistant to search in
+English as well and answer in the person's language, never translating what is stored (PR #55,
+`info.md` 2026-10-04). No migration. The upgrade is `up -d` alone, and both plugins move to
+1.14.0. The devbox runs it since 2026-10-05, upgraded by the owner and checked by Claude, with a
+second embedding worker for HomeHub's workspace (`info.md`, 2026-10-04) in its override.
+**That worker is `record-embedding-sweep-homehub`, and it runs `record-embedding-sweep`'s image,
+so an upgrade there recreates it with `mcp`.**
+
+**`v1.13.0` was the release before it**, published 2026-10-03 at 13:40 UTC from `4ee9f25` at the
 owner's instruction: a tour on every screen of the web client, thirty-nine ? hints, and the Claude
 package's `review-queue` command with the same guidance for Codex and Cowork (PR #49). It also
 carries `v1.12.2` and `v1.12.3`, which stay unpublished drafts. The upgrade is `up -d` alone, and
