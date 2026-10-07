@@ -35,7 +35,9 @@ Three signals, and one of them is off by default.
 
 **Traces.** One span per operation, named for the operation, carrying `devbuddy.operation`,
 `devbuddy.channel`, and `devbuddy.outcome`. ASP.NET Core and HttpClient instrumentation sit around
-it. Sampled at `Telemetry:TraceSampleRatio` (default `0.1`).
+it. Sampled at `Telemetry:TraceSampleRatio`, which defaults to `1.0`, every trace. Until
+2026-10-07 this line said `0.1`; `TelemetryOptions` has defaulted to `1.0` since it was written,
+and nothing in `docker/` sets it.
 
 **Metrics.** `devbuddy_operations_total`, `devbuddy_operation_duration`,
 `devbuddy_content_blocked_total`, `devbuddy_analysis_duration`, `devbuddy_analysis_rejected_total`,
