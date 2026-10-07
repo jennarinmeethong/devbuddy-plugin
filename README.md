@@ -10,17 +10,18 @@ the source of truth, AI access denied by default and enabled per project.
 
 ## Status
 
-**v1 is released, and Phases 12 to 14 followed it.** Twelve releases are published, from `v1.0.0`
-(2026-09-06) to **`v1.10.0` (2026-09-27, the current release)**, each with provenance and an SBOM per
-image. 63 operations behind one pipeline plus two streaming evidence routes, PostgreSQL with full-text search, SeaweedFS evidence
+**v1 is released, and Phases 12 to 14 followed it.** Nineteen releases are published, from `v1.0.0`
+(2026-09-06) to **`v1.14.0` (2026-10-06, the current release)**, each with provenance and an SBOM per
+image. `v1.12.2` and `v1.12.3` stay unpublished drafts, carried by `v1.13.0`. 63 operations behind one pipeline plus two streaming evidence routes, PostgreSQL with full-text search, SeaweedFS evidence
 storage, the product's own sign-in with lockout and rotating tokens, tenant isolation enforced
 server-side on every request, a draft-to-published path whose audit history records who approved
 exactly which revision, read-only analysis that provably executes nothing, a secret scanner that
 refuses credentials on the way in and redacts them on the way out, and three hosts over that one
 core — an HTTP API, an MCP server on stdio and authenticated HTTP, and a console — a React
 administration UI served by the API, in Thai and English, covering workspaces, teams and project
-deletion, thin Claude
-and Codex plugin packages over that same MCP server, and a self-hosted Compose stack that schedules
+deletion, with a tour on every screen, thin Claude,
+Codex and Cowork plugin packages that reach that same MCP server over HTTPS through the `devbuddy`
+client, and a self-hosted Compose stack that schedules
 its own retention sweep, with images for `linux/amd64` and `linux/arm64`.
 
 **All 34 security controls are `TESTED`.** Source synchronisation reads a mounted working copy by
@@ -42,9 +43,11 @@ MinIO image the registries no longer serve. **The Windows archives are not code-
 
 | Document | What it is |
 |---|---|
-| [คู่มือภาษาไทย — DevBuddy Handbook](docs/manual/devbuddy-guide.th.html) | Detailed offline HTML manual, updated for `v1.10.0`: installation, all MCP tools, administration, operations, and development. Regenerate with `bun docs/manual/build-guide.mjs`. |
+| [คู่มือภาษาไทย — DevBuddy Handbook](docs/manual/devbuddy-guide.th.html) | Detailed offline HTML manual, updated for `v1.14.0`: installation, all MCP tools, administration, operations, and development. Regenerate with `bun docs/manual/build-guide.mjs`. |
 | [info.md](info.md) | Decisions confirmed by the project owner. Binding. |
 | [docs/plan.md](docs/plan.md) | The phased implementation plan, Phase 0 to Phase 12, with exit criteria. |
+| [docs/plan-phase-13.md](docs/plan-phase-13.md) | Phase 13, approved 2026-09-21, and its progress log. |
+| [docs/plan-phase-14.md](docs/plan-phase-14.md) | Phase 14, approved 2026-09-24, its release sections and its progress log. |
 | [docs/security/threat-model.md](docs/security/threat-model.md) | Assets, trust boundaries, adversaries, threats. |
 | [docs/security/security-baseline.md](docs/security/security-baseline.md) | The 34 controls and how each is proved. |
 | [docs/security/verification-matrix.md](docs/security/verification-matrix.md) | What has actually been tested. The only place a control counts as proven. |
