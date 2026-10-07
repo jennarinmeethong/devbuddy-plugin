@@ -1,21 +1,46 @@
 # Plugin hosts
 
-Two packages, in `plugins/`, over one MCP server. This is what an operator has to know to install
+Three packages, in `plugins/`, over one MCP server. This is what an operator has to know to install
 them and, more importantly, what installing them does **not** do.
 
-| | Claude Code | Codex |
-|---|---|---|
-| Package | `plugins/claude/` | `plugins/codex/` |
-| Manifest | `.claude-plugin/plugin.json` | — |
-| Server configuration | `.mcp.json` | `config.toml` |
-| Instructions | `skills/devbuddy/SKILL.md` | `AGENTS.md` |
-| Commands | `commands/*.md` | — |
+| | Claude Code | Codex | Cowork |
+|---|---|---|---|
+| Package | `plugins/claude/` | `plugins/codex/` | `plugins/cowork/` |
+| Manifest | `.claude-plugin/plugin.json` | — | `.claude-plugin/plugin.json` (`devbuddy-cowork`) |
+| Server configuration | `.mcp.json` | `config.toml` | `.mcp.json`, which starts `devbuddy mcp-bridge` |
+| Instructions | `skills/devbuddy/SKILL.md` | `AGENTS.md` | `skills/devbuddy/SKILL.md` |
+| Commands | `commands/*.md` | — | — |
 
-Instructions differ between them. Capability does not: both reach the same MCP server, and a test
-asserts that both instruction files describe exactly the tools the server exposes and never name
-one it does not. A test derives that list from the catalogue rather than hardening a count, which
+The Claude package's commands are `search-knowledge`, `analyze-change`, `draft-record`, `handover`
+and, since `v1.13.0`, `review-queue`. Codex and Cowork carry the same guidance in their
+instructions, so a person asks in a sentence instead.
+
+Instructions differ between them. Capability does not: all three reach the same MCP server, and a
+test asserts that every instruction file describes exactly the tools the server exposes and never
+names one it does not. A test derives that list from the catalogue rather than hardening a count, which
 is how it caught both packages when semantic search and the embedding sweep took the surface to
 twenty.
+
+## What every package tells the assistant
+
+Two pieces of guidance were added after `v1.12.3`, in all three packages, and change nothing on the
+server:
+
+- **The review queue (`v1.13.0`, PR #49).** Asked what waits for approval, the assistant lists
+  `PendingApproval` records with `list_records` and `view_record_history`, one line each, with the
+  link to the record's page. Approving, sending back and publishing stay a person's, on that page.
+  The owner decided not to grow the AI surface for this (`info.md`): no `list_work_items` or
+  `list_evidence` for AI, and no capture or approval through AI.
+- **Search in English as well, answer in the person's language (`v1.14.0`, PR #55, `info.md`
+  2026-10-04).** `search_knowledge` matches words, so a question in Thai misses a record written in
+  English. The assistant searches with the person's words and again with its English translation of
+  them, relies on `search_similar_records` with the question as asked, answers in the language it
+  was asked in, says when it translates a record, and never translates a person's words into a
+  draft on its own. Nothing stored is translated, because an approval binds the text its approver
+  read. `PluginPackageTests` holds every package to it.
+
+The server's half of Thai search is separate: since `v1.14.0` a query holding Thai characters is
+matched by substring, so a Thai word inside a phrase written without spaces is found (PR #54).
 
 ## How a plugin reaches the server (Phase 14, A4)
 
