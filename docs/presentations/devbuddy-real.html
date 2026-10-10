@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevBuddy × REAL AI Impact</title>
+  <style>
+    :root { color-scheme: dark; --bg:#080b12; --ink:#f7f5f2; --muted:#b8bbc7; --orange:#ff8b3d; --line:#39404d; --green:#78d6a5; --cyan:#75c9eb; }
+    * { box-sizing:border-box; }
+    html, body { margin:0; width:100%; height:100%; }
+    body { background:#05070b; color:var(--ink); font-family:"Noto Sans Thai","Th Sarabun New","Arial",sans-serif; }
+    button { font:inherit; }
+    .deck { width:100%; height:100%; }
+    .slide { display:none; position:relative; width:100vw; height:100vh; min-height:560px; padding:clamp(34px,4.7vw,90px) clamp(42px,6.1vw,116px) clamp(46px,5vw,82px); overflow:hidden; background:radial-gradient(circle at 92% 7%,#192333 0,#080b12 37%,#080b12 100%); }
+    .slide.active { display:flex; flex-direction:column; }
+    .slide::before { content:""; position:absolute; inset:0 auto 0 0; width:8px; background:linear-gradient(var(--orange),#b65320); }
+    .eyebrow { color:var(--orange); font-weight:800; letter-spacing:.13em; text-transform:uppercase; font-size:clamp(15px,1.25vw,20px); margin:0 0 18px; }
+    h1,h2,h3,p { margin:0; }
+    h1 { font-size:clamp(58px,6.2vw,110px); line-height:1.06; letter-spacing:-.035em; }
+    h2 { font-size:clamp(43px,4.2vw,72px); line-height:1.11; letter-spacing:-.025em; max-width:1300px; }
+    h3 { font-size:clamp(23px,2vw,34px); line-height:1.22; }
+    .lead { color:var(--muted); font-size:clamp(22px,2vw,34px); line-height:1.5; max-width:1100px; margin-top:24px; }
+    .accent { color:var(--orange); }
+    .cyan { color:var(--cyan); }
+    .green { color:var(--green); }
+    .content { flex:1; display:flex; flex-direction:column; justify-content:center; min-height:0; }
+    .rule { height:1px; background:var(--line); margin:clamp(24px,3vw,52px) 0; }
+    .footer { position:absolute; bottom:24px; left:clamp(42px,6.1vw,116px); right:clamp(42px,6.1vw,116px); display:flex; justify-content:space-between; gap:30px; color:#87909f; font-size:clamp(12px,.95vw,16px); line-height:1.25; }
+    .footer span:first-child { max-width:78%; }
+    .giant { font-size:clamp(130px,19vw,340px); font-weight:900; line-height:.8; color:#18202b; position:absolute; right:4vw; bottom:6vh; letter-spacing:-.1em; pointer-events:none; }
+    .cover .content { justify-content:center; position:relative; z-index:1; }
+    .cover h1 { max-width:1160px; }
+    .cover .lead { max-width:930px; }
+    .cover .meta { display:flex; align-items:center; gap:26px; margin-top:58px; font-size:clamp(17px,1.25vw,22px); color:#d7d6d3; }
+    .cover .meta i { width:78px; height:2px; background:var(--orange); display:block; }
+    .three { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(28px,3.5vw,70px); margin-top:clamp(50px,6vw,100px); }
+    .three article { border-top:4px solid var(--orange); padding-top:28px; }
+    .three .num { font-size:clamp(15px,1.15vw,19px); color:var(--orange); font-weight:800; letter-spacing:.14em; margin-bottom:20px; }
+    .three h3 { margin-bottom:18px; }
+    .three p { font-size:clamp(19px,1.45vw,26px); line-height:1.52; color:var(--muted); }
+    .big-statement { margin-top:auto; margin-bottom:clamp(32px,3vw,50px); font-size:clamp(28px,2.55vw,45px); line-height:1.35; font-weight:700; max-width:1200px; }
+    .workflow { display:grid; grid-template-columns:repeat(5,1fr); gap:18px; margin-top:clamp(60px,7vw,120px); }
+    .workflow article { position:relative; padding-top:28px; border-top:3px solid var(--line); min-height:265px; }
+    .workflow article::before { content:""; width:13px; height:13px; background:var(--orange); border-radius:50%; position:absolute; top:-8px; left:0; }
+    .workflow .step { font-size:clamp(15px,1.15vw,19px); color:var(--orange); font-weight:800; margin-bottom:24px; }
+    .workflow h3 { font-size:clamp(22px,1.85vw,31px); margin-bottom:16px; }
+    .workflow p { color:var(--muted); font-size:clamp(17px,1.35vw,23px); line-height:1.45; padding-right:8px; }
+    .callout { margin-top:auto; margin-bottom:30px; padding:20px 0 0; border-top:1px solid var(--line); font-size:clamp(19px,1.5vw,27px); color:#e2e4e8; }
+    .scenario { display:grid; grid-template-columns:1fr 1fr; gap:6vw; margin-top:clamp(36px,4vw,70px); align-items:start; }
+    .scenario h3 { color:var(--orange); margin-bottom:20px; }
+    .scenario ol { list-style:none; counter-reset:flow; margin:0; padding:0; }
+    .scenario li { counter-increment:flow; display:grid; grid-template-columns:42px 1fr; gap:10px; padding:15px 0; border-bottom:1px solid var(--line); font-size:clamp(19px,1.5vw,26px); line-height:1.4; }
+    .scenario li::before { content:counter(flow,decimal-leading-zero); color:var(--orange); font-size:.7em; font-weight:800; padding-top:5px; }
+    .scenario .result { border-left:3px solid var(--green); padding-left:28px; }
+    .scenario .result p { font-size:clamp(20px,1.7vw,29px); line-height:1.55; color:#e7e8e9; margin-bottom:26px; }
+    .scenario .result .note { color:var(--muted); font-size:clamp(17px,1.25vw,22px); }
+    .real-table { display:grid; grid-template-columns:23% 45% 32%; margin-top:clamp(30px,3vw,55px); border-top:2px solid var(--orange); }
+    .real-table > div { border-bottom:1px solid var(--line); padding:clamp(16px,1.5vw,27px) 18px  clamp(16px,1.5vw,27px) 0; font-size:clamp(17px,1.32vw,23px); line-height:1.4; }
+    .real-table .head { color:#98a1ae; font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.08em; padding-top:16px; padding-bottom:12px; }
+    .real-table .term { font-weight:800; color:var(--orange); font-size:clamp(22px,1.7vw,30px); }
+    .real-table .measure { color:#c9d5dc; }
+    .formula { display:grid; grid-template-columns:1fr 1fr; gap:7vw; margin-top:clamp(45px,5vw,85px); }
+    .formula h3 { color:var(--orange); margin-bottom:24px; }
+    .formula p, .formula li { color:#e5e5e7; font-size:clamp(20px,1.55vw,27px); line-height:1.55; }
+    .formula ul { padding-left:1.2em; margin:0; }
+    .formula li { margin-bottom:14px; }
+    .equation { font-size:clamp(27px,2.45vw,42px) !important; font-weight:800; line-height:1.35 !important; padding:24px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin-bottom:25px; }
+    .example { margin-top:28px; color:var(--muted) !important; }
+    .pilot { display:grid; grid-template-columns:34% 1fr; gap:6vw; margin-top:clamp(45px,5vw,80px); }
+    .pilot .date { color:var(--orange); font-size:clamp(43px,3.7vw,66px); line-height:1.2; font-weight:800; }
+    .pilot .date-note { color:var(--muted); font-size:clamp(18px,1.35vw,24px); line-height:1.5; margin-top:20px; }
+    .pilot .phases { border-top:2px solid var(--orange); }
+    .pilot .phase { display:grid; grid-template-columns:115px 1fr; gap:25px; border-bottom:1px solid var(--line); padding:21px 0; }
+    .pilot .phase b { color:var(--orange); font-size:clamp(18px,1.35vw,23px); }
+    .pilot .phase p { color:#e6e8eb; font-size:clamp(19px,1.45vw,25px); line-height:1.4; }
+    .pilot-target { margin-top:auto; margin-bottom:32px; font-size:clamp(22px,1.85vw,32px); font-weight:750; }
+    .close .content { justify-content:center; }
+    .close h2 { max-width:1200px; font-size:clamp(53px,5.2vw,92px); }
+    .close .lead { max-width:1100px; }
+    .close .line { width:130px; height:5px; background:var(--orange); margin:50px 0 28px; }
+    .close .sub { color:#d8dde3; font-size:clamp(22px,1.7vw,30px); line-height:1.5; max-width:1040px; }
+    .controls { position:fixed; z-index:10; right:24px; bottom:20px; display:flex; align-items:center; gap:10px; }
+    .controls button { background:#202633; border:1px solid #4b5360; color:#fff; border-radius:50%; width:42px; height:42px; cursor:pointer; }
+    .controls button:hover { background:#394659; }
+    .controls output { min-width:58px; text-align:center; font-size:14px; color:#cbd0d8; }
+    .progress { position:fixed; left:0; right:0; bottom:0; height:5px; z-index:11; background:#202633; }
+    .progress span { display:block; width:12.5%; height:100%; background:var(--orange); transition:width .2s; }
+    @media (max-width:900px) {
+      .slide { overflow:auto; height:auto; min-height:100vh; padding-bottom:85px; }
+      .three,.workflow,.scenario,.formula,.pilot { grid-template-columns:1fr; gap:26px; }
+      .three { margin-top:42px; }
+      .workflow { margin-top:45px; }
+      .workflow article { min-height:0; }
+      .real-table { grid-template-columns:1fr 1.3fr; }
+      .real-table .head:nth-child(3),.real-table .measure { display:none; }
+      .footer { position:static; margin-top:35px; }
+      .content { flex:none; }
+      .big-statement,.callout,.pilot-target { margin-top:35px; }
+    }
+    @media print {
+      @page { size:16in 9in; margin:0; }
+      html,body,.deck { width:auto; height:auto; background:#fff; }
+      .slide,.slide.active { display:flex !important; width:16in; height:9in; min-height:0; break-after:page; overflow:hidden; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .controls,.progress { display:none; }
+    }
+  </style>
+</head>
+<body>
+<main class="deck" aria-label="DevBuddy presentation">
+  <section class="slide cover active" aria-label="สไลด์ 1">
+    <div class="content">
+      <p class="eyebrow">DevBuddy × REAL AI Impact</p>
+      <h1>ความรู้ของโปรเจกต์<br><span class="accent">ไม่ควรหายไปพร้อมคนทำ</span></h1>
+      <p class="lead">Plugin สำหรับให้ AI ค้นบริบท วิเคราะห์ผลกระทบ และช่วยส่งต่องาน โดยความรู้ที่เผยแพร่ผ่านการตรวจของคน</p>
+      <div class="meta"><i></i><span>แนวทางทดลองใช้งานจริงและวัดเวลาที่ประหยัดได้</span></div>
+    </div>
+    <div class="giant" aria-hidden="true">D</div>
+    <div class="footer"><span>ที่มา: README.md, plugins/codex/AGENTS.md</span><span>01 / 08</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 2">
+    <p class="eyebrow">01 / Pain</p>
+    <h2>เวลาหายไปกับการ<br><span class="accent">เริ่มเข้าใจงานใหม่ซ้ำ ๆ</span></h2>
+    <div class="three">
+      <article><p class="num">01 CONTEXT</p><h3>จำไม่ได้ว่าตัดสินใจเพราะอะไร</h3><p>เหตุผลอยู่กระจัดกระจายในโค้ด เอกสาร และบทสนทนา คนรับช่วงต้องสืบใหม่</p></article>
+      <article><p class="num">02 IMPACT</p><h3>แก้จุดหนึ่ง แต่ไม่เห็นผลกระทบ</h3><p>ต้องไล่ความสัมพันธ์ของไฟล์ ประวัติ และหลักฐานก่อนประเมินงานได้</p></article>
+      <article><p class="num">03 HANDOVER</p><h3>ส่งต่องานโดยไม่มี “ทำไม”</h3><p>สถานะอย่างเดียวไม่พอ คนถัดไปยังต้องถามความเสี่ยง สิ่งค้าง และขั้นต่อไป</p></article>
+    </div>
+    <p class="big-statement">ต้นทุนที่ซ่อนอยู่คือ <span class="accent">เวลาในการกู้บริบท</span> ก่อนเริ่มลงมือทำงานจริง</p>
+    <div class="footer"><span>ปัญหาที่ DevBuddy ตั้งใจแก้: README.md, info.md</span><span>02 / 08</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 3">
+    <p class="eyebrow">02 / Solution</p>
+    <h2>DevBuddy ทำให้ความรู้<br><span class="accent">ค้นได้ ตรวจได้ ส่งต่อได้</span></h2>
+    <div class="workflow">
+      <article><p class="step">01</p><h3>ค้น</h3><p>ค้นบันทึกที่เผยแพร่แล้วก่อนเริ่มสืบจากศูนย์</p></article>
+      <article><p class="step">02</p><h3>วิเคราะห์</h3><p>อ่านโค้ด เอกสาร และประวัติ เพื่อเห็นผลกระทบ</p></article>
+      <article><p class="step">03</p><h3>ร่าง</h3><p>สรุปเหตุผล หลักฐาน และสิ่งที่คนถัดไปต้องรู้</p></article>
+      <article><p class="step">04</p><h3>อนุมัติ</h3><p>คนตรวจและเผยแพร่ฉบับที่ถูกต้อง</p></article>
+      <article><p class="step">05</p><h3>ใช้ซ้ำ</h3><p>งานรอบถัดไปค้นบริบทเดิมและต่อยอดได้</p></article>
+    </div>
+    <p class="callout"><span class="green">ขอบเขตสำคัญ:</span> AI วิเคราะห์แบบอ่านอย่างเดียวและสร้าง draft; การอนุมัติและเผยแพร่เป็นหน้าที่ของคน</p>
+    <div class="footer"><span>ที่มา: plugins/codex/AGENTS.md, docs/plan.md</span><span>03 / 08</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 4">
+    <p class="eyebrow">03 / Real work</p>
+    <h2>ตัวอย่าง: รับช่วงแก้ปัญหา<br><span class="accent">ในงานที่มีคนทำไว้แล้ว</span></h2>
+    <div class="scenario">
+      <div>
+        <h3>ลำดับการใช้ plugin</h3>
+        <ol>
+          <li>ค้น decision และ work item ที่เกี่ยวข้อง</li>
+          <li>อ่านสาเหตุเดิมและข้อจำกัดจาก record</li>
+          <li>วิเคราะห์ว่าการแก้ครั้งนี้กระทบส่วนใด</li>
+          <li>สร้าง draft บันทึกผลและ handover</li>
+        </ol>
+      </div>
+      <div class="result">
+        <h3 class="green">สิ่งที่ทีมได้</h3>
+        <p>ผู้รับงานเห็น <strong>เหตุผลเดิม + หลักฐาน + ผลกระทบ + งานค้าง</strong> ในบริบทเดียว ก่อนเริ่มแก้</p>
+        <p class="note">นี่เป็น workflow ตัวอย่างสำหรับ pilot ไม่ใช่กรณี production ที่วัดผลแล้ว</p>
+      </div>
+    </div>
+    <div class="footer"><span>ความสามารถที่รองรับ: search_knowledge, get_record, analyze_change_impact, create_draft, generate_handover</span><span>04 / 08</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 5">
+    <p class="eyebrow">04 / REAL framework</p>
+    <h2>ตอบโจทย์ REAL อย่างไร</h2>
+    <div class="real-table" role="table" aria-label="REAL dimensions">
+      <div class="head">มิติ</div><div class="head">DevBuddy ในงานจริง</div><div class="head">หลักฐานที่ควรเก็บ</div>
+      <div class="term">R · Real Use</div><div>ใช้กับงานในโปรเจกต์ที่ทีมอนุมัติ เช่น วิเคราะห์ change impact ก่อนแก้</div><div class="measure">สัดส่วนงานที่ใช้จริง / จำนวนงานที่ปิดได้</div>
+      <div class="term">E · Efficiency Gain</div><div>ลดเวลาค้นบริบท วิเคราะห์ และเขียน handover</div><div class="measure">นาทีต่อ task เทียบ baseline</div>
+      <div class="term">A · Always-On</div><div>ค้นก่อนเริ่มงาน และอัปเดตความรู้เมื่อจบงานเป็น routine</div><div class="measure">อัตราใช้ต่อเนื่องรายสัปดาห์</div>
+      <div class="term">L · Leverage</div><div>decision และ handover ที่อนุมัติแล้วช่วยงานรอบต่อไป</div><div class="measure">จำนวนครั้งที่ reuse / ทีมที่ใช้</div>
+    </div>
+    <div class="footer"><span>REAL 4 มิติอ้างอิงภาพประกอบที่ผู้ใช้ให้; การจับคู่กับ DevBuddy เป็นข้อเสนอสำหรับ pilot</span><span>05 / 08</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 6">
+    <p class="eyebrow">05 / Time estimate</p>
+    <h2>ประเมินเวลาอย่างไร<br><span class="accent">ให้ตรวจสอบย้อนกลับได้</span></h2>
+    <div class="formula">
+      <div>
+        <h3>วัดงานชนิดเดียวกัน</h3>
+        <ul>
+          <li>เลือก task ที่นิยาม “เสร็จ” เหมือนกัน</li>
+          <li>บันทึกเวลา 3 ช่วง: หาบริบท วิเคราะห์ผลกระทบ และส่งต่องาน</li>
+          <li>รวมเวลาแก้คำตอบของ AI และเวลา review ด้วย</li>
+          <li>เทียบกลุ่ม baseline กับกลุ่มที่ใช้ DevBuddy</li>
+        </ul>
+      </div>
+      <div>
+        <h3>สูตรที่ใช้รายงาน</h3>
+        <p class="equation">เวลาที่ลดได้ (%) =<br><span class="accent">(baseline − pilot) ÷ baseline × 100</span></p>
+        <p>ใช้ค่ามัธยฐานนาทีต่อ task เพื่อลดผลของงานที่ยาวผิดปกติ</p>
+        <p class="example">ตัวอย่างสมมติ: 120 → 80 นาทีต่อ task = ลด 33%<br>ตัวเลขนี้เป็นตัวอย่างวิธีคิด ยังไม่ใช่ผลวัดของ DevBuddy</p>
+      </div>
+    </div>
+    <div class="footer"><span>กรอบการวัดเสนอขึ้นสำหรับการทดลอง; เป้าหมาย ≥30% มาจากภาพ REAL ที่แนบมา</span><span>06 / 08</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 7">
+    <p class="eyebrow">06 / Pilot plan</p>
+    <h2>ทดลองแบบสั้น และเก็บหลักฐานทุกมิติ</h2>
+    <div class="pilot">
+      <div><p class="date">15–30<br>พ.ย. 2569</p><p class="date-note">ช่วงเวลาตามภาพอ้างอิง<br>ปรับได้ตามความพร้อมของทีม</p></div>
+      <div class="phases">
+        <div class="phase"><b>ก่อนเริ่ม</b><p>เลือกงานที่เทียบกันได้ เก็บ baseline และกำหนดนิยามเสร็จ</p></div>
+        <div class="phase"><b>ระหว่างทำ</b><p>ใช้ plugin ในงานจริง บันทึกเวลา การแก้คำตอบ และหลักฐานงาน</p></div>
+        <div class="phase"><b>หลังจบ</b><p>คำนวณเวลาที่ลดได้ ดูความถี่การใช้และ record ที่ถูกนำกลับมาใช้</p></div>
+      </div>
+    </div>
+    <p class="pilot-target">เกณฑ์ E ที่เสนอ: <span class="accent">เวลาในขั้นตอนที่วัดลด ≥30%</span> พร้อมคุณภาพงานไม่ถอย</p>
+    <div class="footer"><span>ก่อนเชื่อมข้อมูลโปรเจกต์จริง ต้องปฏิบัติตามเงื่อนไขการเข้าถึง AI และการใช้ข้อมูลใน info.md</span><span>07 / 08</span></div>
+  </section>
+
+  <section class="slide close" aria-label="สไลด์ 8">
+    <div class="content">
+      <p class="eyebrow">DevBuddy × REAL</p>
+      <h2>เป้าหมายคือให้คนถัดไป<br><span class="accent">เริ่มจากสิ่งที่ทีมรู้อยู่แล้ว</span></h2>
+      <p class="lead">ใช้จริงกับงานที่อนุมัติ วัดนาทีที่ลดได้ ใช้เป็นกิจวัตร และนำความรู้กลับมาใช้ซ้ำ</p>
+      <div class="line"></div>
+      <p class="sub">Pilot จะตอบด้วยหลักฐานว่า plugin นี้ช่วยงานได้เท่าไร และควรขยายการใช้ในทีมอย่างไร</p>
+    </div>
+    <div class="footer"><span>อ้างอิง: README.md, info.md, docs/plan.md, plugins/codex/AGENTS.md และภาพ REAL ที่แนบมา</span><span>08 / 08</span></div>
+  </section>
+</main>
+<nav class="controls" aria-label="Slide controls"><button id="prev" aria-label="Previous slide">←</button><output id="counter">1 / 8</output><button id="next" aria-label="Next slide">→</button></nav>
+<div class="progress" aria-hidden="true"><span id="progress"></span></div>
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = Math.max(0, Math.min(slides.length - 1, (Number(location.hash.slice(1)) || 1) - 1));
+  function show(index) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+    document.querySelector('#counter').textContent = `${current + 1} / ${slides.length}`;
+    document.querySelector('#progress').style.width = `${(current + 1) / slides.length * 100}%`;
+    history.replaceState(null, '', `#${current + 1}`);
+  }
+  document.querySelector('#prev').addEventListener('click', () => show(current - 1));
+  document.querySelector('#next').addEventListener('click', () => show(current + 1));
+  addEventListener('keydown', event => {
+    if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(current + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(current - 1); }
+    if (event.key === 'Home') show(0);
+    if (event.key === 'End') show(slides.length - 1);
+  });
+  addEventListener('hashchange', () => show((Number(location.hash.slice(1)) || 1) - 1));
+  show(current);
+</script>
+</body>
+</html>

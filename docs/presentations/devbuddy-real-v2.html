@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevBuddy × REAL AI Impact · concept deck</title>
+  <style>
+    :root { color-scheme: dark; --bg:#080b12; --ink:#f7f5f2; --muted:#b8bbc7; --orange:#ff8b3d; --line:#39404d; --green:#78d6a5; --cyan:#75c9eb; }
+    * { box-sizing:border-box; }
+    html, body { margin:0; width:100%; height:100%; }
+    body { background:#05070b; color:var(--ink); font-family:"Noto Sans Thai","Th Sarabun New","Arial",sans-serif; }
+    button { font:inherit; }
+    .deck { width:100%; height:100%; }
+    .slide { display:none; position:relative; width:100vw; height:100vh; min-height:560px; padding:clamp(34px,4.7vw,90px) clamp(42px,6.1vw,116px) clamp(46px,5vw,82px); overflow-x:hidden; overflow-y:auto; background:radial-gradient(circle at 92% 7%,#192333 0,#080b12 37%,#080b12 100%); }
+    .slide.active { display:flex; flex-direction:column; }
+    .slide::before { content:""; position:absolute; inset:0 auto 0 0; width:8px; background:linear-gradient(var(--orange),#b65320); }
+    .eyebrow { color:var(--orange); font-weight:800; letter-spacing:.13em; text-transform:uppercase; font-size:clamp(15px,1.25vw,20px); margin:0 0 18px; }
+    h1,h2,h3,p { margin:0; }
+    h1 { font-size:clamp(58px,6.2vw,110px); line-height:1.06; letter-spacing:-.035em; }
+    h2 { font-size:clamp(43px,4.2vw,72px); line-height:1.11; letter-spacing:-.025em; max-width:1300px; }
+    h3 { font-size:clamp(23px,2vw,34px); line-height:1.22; }
+    .lead { color:var(--muted); font-size:clamp(22px,2vw,34px); line-height:1.5; max-width:1100px; margin-top:24px; }
+    .accent { color:var(--orange); }
+    .cyan { color:var(--cyan); }
+    .green { color:var(--green); }
+    .content { flex:1; display:flex; flex-direction:column; justify-content:center; min-height:0; }
+    .rule { height:1px; background:var(--line); margin:clamp(24px,3vw,52px) 0; }
+    .footer { position:relative; flex:none; margin-top:auto; padding:18px 185px 0 0; display:flex; justify-content:space-between; gap:30px; color:#87909f; font-size:clamp(12px,.95vw,16px); line-height:1.25; }
+    .footer span:first-child { max-width:78%; }
+    .slide :is(article, .map-node, .build-node, .draft-step, .io-card, .search-row > div, .lane-row > div, .real-table > div, .demo-copy) { min-width:0; overflow-wrap:anywhere; }
+    .giant { font-size:clamp(130px,19vw,340px); font-weight:900; line-height:.8; color:#18202b; position:absolute; right:4vw; bottom:6vh; letter-spacing:-.1em; pointer-events:none; }
+    .cover .content { justify-content:center; position:relative; z-index:1; }
+    .cover h1 { max-width:1160px; }
+    .cover .lead { max-width:930px; }
+    .cover .meta { display:flex; align-items:center; gap:26px; margin-top:58px; font-size:clamp(17px,1.25vw,22px); color:#d7d6d3; }
+    .cover .meta i { width:78px; height:2px; background:var(--orange); display:block; }
+    .three { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(28px,3.5vw,70px); margin-top:clamp(50px,6vw,100px); }
+    .three article { border-top:4px solid var(--orange); padding-top:28px; }
+    .three .num { font-size:clamp(15px,1.15vw,19px); color:var(--orange); font-weight:800; letter-spacing:.14em; margin-bottom:20px; }
+    .three h3 { margin-bottom:18px; }
+    .three p { font-size:clamp(19px,1.45vw,26px); line-height:1.52; color:var(--muted); }
+    .big-statement { margin-top:auto; margin-bottom:clamp(32px,3vw,50px); font-size:clamp(28px,2.55vw,45px); line-height:1.35; font-weight:700; max-width:1200px; }
+    .pain-setup { color:#e7e8eb; font-size:clamp(22px,1.7vw,29px); line-height:1.4; margin-top:28px; }
+    .pain-cycle { display:grid; grid-template-columns:1fr .11fr 1fr .11fr 1fr .11fr 1fr; gap:10px; align-items:center; margin-top:clamp(50px,5.5vw,95px); }
+    .pain-cycle article { border-bottom:4px solid var(--orange); padding:20px 12px 24px 0; min-height:205px; }
+    .pain-cycle .stage { color:var(--orange); font-size:clamp(15px,1.1vw,19px); font-weight:800; letter-spacing:.08em; margin-bottom:17px; }
+    .pain-cycle h3 { font-size:clamp(21px,1.7vw,30px); margin-bottom:12px; }
+    .pain-cycle p { color:var(--muted); font-size:clamp(18px,1.3vw,23px); line-height:1.42; }
+    .pain-cycle .arrow { text-align:center; color:var(--orange); font-size:clamp(28px,2.7vw,48px); }
+    .pain-cost { margin-top:clamp(34px,4vw,64px); font-size:clamp(29px,2.55vw,44px); line-height:1.35; font-weight:750; max-width:1190px; }
+    .pain-cost small { display:block; color:var(--muted); font-size:clamp(18px,1.3vw,23px); font-weight:400; margin-top:12px; }
+    .case-grid { display:grid; grid-template-columns:1fr .13fr 1fr; gap:22px; align-items:center; margin-top:clamp(38px,4.5vw,78px); }
+    .case-card { min-height:272px; border:2px solid var(--line); border-radius:17px; padding:27px 30px; background:#111722; }
+    .case-card.question { border-color:var(--orange); background:#291a14; }
+    .case-card .tag { color:var(--orange); font-size:clamp(15px,1.05vw,19px); font-weight:800; letter-spacing:.08em; margin-bottom:17px; }
+    .case-card h3 { font-size:clamp(27px,2.1vw,38px); margin-bottom:18px; }
+    .case-card p { color:var(--muted); font-size:clamp(19px,1.42vw,26px); line-height:1.45; }
+    .case-arrow { color:var(--orange); text-align:center; font-size:clamp(43px,4vw,72px); }
+    .case-output { margin-top:32px; border-top:2px solid var(--green); padding-top:18px; color:#e6ebe8; font-size:clamp(20px,1.55vw,28px); line-height:1.4; }
+    .case-output strong { color:var(--green); }
+    .io-grid { display:grid; grid-template-columns:1fr .14fr 1fr .14fr 1fr; gap:14px; align-items:center; margin-top:clamp(36px,4.3vw,75px); }
+    .io-card { min-height:310px; border:2px solid var(--line); border-radius:16px; background:#111722; padding:23px 25px; }
+    .io-card.process { border-color:var(--orange); background:#291a14; }
+    .io-card.output { border-color:var(--green); background:#10241d; }
+    .io-card .tag { color:var(--orange); font-size:clamp(16px,1.1vw,20px); font-weight:800; letter-spacing:.08em; margin-bottom:14px; }
+    .io-card h3 { font-size:clamp(24px,1.85vw,33px); margin-bottom:16px; }
+    .io-card ul { margin:0; padding-left:1.15em; }
+    .io-card li { color:#dce0e4; font-size:clamp(17px,1.24vw,23px); line-height:1.42; margin-bottom:10px; }
+    .io-arrow { color:var(--orange); text-align:center; font-size:clamp(36px,3.5vw,64px); }
+    .io-rule { margin-top:28px; border-top:1px solid var(--line); padding-top:17px; color:#e5e9eb; font-size:clamp(18px,1.35vw,25px); line-height:1.42; }
+    .io-rule strong { color:var(--green); }
+    .io-swim { margin-top:clamp(30px,3.2vw,55px); border-top:2px solid var(--orange); }
+    .io-swim-head,.io-swim-row { display:grid; grid-template-columns:17% 27% 28% 28%; }
+    .io-swim-head { color:#98a1ae; font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.06em; border-bottom:1px solid var(--line); }
+    .io-swim-head > div { padding:12px 18px 12px 0; }
+    .io-swim-row { border-bottom:1px solid var(--line); min-height:150px; }
+    .io-swim-row > div { padding:18px 18px 18px 0; font-size:clamp(18px,1.28vw,24px); line-height:1.42; }
+    .io-swim-row .actor { color:var(--orange); font-size:clamp(23px,1.7vw,31px); font-weight:800; }
+    .io-swim-row .result { color:#e0eee6; background:#10241d; padding-left:16px; }
+    .io-bridge { color:#dcebe4; border-left:4px solid var(--green); padding:12px 20px; margin:17px 0; font-size:clamp(18px,1.28vw,24px); line-height:1.35; }
+    .io-bridge strong { color:var(--green); }
+    .entry-sources { display:grid; grid-template-columns:1fr 1fr; gap:clamp(35px,5vw,85px); margin-top:clamp(32px,3.5vw,58px); }
+    .entry-source { border-top:4px solid var(--orange); padding-top:19px; min-height:155px; }
+    .entry-source .type { color:var(--orange); font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.08em; margin-bottom:8px; }
+    .entry-source h3 { font-size:clamp(24px,1.9vw,34px); margin-bottom:10px; }
+    .entry-source p { color:var(--muted); font-size:clamp(18px,1.35vw,24px); line-height:1.42; }
+    .entry-arrows { display:grid; grid-template-columns:1fr 1fr; gap:clamp(35px,5vw,85px); color:var(--orange); font-size:clamp(30px,3vw,55px); line-height:1; text-align:center; margin:9px 0; }
+    .entry-base { width:min(820px,68%); align-self:center; border:2px solid var(--green); background:#10241d; border-radius:18px; padding:22px 30px; text-align:center; }
+    .entry-base h3 { color:var(--green); font-size:clamp(25px,2vw,36px); margin-bottom:9px; }
+    .entry-base p { color:#e2e7e5; font-size:clamp(18px,1.35vw,24px); line-height:1.4; }
+    .entry-tail { text-align:center; color:var(--muted); font-size:clamp(18px,1.35vw,24px); margin-top:22px; }
+    .workflow { display:grid; grid-template-columns:repeat(5,1fr); gap:18px; margin-top:clamp(60px,7vw,120px); }
+    .workflow article { position:relative; padding-top:28px; border-top:3px solid var(--line); min-height:265px; }
+    .workflow article::before { content:""; width:13px; height:13px; background:var(--orange); border-radius:50%; position:absolute; top:-8px; left:0; }
+    .workflow .step { font-size:clamp(15px,1.15vw,19px); color:var(--orange); font-weight:800; margin-bottom:24px; }
+    .workflow h3 { font-size:clamp(22px,1.85vw,31px); margin-bottom:16px; }
+    .workflow p { color:var(--muted); font-size:clamp(17px,1.35vw,23px); line-height:1.45; padding-right:8px; }
+    .system-map { display:grid; grid-template-columns:1.1fr .13fr 1.2fr .13fr 1.1fr .13fr 1.1fr; align-items:center; gap:12px; margin-top:clamp(44px,5vw,82px); }
+    .map-node { border:2px solid var(--line); border-radius:18px; padding:24px 22px; min-height:210px; display:flex; flex-direction:column; justify-content:center; }
+    .map-node.core { border-color:var(--orange); background:#291a14; }
+    .map-node.review { border-color:var(--green); background:#10241d; }
+    .map-label { color:var(--orange); font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.08em; margin-bottom:12px; }
+    .map-node h3 { font-size:clamp(22px,1.7vw,30px); margin-bottom:10px; }
+    .map-node p { color:var(--muted); font-size:clamp(17px,1.2vw,22px); line-height:1.45; }
+    .map-arrow { color:var(--orange); font-size:clamp(26px,2.8vw,50px); text-align:center; font-weight:800; }
+    .map-loop { margin-top:28px; padding:17px 0 0; border-top:1px solid var(--line); color:#d7dde3; font-size:clamp(20px,1.5vw,27px); }
+    .build-map { display:grid; grid-template-columns:1.15fr .12fr 1.2fr .12fr 1.1fr; align-items:center; gap:14px; margin-top:clamp(35px,4vw,70px); }
+    .build-channels { display:grid; gap:15px; }
+    .build-node { border:2px solid var(--line); border-radius:16px; padding:19px 21px; background:#111722; }
+    .build-node.core { border-color:var(--orange); background:#291a14; min-height:252px; display:flex; flex-direction:column; justify-content:center; }
+    .build-node.data { border-color:var(--cyan); min-height:252px; display:flex; flex-direction:column; justify-content:center; }
+    .build-node .tag { color:var(--orange); font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.08em; margin-bottom:8px; }
+    .build-node h3 { font-size:clamp(21px,1.6vw,28px); margin-bottom:8px; }
+    .build-node p { color:var(--muted); font-size:clamp(16px,1.15vw,21px); line-height:1.38; }
+    .build-arrow { color:var(--orange); text-align:center; font-size:clamp(29px,2.8vw,50px); font-weight:800; }
+    .build-rails { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:28px; }
+    .build-rails p { border-top:2px solid var(--green); padding-top:12px; color:#d9e0df; font-size:clamp(16px,1.16vw,21px); line-height:1.37; }
+    .build-rails strong { color:var(--green); }
+    .draft-flow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:18px; margin-top:clamp(36px,4.2vw,73px); }
+    .draft-step { position:relative; min-height:258px; padding:20px 19px; border:2px solid var(--line); border-radius:15px; background:#111722; }
+    .draft-step:not(:last-child)::after { content:"→"; position:absolute; right:-27px; top:44%; z-index:1; color:var(--orange); font-size:32px; font-weight:900; }
+    .draft-step.review { border-color:var(--orange); background:#291a14; }
+    .draft-step.published { border-color:var(--green); background:#10241d; }
+    .draft-step .who { color:var(--orange); font-size:clamp(13px,.95vw,17px); font-weight:800; letter-spacing:.06em; margin-bottom:14px; }
+    .draft-step h3 { font-size:clamp(20px,1.55vw,28px); margin-bottom:12px; }
+    .draft-step p { color:var(--muted); font-size:clamp(16px,1.16vw,21px); line-height:1.42; }
+    .draft-step .state { display:block; color:var(--cyan); font-size:clamp(14px,1vw,18px); font-weight:800; margin-top:17px; }
+    .draft-return { display:flex; align-items:center; gap:18px; margin-top:26px; border:2px solid var(--orange); border-radius:14px; padding:14px 20px; background:#291a14; color:#e5e8ec; font-size:clamp(18px,1.3vw,23px); line-height:1.38; }
+    .draft-return .return-arrow { color:var(--orange); font-size:clamp(35px,3vw,52px); line-height:1; font-weight:800; flex:none; }
+    .draft-return strong { color:var(--orange); }
+    .search-swim { margin-top:clamp(34px,4vw,69px); border-top:2px solid var(--orange); }
+    .search-row { display:grid; grid-template-columns:15% 25% 23% 19% 18%; border-bottom:1px solid var(--line); align-items:stretch; }
+    .search-row > div { padding:17px 15px 17px 0; font-size:clamp(17px,1.23vw,22px); line-height:1.38; }
+    .search-row.head > div { color:#98a1ae; font-size:clamp(13px,.95vw,17px); font-weight:800; letter-spacing:.07em; padding-top:12px; padding-bottom:10px; }
+    .search-row .actor { color:var(--orange); font-size:clamp(22px,1.7vw,30px); font-weight:800; }
+    .search-row .shared { color:var(--green); font-weight:750; background:#10241d; padding-left:12px; }
+    .search-note { margin-top:25px; font-size:clamp(19px,1.4vw,25px); line-height:1.45; color:#d9e1e6; }
+    .search-note strong { color:var(--green); }
+    .scenario-flow { display:grid; grid-template-columns:1fr .12fr 1fr .12fr 1fr .12fr 1fr; gap:9px; align-items:center; margin-top:clamp(42px,4.2vw,74px); }
+    .flow-node { min-height:210px; border-top:4px solid var(--orange); background:#111722; border-radius:0 0 14px 14px; padding:22px; }
+    .flow-node .flow-num { color:var(--orange); font-size:clamp(14px,1vw,18px); font-weight:800; margin-bottom:15px; }
+    .flow-node h3 { font-size:clamp(20px,1.6vw,29px); margin-bottom:12px; }
+    .flow-node p { color:var(--muted); font-size:clamp(17px,1.2vw,22px); line-height:1.4; }
+    .flow-arrow { color:var(--orange); font-size:clamp(26px,2.8vw,50px); text-align:center; }
+    .flow-result { display:grid; grid-template-columns:1fr 1fr; gap:50px; border-top:1px solid var(--line); margin-top:34px; padding-top:24px; }
+    .flow-result p { font-size:clamp(19px,1.5vw,26px); line-height:1.45; }
+    .flow-result strong { color:var(--green); }
+    .callout { margin-top:auto; margin-bottom:30px; padding:20px 0 0; border-top:1px solid var(--line); font-size:clamp(19px,1.5vw,27px); color:#e2e4e8; }
+    .scenario { display:grid; grid-template-columns:1fr 1fr; gap:6vw; margin-top:clamp(36px,4vw,70px); align-items:start; }
+    .scenario h3 { color:var(--orange); margin-bottom:20px; }
+    .scenario ol { list-style:none; counter-reset:flow; margin:0; padding:0; }
+    .scenario li { counter-increment:flow; display:grid; grid-template-columns:42px 1fr; gap:10px; padding:15px 0; border-bottom:1px solid var(--line); font-size:clamp(19px,1.5vw,26px); line-height:1.4; }
+    .scenario li::before { content:counter(flow,decimal-leading-zero); color:var(--orange); font-size:.7em; font-weight:800; padding-top:5px; }
+    .scenario .result { border-left:3px solid var(--green); padding-left:28px; }
+    .scenario .result p { font-size:clamp(20px,1.7vw,29px); line-height:1.55; color:#e7e8e9; margin-bottom:26px; }
+    .scenario .result .note { color:var(--muted); font-size:clamp(17px,1.25vw,22px); }
+    .real-table { display:grid; grid-template-columns:23% 45% 32%; margin-top:clamp(30px,3vw,55px); border-top:2px solid var(--orange); }
+    .real-table > div { border-bottom:1px solid var(--line); padding:clamp(16px,1.5vw,27px) 18px  clamp(16px,1.5vw,27px) 0; font-size:clamp(17px,1.32vw,23px); line-height:1.4; }
+    .real-table .head { color:#98a1ae; font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.08em; padding-top:16px; padding-bottom:12px; }
+    .real-table .term { font-weight:800; color:var(--orange); font-size:clamp(22px,1.7vw,30px); }
+    .real-table .measure { color:#c9d5dc; }
+    .role-table { display:grid; grid-template-columns:24% 52% 24%; margin-top:clamp(28px,3vw,50px); border-top:2px solid var(--orange); }
+    .role-table > div { border-bottom:1px solid var(--line); padding:clamp(12px,1.15vw,20px) 20px clamp(12px,1.15vw,20px) 0; font-size:clamp(17px,1.25vw,22px); line-height:1.38; }
+    .role-table .head { color:#98a1ae; font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.08em; }
+    .role-table .term { color:var(--orange); font-weight:800; font-size:clamp(20px,1.55vw,28px); }
+    .role-table .boundary { color:#cbd6dd; }
+    .persona-lanes { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(30px,4vw,70px); margin-top:clamp(50px,5.5vw,95px); }
+    .persona-lanes article { border-top:4px solid var(--orange); padding-top:24px; }
+    .persona-lanes .role { color:var(--orange); font-size:clamp(27px,2.1vw,38px); font-weight:800; margin-bottom:19px; }
+    .persona-lanes h3 { font-size:clamp(21px,1.7vw,30px); margin-bottom:15px; }
+    .persona-lanes p { color:var(--muted); font-size:clamp(18px,1.35vw,24px); line-height:1.48; }
+    .role-note { margin-top:auto; margin-bottom:34px; border-top:1px solid var(--line); padding-top:22px; font-size:clamp(20px,1.55vw,27px); line-height:1.4; }
+    .access-flow { display:grid; grid-template-columns:1fr .12fr 1fr .12fr 1fr; gap:12px; align-items:center; margin-top:clamp(38px,4vw,70px); }
+    .access-node { border:2px solid var(--line); border-radius:16px; min-height:195px; padding:24px; }
+    .access-node.human { border-color:var(--green); background:#10241d; }
+    .access-node .role { color:var(--orange); font-size:clamp(23px,1.7vw,31px); font-weight:800; margin-bottom:12px; }
+    .access-node p { color:var(--muted); font-size:clamp(18px,1.3vw,23px); line-height:1.42; }
+    .access-arrow { color:var(--orange); text-align:center; font-size:clamp(30px,3vw,52px); }
+    .support-flow { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:34px; border-top:1px solid var(--line); padding-top:24px; }
+    .support-flow p { font-size:clamp(18px,1.4vw,25px); line-height:1.4; color:#d9dce0; }
+    .support-flow strong { color:var(--cyan); }
+    .access-note { color:#aeb5c0; font-size:clamp(15px,1.15vw,20px); margin-top:22px; }
+    .demo-layout { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(330px,.8fr); gap:clamp(30px,4vw,70px); align-items:center; flex:1; min-height:0; margin:24px 0 22px; }
+    .demo-frame { height:100%; min-height:320px; display:flex; justify-content:center; align-items:center; padding:14px; border:1px solid #526178; border-radius:18px; background:#eaf2fa; }
+    .demo-frame img { display:block; max-width:100%; max-height:100%; object-fit:contain; box-shadow:0 7px 28px #0005; }
+    .demo-copy { align-self:center; }
+    .demo-copy h3 { color:var(--orange); margin-bottom:20px; }
+    .demo-copy p { font-size:clamp(21px,1.55vw,28px); line-height:1.5; color:#e6e9ef; margin-bottom:22px; }
+    .demo-copy .demo-note { border-top:1px solid var(--line); padding-top:18px; color:#aeb8c7; font-size:clamp(16px,1.1vw,20px); }
+    .swimlane { margin-top:clamp(32px,3.6vw,64px); border-top:2px solid var(--orange); }
+    .lane-row { display:grid; grid-template-columns:13% 29% 29% 29%; border-bottom:1px solid var(--line); }
+    .lane-row > div { padding:clamp(13px,1.25vw,22px) 22px clamp(13px,1.25vw,22px) 0; font-size:clamp(17px,1.25vw,22px); line-height:1.35; }
+    .lane-row.head > div { color:#98a1ae; font-size:clamp(14px,1vw,18px); font-weight:800; letter-spacing:.07em; }
+    .lane-row .lane-name { color:var(--orange); font-size:clamp(23px,1.8vw,32px); font-weight:800; }
+    .lane-row.reviewer { background:#10241d; }
+    .lane-row.reviewer .lane-name { color:var(--green); }
+    .lane-caption { color:#b6bdc7; font-size:clamp(17px,1.25vw,22px); margin-top:22px; }
+    .formula { display:grid; grid-template-columns:1fr 1fr; gap:7vw; margin-top:clamp(45px,5vw,85px); }
+    .formula h3 { color:var(--orange); margin-bottom:24px; }
+    .formula p, .formula li { color:#e5e5e7; font-size:clamp(20px,1.55vw,27px); line-height:1.55; }
+    .formula ul { padding-left:1.2em; margin:0; }
+    .formula li { margin-bottom:14px; }
+    .equation { font-size:clamp(27px,2.45vw,42px) !important; font-weight:800; line-height:1.35 !important; padding:24px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin-bottom:25px; }
+    .example { margin-top:28px; color:var(--muted) !important; }
+    .pilot { display:grid; grid-template-columns:34% 1fr; gap:6vw; margin-top:clamp(45px,5vw,80px); }
+    .pilot .date { color:var(--orange); font-size:clamp(43px,3.7vw,66px); line-height:1.2; font-weight:800; }
+    .pilot .date-note { color:var(--muted); font-size:clamp(18px,1.35vw,24px); line-height:1.5; margin-top:20px; }
+    .pilot .phases { border-top:2px solid var(--orange); }
+    .pilot .phase { display:grid; grid-template-columns:115px 1fr; gap:25px; border-bottom:1px solid var(--line); padding:21px 0; }
+    .pilot .phase b { color:var(--orange); font-size:clamp(18px,1.35vw,23px); }
+    .pilot .phase p { color:#e6e8eb; font-size:clamp(19px,1.45vw,25px); line-height:1.4; }
+    .pilot-target { margin-top:auto; margin-bottom:32px; font-size:clamp(22px,1.85vw,32px); font-weight:750; }
+    .close .content { justify-content:center; }
+    .close h2 { max-width:1200px; font-size:clamp(53px,5.2vw,92px); }
+    .close .lead { max-width:1100px; }
+    .close .line { width:130px; height:5px; background:var(--orange); margin:50px 0 28px; }
+    .close .sub { color:#d8dde3; font-size:clamp(22px,1.7vw,30px); line-height:1.5; max-width:1040px; }
+    .controls { position:fixed; z-index:10; right:24px; bottom:20px; display:flex; align-items:center; gap:10px; }
+    .controls button { background:#202633; border:1px solid #4b5360; color:#fff; border-radius:50%; width:42px; height:42px; cursor:pointer; }
+    .controls button:hover { background:#394659; }
+    .controls button:focus-visible { outline:3px solid var(--cyan); outline-offset:3px; }
+    .controls button:disabled { opacity:.45; cursor:default; }
+    .controls output { min-width:58px; text-align:center; font-size:14px; color:#cbd0d8; }
+    .progress { position:fixed; left:0; right:0; bottom:0; height:5px; z-index:11; background:#202633; }
+    .progress span { display:block; width:5%; height:100%; background:var(--orange); transition:width .2s; }
+    @media (max-height:800px) and (min-width:901px) {
+      .slide { padding-top:30px; padding-bottom:26px; }
+      .eyebrow { margin-bottom:10px; }
+      h2 { font-size:clamp(38px,3.6vw,56px); }
+      .io-swim,.search-swim,.draft-flow,.build-map,.real-table,.swimlane,.formula,.pilot { margin-top:24px; }
+      .io-swim-row { min-height:110px; }
+      .io-swim-row > div { padding-top:11px; padding-bottom:11px; }
+      .draft-step { min-height:215px; padding:15px; }
+      .footer { padding-top:10px; }
+    }
+    @media (max-width:900px) {
+      .slide { overflow:auto; height:auto; min-height:100vh; padding-bottom:85px; }
+      .demo-layout { grid-template-columns:1fr; }
+      .demo-frame { height:45vh; }
+      .three,.workflow,.scenario,.formula,.pilot,.flow-result,.persona-lanes,.support-flow,.entry-sources,.case-grid,.io-grid { grid-template-columns:1fr; gap:26px; }
+      .case-card,.io-card { min-height:0; }
+      .io-swim-head { display:none; }
+      .io-swim-row { grid-template-columns:1fr; }
+      .io-swim-row > div { padding:10px 12px; }
+      .case-arrow,.io-arrow { transform:rotate(90deg); line-height:1; }
+      .entry-arrows { display:none; }
+      .entry-base { width:100%; }
+      .system-map,.scenario-flow,.build-map { display:flex; flex-direction:column; align-items:stretch; gap:10px; }
+      .build-rails { grid-template-columns:1fr; }
+      .draft-flow { grid-template-columns:1fr; gap:14px; }
+      .draft-step { min-height:0; }
+      .draft-step:not(:last-child)::after { content:"↓"; right:50%; top:auto; bottom:-28px; }
+      .search-row { grid-template-columns:1fr; }
+      .search-row.head { display:none; }
+      .search-row > div { padding:9px 12px; }
+      .build-node.core,.build-node.data { min-height:0; }
+      .build-arrow { transform:rotate(90deg); line-height:1; }
+      .access-flow { display:flex; flex-direction:column; align-items:stretch; gap:10px; }
+      .access-node { min-height:0; }
+      .access-arrow { transform:rotate(90deg); line-height:1; }
+      .lane-row { grid-template-columns:1fr; }
+      .lane-row.head { display:none; }
+      .lane-row > div { padding:8px 0; }
+      .pain-cycle { display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+      .pain-cycle article { min-height:0; }
+      .pain-cycle .arrow { transform:rotate(90deg); line-height:1; }
+      .map-node,.flow-node { min-height:0; }
+      .map-arrow,.flow-arrow { transform:rotate(90deg); line-height:1; }
+      .three { margin-top:42px; }
+      .workflow { margin-top:45px; }
+      .workflow article { min-height:0; }
+      .real-table { grid-template-columns:minmax(140px,.7fr) minmax(260px,1.3fr) minmax(220px,1fr); overflow-x:auto; }
+      .role-table { grid-template-columns:minmax(120px,.7fr) minmax(260px,1.3fr) minmax(220px,1fr); overflow-x:auto; }
+      .footer { margin-top:35px; padding-right:0; padding-bottom:55px; }
+      .content { flex:none; }
+      .big-statement,.callout,.pilot-target { margin-top:35px; }
+    }
+    @media print {
+      @page { size:16in 9in; margin:0; }
+      html,body,.deck { width:auto; height:auto; background:#fff; }
+      .slide,.slide.active { display:flex !important; width:16in; height:9in; min-height:0; break-after:page; overflow:hidden; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      .footer { padding-right:0; }
+      .controls,.progress { display:none; }
+    }
+  </style>
+</head>
+<body>
+<main class="deck" aria-label="DevBuddy presentation">
+  <section class="slide cover active" aria-label="สไลด์ 1">
+    <div class="content">
+      <p class="eyebrow">Concept proposal · DevBuddy × REAL</p>
+      <h1>ฐานความรู้ของโปรเจกต์<br><span class="accent">ตั้งแต่เริ่ม จนถึงส่งต่อ</span></h1>
+      <p class="lead">ข้อเสนอการใช้ DevBuddy เพื่อเก็บข้อสรุปและกฎธุรกิจตั้งแต่ต้น พร้อมตรวจที่มาและชี้คำถามค้างเมื่อมีคนรับงานต่อ</p>
+      <div class="meta"><i></i><span>แนวคิดการใช้งานและกรอบวัดผล ไม่ใช่รายงานผลที่เกิดขึ้นแล้ว</span></div>
+    </div>
+    <div class="giant" aria-hidden="true">D</div>
+    <div class="footer"><span>แนวคิดดัดแปลงจาก README.md และ DevBuddy Handbook</span><span>01 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 2">
+    <p class="eyebrow">01 / Pain</p>
+    <h2>ได้รับงานและเอกสารแล้ว<br><span class="accent">แต่ยังเริ่มอย่างมั่นใจไม่ได้</span></h2>
+    <p class="pain-setup">Pain ที่เจอเมื่อคนใหม่รับงานต่อในโปรเจกต์</p>
+    <div class="three">
+      <article><p class="num">01 · CONTEXT</p><h3>มี docs แต่ไม่รู้ว่าพอไหม</h3><p>คนรับงานยังไม่รู้โปรเจกต์ ต้องไล่หาเอง และไม่แน่ใจว่าเอกสารหรือ KT ล่าสุดหรือเปล่า</p></article>
+      <article><p class="num">02 · BUSINESS GAP</p><h3>บางเรื่องตกหล่น</h3><p>เคสหรือกฎธุรกิจไม่ได้คุยไว้ ลืมบันทึก หรือจำคลาดเคลื่อน จนข้อมูลสำคัญขาดหาย</p></article>
+      <article><p class="num">03 · CONFIRMATION</p><h3>ต้องถามผู้รู้ซ้ำ</h3><p>เมื่อเจอ edge case หรือ issue ใหม่ ต้องกลับไปถาม SA, BA หรือ module owner เพื่อยืนยัน</p></article>
+    </div>
+    <p class="big-statement">โจทย์สำคัญคือ <span class="accent">รู้ว่าข้อมูลไหนยังใช้ได้ และเรื่องไหนยังต้องยืนยัน</span></p>
+    <div class="footer"><span>Pain ตามประสบการณ์ที่ผู้ใช้อธิบาย; ยังไม่มีตัวเลขเวลาที่วัดจริง</span><span>02 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 3">
+    <p class="eyebrow">02 / Pain cycle</p>
+    <h2>ช่องว่างของข้อมูล<br><span class="accent">ทำให้การถามซ้ำไม่จบ</span></h2>
+    <div class="pain-cycle" role="img" aria-label="แผนภาพวงจร pain: ได้เอกสารแต่ไม่แน่ใจความใหม่ พบข้อมูลธุรกิจขาด ถามผู้รู้ แล้วคำตอบไม่ถูกเก็บ">
+      <article><p class="stage">01</p><h3>รับ docs / KT</h3><p>มีข้อมูลเริ่มต้น แต่ไม่รู้ว่าครบหรือเป็นปัจจุบันไหม</p></article>
+      <div class="arrow" aria-hidden="true">→</div>
+      <article><p class="stage">02</p><h3>สืบเองหลายทาง</h3><p>เทียบเอกสาร โค้ด และคนที่เคยทำ</p></article>
+      <div class="arrow" aria-hidden="true">→</div>
+      <article><p class="stage">03</p><h3>เจอ business gap</h3><p>เคสใหม่หรือ issue ไม่ตรงกับสิ่งที่จำไว้</p></article>
+      <div class="arrow" aria-hidden="true">→</div>
+      <article><p class="stage">04</p><h3>ถามผู้รู้ซ้ำ</h3><p>SA, BA หรือ owner ยืนยัน แต่คำตอบอาจไม่ถูกเก็บต่อ</p></article>
+    </div>
+    <p class="pain-cost">สิ่งที่อยากลดคือ <span class="accent">เวลาตรวจความใหม่ + เวลาสืบช่องว่าง + การถามเรื่องเดิมซ้ำ</span><small>ผู้รู้ยังต้องยืนยันเรื่องธุรกิจ; แนวคิดนี้ช่วยเตรียมคำถามและเก็บคำตอบไว้ใช้ต่อ</small></p>
+    <div class="footer"><span>วงจรที่สรุปจาก pain ของผู้ใช้; เป็นภาพอธิบาย ยังไม่ใช่ผลวัด</span><span>03 / 20</span></div>
+  </section>
+
+  <section class="slide" data-story="case" aria-label="สไลด์ 4">
+    <p class="eyebrow">03 / One concrete case</p>
+    <h2>ตัวอย่างสมมติ<br><span class="accent">งานรับช่วงที่คำตอบยังไม่ชัด</span></h2>
+    <div class="case-grid" role="img" aria-label="งานยกเลิกคำสั่งซื้อหลังชำระเงิน มีเอกสารและ KT แต่ไม่ชัดว่าต้องคืนเงินอย่างไร จึงต้องหาแหล่งอ้างอิงและถาม BA ก่อนบันทึกข้อสรุป">
+      <div class="case-card"><p class="tag">INPUT ที่คนใหม่ได้รับ</p><h3>งานแก้ flow ยกเลิกคำสั่งซื้อ</h3><p>มี docs และ KT เดิม แต่ไม่รู้ว่ากฎการคืนเงินหลังชำระเงินยังใช้เหมือนเดิมไหม</p></div>
+      <div class="case-arrow" aria-hidden="true">→</div>
+      <div class="case-card question"><p class="tag">BUSINESS GAP</p><h3>“ต้องคืนเงินแบบไหน?”</h3><p>เอกสารไม่ตอบ edge case นี้ คนทำงานต้องหา decision เดิมและถาม BA / owner เพื่อยืนยัน</p></div>
+    </div>
+    <p class="case-output"><strong>สิ่งที่อยากได้:</strong> คำตอบที่มีที่มาและคนยืนยัน · สิ่งที่ยังไม่รู้ · test case ที่ต้องตรวจ · record ที่คนถัดไปค้นกลับมาใช้ได้</p>
+    <div class="footer"><span>สถานการณ์สมมติเพื่อเดินเรื่อง ไม่ใช่เคสหรือผลลัพธ์จาก production</span><span>04 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 5">
+    <p class="eyebrow">04 / Two starting points</p>
+    <h2>สองจุดเริ่มต้น<br><span class="accent">ฐานความรู้เดียวของโปรเจกต์</span></h2>
+    <div class="entry-sources" role="img" aria-label="โปรเจกต์ใหม่เริ่มจาก scope กฎธุรกิจ decision และคำถามค้าง ส่วนโปรเจกต์ที่ส่งต่อเริ่มจาก docs KT และการตรวจความใหม่ ทั้งสองทางเข้าสู่ฐานความรู้เดียว">
+      <div class="entry-source"><p class="type">NEW PROJECT</p><h3>ตั้งต้นใหม่</h3><p>เก็บเป้าหมาย ขอบเขต กฎธุรกิจ decision ข้อสันนิษฐาน และเจ้าของเรื่องตั้งแต่แรก</p></div>
+      <div class="entry-source"><p class="type">HANDOVER PROJECT</p><h3>รับช่วงต่อ</h3><p>รวบรวม docs / KT เทียบกับสิ่งที่ทำอยู่ ตรวจ revision และถามเรื่องที่ยังไม่ชัด</p></div>
+    </div>
+    <div class="entry-arrows" aria-hidden="true"><span>↓</span><span>↓</span></div>
+    <div class="entry-base"><h3>Project knowledge base</h3><p>ความรู้ที่มีที่มาและ revision · สิ่งที่ยืนยันแล้ว · คำถามที่ยังเปิดอยู่</p></div>
+    <p class="entry-tail">คนตรวจเนื้อหาก่อนเผยแพร่ เพื่อให้คนทำงานรอบถัดไปใช้เป็นจุดตั้งต้น</p>
+    <div class="footer"><span>แผนภาพแนวคิด: เริ่มเก็บความรู้ได้ทั้งโปรเจกต์ใหม่และโปรเจกต์ที่ส่งต่อ</span><span>05 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 6">
+    <p class="eyebrow">05 / Solution concept</p>
+    <h2>แนวทางที่เสนอ<br><span class="accent">แยกสิ่งที่รู้ กับสิ่งที่ต้องถาม</span></h2>
+    <div class="system-map" role="img" aria-label="แผนภาพเอกสารและคำยืนยัน เข้าคลังความรู้ ผ่าน AI plugin เพื่อเตรียมคำถามให้ SA BA หรือ module owner ยืนยัน">
+      <div class="map-node"><span class="map-label">INPUT</span><h3>บริบทของโปรเจกต์</h3><p>kickoff / decision หรือ docs / KT ที่รับต่อ</p></div>
+      <div class="map-arrow" aria-hidden="true">→</div>
+      <div class="map-node core"><span class="map-label">KNOWLEDGE</span><h3>DevBuddy</h3><p>ผูกเรื่องกับที่มา revision วันที่ และคำถามค้าง</p></div>
+      <div class="map-arrow" aria-hidden="true">→</div>
+      <div class="map-node"><span class="map-label">ASSIST</span><h3>AI plugin</h3><p>ค้นข้อมูล ชี้จุดที่ไม่แน่ใจ และร่างคำถามเฉพาะเรื่อง</p></div>
+      <div class="map-arrow" aria-hidden="true">→</div>
+      <div class="map-node review"><span class="map-label">HUMAN GATE</span><h3>ผู้รู้ + ผู้ตรวจ</h3><p>SA / BA / owner ยืนยันเรื่องธุรกิจ; Reviewer อนุมัติ record</p></div>
+    </div>
+    <p class="map-loop">↶ คำยืนยันที่มีที่มาและผ่านการตรวจ กลับไปเป็นบริบทของคนรับงานรอบถัดไป</p>
+    <div class="footer"><span>แผนภาพแนวคิดจาก workflow ในคู่มือบท 07–10</span><span>06 / 20</span></div>
+  </section>
+
+  <section class="slide" data-story="input-output" aria-label="สไลด์ 7">
+    <p class="eyebrow">06 / Input → Output</p>
+    <h2>คนบันทึกกับคนค้น<br><span class="accent">Input / Output คนละแบบ</span></h2>
+    <div class="io-swim" role="img" aria-label="Swimlane แยกผู้นำเข้าข้อมูลที่รับ work item เอกสารและคำยืนยันแล้วสร้าง draft กับผู้ค้นที่ป้อนคำถามและขอบเขตโปรเจกต์แล้วได้รับคำตอบพร้อมอ้างอิงหรือช่องว่างที่ต้องถาม">
+      <div class="io-swim-head"><div>ผู้ใช้</div><div>INPUT →</div><div>สิ่งที่ทำ →</div><div>OUTPUT</div></div>
+      <div class="io-swim-row"><div class="actor">คนนำเข้า<br>Contributor</div><div>งาน, docs / KT, หลักฐาน และคำยืนยันจากผู้รู้</div><div>ตรวจที่มาและช่องว่าง → ร่างบันทึก → ส่งตรวจ</div><div class="result">Draft พร้อม revision, ที่มา และคำถามค้าง<br><strong>ยังไม่เผยแพร่</strong></div></div>
+      <div class="io-bridge"><strong>↓ Human gate:</strong> Reviewer ตรวจฉบับจริง → อนุมัติแล้ว Publish หรือส่งกลับให้แก้พร้อมเหตุผล</div>
+      <div class="io-swim-row"><div class="actor">คนค้น<br>Viewer</div><div>คำถาม + project ที่ตนมีสิทธิ์</div><div>ค้นฉบับ Published ทาง Web หรือถาม AI ผ่าน plugin</div><div class="result">บันทึกพร้อมที่มาและ revision หรือระบุว่า “ยังไม่พบ”</div></div>
+    </div>
+    <p class="io-rule"><strong>จุดเชื่อม:</strong> บันทึกที่ Published แล้วเป็นฐานให้คนถัดไปค้นใช้ พร้อมที่มาและข้อจำกัด</p>
+    <div class="footer"><span>สองเส้นทางใช้ project เดียวกัน แต่ draft ต้องผ่าน Reviewer ก่อนเป็นความรู้เผยแพร่</span><span>07 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 8">
+    <p class="eyebrow">07 / Knowledge retrieval</p>
+    <h2>คนและ AI<br><span class="accent">ค้นฐานความรู้เดียวกันอย่างไร</span></h2>
+    <div class="search-swim" role="img" aria-label="คนค้นผ่าน Web ไปยัง API และ published records ส่วน AI ค้นผ่าน plugin กับ MCP ไปยัง published records เดียวกัน ทั้งสองทางตรวจสิทธิ์ก่อนตอบ">
+      <div class="search-row head"><div>ผู้ถาม</div><div>ช่องทางเข้า →</div><div>ตรวจสิทธิ์และค้น →</div><div>ความรู้ร่วมกัน →</div><div>สิ่งที่ได้กลับ</div></div>
+      <div class="search-row"><div class="actor">คนในทีม</div><div>พิมพ์คำค้นใน Web</div><div>API ตรวจ membership และ scope ของ project</div><div class="shared">record ที่ Published + revision</div><div>อ่านเนื้อหา ที่มา และประวัติ</div></div>
+      <div class="search-row"><div class="actor">AI ผู้ช่วย</div><div>ผู้ใช้ถามผ่าน plugin ใน Claude / Codex / Cowork</div><div>MCP ตรวจตัวตน สิทธิ์ และ AI policy</div><div class="shared">record ที่ Published + revision</div><div>สรุปพร้อมที่มา และบอกจุดที่ยังไม่รู้</div></div>
+    </div>
+    <p class="search-note"><strong>ตัวอย่างคำถาม:</strong> “ยกเลิกหลังชำระเงินต้องคืนเงินอย่างไร?” → ได้ record ที่เผยแพร่แล้วพร้อมที่มา หรือรู้ชัดว่ายังต้องถาม BA</p>
+    <div class="footer"><span>Swimlane ตามคู่มือบท 07–11; AI ใช้เฉพาะ project ที่เปิด AI access และผู้ใช้มีสิทธิ์</span><span>08 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 9">
+    <p class="eyebrow">08 / Draft to published</p>
+    <h2>ร่างหนึ่งเรื่อง<br><span class="accent">ผ่านมือใครบ้างก่อนใช้ซ้ำ</span></h2>
+    <div class="draft-flow" role="img" aria-label="Contributor หรือ AI สร้าง Draft พร้อมที่มา Contributor ส่งตรวจ Reviewer อนุมัติ revision ที่อ่านหรือส่งกลับ Reviewer เผยแพร่ แล้วคนใน project จึงค้นความรู้ที่เผยแพร่แล้วได้">
+      <div class="draft-step"><p class="who">CONTRIBUTOR / AI</p><h3>สร้าง Draft</h3><p>ผูกงานและแหล่งที่มา AI สร้างได้ถึงขั้นร่าง</p><span class="state">Draft</span></div>
+      <div class="draft-step"><p class="who">CONTRIBUTOR · WEB</p><h3>ส่งตรวจ</h3><p>ตรวจเนื้อหาและหลักฐานก่อนส่ง Reviewer</p><span class="state">PendingApproval</span></div>
+      <div class="draft-step review"><p class="who">REVIEWER · WEB</p><h3>อนุมัติฉบับ</h3><p>ตรวจที่มาและหลักฐาน แล้วอนุมัติ revision ที่อ่าน</p><span class="state">Approved</span></div>
+      <div class="draft-step"><p class="who">REVIEWER · WEB</p><h3>เผยแพร่</h3><p>Publish ฉบับที่อนุมัติแล้วเป็นอีกขั้น</p><span class="state">Published</span></div>
+      <div class="draft-step published"><p class="who">TEAM · WEB / AI</p><h3>ค้นใช้ซ้ำ</h3><p>เปิดบันทึกพร้อมที่มาและ revision</p><span class="state">Reusable knowledge</span></div>
+    </div>
+    <div class="draft-return" role="img" aria-label="ทางส่งกลับ: Reviewer ส่งกลับพร้อมเหตุผล บันทึกกลับเป็น Draft ผู้เขียนแก้เป็น revision ใหม่แล้วส่งตรวจอีกครั้ง">
+      <span class="return-arrow" aria-hidden="true">↶</span>
+      <span><strong>ทางส่งกลับให้แก้</strong> · Reviewer ระบุเหตุผล → กลับเป็น Draft → Contributor แก้ revision → ส่งตรวจอีกครั้ง</span>
+    </div>
+    <div class="footer"><span>Flowchart ตามวงจร record ในคู่มือบท 09–10; เป็นภาพการใช้งานที่เสนอ</span><span>09 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 10">
+    <p class="eyebrow">09 / Team roles</p>
+    <h2>Swimlane: <span class="accent">ใครช่วยปิดช่องว่างข้อมูล</span></h2>
+    <div class="swimlane" role="img" aria-label="Swimlane BA Dev QA และผู้รู้เรื่อง ตั้งแต่รับงาน เจอช่องว่าง จนยืนยันข้อมูล">
+      <div class="lane-row head"><div>บทบาท</div><div>รับงาน →</div><div>พบช่องว่าง →</div><div>ยืนยันและส่งต่อ</div></div>
+      <div class="lane-row"><div class="lane-name">BA</div><div>อ่าน requirement และกฎธุรกิจเดิม</div><div>ชี้ข้อกำหนดที่ไม่ชัดหรือขัดกัน</div><div>ร่างคำถามและบันทึกข้อสรุป</div></div>
+      <div class="lane-row"><div class="lane-name">Dev</div><div>เทียบ docs / KT กับโค้ดปัจจุบัน</div><div>ระบุ edge case และผลกระทบ</div><div>แก้ตามคำยืนยันและส่งต่อเหตุผล</div></div>
+      <div class="lane-row"><div class="lane-name">QA</div><div>อ่าน acceptance และ test evidence</div><div>หากรณีที่ไม่ครอบคลุม</div><div>ตรวจเคสที่ยืนยันแล้วและเก็บผล</div></div>
+      <div class="lane-row reviewer"><div class="lane-name">ผู้รู้เรื่อง</div><div>รับคำถามพร้อมแหล่งอ้างอิง</div><div>SA / BA / module owner ยืนยันความหมาย</div><div>ให้คำตอบที่นำไปบันทึกต่อได้</div></div>
+    </div>
+    <p class="lane-caption"><span class="green">ผู้รู้เรื่องยืนยันเนื้อหา</span> · ส่วนการอนุมัติ record ในระบบยังต้องมีสิทธิ์ Reviewer</p>
+    <div class="footer"><span>Swimlane ตัวอย่างเพื่ออธิบายแนวคิด ไม่ใช่ขั้นตอนบังคับของทุกทีม</span><span>10 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 11">
+    <p class="eyebrow">10 / REAL framework</p>
+    <h2>ตอบโจทย์ REAL อย่างไร</h2>
+    <div class="real-table" role="table" aria-label="REAL dimensions">
+      <div class="head">มิติ</div><div class="head">สิ่งที่อยากให้เกิด</div><div class="head">วิธีพิสูจน์ใน pilot</div>
+      <div class="term">R · Real Use</div><div>ใช้กับงานตั้งต้นใหม่และงานรับช่วงจริง</div><div class="measure">จำนวน task จริงที่ใช้ พร้อมหลักฐานงานที่นำไปใช้</div>
+      <div class="term">E · Efficiency Gain</div><div>ลดเวลารวบรวมบริบทหรือตรวจความใหม่และเตรียมคำถาม</div><div class="measure">นาทีลงมือทำแยกกลุ่ม; แยกเวลารอคำยืนยัน</div>
+      <div class="term">A · Always-On</div><div>บันทึก decision และคำยืนยันระหว่างทำงาน ไม่รอวันส่งต่อ</div><div class="measure">สัดส่วน decision / issue ที่บันทึกก่อนปิด task</div>
+      <div class="term">L · Leverage</div><div>ความรู้ที่ยืนยันแล้วถูกนำไปใช้กับคนหรืองานถัดไป</div><div class="measure">จำนวนครั้งที่อ้าง record เดิมข้าม task</div>
+    </div>
+    <div class="footer"><span>REAL อ้างอิงภาพที่แนบ; รายการนี้เป็นสมมติฐานและวิธีพิสูจน์ที่เสนอ</span><span>11 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 12">
+    <p class="eyebrow">11 / Time estimate</p>
+    <h2>ประเมินเวลาอย่างไร<br><span class="accent">ให้ตรวจสอบย้อนกลับได้</span></h2>
+    <div class="formula">
+      <div>
+        <h3>วัดงานชนิดเดียวกัน</h3>
+        <ul>
+          <li>แยกงานตั้งต้นใหม่กับงานรับช่วง แล้วนิยาม “เสร็จ” ของแต่ละกลุ่ม</li>
+          <li>จับเวลา 3 ช่วง: หาข้อมูล, ตรวจความใหม่/ช่องว่าง, เตรียมคำถามและสรุป</li>
+          <li>รวมเวลาแก้คำตอบ AI และเวลาคนตรวจ draft</li>
+          <li>แยก “เวลาลงมือทำ” ออกจาก “เวลารอผู้รู้ตอบ”</li>
+        </ul>
+      </div>
+      <div>
+        <h3>สูตรที่ใช้รายงาน</h3>
+        <p class="equation">เวลาที่ลดได้ (%) =<br><span class="accent">(baseline − pilot) ÷ baseline × 100</span></p>
+        <p>หากได้ทดลอง ให้เทียบค่ามัธยฐานต่อ task ภายในกลุ่มเดียวกัน พร้อมจำนวนงานและความยาก</p>
+        <p class="example">ตัวอย่างสมมติ: 120 → 80 นาทีต่อ task = ลด 33%<br>ใช้แสดงสูตรเท่านั้น ยังไม่มีผลวัดจริงในสไลด์นี้</p>
+      </div>
+    </div>
+    <div class="footer"><span>วิธีคำนวณนี้เป็นข้อเสนอสำหรับ pilot; ตัวเลข ≥30% เป็นเกณฑ์จากภาพที่แนบ ไม่ใช่ผลวัดจริง</span><span>12 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 13">
+    <p class="eyebrow">12 / Proposed pilot</p>
+    <h2>ถ้าจะพิสูจน์แนวคิด<br><span class="accent">ควรทดลองอย่างไร</span></h2>
+    <div class="pilot">
+      <div><p class="date">4 สัปดาห์</p><p class="date-note">กรอบเวลาทดลองที่เสนอ<br>กำหนดวันจริงร่วมกับทีม</p></div>
+      <div class="phases">
+        <div class="phase"><b>สัปดาห์ 1</b><p>เลือกงานตั้งต้นใหม่และงานรับช่วง เก็บ baseline แยกสองกลุ่ม</p></div>
+        <div class="phase"><b>สัปดาห์ 2–3</b><p>ทดลอง บันทึก decision / คำยืนยัน เวลาสืบ และเวลารอคำตอบ</p></div>
+        <div class="phase"><b>สัปดาห์ 4</b><p>สรุป R/E/A/L แยกกลุ่ม พร้อมอัตราคำตอบที่ต้องแก้และการถามซ้ำ</p></div>
+      </div>
+    </div>
+    <p class="pilot-target">เป้าหมายทดลองที่เสนอ: <span class="accent">เวลาลงมือทำลด ≥30%</span> โดยคุณภาพงานไม่ถอย</p>
+    <div class="footer"><span>กรอบ 4 สัปดาห์เป็นข้อเสนอสำหรับ pilot; การใช้ข้อมูลจริงต้องยึด AI policy และสิทธิ์ของ deployment นั้น</span><span>13 / 20</span></div>
+  </section>
+
+  <section class="slide close" aria-label="สไลด์ 14">
+    <div class="content">
+      <p class="eyebrow">DevBuddy × REAL</p>
+      <h2>เริ่มเก็บตั้งแต่วันแรก<br><span class="accent">เพื่อให้วันส่งต่อไม่เริ่มจากศูนย์</span></h2>
+      <p class="lead">โปรเจกต์ใหม่เก็บข้อสรุปและกฎธุรกิจตั้งแต่ต้น ส่วนงานส่งต่อใช้ฐานเดียวกันตรวจว่าอะไรยืนยันแล้ว อะไรอาจเก่า และอะไรยังต้องถาม</p>
+      <div class="line"></div>
+      <p class="sub">ข้อเสนอ: ทดลองกับงานตั้งต้นใหม่และงานรับช่วง กลุ่มละหนึ่งชุด แล้วตัดสินจากเวลา คุณภาพคำตอบ และการนำความรู้กลับมาใช้</p>
+    </div>
+    <div class="footer"><span>จบเนื้อหาหลัก · หน้า 15–20 เป็นภาคผนวกสำหรับช่วงถามตอบ</span><span>14 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 15">
+    <p class="eyebrow">Appendix A / System architecture</p>
+    <h2>องค์ประกอบของ DevBuddy<br><span class="accent">ทำงานร่วมกันอย่างไร</span></h2>
+    <div class="build-map" role="img" aria-label="ช่องทางเว็บและ AI plugin เชื่อมกับ core และ MCP ชุดเดียวกัน แล้วเก็บ record พร้อมหลักฐานในข้อมูลกลาง">
+      <div class="build-channels">
+        <div class="build-node"><p class="tag">HUMAN · WEB</p><h3>เว็บสำหรับทีม</h3><p>ตั้งค่าโปรเจกต์ ค้นความรู้ ตรวจ draft อนุมัติ และดูประวัติ</p></div>
+        <div class="build-node"><p class="tag">AI · PLUGIN / SKILL</p><h3>ผู้ช่วยในเครื่องมือที่ใช้</h3><p>Claude / Codex / Cowork ใช้ plugin เพื่อค้น วิเคราะห์ และเตรียมส่งต่องาน</p></div>
+      </div>
+      <div class="build-arrow" aria-hidden="true">↔</div>
+      <div class="build-node core"><p class="tag">SHARED · API + MCP</p><h3>แกนความรู้ชุดเดียว</h3><p>รับคำขอผ่าน API หรือ MCP และตรวจสิทธิ์ทุกครั้ง</p></div>
+      <div class="build-arrow" aria-hidden="true">↔</div>
+      <div class="build-node data"><p class="tag">KNOWLEDGE · DATA</p><h3>ข้อมูลที่ตรวจย้อนกลับได้</h3><p>งาน บันทึก ข้อสรุป ที่มา revision และหลักฐาน</p></div>
+    </div>
+    <div class="build-rails">
+      <p><strong>Search / index</strong> ค้นคำเป็นฐาน; semantic index เปิดเพิ่มได้เมื่อพร้อม</p>
+      <p><strong>Review / audit</strong> ให้คนยืนยันฉบับที่เผยแพร่และตามรอยได้</p>
+      <p><strong>Deploy / policy</strong> กำหนดขอบเขตโปรเจกต์และการเข้าถึงของ AI</p>
+    </div>
+    <div class="footer"><span>ภาพองค์ประกอบที่เสนอให้ใช้ร่วมกัน; skill อยู่ในบางแพ็กเกจ ส่วน Codex ใช้ AGENTS.md</span><span>15 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 16">
+    <p class="eyebrow">Appendix B / Access roles</p>
+    <h2>สิทธิ์ในระบบ: <span class="accent">งานส่งต่อผ่านใคร</span></h2>
+    <div class="access-flow" role="img" aria-label="งานส่งต่อจาก Viewer ผู้ค้นและอ่าน ผ่าน Contributor ผู้วิเคราะห์และร่าง ไปยัง Reviewer ผู้ตรวจและเผยแพร่">
+      <div class="access-node"><p class="role">Viewer</p><p>ค้นและอ่านความรู้<br>เพื่อรับช่วงงาน</p></div>
+      <div class="access-arrow" aria-hidden="true">→</div>
+      <div class="access-node"><p class="role">Contributor</p><p>วิเคราะห์งานและสร้าง draft<br>พร้อมที่มา</p></div>
+      <div class="access-arrow" aria-hidden="true">→</div>
+      <div class="access-node human"><p class="role">Reviewer</p><p>ตรวจ revision อนุมัติ<br>หรือส่งกลับก่อนเผยแพร่</p></div>
+    </div>
+    <div class="support-flow">
+      <p><strong>Administrator</strong> กำหนดสมาชิก สิทธิ์ project และนโยบาย AI access ให้ทุกขั้น</p>
+      <p><strong>IndexMaintainer</strong> ให้ worker รายงานบันทึกที่ไม่ได้แก้นานเกินเกณฑ์ด้วยสิทธิ์เฉพาะ</p>
+    </div>
+    <p class="access-note">ลูกศรแสดงการส่งต่องาน ไม่ใช่ลำดับขั้นของสิทธิ์; IndexMaintainer ไม่ใช่บทบาทที่สูงกว่า Administrator</p>
+    <div class="footer"><span>บทบาทตามคู่มือบท 11; แผนภาพย่อเฉพาะงานในแนวคิดนี้</span><span>16 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 17">
+    <p class="eyebrow">Appendix C / BMS example · redacted</p>
+    <h2>เริ่มจาก <span class="accent">ขอบเขตโปรเจกต์</span></h2>
+    <div class="demo-layout">
+      <div class="demo-frame"><img src="assets/bms-safe/01-projects-redacted.png" alt="หน้าโปรเจกต์ BMS ที่ปิดข้อมูลบัญชี"></div>
+      <div class="demo-copy"><h3>ถามก่อนว่า “ข้อมูลของงานนี้อยู่ที่ไหน”</h3><p>ตัวอย่าง BMS แสดงโปรเจกต์ที่เกี่ยวข้องใน workspace เดียวกัน การเก็บความรู้จึงต้องระบุ project และขอบเขตการเข้าถึงตั้งแต่ต้น</p><p class="demo-note">ภาพแก้ไขเพื่อปิดข้อมูลอ่อนไหว ใช้อธิบายหน้าจอและแนวคิด ไม่ใช้ยืนยันข้อความทุกจุด</p></div>
+    </div>
+    <div class="footer"><span>ภาพประกอบจากเว็บที่ deploy; ปิดข้อมูลบัญชีแล้ว</span><span>17 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 18">
+    <p class="eyebrow">Appendix C / BMS example · redacted</p>
+    <h2>งานหนึ่งเรื่อง <span class="accent">โยงความรู้หลายสถานะ</span></h2>
+    <div class="demo-layout">
+      <div class="demo-frame"><img src="assets/bms-safe/02-work-redacted.png" alt="หน้างาน BMS ที่ปิดรหัส ชื่อ และเนื้อหางาน"></div>
+      <div class="demo-copy"><h3>เห็นบริบทก่อนอ่านคำตอบ</h3><p>คนรับช่วงงานควรเห็นเป้าหมาย ขอบเขต และบันทึกที่เกี่ยวข้อง พร้อมแยกว่า Draft, Approved และ Published มีขอบเขตการใช้งานต่างกัน</p><p class="demo-note">ปิดรหัสงาน ชื่อบันทึก และเนื้อหารายละเอียดแล้ว</p></div>
+    </div>
+    <div class="footer"><span>ภาพประกอบจากเว็บที่ deploy; สถานะใช้เล่า flow ของคนตรวจ</span><span>18 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 19">
+    <p class="eyebrow">Appendix C / BMS example · redacted</p>
+    <h2>Published <span class="accent">ต้องตามที่มาได้</span></h2>
+    <div class="demo-layout">
+      <div class="demo-frame"><img src="assets/bms-safe/03-source-redacted.png" alt="บันทึก Published ที่ปิดชื่อและเนื้อหาภายใน"></div>
+      <div class="demo-copy"><h3>ความรู้มีสถานะและประวัติ</h3><p>แนวคิดคือเก็บที่มา วันที่ตรวจ และข้อจำกัดของข้อสรุป เพื่อให้คนรับช่วงรู้ว่าอะไรเคยยืนยัน และอะไรควรตรวจอีกครั้ง</p><p class="demo-note">ภาพนี้แสดงโครงหน้าบันทึก ไม่เปิดเผยชื่อหรือเนื้อหาบันทึกจริง</p></div>
+    </div>
+    <div class="footer"><span>ภาพประกอบจากเว็บที่ deploy; ไม่อ้างเนื้อหาบันทึกที่ปิดไว้</span><span>19 / 20</span></div>
+  </section>
+
+  <section class="slide" aria-label="สไลด์ 20">
+    <p class="eyebrow">Appendix C / BMS example · redacted</p>
+    <h2>Input → Output <span class="accent">ของผู้ค้น</span></h2>
+    <div class="demo-layout">
+      <div class="demo-frame"><img src="assets/bms-safe/04-search-redacted.png" alt="หน้าค้นที่ปิดคำค้นและชื่อผลลัพธ์"></div>
+      <div class="demo-copy"><h3>คำถาม + project + ตัวกรองสถานะ</h3><p>ผู้ค้นได้รายการบันทึกที่เปิดตรวจต่อได้ ตัวอย่างนี้มีผลจากการค้นข้อความ ส่วนช่องค้นตามความหมายยังไม่คืนผล จึงไม่ใช้เป็นหลักฐานว่าดัชนี semantic พร้อมแล้ว</p><p class="demo-note">ปิดคำค้น ชื่อผลลัพธ์ และข้อความรายละเอียดแล้ว</p></div>
+    </div>
+    <div class="footer"><span>ภาพประกอบจากเว็บที่ deploy; ปิดข้อมูลเฉพาะเรื่องแล้ว</span><span>20 / 20</span></div>
+  </section>
+</main>
+<nav class="controls" aria-label="ควบคุมสไลด์"><button id="prev" aria-label="สไลด์ก่อนหน้า">←</button><output id="counter" aria-live="polite">1 / 20</output><button id="next" aria-label="สไลด์ถัดไป">→</button></nav>
+<div class="progress" aria-hidden="true"><span id="progress"></span></div>
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = Math.max(0, Math.min(slides.length - 1, (Number(location.hash.slice(1)) || 1) - 1));
+  function show(index) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+    document.querySelector('#counter').textContent = `${current + 1} / ${slides.length}`;
+    document.querySelector('#progress').style.width = `${(current + 1) / slides.length * 100}%`;
+    document.querySelector('#prev').disabled = current === 0;
+    document.querySelector('#next').disabled = current === slides.length - 1;
+    history.replaceState(null, '', `#${current + 1}`);
+  }
+  document.querySelector('#prev').addEventListener('click', () => show(current - 1));
+  document.querySelector('#next').addEventListener('click', () => show(current + 1));
+  addEventListener('keydown', event => {
+    if (event.target instanceof Element && event.target.closest('button, input, textarea, select, a, [contenteditable]')) return;
+    if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(current + 1); }
+    if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(current - 1); }
+    if (event.key === 'Home') show(0);
+    if (event.key === 'End') show(slides.length - 1);
+  });
+  addEventListener('hashchange', () => show((Number(location.hash.slice(1)) || 1) - 1));
+  show(current);
+</script>
+</body>
+</html>
