@@ -7,7 +7,7 @@
 # The image tag must match the @playwright/test version in package.json: the browsers in the image
 # are the ones that version drives. Both images are pinned by digest, so a rebuild is the same runner.
 
-FROM mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+FROM mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f
 
 # Bun installs from the lock file the repository commits, the same tool web/admin uses. Node, which
 # the image already has, runs the tests: Playwright's runner is supported on Node.
