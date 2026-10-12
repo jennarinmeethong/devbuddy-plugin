@@ -12,7 +12,7 @@
 # Built for the machine that builds it, not cross-compiled. Compose builds it where it runs, and
 # nothing is published. Testcontainers builds it through the classic builder, which does not
 # provide the BuildKit platform arguments. A build needs about 5 GB of scratch space.
-FROM golang:1.27.1-bookworm@sha256:69a7b9788769bec032d238959b61854e9ae87f57be9029ec04e9885fabf99195 AS build
+FROM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build
 
 # Static binaries, and the pinned Go only: never a downloaded toolchain.
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
