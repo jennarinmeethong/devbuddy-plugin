@@ -12,16 +12,21 @@
 # Built for the machine that builds it, not cross-compiled. Compose builds it where it runs, and
 # nothing is published. Testcontainers builds it through the classic builder, which does not
 # provide the BuildKit platform arguments. A build needs about 5 GB of scratch space.
-FROM golang:1.27.1-bookworm@sha256:69a7b9788769bec032d238959b61854e9ae87f57be9029ec04e9885fabf99195 AS build
+FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS build
 
 # Static binaries, and the pinned Go only: never a downloaded toolchain.
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 
 WORKDIR /src/seaweedfs
 
+# golang.org/x/net is raised past SeaweedFS's own v0.58.0, which Trivy fails on CVE-2026-78669
+# (HIGH, fixed in v0.60.0); no SeaweedFS release up to 4.48 has moved it. A fixed version, checked
+# against Go's checksum database like every module the build fetches. Drop this once the pinned
+# commit requires v0.60.0 or later itself.
 RUN git init -q \
     && git fetch -q --depth 1 https://github.com/seaweedfs/seaweedfs.git c5073360007d28385a33426a42ac3e4ec504c5a3 \
     && git checkout -q FETCH_HEAD \
+    && go get golang.org/x/net@v0.60.0 \
     && go build -trimpath -ldflags "-s -w" -o /out/usr/bin/weed ./weed
 
 # The health probe (ADR-0014, point 4): `scratch` has nothing else a health check could run. It is
