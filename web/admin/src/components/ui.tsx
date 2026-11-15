@@ -1,3 +1,4 @@
+import { isValidElement } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -5,7 +6,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
-import { formatDateTime } from "../i18n";
+import { formatDateTime, t } from "../i18n";
 
 /**
  * The small set of pieces every screen is built from.
@@ -69,16 +70,19 @@ export function Field({
   help,
   tour,
   children,
+  required: requiredOverride,
 }: {
   label: string;
   hint?: ReactNode;
   help?: ReactNode;
   tour?: string;
   children: ReactNode;
+  required?: boolean;
 }) {
+  const required = requiredOverride ?? (isValidElement<{ required?: boolean }>(children) && children.props.required);
   const field = (
     <label className="block space-y-1">
-      <span className={join("block text-sm font-semibold", Boolean(help) && "pr-7")}>{label}</span>
+      <span className={join("block text-sm font-semibold", Boolean(help) && "pr-7")}>{label}{required ? <span aria-hidden="true" className="ml-1 text-red-600">*</span> : null}</span>
       {children}
       {hint ? <span className="block text-xs text-[var(--color-muted)]">{hint}</span> : null}
     </label>
@@ -97,8 +101,10 @@ export function Field({
 }
 
 export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  const nonBlank = rest.required && (!rest.type || rest.type === "text");
   return (
     <input
+      pattern={nonBlank ? ".*\\S.*" : undefined}
       className={join(
         "w-full rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-sm",
         "hover:border-[var(--color-accent-bright)]/50",
@@ -110,9 +116,17 @@ export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputEleme
   );
 }
 
-export function TextArea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextArea({ className, onChange, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
+      onChange={(event) => {
+        event.currentTarget.setCustomValidity(
+          rest.required && event.currentTarget.value !== "" && event.currentTarget.value.trim() === ""
+            ? t("Enter text that is not blank.")
+            : "",
+        );
+        onChange?.(event);
+      }}
       className={join(
         "w-full rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-sm",
         "hover:border-[var(--color-accent-bright)]/50",

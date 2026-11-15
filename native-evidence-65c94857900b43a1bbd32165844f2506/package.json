@@ -1,0 +1,43 @@
+{
+    "passed":  true,
+    "node":  "v24.22.1",
+    "platform":  "win32",
+    "architecture":  "x64",
+    "ignoredInstallScripts":  true,
+    "localInstall":  true,
+    "isolatedGlobalInstall":  true,
+    "productionNpx":  [
+                          "cold",
+                          "warm-offline"
+                      ],
+    "sbom":  "sbom.cdx.json",
+    "files":  [
+                  "README.md",
+                  "dist/bridge.js",
+                  "dist/cli.js",
+                  "dist/context.js",
+                  "dist/credentials.js",
+                  "dist/errors.js",
+                  "dist/file-store.js",
+                  "dist/http.js",
+                  "dist/keychain.js",
+                  "dist/main.js",
+                  "dist/registry.js",
+                  "dist/token-input.js",
+                  "dist/windows.js",
+                  "package.json"
+              ],
+    "artifactSha256":  "99f0c5ea9e923e924c0df27d40583368493f0fbf2533e8af22f26f73f9d1d10f",
+    "installedEntry":  "C:\\Codes\\devbuddy-plugin\\src\\clients\\devbuddy-npx\\out\\package-smoke-S2qxXB\\ติดตั้ง package\\node_modules\\devbuddy-plugin-client\\dist\\main.js",
+    "native":  true,
+    "integration":  [
+                        "register/verify/native-store",
+                        "header/origin",
+                        "bridge/initialize/SSE/EOF/workspace",
+                        "replacement/doctor",
+                        "NET/Node-registry-and-native-token-both-directions",
+                        "rollback-to-NET-bridge-and-NET-doctor-after-new-Node-token",
+                        "unregister/remove"
+                    ],
+    "evidence":  "C:\\Codes\\devbuddy-plugin\\src\\clients\\devbuddy-npx\\out\\package-smoke-S2qxXB"
+}

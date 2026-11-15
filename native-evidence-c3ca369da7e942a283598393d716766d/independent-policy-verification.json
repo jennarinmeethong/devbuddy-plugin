@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "sacEnforcedDuringRun": true,
+  "architecture": "x64",
+  "artifactSha256": "62d1ebcab798e227e0c514f88bc28a38df30013e84b9d883209fccd8977fcfda",
+  "beforeUtc": "2026-10-25T11:22:31.7725844Z",
+  "startedUtc": "2026-10-25T11:22:32.4272517Z",
+  "finishedUtc": "2026-10-25T11:22:42.5491749Z",
+  "afterUtc": "2026-10-25T11:22:42.6323504Z",
+  "originalCollectorBracketClaim": true,
+  "note": "Original evidence is preserved; this verifier compares ISO timestamps as UTC instants."
+}

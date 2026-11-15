@@ -126,7 +126,7 @@ export function Projects() {
               <Field label={t("Name")}>
                 <Input
                   required
-                  value={name}
+                  maxLength={200} value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder={t("Payments platform")}
                 />
@@ -202,12 +202,14 @@ function DeleteProjectButton({
       >
         <Input
           required
+          maxLength={200}
           aria-label={t("Type {name} to confirm deletion", { name })}
           placeholder={name}
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
           className="w-40"
         />
+        <span aria-hidden="true" className="text-red-600">*</span>
         <Button type="submit" variant="danger" disabled={typed !== name || remove.isPending}>
           {t("Delete for good")}
         </Button>
@@ -306,8 +308,8 @@ function BoundedScopeButton({
           {t(label)}
         </label>
       ))}
-      <Field label={t("Why is this approved?")}>
-        <Input value={justification} maxLength={1000} onChange={(event) => setJustification(event.target.value)} />
+      <Field label={t("Why is this approved?")} required={rules.length > 0}>
+        <Input required={rules.length > 0} minLength={20} value={justification} maxLength={1000} onChange={(event) => setJustification(event.target.value)} />
       </Field>
       {rules.length > 0 ? (
         <label className="flex items-start gap-2 text-sm">

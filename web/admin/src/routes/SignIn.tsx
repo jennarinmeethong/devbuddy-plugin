@@ -76,7 +76,7 @@ export function SignIn() {
               name="email"
               autoComplete="username"
               required
-              value={email}
+              maxLength={320} value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
           </Field>
@@ -94,7 +94,7 @@ export function SignIn() {
             </Field>
           ) : null}
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Button type="submit" variant="primary" disabled={busy}>
               {mode === "sign-in" ? t("Sign in") : t("Send a recovery token")}
             </Button>

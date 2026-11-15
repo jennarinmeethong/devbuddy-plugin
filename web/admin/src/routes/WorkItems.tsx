@@ -116,11 +116,11 @@ function NewWorkItem({ scope }: { scope: { workspaceId: string; projectId: strin
         }}
       >
         <Field label={t("Key")} hint={t("What the team says out loud, such as DEV-101.")}>
-          <Input required value={key} onChange={(event) => setKey(event.target.value)} />
+          <Input required maxLength={64} value={key} onChange={(event) => setKey(event.target.value)} />
         </Field>
 
         <Field label={t("Type")} help={<Hint topic={HINTS.workType} />}>
-          <Select value={type} onChange={(event) => setType(event.target.value as (typeof TYPES)[number])}>
+          <Select required value={type} onChange={(event) => setType(event.target.value as (typeof TYPES)[number])}>
             {TYPES.map((option) => (
               <option key={option} value={option}>
                 {t(TYPE_LABELS[option])}
@@ -131,25 +131,25 @@ function NewWorkItem({ scope }: { scope: { workspaceId: string; projectId: strin
 
         <div className="sm:col-span-2">
           <Field label={t("Title")}>
-            <Input required value={title} onChange={(event) => setTitle(event.target.value)} />
+            <Input required maxLength={500} value={title} onChange={(event) => setTitle(event.target.value)} />
           </Field>
         </div>
 
         <div className="sm:col-span-2">
           <Field label={t("Goal")} hint={t("What this work is for. The part nobody writes down.")}>
-            <TextArea required rows={2} value={goal} onChange={(event) => setGoal(event.target.value)} />
+            <TextArea required rows={2} maxLength={4000} value={goal} onChange={(event) => setGoal(event.target.value)} />
           </Field>
         </div>
 
         <Field label={t("In scope")}>
-          <TextArea rows={2} value={inScope} onChange={(event) => setInScope(event.target.value)} />
+          <TextArea rows={2} maxLength={4000} value={inScope} onChange={(event) => setInScope(event.target.value)} />
         </Field>
 
         <Field
           label={t("Deliberately excluded")}
           hint={t("Usually what a later owner needs and never finds written down.")}
         >
-          <TextArea rows={2} value={exclusions} onChange={(event) => setExclusions(event.target.value)} />
+          <TextArea rows={2} maxLength={4000} value={exclusions} onChange={(event) => setExclusions(event.target.value)} />
         </Field>
 
         <div className="sm:col-span-2">

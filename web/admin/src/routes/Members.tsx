@@ -365,7 +365,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
         }}
       >
         <Field label={t("Person")}>
-          <Select value={subjectUserId} onChange={(event) => setSubject(event.target.value)}>
+          <Select required value={subjectUserId} onChange={(event) => setSubject(event.target.value)}>
             {people.map((person) => (
               <option key={person} value={person}>
                 {person}
@@ -375,7 +375,7 @@ function GrantForm({ workspaceId, people }: { workspaceId: string; people: strin
         </Field>
 
         <Field label={t("Role")}>
-          <Select value={role} onChange={(event) => setRole(event.target.value as Role)}>
+          <Select required value={role} onChange={(event) => setRole(event.target.value as Role)}>
             {ROLES.map((option) => (
               <option key={option} value={option}>
                 {t(roleLabel(option))}
@@ -444,7 +444,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
           <Input
             type="email"
             required
-            value={email}
+            maxLength={320} value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
         </Field>
@@ -452,7 +452,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
         <Field label={t("Display name")}>
           <Input
             required
-            value={displayName}
+            maxLength={200} value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
           />
         </Field>
@@ -461,7 +461,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
           label={t("Role")}
           hint={t("Viewer to Administrator are cumulative: a reviewer can do everything a contributor can. IndexMaintainer is for a worker account: it reads and maintains the index, and nothing else.")}
         >
-          <Select value={role} onChange={(event) => setRole(event.target.value as (typeof ROLES)[number])}>
+          <Select required value={role} onChange={(event) => setRole(event.target.value as (typeof ROLES)[number])}>
             {ROLES.map((option) => (
               <option key={option} value={option}>
                 {t(roleLabel(option))}

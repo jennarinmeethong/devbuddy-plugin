@@ -219,7 +219,7 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t("Kind")} help={<Hint topic={HINTS.recordKind} />}>
-            <Select value={kind} onChange={(event) => setKind(event.target.value as RecordKind)}>
+            <Select required value={kind} onChange={(event) => setKind(event.target.value as RecordKind)}>
               {KINDS.map((option) => (
                 <option key={option} value={option}>
                   {t(KIND_LABELS[option])}
@@ -229,7 +229,7 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
           </Field>
 
           <Field label={t("Where it came from")} help={<Hint topic={HINTS.provenance} />}>
-            <Select value={sourceKind} onChange={(event) => setSourceKind(event.target.value as SourceKind)}>
+            <Select required value={sourceKind} onChange={(event) => setSourceKind(event.target.value as SourceKind)}>
               {SOURCE_KINDS.map((option) => (
                 <option key={option} value={option}>
                   {t(SOURCE_KIND_LABELS[option])}
@@ -240,15 +240,15 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
         </div>
 
         <Field label={t("Source")} hint={t("Where a later reader can check this: a meeting, a document, a commit, a ticket.")}>
-          <Input required value={sourceLocator} onChange={(event) => setSourceLocator(event.target.value)} />
+          <Input required maxLength={1000} value={sourceLocator} onChange={(event) => setSourceLocator(event.target.value)} />
         </Field>
 
         <Field label={t("Title")}>
-          <Input required value={title} onChange={(event) => setTitle(event.target.value)} />
+          <Input required maxLength={500} value={title} onChange={(event) => setTitle(event.target.value)} />
         </Field>
 
         <Field label={t("Body")} hint={t("Markdown. The context, the conclusion, and why.")}>
-          <TextArea required rows={8} value={body} onChange={(event) => setBody(event.target.value)} />
+          <TextArea rows={8} value={body} onChange={(event) => setBody(event.target.value)} />
         </Field>
 
         <fieldset className="space-y-2">
@@ -304,15 +304,18 @@ function NewDraft({ scope, workItemId }: { scope: Scope; workItemId: string }) {
                   <span className="text-xs text-[var(--color-muted)]">{item.mediaType}</span>
                 </label>
                 {item.evidenceId in evidence ? (
-                  <Input
-                    aria-label={t("What evidence {evidence} shows", { evidence: item.evidenceId })}
-                    placeholder={t("What this shows")}
-                    className="max-w-sm"
-                    value={evidence[item.evidenceId]}
-                    onChange={(event) =>
-                      setEvidence((current) => ({ ...current, [item.evidenceId]: event.target.value }))
-                    }
-                  />
+                  <Field label={t("What evidence {evidence} shows", { evidence: item.evidenceId })}>
+                    <Input
+                      required
+                      maxLength={500}
+                      placeholder={t("What this shows")}
+                      className="max-w-sm"
+                      value={evidence[item.evidenceId]}
+                      onChange={(event) =>
+                        setEvidence((current) => ({ ...current, [item.evidenceId]: event.target.value }))
+                      }
+                    />
+                  </Field>
                 ) : null}
               </div>
             ))

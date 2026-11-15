@@ -845,6 +845,25 @@ owner's machines.
 - **The checklist runs from `tools/release/` at the release commit**, with no new check, and the
   upgrade from `v1.13.0`.
 
+## 14.21 — Opt-in npm client (approved 2026-10-24)
+
+**Status: IN PROGRESS — stage A DONE 2026-10-25; B–E implementation underway; F pending.**
+
+The owner approved TypeScript/Node.js 24 alongside .NET, retaining OS credential stores and
+eventually sharing registry schema 1, token keys and the command/bridge contract (ADR-0016).
+
+| Stage | Status | Exit criterion |
+|---|---|---|
+| A — Native feasibility | DONE — 2026-10-25 | Credential interoperability; native inventory/signatures; Windows x64 and ARM64 with SAC enforcement. |
+| B — Foundation | IN PROGRESS | Registry/CLI/file credentials built; Windows x64 .NET interchange passes. Full contract/platform acceptance pending. |
+| C — MCP | IN PROGRESS | Real-stack CLI/bridge workspace/token/catalog tests pass; real BMS basic Claude Desktop/Cowork read-only invocation passes. Remaining contract/host acceptance pending. |
+| D — Host integration | IN PROGRESS | Real Mac BMS Claude Desktop/Cowork/Codex/Claude Code Desktop basic tool calls pass as owner-observed. Broader host lifecycle/error/rollback acceptance pending; standalone macOS Claude CLI not covered. |
+| E — Packaging | IN PROGRESS | Prompt-fixed artifact native/.NET passes Windows x64/ARM64 and Mac ARM64; fresh SAC evidence verified for both Windows architectures. License/release/CI/OIDC pending. |
+| F — Pilot | TODO | Prerelease, published-artifact drills, SAC evidence and rollback. |
+
+Prototype instructions and exact local results are in `src/clients/devbuddy-npx/README.md`.
+No release or plugin default changes before the applicable gates pass.
+
 ## Exit criteria for Phase 14
 
 - Every item is `DONE`, `BLOCKED` with its reason, or `CLOSED — NOT POSSIBLE` with its reason.
@@ -952,3 +971,272 @@ Newest last. Every entry records the date, the item, what was verified and where
 | 2026-10-06 | 14.20 | **`v1.14.0` is published**, at 08:00 UTC from `cc58cc9`, by Claude at the owner's instruction, after the owner's publication from the web had left it a draft twice. The post-tag rows passed on 2026-10-05 (PR #57), and the devbox runs the tag: Thai full-text search found the HomeHub test record. |
 | 2026-10-06 | Other | **The handbook, the README and `plugin-hosts.md` describe `v1.14.0`.** The handbook (`docs/manual/build-guide.mjs`, regenerated) gains the web client's tours and ? hints, the `review-queue` command, Thai full-text search and its limits, and the packages' guidance to search in English as well. A check against `deployment.md`, `plugin-hosts.md` and the source then added what it never had: the reverse proxy rule for `/mcp`, whose absence from its Caddyfile example would have left every plugin unable to connect; the `IndexMaintainer` role; enabling embeddings and both workers; the personal-data rules of a bounded scope; per-version upgrade steps and `scope-report`; the chiseled, non-root images and the security headers; `/mcp`'s 405, 401 and 429 and the NUL refusal in troubleshooting; CI and supply chain; and `tools/retrieval/evaluate.sh`. The README named `v1.10.0` as current, and `plugin-hosts.md` described two packages rather than three. Documentation only: no build or tests were run. |
 | 2026-10-07 | Other | **PR #65's merge carried its first commit only.** Its merge commit, `1175d38`, has `1c332b3` as its second parent, so `4b1d2ee` and `fb52477`, pushed to the branch before the merge, never reached `main`: the handbook's release history, console and client tables, the trust-boundary note, outbound access, the release checklist, and the correction of `Telemetry:TraceSampleRatio`'s default from `0.1` to `1.0` in the handbook and `observability.md`. `docs/manual-thai-labels` carries both again, with two more checks: the Thai names of the screens and buttons the handbook calls by their English ones, and two servers on one machine, `claude -p` with `--allowedTools`, and tokens badged *Needs replacing*. Every number and default the handbook states was checked against the code and matched. Documentation only: no build or tests were run. **Not pushed:** every push from JMPC on 2026-10-07 from 15:07 UTC was refused with `Internal Server Error`, while GitHub reported all systems operational. |
+| 2026-10-24 | 14.21 A | **Native prototype implemented, gate still open.** Koffi 3.3.3 installed with scripts disabled; Windows x64 native round trip and the existing .NET adapter's write/read exchange passed on Node v24.21.0, Windows 26300.9711. Client regression tests: 90 passed. TypeScript build and four Bun guard/probe tests passed. Evidence collector records hashes, signatures, SAC state and Code Integrity availability without changing policy. Loaded `koffi.node` is **NotSigned**; SAC state was **0/off** before and after. **Not verified:** SAC enforcement, Windows ARM64, macOS Keychain prompts, current Node security patch, npm artifacts, full CLI/MCP or host integrations. Stages B–F stay gated; no npm publication. |
+| 2026-10-25 | 14.21 A retest | **Registry state 1; credential probes pass; enforcement still unverified.** After the owner changed SAC settings, the Windows x64 round trip and .NET/Node exchange passed again with the same unsigned Koffi binary. Registry state was 1 before/after. CiTool returned access denied (0x80070005), and Code Integrity events were unavailable to this process. Fixed the collector to require the active VerifiedAndReputableDesktop policy with IsEnforced=true before reporting a prototype SAC pass; rerun correctly reports UNVERIFIED_OR_FAILED. Evidence: ignored src/clients/devbuddy-npx/out/sac-2026-10-25. Administrator policy evidence, ARM64 and macOS remain outstanding; later stages stay gated. |
+| 2026-10-25 | 14.21 A, owner policy evidence | **Windows x64 prototype SAC pass on this machine.** After successful native and cross-client probes, the owner supplied administrator CiTool output: VerifiedAndReputableDesktop IsEnforced=True, Evaluation=False; FlightSupplemental=True. This supplies the active-policy evidence unavailable to the agent process. The original automated JSON stays unmodified and unverified. Same unsigned Koffi binary/hash as the prior drill. Windows ARM64, macOS, current Node patch and published-artifact checks remain outstanding; no general SAC guarantee or full stage-A completion is claimed. |
+| 2026-10-25 | 14.21 A, local npx artifact | **Local packed prototype passed through npx on Windows x64.** Added the test-only devbuddy-credential-probe bin with a Node shebang, retaining private:true and leaving the real plugin-client command unimplemented. The smoke tool packs and checks the artifact, invokes help and native round trips from a clean Thai-named directory with cold/warm isolated npm caches and install scripts disabled, and asserts loaded native modules reside inside that cache. Both passes succeeded, including the cache-location assertion; typecheck/build and four Bun tests passed. Prototype CI now includes help-only cold/warm artifact checks (not run remotely). Evidence: ignored out/npx-smoke-8ab6ea15-7ad9-4b4d-ac37-ed2eb3a8f78e. No registry publication, global installation or security-policy changes. Full CLI work awaits clarification of the remaining platform gate. |
+| 2026-10-25 | 14.21 A, gate retained and negative npx tests | **Owner explicitly retained the original gate: prototype testing only.** No CLI/MCP port starts ahead of remaining platform evidence. Extended the packed npx smoke drill with invalid-stage and invalid-UUID cases: both returned exit 1, empty stdout and safe stderr without reflecting synthetic sensitive arguments. Cold/warm native round trips also passed. Evidence: ignored out/npx-smoke-d7faac84-e353-4c2d-b599-40c9c407747f. No publication or default changes. |
+| 2026-10-25 | 14.21 A, test-machine prerequisites | **Prerequisites prepared; remote test transfer awaits approval.** Existing SSH aliases macmini (.152), winarm (.153) and ubuntu (.154) are reachable; both guests already run in VMware, so no Proxmox VM was created. Installed isolated checksum-verified Node 24.22.1 and SDK 10.0.400, plus Bun 1.3.14 where missing; npm 11.19.1. No global PATH/runtime or SAC changes. Windows ARM SAC reports 0. Added a portable .NET peer compiling unchanged production adapters; build and local interoperability passed. Current Windows x64 also passed native/.NET/npx cold-warm-negative drills with workspace-local Node 24.22.1 (registry SAC 1). Automatic approval review rejected exporting the repository test bundle to the three hosts without explicit source-transfer permission; asked owner, transfer/tests pending. Isolated installer scripts already staged were completed separately. |
+| 2026-10-25 | 14.21 A, approved remote drills | **Source transfer explicitly approved and completed to Mac mini, Windows ARM and Ubuntu ARM.** All three passed Node 24.22.1/Bun 1.3.14 frozen install with scripts disabled, typecheck/build, four unit tests, and portable packed-npx cold/warm help and negative cases. Tarball SHA-256 identical across machines: 96b9ec3e3f25c6084294b49ace0f3fec4f8efe38e352e1b9e75ca4e2fbc8e7ff. Linux ARM loaded native Koffi 3.3.3. Mac/Windows ARM .NET source peer builds passed, but native exchanges under SSH failed: macOS -25308, Windows 1312. Prepared desktop entrypoints for owner execution; no interaction/security bypass or file fallback. Windows ARM SAC remains 0. Existing devrelease Proxmox LXC is x86_64 with ~18 GB free; asked permission to add this fourth source destination, not yet transferred. Gate remains open. |
+| 2026-10-25 | 14.21 A, Linux x64 approved and tested | **Owner approved devrelease; Linux x64 prototype checks passed.** Prepared isolated Node 24.22.1/npm 11.19.1/Bun 1.3.14/SDK 10.0.400 under jm's .devbuddy-npx-test, with official Node/SDK checksums verified. Linux x86_64/glibc 2.41 passed frozen script-disabled dependency install, typecheck/build, four Bun tests, native Koffi 3.3.3 loading, .NET source-peer build, and packed npx cold/warm help plus invalid-stage/UUID cases. Report: remote ~/.devbuddy-npx-test/npx-result.json; ignored local out/npx-remote-evidence/linux-x64-npx.json. Later tarball hash 88d01c1e0ef3e70ca2f5958929fe8e9358f57201fd15d6c24028c7447abc41ee (README changed since ARM bundle). No new VM or existing deployment changes. Linux file-store/musl/full-client tests are not claimed; Mac/Windows ARM desktop credential and ARM SAC evidence still pending. |
+| 2026-10-25 | 14.21 A, resumed Mac desktop tests | **Fixed macOS evidence collection; native CRUD and packed npx pass.** After login Keychain unlock was confirmed (flags 7, interaction enabled), ENOENT on CoreFoundation/CoreServicesInternal exposed an inventory defect rather than a credential failure. Only absent macOS system frameworks/dylibs now receive explicit unavailable-system-image/null-hash evidence; missing Node/npm .node files and permission errors still fail. Eight tests pass on Windows and Mac; Windows native packed regression also passes. Mac desktop packed npx cold/warm native plus negative cases passed on Node 24.22.1; native module hash 9e4814a0593d95cd3fa1531fe5f06a9908a7505caefd8ccdce2ca758cdf0b5dc. Report copied to ignored out/npx-remote-evidence/macos-arm64-native-npx.json. Cross-client Node read of a .NET-created test item timed out awaiting Keychain approval; asked owner, prepared bounded five-minute interactive timeout, not yet counted passed. Windows ARM functional desktop tests passed earlier and temporary task was removed, but last observed SAC state remained 0; active-policy evidence is still pending. Gate stays open. |
+| 2026-10-25 | 14.21 A, Mac interoperability verified | **Mac native feasibility checks now pass.** After the owner approved the current Keychain prompt, the desktop runner completed roundtrip, read-dotnet and verify-node successfully: .NET write -> Node read/update -> .NET read/update -> Node read, with cleanup. The same run also passed native packed npx cold/warm plus negative cases (out/npx-portable-YBE5Lg on Mac). Passing reports copied to ignored out/npx-remote-evidence/macos-arm64-compatibility.json and macos-arm64-native-npx.json. Windows ARM functional checks are already passing, but a fresh SSH registry check still returned SAC=0; active enforcement evidence there remains the outstanding native/SAC gate. No full CLI/MCP port or publication started. |
+| 2026-10-25 | 14.21 A, complete | **DONE: remaining Windows ARM SAC gate verified.** After the owner enabled SAC offline and booted the VM, CiTool showed active VerifiedAndReputableDesktop and inactive Evaluation. SSH typecheck/build and eight unit tests passed; a limited interactive-user task passed native Credential Manager CRUD, .NET/Node interoperability and packed npx cold/warm native/negative tests on Node 24.22.1. Separate read-only SSH policy snapshots bracketed an additional complete test run; both enforcement=true, registry=1, and runner timestamp checked between snapshots. Original runner policy status remains unverified (limited token); it was not edited to manufacture a pass. Evidence: ignored out/npx-remote-evidence/windows-arm64-sac-{summary,before,after,runner,packed}.json. ARM Koffi remains NotSigned, hash 902e5e1a5d949b8ff361ffd5897f87863e3506747ac701875250988cf930bdf3. Temporary task removed. Mac interoperability/native npx and Windows x64 SAC evidence already pass; Linux x64/ARM64 launcher/native-load checks pass. Stage A is complete for the tested prototype/machines; B–F are TODO, with no full CLI/MCP implementation, publication or general unsigned-binary guarantee. |
+| 2026-10-25 | 14.21 B–E | **Full-client development started at owner request.** Built schema-1 registry/path/lazy context, Linux-compatible file store, token input/lifecycle CLI, HTTP verification, header helper and stdio bridge. Strict TS checks and 27 Bun tests pass (153 assertions); existing .NET client suite 90 passed. Real Node/loopback HTTP/stdio smoke passed, including .NET registry and file-token interchange both directions. Production package has only devbuddy-npx; separate feasibility package preserves prior probes. Script-disabled production tarball inventory/install and installed smoke passed on Windows x64 Node 24.22.1. Added CI steps (not yet run), host examples and contract checklist at docs/npx-client-contract.md. Actual product JavaScript execution-import mutation failed guard; revert passed (SB-04 extension TESTED). Remaining parser/transport cases, other production platforms, native/SAC artifact tests, real hosts/server, SBOM/license and release gates are explicitly pending; B–E remain IN PROGRESS, F TODO. No npm publication or default changes. |
+| 2026-10-25 | 14.21 B–E, extended verification | **33 Bun tests (172 assertions) pass.** Added concurrent calls/backpressure, cancellation, nested schema injection, token replacement/removal within a session, safe logs and no-retry tests. Production Windows Credential Manager smoke with real .NET exchange passed on Node 24.22.1 using a random synthetic workspace and cleanup (out/client-smoke-LUVm4w). Production tarball local/isolated-global install, cold/warm-offline npx, CycloneDX SBOM and installed HTTP/stdio smoke pass (out/package-smoke-u0KeKw; SHA-256 7065e7d3729336c885ca10e1a131ec1e5780336bb12d59a294a88dc429a42ad0). No new SAC snapshot or other production-platform/real-host claim. Asked owner for npm artifact license and controlled publishing account/name, which remain release prerequisites. |
+| 2026-10-25 | 14.21 C/E, continued | **Owner preparation template added; development continues independently.** Added docs/operations/npm-release-owner-template.md for nonsecret license/account/release details. Fixed verification leaving SSE bodies open; reject malformed JSON-RPC/tool results. Expanded alias/module/loading source guards and mutation-checked computed eval in real product JS (failed, revert passed). TS checks and 37 Bun tests/240 assertions pass. Updated Windows package smoke and .NET interchange pass (package-smoke-6UPTNk, client-smoke-FSokTq). Pinned local Node Alpine non-root x64 musl drill passes package install/npx/SBOM/HTTP/stdio and actual 0700/0600 permissions (out/musl-smoke-245acb57-9439-4947-a60d-367a8be42fee). Node 24.21.0/musl 1.2.6; no current-patch release guarantee, ARM/glibc/real-host acceptance or publication implied. |
+| 2026-10-25 | 14.21 release preparation | **Owner supplied preparation details; no publication authorised.** Recorded code/copyright owner and npm username/first publisher jennarin.meethong, preferred package devbuddy-plugin-client and intended GitHub repository in info.md and docs/operations/npm-release-owner-details.md. Updated private package/lock/docs and removed hardcoded install-directory assumptions from artifact tests; executable remains devbuddy-npx. Supplied fallback scope has jannarin rather than jennarin spelling and remains unconfirmed. Disclosure rights, license, name rights, trusted-publisher admin and pilot approval are pending. 37 tests/240 assertions and renamed package local/global/npx/SBOM/HTTP smoke pass on Windows x64 Node 24.22.1 (out/package-smoke-bdHOrU; SHA-256 c788bd48724334cdafdc7a55eb2bcc0fb892f5033927e066f8785a383e74dfd5). |
+| 2026-10-25 | 14.21 fallback scope | Owner corrected and confirmed the fallback as @jennarin.meethong/devbuddy-plugin-client. Updated info.md and release owner details. Preferred unscoped package remains devbuddy-plugin-client; executable remains devbuddy-npx. Publishing rights and release approval are still pending. Documentation-only change; git diff --check passed. |
+| 2026-10-25 | 14.21 B/C/E production acceptance | Continued at owner request: 39 unit tests pass on existing Linux x64/ARM64, Mac ARM64 and Windows ARM64 hosts. Actual source-built .NET/Node registry and file-token interchange both directions, ordinary/non-Git folders (Unix), 0700/0600 modes, local/global installs, cold/warm-offline npx and SBOM pass. Fixed token-group help, explicit boolean flags, end-of-options paths and D/N/B/P GUID normalization after comparing the actual .NET CLI. Synthetic HTTPS trust/redirect/interruption tests pass on Windows x64, Linux x64/ARM64 and Mac ARM64. Native x64 and ARM64 musl container tests also pass without .NET or compilers. All six platform artifact hashes match 62d1ebcab798e227e0c514f88bc28a38df30013e84b9d883209fccd8977fcfda. Evidence retained in out/npx-remote-evidence/production-client; test-only directories and deployments unchanged outside isolated test files. Expanded CI ARM/musl/.NET/TLS checks pass local actionlint but have not run on GitHub. Native production credential desktop/SAC, real server/host and release gates remain pending; file-store evidence is not native-store acceptance. |
+| 2026-10-25 | 14.21 real stack/native/host continuation | Real-stack production npm tests (two plus setup) and all eight existing stdio checks pass in a fresh stack; containers/volumes removed. Fixed old stdio probe EOF race with protocol synchronization while preserving refusal assertions. Build exposed vulnerable transitive Pkcs 10.0.0; centrally pinned patched 10.0.13 without suppressing NuGet audit. Full .NET suite 1,132 passed and format verification passed. Installed native/.NET artifact tests pass Windows x64/ARM64 and Mac ARM64, hash 62d1ebcab798e227e0c514f88bc28a38df30013e84b9d883209fccd8977fcfda. ARM SAC active snapshots independently bracket limited-user native run in UTC; erroneous original PowerShell local-time boolean preserved, separate verifier passes and nine invalid-evidence mutations fail. Temporary Windows task and Mac LaunchAgent removed. x64 active policy read remains Access Denied. Codex 0.160.0 and Claude Code 2.1.259 connect/discover through production helper in isolated synthetic fixtures with no model turn; GUI/Cowork/full real-stack host sessions remain pending. 41 Bun tests/282 assertions and strict checks pass. Details/evidence in docs/npx-client-contract.md; no publication or default switch. |
+# Additional verification — 2026-10-25
+
+- 14.21 E: Windows x64 Node 24.22.1 lifecycle-enabled packed install passed without compiler
+  or build tools on its child PATH. Actual Koffi install hook and prebuilt native loading passed;
+  artifact hash unchanged. Evidence and dependency fallback review recorded in
+  `docs/npx-client-contract.md`. Owner will run the administrator SAC evidence dispatcher;
+  completion was subsequently verified below.
+
+- 14.21 E: Owner-run administrator dispatcher completed; independent verifier confirms active
+  Windows x64 SAC snapshots bracket the Limited-user installed native/.NET test on Node 24.22.1.
+  Package/local/global/npx checks passed with unchanged artifact hash. Evidence retained under
+  `out/npx-remote-evidence/production-client/native-evidence-c3ca369da7e942a283598393d716766d/`;
+  original files preserved. x64 SAC evidence gate closed for the tested machine/artifact.
+  Full GUI/Cowork host acceptance and release prerequisites remain open.
+
+- 14.21 C/D: Owner-run Mac Terminal read-only checks passed for the real BMS root, backend
+  and frontend. Production npm registration JSON and authenticated doctor passed in all three;
+  registry hash unchanged, no project/credential updates. Evidence:
+  `out/npx-remote-evidence/production-client/bms-readonly-b78MZI/`. SSH Desktop access remains
+  denied by macOS; no privacy bypass attempted. Actual host tool invocation is still pending.
+
+- 14.21 D: At owner's request to test Claude with real BMS, added the opt-in Claude Desktop
+  entry `devbuddy-npx-bms-test` on Mac using absolute isolated Node/production CLI paths and
+  `mcp-bridge --dir /Users/jm/Desktop/Works/BMS`. Existing settings preserved, private backup
+  under Mac `.devbuddy-npx-test/claude-bms-config-ldcqqcku/`; no token in config. Reversible
+  helper: `tools/npx-feasibility/claude-bms-preview.py apply|remove|preview`. App was not
+  restarted and no model/tool request sent. Await owner restart and read-only discovery test;
+  this is Desktop MCP acceptance, not Cowork acceptance or a published-npm artifact test.
+
+- 14.21 D: First Claude Desktop start failed. Dedicated server log reports untrusted server
+  certificate. Unauthenticated endpoint probe with clean Node CA environment and
+  `--use-system-ca` passes TLS (HTTP 405); no credentials sent. Updated only the opt-in test
+  entry with this Node flag, using the Mac's existing trusted CA store without disabling TLS
+  validation. Private backup `claude-bms-config-xwslb4kv`; await owner restart/retest. The
+  successful Terminal doctor did not prove the GUI's effective TLS environment was equivalent.
+
+- 14.21 D: Claude Desktop live BMS basic acceptance passed after system-CA correction and
+  restart. Owner screenshot reports successful `list_projects`, three projects, no writes.
+  Dedicated log independently confirms initialize/tools-list success at 11:35:36Z. Exact
+  invocation/no-write counts are host-reported (UI shows two tools), not server-audit verified.
+  Basic Desktop connection/read-only invocation covered; Cowork and Claude Code sessions,
+  broader lifecycle/error/rollback and release acceptance remain open. Test entry remains opt-in.
+
+- 14.21 C/D: Owner explicitly confirmed second successful BMS screenshot is from Cowork.
+  `devbuddy-npx-bms-test` integration reports `list_projects` success and three projects with
+  read-only behavior. Basic Cowork real-server tool invocation accepted as owner-observed;
+  no server-audit call-count/no-write claim added. Broader lifecycle/error/rollback and
+  real-server Codex/Claude Code checks remain open. No publication or global plugin-default change.
+
+- 14.21 E: Owner clarified requested current-user check is macOS app security. Gatekeeper
+  reports assessments enabled; Node is Developer ID signed, has no quarantine attribute, and
+  explicit spctl execution assessment says valid code but not an app (rejected). Recorded
+  this limitation rather than claiming Gatekeeper/notarization acceptance from runtime success.
+  No security policy or file attribute changes made; distribution-path acceptance remains open.
+
+- 14.21 E: Prepared current-user browser/Finder download drill at owner's request:
+  `tools/npx-feasibility/check-fresh-download-mac.py`. Verifies Node archive against official
+  SHA-256 and the known client artifact; records quarantine/signature/spctl results before
+  executing a fresh Node, installs the npm tarball in an isolated directory, and runs only
+  BMS doctor with existing credentials. No quarantine deletion, policy changes, exception reset,
+  .NET execution or credential updates. Staged and syntax checked on Mac; owner browser download
+  and execution pending. Quarantine/runtime/spctl results are reported separately, not conflated.
+
+- 14.21 D: At owner request, configured real Mac Codex CLI 0.157.1 opt-in stdio server
+  `devbuddy-npx-bms-test`, using Node `--use-system-ca` and production npm bridge with explicit
+  BMS directory. Used Codex's supported mcp add writer, verified resulting command/args/env
+  through mcp get, preserved all existing entries including original HTTP devbuddy. Private
+  backup `.devbuddy-npx-test/codex-bms-config-aofhvmb6/config.backup.toml` on Mac. Helper:
+  `tools/npx-feasibility/codex-bms-preview.py`. No model request sent; live tool invocation
+  remains pending owner desktop session. No token embedded or registry/credential update.
+
+- 14.21 D: Owner supplied Codex session screenshot reporting successful `list_projects` and
+  three projects under the explicit `devbuddy-npx-bms-test`-only prompt. Basic real-server
+  Codex read-only invocation recorded as owner-observed. Collapsed result does not independently
+  prove exact tool identity/call count/no-write behavior; no server-audit claim added. Claude
+  Code real-server session, broader lifecycle/rollback, CI and release prerequisites remain open.
+
+- 14.21 D: Continued Claude Code preparation on Mac. No standalone macOS `claude` found in
+  common installed paths. Desktop-managed `claude-code-vm/2.1.308/claude` is Linux ARM64 ELF,
+  not a macOS CLI (direct execution returns exec-format error). No additional software installed.
+  Official Claude desktop documentation supports sharing Desktop MCP entries with local Code
+  sessions, so next owner test uses the existing Code tab and `devbuddy-npx-bms-test` entry.
+  Claude Code live acceptance remains pending; Desktop-managed VM binary is not counted as
+  a successful standalone macOS CLI test.
+
+- 14.21 D: Owner supplied result of requested Claude Code Desktop test. Screenshot visibly
+  selects `mcp__devbuddy-npx-bms-test__list_projects` and invokes that integration's List
+  projects, returning success and three projects. Two tools shown are discovery and the
+  requested invocation. Host reports no shell/file access or writes; no independent audit
+  claim made. Basic Claude Code Desktop real-server acceptance recorded without retaining
+  returned project names/IDs. All requested desktop host surfaces now have basic owner-observed
+  real BMS success; broader lifecycle/error/rollback, CI and release gates remain open.
+
+- 14.21 C/D/E: Added real-process synthetic error/deadline drill. Windows x64 and Linux x64
+  Node 24.22.1 pass HTTP 401/403/404/405/429/500/503, socket loss, unavailable server and actual
+  20-second verification timeout, preserving registry and old token without retries/leaks.
+  Linux also passes actual in-flight SIGINT (exit 130) and unchanged production five-minute
+  bridge deadline (300,110 ms). Strengthened rollback proves actual .NET MCP bridge/SSE plus
+  .NET doctor after a further npm token change on Windows native and Linux file stores.
+  Evidence details in docs/npx-client-contract.md; Linux reports copied to ignored local out.
+  CI includes the new checks; changed YAML syntax validated, not executed on GitHub. Updated
+  stale acceptance-table rows to distinguish completed drills from remaining host-level cases.
+  BMS credentials unchanged; no publication. Host lifecycle/rollback, remaining contract/input
+  coverage, final security/dependency/release/CI gates remain open.
+
+- 14.21 B/E: Production dependency npm audit reports zero known advisories (retained JSON).
+  Tested official Alpine index `06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53`
+  with actual Node 24.22.1 on native Linux x64/ARM64; both packed/npx/SBOM/file-permission/
+  HTTP/stdio drills passed without compiler/.NET, unchanged artifact hash. Updated musl
+  launcher pins; prior 24.21.0 reports remain historical. Added 28 safe invalid-argument cases
+  and platform case/separator tests: Windows 43 tests/453 assertions, Linux client tests
+  33/384, strict typecheck passed. Evidence paths in contract checklist. CI not run on GitHub;
+  license/publication rights, full host/input matrix and release/pilot remain open.
+
+- 14.21 B: Native Mac ARM64 rerun of updated client suite passes 33 tests/384 assertions,
+  including case/separator and invalid-argument fixtures. Tests use isolated synthetic data;
+  no BMS/host configuration or credential changes.
+
+- 14.21 B/E: Real PTY testing exposed visible prompt preceding echo disable. Corrected order
+  in production token-input; regression fails old order and passes fix. Local 43 tests/455
+  assertions and strict checks pass. Six actual PTY cases pass Linux x64/ARM64 and Mac ARM64,
+  including Ctrl+C/EOF/Backspace, echo disabled at prompt and exact terminal restoration.
+  New artifact SHA-256 `99f0c5ea9e923e924c0df27d40583368493f0fbf2533e8af22f26f73f9d1d10f`
+  passes Windows x64 native/.NET, Mac ARM64 native/.NET after owner Keychain approval (job
+  removed), and Windows ARM64/Linux glibc/musl package/file checks. Windows ARM64 native
+  dispatcher refused by script policy; no policy changed. New artifact requires fresh final
+  SAC/host acceptance; previous `62d1...` evidence preserved, not silently reassigned. Added
+  Unix PTY CI step, YAML syntax verified; source/hash/evidence details in contract checklist.
+
+- 14.21 E: Prompt-fixed artifact `99f0...` now passes Windows ARM64 native/.NET/installed
+  checks with independently verified active SAC snapshots around the Limited-user run.
+  Default script restriction resolved with process-only RemoteSigned (including child task,
+  replacing prior Bypass); no persistent/managed policy or SAC change. Post-run all scopes
+  Undefined and temporary task count zero. Evidence `native-evidence-1e730cfe77444f43892326287469e465`
+  retained in ignored local out. Read-only artifact diff proves only token-input.js changed;
+  13 other packaged files identical. Owner will run fresh x64 administrator collector; pending.
+
+- 14.21 E: Owner completed fresh Windows x64 administrator collector. Independent verifier
+  confirms active SAC snapshots bracket Limited-user native/.NET/package run for artifact
+  `99f0c5ea9e923e924c0df27d40583368493f0fbf2533e8af22f26f73f9d1d10f`. Evidence retained
+  at `out/npx-remote-evidence/production-client/native-evidence-65c94857900b43a1bbd32165844f2506/`
+  with original repository-root evidence unchanged. Both Windows current-artifact SAC gates
+  pass; remaining host/input matrix, GitHub CI, license/publisher and pilot gates remain open.
+
+- 2026-10-28, 14.21 release scope: Owner chose internal use first in the disclosure decision
+  discussion. Recorded in info.md and release owner details. Public npm/source publication is
+  not authorised; internal distribution method and permitted recipients are next decisions.
+  Continue internal preparation; do not treat a public npm prerelease as an internal pilot.
+
+- 2026-10-28, 14.21 internal pilot distribution: Owner chose option A, versioned `.tgz` files
+  first. Prepare archive/checksum and install/update/rollback instructions; destination and
+  permitted recipients remain undecided. No package upload, message or public publish authorised.
+
+- 2026-10-28, 14.21 internal audience: Owner selected option C, all personnel within the
+  organisation. Organisation identity and distribution destination remain to be clarified;
+  no external/public disclosure or sending/uploading of the package authorised.
+
+- 2026-10-28, 14.21 internal organisation: Owner specified G-Able. Intended audience is all
+  personnel within G-Able; distribution destination remains pending. This records owner intent,
+  not independent corporate approval or copyright transfer. No package uploaded or sent.
+
+- 2026-10-28, 14.21 distribution channel: Owner selected option B, release area of a
+  restricted repository. Exact repository and visibility/audience access remain to be
+  confirmed before any upload; earlier GitHub URL is not assumed private or approved.
+
+- 2026-10-28, 14.21 release repository check: Owner selected existing
+  `jennarinmeethong/devbuddy-plugin`. Connected GitHub metadata reports public visibility,
+  conflicting with intended G-Able-only distribution. Await owner choice of a private
+  destination or an explicit visibility decision. No upload, publication or visibility change.
+
+- 2026-10-28, 14.21 temporary internal staging: Owner chose to defer repository upload and
+  requested storage on current DevBuddy server. Deposited tested artifact `99f0c5ea...`,
+  SHA256SUMS and nonsecret install/update/rollback guide at
+  `devbuddy:/home/jm/devbuddy-internal-packages/1.14.0-next.0-99f0c5ea9e92/`.
+  Remote checksum verified; directory 0700/files 0600 owned by jm. No deployment/gateway/
+  service change, public upload or employee download endpoint. Exact candidate retained;
+  version/rollout approval and offline-install requirement remain decisions to resolve.
+
+- 2026-10-28, 14.21 dependency installation: Owner chose option A, online npm dependency
+  downloads through organisation-approved access while distributing the client as `.tgz`.
+  Updated internal installation guide; no full offline bundle/private registry planned.
+  Corporate endpoint/proxy/CA reachability and pilot version/rollout approval remain pending.
+
+- 2026-10-28, 14.21 pilot version: Owner selected option A, `1.14.0-next.0`, retaining the
+  tested `99f0c5ea...` artifact. Version selection does not authorise start of employee rollout,
+  public publication or an npm dist-tag operation. Approver and internal usage terms pending.
+
+- 2026-10-28, 14.21 approver: Owner selected option A, `jennarin.meethong`, as internal
+  pilot rollout approver. This is role designation, not final rollout approval or independent
+  corporate-authority verification. Final decision awaits the concrete readiness checklist.
+
+- 2026-10-28, 14.21 usage terms: Owner selected B, prepare an internal pilot terms draft
+  for review. Added docs/operations/npm-internal-pilot-terms-draft.md with explicit unapproved
+  status, package/version/hash, proposed G-Able scope, existing server permissions, distribution,
+  dependency notices, credential handling and review checklist. Support owner/channel pending.
+  No license/package metadata change or rollout approval inferred.
+
+- 2026-10-28, 14.21 pilot support: Owner selected A, direct problem reports to
+  `jennarin.meethong`. Updated unapproved terms draft; contact channel/details remain pending.
+  No external message, package change or rollout approval.
+
+- 2026-10-28, 14.21 support channel: Owner selected Microsoft Teams, display name
+  `jannarin meethong` (spelling preserved). Updated unapproved draft and owner details;
+  approver identifier remains `jennarin.meethong`. No directory match/deep link inferred,
+  message sent, or rollout approved.
+
+- 2026-10-28, 14.21 terms review/default question: Owner accepted draft terms content
+  (option A), pending readiness checklist and final rollout approval. Updated draft status;
+  package unchanged. Owner asked about making npm the plugin default; internal-pilot versus
+  general-default scope not yet chosen. No plugin default changed in this step.
+
+- 2026-10-28, 14.21 internal npm-default kit: Owner selected npm default only for the G-Able
+  internal pilot distribution. Implemented tools/internal-npm-pilot setup/test/builder and
+  staged the portable kit (`7aa33085...`) beside the unchanged tested client (`99f0c5ea...`).
+  Generated four host/plugin profiles pass actual client init/list/call with empty PATH,
+  wrong cwd and Thai/spaced install paths on Windows and Linux; Windows actual Claude Code
+  health/Codex discovery pass with isolated synthetic config/no model turn. Instruction bytes
+  preserved; original plugin guards 18 pass, source plugin diff empty, TOML syntax passes.
+  Mac test host timed out; setup-specific Mac/GUI activation acceptance pending. No existing
+  host settings, original plugin defaults, credentials or live deployment changed. Owner-only
+  server checksums verified. Guide: docs/operations/npm-internal-pilot-kit.md. Rollout pending.
+
+- 2026-10-28, pilot kit guide clarification: Final kit hash `617b07ca...` clarifies that new
+  users prepare/install first and register through the installed npm client before activation;
+  .NET/existing registration is not required. Only README changed from tested kit `7aa33085...`;
+  setup/template/client bytes unchanged. Added synthetic kit test to CI definition, YAML syntax
+  checked but GitHub execution pending. Employee activation and Mac rerun remain pending.
+
+- 2026-10-28, internal npm-default kit Mac acceptance: Owner started Mac; final portable kit
+  `617b07ca...` checksum and inventory pass. All four generated profiles pass actual installed
+  client init/list/call with empty PATH/wrong cwd/Thai-space paths on Mac ARM64, plus actual
+  Codex app-server discovery in isolated synthetic settings, no model turn. Retained report
+  `out/npx-remote-evidence/production-client/macos-internal-default-kit-result.json`.
+  No live BMS settings/credentials/registry changed. Kit setup now verified Windows/Linux/Mac;
+  GUI activation, remaining readiness checks and final rollout approval remain separate.
+
+- 2026-10-28, BMS Mac Desktop activation: Owner explicitly requested applying pilot to
+  `/Users/jm/Desktop/Works/BMS`. Installed exact `99f0...` tarball under
+  `/Users/jm/.devbuddy-pilots/bms-1.14.0-next.0`; generated actual Desktop configuration.
+  Atomic merge makes `devbuddy` the npm entry and removes only old `devbuddy-npx-bms-test`.
+  Private config backup: `desktop-backup-xxd6rvvm` under `.devbuddy-pilots`. Existing BMS
+  registration read-only JSON/version checks pass. No .NET uninstall, user-scope Code plugin
+  change, project/registry/token change or app restart. Owner restart and new live call pending.
+  Metadata retained locally as `out/npx-remote-evidence/production-client/macos-bms-pilot-activation-result.json`.
+
+- 2026-10-28, BMS installed pilot live verification: Owner supplied fresh Claude result
+  screenshot visibly selecting and invoking `devbuddy: list projects`, reporting success and
+  three projects, under the prompt excluding the old plugin/test servers and file/shell/writes.
+  Record installed `99f0...` BMS Desktop basic invocation as owner-observed accepted. Exact
+  server audit count/no-write behavior is not independently reconciled; returned project
+  names/IDs are not copied into this record. Other host activations and broad rollout not implied.

@@ -817,7 +817,9 @@ describe("evidence", () => {
     const file = new File(["a build log"], "build.log", { type: "text/plain" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
     fireEvent.change(input);
 
     fireEvent.change(screen.getByPlaceholderText("The build log for release 1.4"), {
@@ -1331,5 +1333,157 @@ describe("every operation has a screen", () => {
       role: "Administrator",
       scopedToProject: PROJECT,
     });
+  });
+});
+
+describe("form field constraints on real screens", () => {
+  const project = `/w/${WORKSPACE}/p/${PROJECT}`;
+  const cases = [
+    { path: `/w/${WORKSPACE}`, fields: [["Name", 200]] },
+    { path: `/w/${WORKSPACE}/teams`, fields: [["Name", 200]] },
+    { path: `/w/${WORKSPACE}/workspaces`, fields: [["Name", 200]] },
+    { path: `/w/${WORKSPACE}/members`, fields: [["Email", 320], ["Display name", 200]] },
+    { path: `/w/${WORKSPACE}/plugin-access`, fields: [["Name", 200]] },
+    { path: project, fields: [["Key", 64], ["Title", 500], ["Goal", 4000]] },
+    { path: `${project}/work/${WORK_ITEM}`, fields: [["Source", 1000], ["Title", 500]] },
+    { path: `${project}/evidence`, fields: [["What it shows", 500]] },
+    { path: `${project}/search`, fields: [["Question or words", -1]] },
+    { path: `${project}/analysis`, fields: [["Commit or range", -1], ["Earlier", -1], ["Later", -1]] },
+  ] as const;
+
+  for (const { path, fields } of cases) {
+    test(`required text fields and limits on ${path}`, async () => {
+      signedIn();
+      render(mount(path));
+      for (const [name, maxLength] of fields) {
+        const field = await screen.findByRole("textbox", { name: new RegExp(`^${name}`) }) as HTMLInputElement;
+        expect(field.required).toBe(true);
+        expect(field.maxLength).toBe(maxLength);
+        expect(field.closest("label")?.querySelector('[aria-hidden="true"]')?.textContent).toBe("*");
+        fireEvent.change(field, { target: { value: "   " } });
+        expect(field.checkValidity()).toBe(false);
+        fireEvent.change(field, { target: { value: field.type === "email" ? "valid@example.test" : "Valid text" } });
+        expect(field.checkValidity()).toBe(true);
+      }
+    });
+  }
+});
+
+describe("validation in conditional forms", () => {
+  test("sign-in limits the email and requires both credentials", async () => {
+    render(mount("/"));
+    const email = await screen.findByRole("textbox", { name: "Email" }) as HTMLInputElement;
+    const password = document.querySelector('input[name="password"]') as HTMLInputElement;
+    expect(email.maxLength).toBe(320);
+    expect(email.required).toBe(true);
+    expect(password.required).toBe(true);
+    expect(password.closest("label")?.querySelector('[aria-hidden="true"]')?.textContent).toBe("*");
+  });
+
+  test("password recovery requires the token and both password entries", async () => {
+    render(mount("/set-password"));
+    await screen.findByRole("button", { name: "Set password" });
+    for (const name of ["token", "password", "confirmation"]) {
+      const input = document.querySelector(`input[name="${name}"]`) as HTMLInputElement;
+      expect(input.required).toBe(true);
+      expect(input.closest("label")?.querySelector('[aria-hidden="true"]')?.textContent).toBe("*");
+    }
+  });
+
+  test("a correction requires a nonblank reason within its stored limit", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/records/${RECORD}`));
+    const reason = await screen.findByRole("textbox", { name: /^Or send it back/ }) as HTMLTextAreaElement;
+    expect(reason.maxLength).toBe(4000);
+    expect(reason.required).toBe(true);
+    fireEvent.change(reason, { target: { value: "   " } });
+    expect(reason.checkValidity()).toBe(false);
+    expect(reason.closest("label")?.querySelector('[aria-hidden="true"]')?.textContent).toBe("*");
+  });
+
+  test("an edited draft limits the title and permits an empty body", async () => {
+    server.restore();
+    server = fakeServer(undefined, recordIn("Draft"));
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/records/${RECORD}`));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit this draft" }));
+    const title = await screen.findByRole("textbox", { name: "Title" }) as HTMLInputElement;
+    const body = screen.getByRole("textbox", { name: "Body" }) as HTMLTextAreaElement;
+    expect(title.maxLength).toBe(500);
+    expect(title.required).toBe(true);
+    expect(body.required).toBe(false);
+    expect(body.maxLength).toBe(-1);
+  });
+});
+
+describe("optional and conditional inputs", () => {
+  test("optional workspace project and work scope inputs have their stored limits", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/workspaces`));
+    const firstProject = await screen.findByRole("textbox", { name: /^First project/ }) as HTMLInputElement;
+    expect(firstProject.required).toBe(false);
+    expect(firstProject.maxLength).toBe(200);
+    cleanup();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}`));
+    for (const name of ["In scope", "Deliberately excluded"]) {
+      const field = await screen.findByRole("textbox", { name: new RegExp(`^${name}`) }) as HTMLTextAreaElement;
+      expect(field.required).toBe(false);
+      expect(field.maxLength).toBe(4000);
+    }
+  });
+
+  test("the evidence file and description are both required", async () => {
+    signedIn();
+    render(mount(`/w/${WORKSPACE}/p/${PROJECT}/evidence`));
+    await screen.findByRole("heading", { name: "Attach an artefact" });
+    const file = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const description = screen.getByRole("textbox", { name: /^What it shows/ }) as HTMLInputElement;
+    expect(file.required).toBe(true);
+    expect(file.closest("label")?.querySelector('[aria-hidden="true"]')?.textContent).toBe("*");
+    expect(description.required).toBe(true);
+    expect(description.maxLength).toBe(500);
+  });
+});
+
+describe("navigation before sign-in", () => {
+  test("recovery goes back to sign-in before and after requesting a token", async () => {
+    render(mount("/"));
+    fireEvent.click(await screen.findByRole("button", { name: "Forgot your password?" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to sign in" }));
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Forgot your password?" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Email" }), { target: { value: "person@example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send a recovery token" }));
+    await screen.findByRole("status");
+    fireEvent.click(screen.getByRole("button", { name: "Back to sign in" }));
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeDefined();
+  });
+
+  test("the token page returns to sign-in even when opened directly", async () => {
+    render(mount("/set-password?token=example"));
+    fireEvent.click(await screen.findByRole("link", { name: "Back to sign in" }));
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeDefined();
+    expect(document.querySelector('input[name="token"]')).toBeNull();
+  });
+
+  test("sign-in, recovery and token pages can be navigated between", async () => {
+    render(mount("/"));
+    fireEvent.click(await screen.findByRole("button", { name: "Forgot your password?" }));
+    fireEvent.click(screen.getByRole("link", { name: "Set a password" }));
+    expect(await screen.findByRole("heading", { name: "Set a password" })).toBeDefined();
+    fireEvent.click(screen.getByRole("link", { name: "Back to sign in" }));
+    expect(await screen.findByRole("button", { name: "Forgot your password?" })).toBeDefined();
+  });
+
+  test("after setting a password, return to sign-in remains available", async () => {
+    render(mount("/set-password?token=example"));
+    await screen.findByRole("heading", { name: "Set a password" });
+    fireEvent.change(document.querySelector('input[name="password"]')!, { target: { value: "long enough password" } });
+    fireEvent.change(document.querySelector('input[name="confirmation"]')!, { target: { value: "long enough password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Set password" }));
+    await screen.findByText("Your password is set and every other session has been signed out.");
+    fireEvent.click(screen.getByRole("link", { name: "Back to sign in" }));
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeDefined();
   });
 });

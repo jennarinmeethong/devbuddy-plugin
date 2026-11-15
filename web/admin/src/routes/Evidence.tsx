@@ -153,6 +153,7 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
           <input
             ref={input}
             type="file"
+            required
             className="w-full text-sm"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
@@ -160,6 +161,8 @@ function Attach({ scope }: { scope: { workspaceId: string; projectId: string } }
 
         <Field label={t("What it shows")}>
           <Input
+            required
+            maxLength={500}
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder={t("The build log for release 1.4")}

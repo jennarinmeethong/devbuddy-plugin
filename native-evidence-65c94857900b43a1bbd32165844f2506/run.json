@@ -1,0 +1,9 @@
+{
+    "passed":  true,
+    "finishedUtc":  "2026-10-25T16:26:20.0908823Z",
+    "startedUtc":  "2026-10-25T16:26:09.6282431Z",
+    "taskResult":  0,
+    "taskRunLevel":  "Limited",
+    "policySnapshotsBracketRun":  true,
+    "sacEnforcedDuringRun":  true
+}

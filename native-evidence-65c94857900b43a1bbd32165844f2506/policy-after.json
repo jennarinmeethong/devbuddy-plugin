@@ -1,0 +1,37 @@
+{
+    "policies":  [
+                     {
+                         "FriendlyName":  "VerifiedAndReputableDesktop",
+                         "IsEnforced":  true,
+                         "PolicyID":  "0283ac0f-fff1-49ae-ada1-8a933130cad6"
+                     },
+                     {
+                         "FriendlyName":  "VerifiedAndReputableDesktopEvaluation",
+                         "IsEnforced":  false,
+                         "PolicyID":  "1283ac0f-fff1-49ae-ada1-8a933130cad6"
+                     },
+                     {
+                         "FriendlyName":  "VerifiedAndReputableDesktopFlightSupplemental",
+                         "IsEnforced":  true,
+                         "PolicyID":  "1678656c-05ef-481f-bc5b-ebd8c991502d"
+                     },
+                     {
+                         "FriendlyName":  "VerifiedAndReputableDesktopEvaluationFlightSupplemental",
+                         "IsEnforced":  false,
+                         "PolicyID":  "2678656c-05ef-481f-bc5b-ebd8c991502d"
+                     },
+                     {
+                         "FriendlyName":  "VerifiedAndReputableDesktopTestSupplemental",
+                         "IsEnforced":  false,
+                         "PolicyID":  "0939ed82-bfd5-4d32-b58e-d31d3c49715a"
+                     },
+                     {
+                         "FriendlyName":  "VerifiedAndReputableDesktopEvaluationTestSupplemental",
+                         "IsEnforced":  false,
+                         "PolicyID":  "1939ed82-bfd5-4d32-b58e-d31d3c49715a"
+                     }
+                 ],
+    "utc":  "2026-10-25T16:26:20.1074012Z",
+    "enforced":  true,
+    "available":  true
+}

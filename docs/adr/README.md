@@ -47,6 +47,8 @@ Each with the reason it was not chosen.
 | [0012](0012-embeddings-and-vector-search.md) | Embeddings and vector search | Accepted |
 | [0013](0013-knowledge-ai-worker.md) | The knowledge AI worker, and what authorises it | Accepted |
 | [0014](0014-seaweedfs-evidence-store.md) | SeaweedFS replaces MinIO as the default evidence store | Accepted |
+| [0015](0015-devbuddy-client.md) | A client holds plugin credentials outside repositories | Accepted |
+| [0016](0016-node-client-feasibility.md) | Opt-in Node client, gated on native credential and SAC feasibility | Accepted |
 
 ADR-0012 and ADR-0013 are Phase 12C, confirmed in `info.md` on 2026-09-10. Both were written before any
 implementation deliberately — the alternative is deciding the authorization model of a background

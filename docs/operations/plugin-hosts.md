@@ -1,5 +1,9 @@
 # Plugin hosts
 
+The unpublished opt-in Node client's [development setup and rollback guide](npm-client.md)
+documents local examples for the same three hosts. Their real-host acceptance remains pending;
+the shipped packages and web setup commands keep using the .NET client.
+
 Three packages, in `plugins/`, over one MCP server. This is what an operator has to know to install
 them and, more importantly, what installing them does **not** do.
 

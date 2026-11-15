@@ -83,6 +83,7 @@ export function Search() {
             <Field label={t("At most")}>
               <Input
                 type="number"
+                required
                 min={1}
                 max={200}
                 value={maxResults}

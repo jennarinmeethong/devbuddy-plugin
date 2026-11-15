@@ -7,6 +7,14 @@
 # The image tag must match the @playwright/test version in package.json: the browsers in the image
 # are the ones that version drives. Both images are pinned by digest, so a rebuild is the same runner.
 
+FROM oven/bun:1.3.14@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS npm-client
+WORKDIR /client
+COPY src/clients/devbuddy-npx/package.json src/clients/devbuddy-npx/bun.lock ./
+RUN bun install --frozen-lockfile --ignore-scripts
+COPY src/clients/devbuddy-npx/tsconfig.json ./
+COPY src/clients/devbuddy-npx/src/ ./src/
+RUN bun run build
+
 FROM mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
 # Bun installs from the lock file the repository commits, the same tool web/admin uses. Node, which
@@ -20,6 +28,9 @@ RUN bun install --frozen-lockfile
 
 COPY web/admin/src/api/operations.ts /repo/web/admin/src/api/operations.ts
 COPY tests/e2e/ ./
+COPY --from=npm-client /client/dist/ /repo/npm-client/dist/
+COPY --from=npm-client /client/package.json /repo/npm-client/package.json
+COPY --from=npm-client /client/node_modules/ /repo/npm-client/node_modules/
 
 # Type errors fail the image, the way they fail the API image for the client itself.
 RUN node node_modules/typescript/bin/tsc --noEmit

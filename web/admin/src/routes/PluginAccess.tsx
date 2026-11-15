@@ -152,7 +152,7 @@ export function PluginAccess() {
           >
             <Input
               required
-              value={name}
+              maxLength={200} value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={t("Work laptop")}
             />
@@ -161,6 +161,7 @@ export function PluginAccess() {
           <Field label={t("Days until it expires")} hint={t("Between 1 and 365.")}>
             <Input
               type="number"
+              required
               min={1}
               max={365}
               value={days}

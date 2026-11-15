@@ -67,9 +67,7 @@ export function SetPassword() {
             <Alert tone="success">
               {t("Your password is set and every other session has been signed out.")}
             </Alert>
-            <Link className="text-sm underline" to="/">
-              {t("Sign in")}
-            </Link>
+            <BackToSignIn />
           </div>
         ) : (
           <form className="space-y-4" onSubmit={submit}>
@@ -106,12 +104,26 @@ export function SetPassword() {
               />
             </Field>
 
-            <Button type="submit" variant="primary" disabled={busy}>
-              {t("Set password")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" variant="primary" disabled={busy}>
+                {t("Set password")}
+              </Button>
+              <BackToSignIn />
+            </div>
           </form>
         )}
       </Panel>
     </div>
+  );
+}
+
+function BackToSignIn() {
+  return (
+    <Link
+      to="/"
+      className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-soft)] px-3.5 py-1.5 text-sm font-medium text-[var(--color-ink)] hover:bg-[var(--color-hover)]"
+    >
+      <span aria-hidden="true">←</span> {t("Back to sign in")}
+    </Link>
   );
 }

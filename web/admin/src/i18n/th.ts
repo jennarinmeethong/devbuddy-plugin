@@ -9,6 +9,7 @@
  * Names of things in code (DEVBUDDY_TOKEN, SMTP, GitHub, Claude, Codex, Markdown) stay as they are.
  */
 export const th: Record<string, string> = {
+  "Enter text that is not blank.": "กรุณากรอกข้อความที่ไม่ใช่ช่องว่าง",
   // App and shell
   "Loading…": "กำลังโหลด…",
   Language: "ภาษา",

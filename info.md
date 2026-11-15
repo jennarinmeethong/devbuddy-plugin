@@ -1,5 +1,155 @@
 # Project Decisions
 
+## Confirmed Internal npm Client Use First — 2026-10-28
+
+The owner subsequently chose distributing versioned `.tgz` files for the initial internal
+pilot, rather than setting up a private registry now. Prepare the archive, checksum and
+installation/update/rollback instructions. Distribution destination and permitted recipients
+are not yet specified; do not infer permission to upload or send the package to others.
+
+The owner selected all personnel within the organisation as the permitted internal audience.
+The organisation's identity and distribution destination remain unspecified; clarify those
+before distribution. This does not authorise access for external recipients or public publication.
+
+The owner identified the internal organisation as **G-Able**. The intended audience is all
+personnel within G-Able; distribution destination remains undecided. This records intended
+scope, not independent evidence of corporate approval or a transfer of copyright ownership.
+
+The owner chose a restricted repository's release area as the internal `.tgz` distribution
+channel. The specific repository, visibility and audience access still need confirmation;
+do not assume the previously supplied GitHub URL is private or authorised for uploading.
+
+The owner selected `jennarinmeethong/devbuddy-plugin` as the intended release repository.
+GitHub metadata checked on 2026-10-28 reports it is **public**, conflicting with internal-only
+distribution. Do not upload the internal package there or change repository visibility until
+the owner resolves the channel/visibility decision. Access for G-Able personnel is not verified.
+
+The owner then chose to defer repository distribution and requested temporary storage on the
+current DevBuddy server. Staged only the tested `.tgz`, checksum and install/update/rollback
+guide via SSH alias `devbuddy` (192.168.1.160), under
+`/home/jm/devbuddy-internal-packages/1.14.0-next.0-99f0c5ea9e92/`. Directory 0700, files 0600,
+owner jm; SHA-256 verified after transfer. This is owner-private staging, not employee rollout,
+web hosting, public GitHub/npm publication or approval of the candidate version for release.
+No application/gateway/service configuration changed. Installation still requires npm dependency
+access or a prepared cache; a complete offline distribution has not been prepared.
+
+The owner chose online dependency installation (option A): distribute the client `.tgz`
+internally and allow npm to obtain dependencies through an organisation-approved registry/
+network path at install time. No full offline bundle or new private registry is planned for
+this pilot. Corporate network reachability/proxy/CA configuration is not yet verified.
+This choice does not approve public publication, network-policy changes or employee rollout.
+
+The owner selected `1.14.0-next.0` as the internal pilot version, retaining the tested artifact
+SHA-256 `99f0c5ea9e923e924c0df27d40583368493f0fbf2533e8af22f26f73f9d1d10f`.
+No repack/version change is needed. This selects the pilot version; start-of-rollout approval,
+approver identity and internal usage terms remain separate pending decisions. No public npm
+publication or npm dist-tag operation is authorised.
+
+The owner selected themselves, `jennarin.meethong`, as the internal pilot rollout approver.
+This records the designated approver, not an approval to begin rollout and not independent
+verification of corporate authority. Obtain the final rollout decision against the concrete
+checklist when preparation is complete.
+
+The owner requested a draft of internal pilot usage terms (option B), to be reviewed rather
+than treated as approved policy/license. Draft at
+`docs/operations/npm-internal-pilot-terms-draft.md`; retain its unapproved status until reviewed
+and explicitly adopted. Support owner/channel and final rollout approval remain pending.
+
+The owner selected direct reporting to themselves, `jennarin.meethong`, for internal pilot
+support. Contact channel/details remain to be specified; do not infer an email address or
+Teams identity from the username. Draft terms updated; no message sent or rollout approved.
+
+The owner specified Microsoft Teams display name **`jannarin meethong`** as the pilot support
+contact. Preserve that spelling separately from approver/copyright identifier
+`jennarin.meethong`; no email, directory account match or deep link has been inferred or
+verified, and no message has been sent. Updated the unapproved internal terms draft.
+
+The owner accepted the draft terms' content (option A) on 2026-10-28, for preparation of
+the internal pilot terms once the readiness checklist is closed. This is not final rollout
+approval, a public/open-source license selection or independent corporate approval. The
+owner also asked whether npm can become the plugin default; scope/implementation decision
+remains to be clarified before changing defaults.
+
+The owner selected npm as the default **only for the G-Able internal pilot distribution**
+(option A). Prepare a separate pilot kit whose generated host/plugin configurations launch
+the installed, hash-verified npm client through absolute Node/JS paths. Keep the original
+repository plugins and existing users' settings unchanged; provide .NET rollback instructions.
+This authorises preparation/testing of the scoped kit, not public publication, general plugin
+default replacement, automatic activation on employee machines or final pilot rollout.
+
+At the owner's explicit request, prepared and configured Claude Desktop npm pilot for the
+real Mac checkout `/Users/jm/Desktop/Works/BMS` only. Installation is under
+`/Users/jm/.devbuddy-pilots/bms-1.14.0-next.0`; active Desktop MCP entry `devbuddy` now launches
+its installed npm client and the old `devbuddy-npx-bms-test` entry was removed. Backed up
+Desktop configuration under `/Users/jm/.devbuddy-pilots/desktop-backup-xxd6rvvm/`.
+No .NET uninstall, user-scope Claude Code plugin toggle, project file/registration/token
+change or app restart occurred. Owner restart/live read-only verification is pending. This
+single-machine activation request does not approve broader employee rollout.
+
+The owner chose internal use first when asked about public disclosure. Public publication of
+the npm client is not authorised. Continue private/internal implementation, testing and
+distribution preparation; do not infer approval to publish publicly to npm, disclose source
+publicly, or change plugin defaults. Internal distribution method, permitted recipients,
+license/usage terms and any later public release remain separate decisions.
+
+## Confirmed npm Release Preparation Details — 2026-10-25
+
+The owner supplied `jennarin.meethong` as code/copyright owner, npm username and first publisher,
+and selected `devbuddy-plugin-client` as the preferred package name. The executable remains
+`devbuddy-npx`. Package naming rights are not verified. The owner subsequently corrected and
+confirmed the fallback spelling as `@jennarin.meethong/devbuddy-plugin-client` on the same day.
+Scope ownership and publishing permissions still need verification.
+
+Public disclosure still needs the owner's review. License is undecided and the owner asked for
+options; do not add a license on their behalf. Intended publishing repository is
+`https://github.com/jennarinmeethong/devbuddy-plugin`. Trusted-publisher administrator,
+organizational release requirements, pilot version and `next` publication approval are all
+undecided. These inputs authorise preparation, not publication or a plugin-default change.
+
+## Confirmed Implementing the Full npm Client Plan — 2026-10-25
+
+After stage A completed, the owner asked to read and implement `docs/plan-npx-client.md`
+("อ่าน plan แล้วทำตาม"). Work may now proceed through the full client implementation and its
+tests in that plan. Keep .NET and plugin defaults, shared registry/OS credentials and existing
+server permissions. Stage-A completion does not waive production platform/native/SAC, real-host
+or release acceptance. Publication and a default change remain separate owner-controlled steps.
+
+## Confirmed the Existing Proxmox LXC for Linux x64 Prototype Tests — 2026-10-25
+
+The owner explicitly approved using `devrelease` (192.168.1.161) as the additional Linux x64 test
+host, including prerequisite preparation and transfer of the same limited prototype source
+bundle. Use the existing LXC rather than create a new VM; keep test tools under the user's
+`.devbuddy-npx-test` directory and do not change running application deployments. This extends
+the earlier explicit source-transfer permission for Mac mini and its Windows/Ubuntu ARM guests.
+The original feasibility gate and prototype-only scope remain in force.
+
+## Confirmed Keeping the npm Client Feasibility Gate — 2026-10-25
+
+After the Windows x64 prototype passed and the owner confirmed active SAC enforcement through
+administrator CiTool output, the owner explicitly chose to **keep the original gate and perform
+additional prototype testing only**, rather than start the full CLI/MCP port on x64 first.
+Windows ARM64 and the other outstanding native/platform checks remain required; no implicit
+waiver, default-plugin change or publication is authorised. Windows x64 evidence applies to the
+tested prototype and machine, not all unsigned modules or future packages.
+
+## Confirmed a Parallel npm Client, with a Native/SAC Feasibility Gate — 2026-10-24
+
+The owner approved the Node/npm implementation plan after choosing **keep the OS credential
+stores** and **ship alongside .NET first**. TypeScript on Node.js 24 will eventually expose
+`devbuddy-npx`, sharing the .NET client's registry schema and credentials without changing server
+operations, permissions, plugin defaults or web-generated setup commands. `devbuddy-client` is a
+proposed npm name, subject to publishing rights; versions track DevBuddy, first under `next`.
+
+Stage A comes first: a pinned Koffi prototype calling Credential Manager and Keychain directly,
+with synthetic cross-client credential tests and native hash/signature/SAC evidence. Product code
+must not start processes or invoke the old executable. No silent fallback to files on Windows or
+macOS. Full CLI work waits for the native/SAC gate, including Windows x64 and ARM64 under SAC
+enforcement. A failure does not authorise disabling SAC, signing dependencies or changing storage.
+Those need a separate decision. ADR-0016 records this addition to ADR-0015.
+
+Local Windows x64 tests work, but SAC is off and `koffi.node` is unsigned. This does **not** close
+the unsigned-client limitation or establish SAC compatibility. No npm release is published.
+
 ## Confirmed Vite 8, and Accepting ZAP's Suspicious-Comments Finding — 2026-10-06
 
 Dependabot's vite 8 (PRs #29 and #59) failed only the ZAP baseline, on rule 10027. Its one

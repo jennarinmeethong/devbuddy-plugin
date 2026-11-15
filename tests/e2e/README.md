@@ -107,7 +107,22 @@ AI access closed on every project.
 | `operations.spec.ts` | Component health and backup, the quality sweeps, reindex, export, and the audit trail with its channel and without content. |
 | `analysis.spec.ts` | The seven analyses, a path escaping the repository, change impact, comparing two tags, and synchronisation. They run over a git working copy the suite writes as files, the way DevBuddy reads them. |
 | `mcp.spec.ts` | The tool list equals the manifest's AI allow-list. A project closed to AI is invisible. An assistant's draft is marked and audited as an assistant's whatever it claims. A viewer's assistant cannot write. |
+| `npm-client.spec.ts` | The real production npm CLI registers a real machine token, verifies its workspace, supplies headers, bridges the actual catalog and workspace injection, adopts token replacement in one session, refuses revocation and locks multi-workspace selection. |
 | `host.spec.ts` | The client's route fallback never shadows an API answer. The build has no source maps. No script errors while moving through the screens. |
+
+The npm client is compiled in a separate Bun stage of the runner image. Its subprocesses use
+isolated homes and synthetic accounts/tokens. A transparent loopback gateway relays to the real
+MCP service on the Compose network, so the production client's remote-HTTP refusal remains
+unchanged. This is production CLI/transport acceptance, not a Claude Code, Codex or Cowork GUI
+acceptance claim. Run just this addition with:
+
+```bash
+DEVBUDDY_E2E_RESTORE=0 bash tests/e2e/run.sh specs/npm-client.spec.ts --project chromium --workers 1
+```
+
+The existing stdio checks wait for initialize and tool replies before closing input. A fixed
+sleep previously closed the pipe while a legitimate refusal was completing on a busy machine;
+the identity/revocation assertions remain unchanged.
 
 ## After the suite
 

@@ -1,0 +1,23 @@
+{
+  "name": "devbuddy-plugin-client",
+  "version": "1.14.0-next.0",
+  "private": true,
+  "description": "Opt-in DevBuddy client; prerelease development, not published",
+  "type": "module",
+  "bin": { "devbuddy-npx": "dist/main.js" },
+  "engines": { "node": ">=24 <25" },
+  "files": ["dist/main.js", "dist/cli.js", "dist/bridge.js", "dist/context.js", "dist/registry.js", "dist/file-store.js", "dist/credentials.js", "dist/windows.js", "dist/keychain.js", "dist/http.js", "dist/token-input.js", "dist/errors.js", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "bun test tests",
+    "probe": "node dist/probe-main.js",
+    "compatibility": "node tools/compatibility.mjs"
+  },
+  "dependencies": { "koffi": "3.3.3" },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}

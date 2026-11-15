@@ -86,7 +86,7 @@ export function Teams() {
             <Field label={t("Name")}>
               <Input
                 required
-                value={name}
+                maxLength={200} value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder={t("Platform")}
               />
@@ -157,10 +157,12 @@ function TeamRow({
             >
               <Input
                 required
+                maxLength={200}
                 aria-label={t("New name for {name}", { name })}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
               />
+              <span aria-hidden="true" className="text-red-600">*</span>
               <Button type="submit" variant="primary" disabled={rename.isPending}>
                 {t("Save")}
               </Button>

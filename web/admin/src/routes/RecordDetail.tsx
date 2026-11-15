@@ -419,7 +419,7 @@ function ReviseForm({
       </p>
 
       <Field label={t("Title")}>
-        <Input required value={title} onChange={(event) => setTitle(event.target.value)} />
+        <Input required maxLength={500} value={title} onChange={(event) => setTitle(event.target.value)} />
       </Field>
 
       <Field label={t("Body")}>
@@ -554,6 +554,7 @@ function Approval({ scope, recordId, revision }: { scope: Scope; recordId: strin
           <Field label={t("Or send it back")} hint={t("The reason is kept on the record and shown to whoever revises it.")}>
             <TextArea
               required
+              maxLength={4000}
               rows={2}
               value={reason}
               onChange={(event) => setReason(event.target.value)}

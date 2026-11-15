@@ -84,7 +84,7 @@ export function WorkspaceProvisioning() {
           <Field label={t("Name")}>
             <Input
               required
-              value={name}
+              maxLength={200} value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={t("Northwind")}
             />
@@ -92,7 +92,7 @@ export function WorkspaceProvisioning() {
 
           <Field label={t("First project")} hint={t("Optional. One can be created inside it afterwards instead.")}>
             <Input
-              value={firstProjectName}
+              maxLength={200} value={firstProjectName}
               onChange={(event) => setFirstProjectName(event.target.value)}
               placeholder={t("Payments platform")}
             />

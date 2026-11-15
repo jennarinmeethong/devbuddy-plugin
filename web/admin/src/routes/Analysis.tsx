@@ -108,7 +108,7 @@ function RepositoryChoice({
 }) {
   return (
     <Field label={t("Repository")}>
-      <Select value={value} onChange={(event) => onChange(event.target.value)}>
+      <Select required={!allowWholeProject} value={value} onChange={(event) => onChange(event.target.value)}>
         {allowWholeProject ? <option value="">{t("The whole project directory")}</option> : null}
         {repositories.map((repository) => (
           <option key={repository.repositoryId} value={repository.repositoryId}>
@@ -145,7 +145,7 @@ function RunAnalysis({ scope, repositories }: { scope: Scope; repositories: Repo
       >
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label={t("What to look at")}>
-            <Select value={operation} onChange={(event) => setOperation(event.target.value as AnalysisOperation)}>
+            <Select required value={operation} onChange={(event) => setOperation(event.target.value as AnalysisOperation)}>
               {ANALYSES.map((analysis) => (
                 <option key={analysis.operation} value={analysis.operation}>
                   {t(analysis.label)}

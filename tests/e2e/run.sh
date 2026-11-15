@@ -251,13 +251,33 @@ stdio_checks() {
   # One exchange: initialize, then the given request as id 2, answered on stdout.
   mcp_stdio() {
     local token=$1 request=$2 extra=${3:-}
-    {
-      printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e-stdio","version":"0"}}}'
-      sleep 3
-      printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}'
-      printf '%s\n' "$request"
-      sleep 8
-    } | compose run --rm --no-deps -T -e DEVBUDDY_TOKEN="$token" $extra mcp --stdio 2>>"$log" | grep '"id":2' || true
+    # Wait for protocol replies rather than closing stdin after a fixed sleep.
+    # A busy machine can finish the refusal while the old eight-second pipe is
+    # closing, so the server audits a refusal but its response is lost at EOF.
+    coproc MCP_EXCHANGE { compose run --rm --no-deps -T -e DEVBUDDY_TOKEN="$token" $extra mcp --stdio 2>>"$log"; }
+    local pid=$MCP_EXCHANGE_PID original_output=${MCP_EXCHANGE[0]} original_input=${MCP_EXCHANGE[1]}
+    local output input line initialized=0 answered=0
+    exec {output}<&"$original_output"
+    exec {input}>&"$original_input"
+    exec {original_output}<&-
+    exec {original_input}>&-
+    printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e-stdio","version":"0"}}}' >&"$input"
+    while IFS= read -r -t 30 -u "$output" line; do
+      if printf '%s' "$line" | grep -qE '"id"[[:space:]]*:[[:space:]]*1([,}])'; then initialized=1; break; fi
+    done
+    if [ "$initialized" = 1 ]; then
+      printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized"}' "$request" >&"$input"
+      while IFS= read -r -t 30 -u "$output" line; do
+        if printf '%s' "$line" | grep -qE '"id"[[:space:]]*:[[:space:]]*2([,}])'; then printf '%s\n' "$line"; answered=1; break; fi
+      done
+    fi
+    exec {input}>&-
+    exec {output}<&-
+    if [ "$answered" != 1 ]; then
+      echo 'stdio protocol reply did not arrive within its deadline' >>"$log"
+      kill "$pid" 2>/dev/null || true
+    fi
+    wait "$pid" || true
   }
 
   local workspace actor issued token token_id

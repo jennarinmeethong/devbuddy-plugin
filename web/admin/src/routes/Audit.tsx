@@ -65,7 +65,7 @@ export function Audit() {
     <Panel title={t("Audit history")} tour="audit-entries" hint={<Hint topic={HINTS.auditEntry} />}>
       <form className="mb-4 grid gap-3 sm:grid-cols-3" data-tour="audit-filters">
         <Field label={t("Project")}>
-          <Select value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+          <Select required value={projectId} onChange={(event) => setProjectId(event.target.value)}>
             <option value="">{t("Choose a project…")}</option>
             {(projects.data?.projects ?? []).map((project) => (
               <option key={project.projectId} value={project.projectId}>
@@ -78,10 +78,11 @@ export function Audit() {
         <Field label={t("Days back")}>
           <Input
             type="number"
+            required
             min={1}
             max={365}
             value={days}
-            onChange={(event) => setDays(Number(event.target.value) || 1)}
+            onChange={(event) => setDays(Math.min(365, Math.max(1, Math.trunc(Number(event.target.value) || 1))))}
           />
         </Field>
 
